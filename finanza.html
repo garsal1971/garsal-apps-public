@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.3</title>
+  <title>GarsalFinanza v1.27.4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -611,7 +611,7 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.3';
+const APP_VERSION = 'v1.27.4';
 const APP_BUILD   = '2026-10-02T10:40:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
@@ -648,6 +648,7 @@ const S = {
   // pagati dall'azienda in ciascuno scenario, da cm_settings. null = mai lette; {} = lette e
   // mai compilate, e allora valgono USCITA_DEFAULT / ACCORDO_DEFAULT.
   uscita: null, accordoAnni: null, esodoScenari: null, esodoParametri: null, contribAnni: null,
+  adaScuola: null,   // anno scolastico e classe di Ada, da cm_settings `ada_scuola`
   // La percentuale di rivalutazione della ⏳ macchina del tempo, da cm_settings come le altre
   // tre chiavi del piano. I mesi di spostamento invece stanno qui e basta: vedi `coverageOggi`.
   rivalutazione: null,
@@ -3990,15 +3991,36 @@ async function deletePensionContribution(id) {
 
 /* Ada: l'anno scolastico in cui frequenta la classe indicata. Da qui si ricava quando comincia
    l'università, che è l'unica cosa che alla pagina serve sapere — e si ricava invece di essere
-   scritto a mano, o fra due anni direbbe ancora 2029 senza che niente lo segnali. */
+   scritto a mano, o fra due anni direbbe ancora lo stesso anno senza che niente lo segnali. */
 /* ⚠️ Due durate diverse, e non è una svista: `anniUniversita` (7) è quanto si prevede di
    MANTENERLA agli studi — laurea più specializzazione — mentre `anniCorsoRegolare` (3+2) è la
    durata legale del corso, che è quella a cui guarda l'INPS per la pensione ai superstiti di un
    figlio studente. La prima decide il fabbisogno, la seconda fino a quando quella pensione si
    incassa: usarne una sola farebbe sbagliare per eccesso l'una o per difetto l'altra. */
-const ADA_SCUOLA = { annoScolastico: 2026, classe: 3, classiSuperiori: 5,
-                     anniUniversita: 7, anniCorsoRegolare: 5, meseInizio: 9 };
+/* ⚠️ Anno scolastico e classe NON stanno nel codice: la repo è pubblica, e quei due numeri dicono
+   l'età di Ada. Vivono in `cm_settings`, chiave `ada_scuola` (JSON `{anno_scolastico, classe,
+   anni_universita, anni_corso_regolare}`), e si scrivono dal 🎓✎ sulla voce dell'università.
+   Senza anno o classe NON c'è nessun ripiego: le voci di Ada restano senza date e lo dicono —
+   un valore di partenza scritto qui rimetterebbe il dato nella repo. Le due durate invece hanno
+   un valore di partenza (7 e 5): non dicono niente di lei, sono il piano. Restano costanti le
+   due regole della scuola italiana: cinque classi di superiori, anno accademico da settembre. */
+const ADA_SCUOLA_CHIAVE = 'ada_scuola';
+const ADA_REGOLE  = { classiSuperiori: 5, meseInizio: 9 };
+const ADA_DEFAULT = { anni_universita: 7, anni_corso_regolare: 5 };
+function adaScuola() {
+  const v = S.adaScuola || {};
+  const int = (x, min, max) => { x = parseInt(x, 10); return Number.isFinite(x) && x >= min && x <= max ? x : null; };
+  const annoScolastico = int(v.anno_scolastico, 2000, 2100);
+  const classe         = int(v.classe, 1, ADA_REGOLE.classiSuperiori);
+  if (annoScolastico == null || classe == null) return null;
+  return { ...ADA_REGOLE, annoScolastico, classe,
+           anniUniversita:    int(v.anni_universita, 1, 15)    ?? ADA_DEFAULT.anni_universita,
+           anniCorsoRegolare: int(v.anni_corso_regolare, 1, 15) ?? ADA_DEFAULT.anni_corso_regolare };
+}
+const ADA_MANCA = 'Mancano anno scolastico e classe di Ada: compilali dal 🎓✎ sulla voce «Mantenimento università di Ada».';
 function adaUniversita() {
+  const ADA_SCUOLA = adaScuola();
+  if (!ADA_SCUOLA) return null;
   const mancano = ADA_SCUOLA.classiSuperiori - ADA_SCUOLA.classe + 1;   // superiori che restano
   const inizio  = ADA_SCUOLA.annoScolastico + mancano;
   const fine    = inizio + ADA_SCUOLA.anniUniversita;
@@ -4076,7 +4098,7 @@ function leggiJson(rows, chiave) {
 // disegnare la stessa pagina sarebbero due attese invece di una.
 async function loadUscita() {
   const rows = await sbQ('cm_settings',
-    `key=in.(${USCITA_CHIAVE},${ACCORDO_CHIAVE},${SCENARI_NOTE_CHIAVE},${RIVALUTA_CHIAVE},${ESODO_CHIAVE},${ESODO_PARAM_CHIAVE},${CONTRIB_ANNI_CHIAVE})&select=key,value`);
+    `key=in.(${USCITA_CHIAVE},${ACCORDO_CHIAVE},${SCENARI_NOTE_CHIAVE},${RIVALUTA_CHIAVE},${ESODO_CHIAVE},${ESODO_PARAM_CHIAVE},${CONTRIB_ANNI_CHIAVE},${ADA_SCUOLA_CHIAVE})&select=key,value`);
   S.uscita        = leggiJson(rows, USCITA_CHIAVE);
   S.accordoAnni   = leggiJson(rows, ACCORDO_CHIAVE);
   S.scenariNote   = leggiJson(rows, SCENARI_NOTE_CHIAVE);
@@ -4084,17 +4106,20 @@ async function loadUscita() {
   S.esodoScenari  = leggiJson(rows, ESODO_CHIAVE);
   S.esodoParametri = leggiJson(rows, ESODO_PARAM_CHIAVE);
   S.contribAnni    = leggiJson(rows, CONTRIB_ANNI_CHIAVE);
+  S.adaScuola      = leggiJson(rows, ADA_SCUOLA_CHIAVE);
 }
 
 const COVERAGE_ITEMS = [
   /* ⚠️ L'unica voce con un PERIODO: l'importo è il totale dei sette anni, e spostando la
-     ⏳ macchina del tempo oltre settembre 2029 i mesi già passati sono già stati spesi — quel
+     ⏳ macchina del tempo oltre il settembre in cui comincia i mesi già passati sono già stati spesi — quel
      che resta da coprire è la sola coda. Senza, osservando dal 2033 la pagina chiederebbe di
      coprire un'università già fatta per metà. Vedi `coverageResiduo`. */
   { side: 'fabbisogno', key: 'universita',    icon: '🎓', label: 'Mantenimento università di Ada',
     hint: () => { const u = adaUniversita();
+      if (!u) return `⚠️ ${ADA_MANCA}`;
       return `${u.anni} anni fuori sede, da settembre ${u.inizio} a ${u.fine}: laurea e specializzazione.`; },
-    fonte: 'manuale', periodicita: 'una_tantum', periodo: () => adaUniversita(), prompt: 'universita' },
+    fonte: 'manuale', periodicita: 'una_tantum', periodo: () => adaUniversita(), prompt: 'universita',
+    modifica: { action: 'edit-ada', title: 'Anno scolastico e classe di Ada' } },
   { side: 'fabbisogno', key: 'mutuo',         icon: '🏠', label: 'Estinzione mutuo',
     hint: () => coverageMesi() ? 'Quanto servirebbe per chiudere il mutuo alla data della barra.'
                                : 'Quanto servirebbe per chiudere il mutuo oggi.',
@@ -4144,6 +4169,7 @@ const COVERAGE_ITEMS = [
   { side: 'dotazione',  key: 'casa_mia',      icon: '🏡', label: 'Casa Mia',  fonte: 'asset' },
   { side: 'dotazione',  key: 'finanza',       icon: '📈', label: 'Finanza', fonte: 'auto', auto: coverageFinanza },
   { side: 'dotazione',  key: 'pensione_ada',  icon: '👛', label: 'Pensione Ada',
+    hint: () => adaUniversita() ? '' : `⚠️ Senza la classe di Ada non si sa fino a quando si incassa. ${ADA_MANCA}`,
     fonte: 'auto', auto: coveragePensioneAda },
   /* ⚠️ 🤲 Il contributo per esodo NON è una voce di questo elenco (v1.25.0): vale in alcune
      ipotesi di uscita e non in altre, quindi è una riga del riepilogo con una spunta per colonna
@@ -4480,11 +4506,11 @@ function coverageContribuzionePensione() {
    anni che mancano alla fine del CORSO REGOLARE di Ada (l'ultimo in cui quella pensione spetta a
    un figlio studente), non per gli anni di mantenimento agli studi del fabbisogno, che sono
    sette e comprendono la specializzazione. La differenza fra le due durate è scritta accanto ad
-   ADA_SCUOLA.
+   ADA_SCUOLA (ora in cm_settings, vedi adaScuola).
 
    ⚠️ La fine si ricava — inizio dell'università più la durata legale del corso — e non si
-   scrive: un 2034 messo a mano fra due anni direbbe ancora 2034 senza che niente lo segnali. Il
-   conto è in anni interi, `2034 − anno in corso`, così il numero si rifà a mente; finito il
+   scrive: un anno messo a mano fra due anni direbbe ancora lo stesso anno senza che niente lo segnali. Il
+   conto è in anni interi, `fine del corso − anno in corso`, così il numero si rifà a mente; finito il
    corso vale zero, che è quello che sarà. */
 /* ── 🤝 Accordo con azienda — la riga del riepilogo ─────────────────────────
    Quello che l'azienda metterebbe per l'uscita: la retribuzione di un anno per gli anni che si
@@ -4533,7 +4559,7 @@ function coverageAccordo(sc) {
 /* ⚠️ Quel che resta da incassare si conta dalla DATA DI OSSERVAZIONE e **a mesi**, come la
    🎓 università (`coverageResiduo`): spostandosi al settembre 2032 la pensione di Ada si incassa
    per due anni ancora, non per otto. Fino alla v1.21.0 il conto era in anni interi
-   (`2034 − anno in corso`), che si rifà a mente ma lascia la voce **ferma per undici mesi su
+   (`fine del corso − anno in corso`), che si rifà a mente ma lascia la voce **ferma per undici mesi su
    dodici** — cioè una voce che non risponde alla barra, accanto a una che risponde. L'importo
    scritto accanto lo dice in mesi, che è il modo di rifarlo a mente adesso. */
 function coveragePensioneAda() {
@@ -4542,6 +4568,7 @@ function coveragePensioneAda() {
   const r     = righe.reduce((a, b) => (b.year > a.year ? b : a));
   const annuo = parseFloat(r.amount);
   const u     = adaUniversita();
+  if (!u) return null;
   const mesi  = Math.max(0, mesiFra(coverageOggi(), u.aCorsoRegolare));
   const fine  = `${MESI_IT[parseInt(u.aCorsoRegolare.slice(5, 7), 10) - 1]} ${u.fineCorsoRegolare}`;
   return { value: annuo * mesi / 12,
@@ -4627,7 +4654,7 @@ function coverageAuto(item, sc) {
 }
 /* ── I mesi già spesi: una voce che ha un PERIODO si consuma da sé ────────
    Un capitale che copre una spesa distesa nel tempo — oggi la sola 🎓 università di Ada, sette
-   anni da settembre 2029 — non vale intero da qualunque punto lo si guardi: spostando la
+   anni dal settembre in cui comincia — non vale intero da qualunque punto lo si guardi: spostando la
    ⏳ macchina del tempo dentro quel periodo, i mesi passati sono già stati spesi e a mancare è
    la sola coda. `coverageResiduo` dice quanta ne resta, e la frazione entra in `coverageBase`.
 
@@ -5310,6 +5337,44 @@ function openEsodoModal() {
   });
 }
 
+/* 🎓 Anno scolastico e classe di Ada. ⚠️ Una casella vuota TOGLIE quel campo invece di salvare
+   zero, come la casella vuota di fnz_income: senza anno o classe le voci di Ada dicono che manca
+   il dato, e uno zero direbbe un'altra cosa. */
+function openAdaModal() {
+  const v = S.adaScuola || {};
+  const campo = (name, label, hint, val, extra = '') => `
+      <div class="form-group">
+        <label class="form-label">${label}</label>
+        <input name="${name}" type="number" step="1" class="form-input mono" value="${val ?? ''}" ${extra} />
+        <p class="text-muted text-sm" style="margin-top:6px">${hint}</p>
+      </div>`;
+  openModal('🎓 Scuola di Ada', `
+    <form id="modal-form">
+      <p class="text-muted text-sm mb-12">Da qui si ricava quando comincia e quando finisce
+      l'università, e fino a quando si incassa la pensione di Ada. Si salva nel database e non
+      nella pagina, che è pubblica.</p>
+      ${campo('anno_scolastico', 'Anno scolastico (anno di inizio)', 'Per il 2026/27 scrivi 2026.', v.anno_scolastico, 'min="2000" max="2100"')}
+      ${campo('classe', 'Classe delle superiori che frequenta in quell\'anno', 'Da 1 a 5.', v.classe, 'min="1" max="5"')}
+      ${campo('anni_universita', 'Anni di mantenimento agli studi', `Laurea più specializzazione: decide il fabbisogno. Vuoto = ${ADA_DEFAULT.anni_universita}.`, v.anni_universita, 'min="1" max="15"')}
+      ${campo('anni_corso_regolare', 'Anni del corso regolare', `Durata legale (3+2): decide fino a quando si incassa la pensione. Vuoto = ${ADA_DEFAULT.anni_corso_regolare}.`, v.anni_corso_regolare, 'min="1" max="15"')}
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-action="close-modal">Annulla</button>
+        <button type="submit" class="btn btn-primary">Salva</button>
+      </div>
+    </form>
+  `, async data => {
+    const out = {};
+    for (const k of ['anno_scolastico', 'classe', 'anni_universita', 'anni_corso_regolare']) {
+      const x = parseInt(data[k], 10);
+      if (Number.isFinite(x) && x > 0) out[k] = x;
+    }
+    await sbUpsert('cm_settings', { key: ADA_SCUOLA_CHIAVE, value: JSON.stringify(out) }, 'key');
+    await loadUscita();
+    closeModal();
+    render();
+  });
+}
+
 async function salvaUscita(v) {
   await sbUpsert('cm_settings', { key: USCITA_CHIAVE, value: JSON.stringify(v) }, 'key');
   await loadUscita();
@@ -5474,6 +5539,7 @@ function renderCoverageRow(item, colonne) {
         <button class="btn-icon" data-action="edit-coverage" data-side="${item.side}" data-key="${item.key}" title="Compila / modifica">✎</button>
         <button class="btn-icon" data-action="coverage-toggle" data-side="${item.side}" data-key="${item.key}"
                 title="${esclusa ? 'Fuori dal calcolo — rimettila nel conto' : 'Nel calcolo — toglila dal conto'}">${esclusa ? '🚫' : '☑️'}</button>
+        ${item.modifica ? `<button class="btn-icon" data-action="${item.modifica.action}" title="${item.modifica.title}">🎓✎</button>` : ''}
         ${item.prompt ? `<button class="btn-icon" data-action="coverage-prompt" data-key="${item.prompt}" title="Prompt per l'analisi con l'IA">💬</button>` : ''}
         ${base.scrittoAMano && base.auto ? `<button class="btn-icon" data-action="coverage-reset" data-side="${item.side}" data-key="${item.key}" title="Torna al dato di Finanza">↺</button>` : ''}
         <span class="fw-600">${item.icon} ${item.label}</span>
@@ -5657,6 +5723,8 @@ async function resetCoverageAmount(side, key) {
 const COVERAGE_PROMPTS = {
   universita: () => {
     const u = adaUniversita();
+    const ADA_SCUOLA = adaScuola();
+    if (!u) return ADA_MANCA;
     return `Fammi un'analisi dettagliata del costo di mantenimento di mia figlia fuori sede per studi
 universitari in Europa, su un orizzonte di ${u.anni} anni (laurea triennale + magistrale/specializzazione).
 
@@ -8192,6 +8260,7 @@ document.addEventListener('click', async e => {
       break;
     case 'cov-zero':              vaiAScoperturaZero(t.dataset.key); break;
     case 'edit-uscita':           openUscitaModal(); break;
+    case 'edit-ada':              openAdaModal(); break;
     case 'edit-accordo':          openAccordoModal(); break;
     case 'edit-esodo':            openEsodoModal(); break;
     case 'edit-scenario-nota':    openScenarioNotaModal(t.dataset.key); break;

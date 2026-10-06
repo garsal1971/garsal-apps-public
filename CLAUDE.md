@@ -492,7 +492,7 @@ della pagina direbbe qualcosa di diverso dal giorno prima senza che nessuno l'ab
 |---|---|
 | 🏠 Estinzione mutuo | **si ricalcola** col piano di ammortamento (`computeLoanValue(l, data)`) |
 | 🎓 Università di Ada | si **consuma**: resta la quota dei mesi ancora da fare, e quella si rivaluta |
-| 👛 Pensione Ada (dotazione) | si **accorcia**: importo annuo × i mesi che restano fino a settembre 2034 |
+| 👛 Pensione Ada (dotazione) | si **accorcia**: importo annuo × i mesi che restano fino alla fine del corso regolare |
 | Tutto il resto — fabbisogno **e** dotazioni | si **rivaluta** di `(1+r)^anni` |
 
 ⚠️ **Il mutuo si ricalcola e non si rivaluta**, ed è l'unica eccezione: il piano di ammortamento
@@ -502,10 +502,10 @@ sulla voce in `COVERAGE_ITEMS`, ed è l'unica che ce l'ha.
 
 ### ⏳ 🎓 L'università di Ada si consuma coi mesi (v1.21.0)
 
-È l'unica voce che porta un **periodo** — `periodo: () => adaUniversita()`, cioè **settembre 2029
-→ settembre 2036, 84 mesi** — e l'importo scritto nel form è il **totale di quei sette anni**.
+È l'unica voce che porta un **periodo** — `periodo: () => adaUniversita()`, cioè **sette anni da
+settembre, 84 mesi** — e l'importo scritto nel form è il **totale di quei sette anni**.
 Spostando la ⏳ macchina del tempo dentro quel periodo, i mesi già passati **sono già stati
-spesi**: quel che resta da coprire è la sola coda, `coverageResiduo(item).frazione`. Fino al 2029
+spesi**: quel che resta da coprire è la sola coda, `coverageResiduo(item).frazione`. Fino all'inizio
 vale intero (e quindi **a barra ferma la pagina mostra esattamente i numeri di prima**), a
 settembre 2032 vale 48/84, a corso finito vale **zero** — non `null`: quel fabbisogno non c'è più,
 non è un dato che manca. Senza, osservando dal 2033 la pagina chiederebbe di coprire
@@ -701,15 +701,15 @@ anno appena aperto e ancora da compilare azzererebbe la voce in silenzio.
 
 ⚠️ **È un importo ANNUO, e la dotazione è quanto se ne incasserà in tutto**: si moltiplica per gli
 anni che mancano alla fine del **corso regolare** di Ada, l'ultimo in cui quella pensione spetta a
-un figlio studente. Sono due durate diverse in `ADA_SCUOLA` e non è una svista: `anniUniversita`
+un figlio studente. Sono due durate diverse in `adaScuola()` e non è una svista: `anniUniversita`
 (7) è il mantenimento agli studi che decide il **fabbisogno** — laurea più specializzazione —
 mentre `anniCorsoRegolare` (3+2) è la durata legale del corso, che decide fino a quando la
-pensione si incassa (inizio 2029 + 5 = **2034**). Usarne una sola sbaglierebbe per eccesso l'una o
-per difetto l'altra. La fine si **ricava** e non si scrive: un 2034 messo a mano fra due anni
-direbbe ancora 2034. A corso finito la voce vale zero — che è quello che sarà.
+pensione si incassa (inizio + 5). Usarne una sola sbaglierebbe per eccesso l'una o
+per difetto l'altra. La fine si **ricava** e non si scrive: un anno messo a mano fra due anni
+direbbe ancora lo stesso anno. A corso finito la voce vale zero — che è quello che sarà.
 
 ⚠️ **Il conto è a MESI e non ad anni interi** (v1.21.1, `mesiFra(coverageOggi(), aCorsoRegolare)`,
-lo stesso metro della 🎓 università): fino alla v1.21.0 era `2034 − anno in corso`, che si rifà a
+lo stesso metro della 🎓 università): fino alla v1.21.0 era `fine del corso − anno in corso`, che si rifà a
 mente ma lasciava la voce **ferma per undici mesi su dodici** — una dotazione che non risponde alla
 ⏳ barra accanto a un fabbisogno che risponde, e la scopertura si muoveva a scalini annuali. Il
 mese parziale entra per la sua frazione, e l'etichetta scrive i mesi che restano (`mesiTxt`), che è
@@ -866,10 +866,20 @@ una voce manuale dice «non l'ho ancora scritto»; su una automatica dice «vale
 al dato che ha coperto, e si toglie col ↺. Un override silenzioso resterebbe fermo mentre il dato
 vero cambia sotto. Le voci senza valore si **contano accanto al totale** invece di sparirci dentro.
 
-**Quando comincia l'università di Ada si ricava, non si scrive**: `ADA_SCUOLA` dice classe e anno
-scolastico in corso  e `adaUniversita()` ne ricava inizio, fine, anni che mancano e le **due date in ISO** (`da`/`a`) su cui la ⏳ macchina del tempo
+**Quando comincia l'università di Ada si ricava, non si scrive**: `adaScuola()` dice classe e anno
+scolastico in corso e `adaUniversita()` ne ricava inizio, fine, anni che mancano e le **due date in ISO** (`da`/`a`) su cui la ⏳ macchina del tempo
 conta i mesi già spesi. Scritto a mano, fra due anni direbbe ancora lo stesso anno senza che niente lo
 segnali.
+
+⚠️ **Anno scolastico e classe NON stanno nel codice** (v1.27.4): la repo è pubblica e quei due
+numeri dicono l'età di Ada. Vivono in `cm_settings`, chiave **`ada_scuola`** (JSON
+`{anno_scolastico, classe, anni_universita, anni_corso_regolare}`), letta da `loadUscita()` con le
+altre, e si scrivono dal **🎓✎** sulla voce dell'università (`openAdaModal`). ⚠️ **Senza anno o
+classe non c'è nessun ripiego**: università e pensione di Ada restano senza date e lo dicono
+(`ADA_MANCA`) — un valore di partenza scritto nella pagina rimetterebbe il dato nella repo. Le due
+durate invece ripiegano su 7 e 5 (`ADA_DEFAULT`), che sono il piano e non dicono niente di lei;
+una casella vuota toglie il campo invece di salvare zero. È il posto anche per i prossimi dati
+personali che oggi stessero scritti in una pagina: una chiave in `cm_settings`, non una costante.
 
 I due 💬 (università di Ada, assicurazione) aprono un popup col **prompt già scritto** da
 incollare in una chat con l'IA. Quello dell'assicurazione ci mette dentro i numeri che la pagina
