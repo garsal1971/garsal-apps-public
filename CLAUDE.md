@@ -6896,9 +6896,8 @@ Quando si accede da `localhost`, le app rilevano automaticamente `_IS_DEV = true
 Ogni file HTML contiene un blocco `_IS_DEV` che switcha le credenziali Supabase in base all'hostname:
 ```js
 const _IS_DEV = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname)
-             || window.location.hostname.endsWith('.pages.dev')
-             || (window.location.hostname.endsWith('.netlify.app')
-                && window.location.hostname.startsWith('dev--'));
+             || (window.location.hostname.endsWith('.pages.dev')
+                && window.location.hostname.split('.').length > 3);
 const SUPABASE_URL = _IS_DEV ? 'https://DEV_SUPABASE_PROJECT_REF.supabase.co' : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_KEY = _IS_DEV ? 'DEV_SUPABASE_ANON_KEY' : '<PROD_KEY>';
 ```
@@ -7076,9 +7075,9 @@ telefono non si installa niente**.
 Cloudflare Pages pubblica a ogni push su `master`: *build command* `bash scripts/build-sito.sh`,
 *output* `dist`, header e riscritture in `_headers` / `_redirects`. La radice `/` è `index.html`.
 ⚠️ Netlify non c'è più: `netlify.toml` e `deploy-dev.yml` sono stati tolti il 6 ottobre 2026, e
-l'account è stato chiuso. `enable-banking-callback` riporta su `garsal.men`. Restano due tracce
-innocue: il controllo `.netlify.app` di `_IS_DEV` nelle pagine e il nome «scaricabile via Netlify»
-di un passo in tre workflow di build.
+l'account è stato chiuso. `enable-banking-callback` riporta su `garsal.men`. Il controllo
+`.netlify.app` di `_IS_DEV` è stato tolto dalle pagine; resta solo il nome «scaricabile via
+Netlify» di un passo in tre workflow di build.
 
 ### Git workflow
 - `master` — production branch (pubblicato da Cloudflare Pages)

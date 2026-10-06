@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.11.5</title>
+  <title>Peso e Calorie v4.11.6</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1778,8 +1778,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.11.5';
-        var BUILD_TIME  = '2026-10-06T11:00:00Z';
+        var APP_VERSION = 'v4.11.6';
+        var BUILD_TIME  = '2026-10-06T21:40:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -1942,9 +1942,7 @@
         // ── AMBIENTE: dev vs produzione ─────────────────────────────────────────────
         const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
         const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
-                     || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
-                     || (window.location.hostname.endsWith('.netlify.app')
-                        && window.location.hostname.startsWith('dev--'));
+                     || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
         // CONFIG
         var CONFIG = {
             supabaseUrl: _IS_DEV

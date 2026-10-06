@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🔐 Forziere v1.6.3</title>
+<title>🔐 Forziere v1.6.4</title>
 <!-- ⚠️ QUESTA PAGINA NON CARICA NIENTE DA TERZI, e non è pignoleria: mentre è aperta
      tiene in memoria le 24 parole, quindi QUALUNQUE script che gira qui dentro può
      leggerle e spedirle senza che niente lo dica. Un `<script>` servito da un CDN è
@@ -311,8 +311,8 @@ textarea{resize:vertical;line-height:1.45}
 // ============================================================
 // FORZIERE — versione
 // ============================================================
-var APP_VERSION = 'v1.6.3';
-var BUILD_TIME  = '2026-09-14T10:30:00Z';
+var APP_VERSION = 'v1.6.4';
+var BUILD_TIME  = '2026-10-06T21:40:00Z';
 console.log('%c FORZIERE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#1F2937;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -323,9 +323,7 @@ document.getElementById('versionBadge').textContent = APP_VERSION;
 // ============================================================
 var _DEV_HOSTS = ['localhost','127.0.0.1','0.0.0.0'];
 var _IS_DEV = _DEV_HOSTS.indexOf(window.location.hostname) !== -1
-           || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
-           || (window.location.hostname.endsWith('.netlify.app')
-              && window.location.hostname.startsWith('dev--'));
+           || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
 
 var SUPABASE_URL = _IS_DEV
   ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.25.4</title>
+    <title>Tasks v19.25.5</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2348,8 +2348,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.25.4';
-        const BUILD_TIME  = '2026-10-06T17:44:43Z';
+        const APP_VERSION = 'v19.25.5';
+        const BUILD_TIME  = '2026-10-06T21:40:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -2416,9 +2416,7 @@
         // ── AMBIENTE: dev vs produzione ─────────────────────────────────────────────
         const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
         const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
-                     || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
-                     || (window.location.hostname.endsWith('.netlify.app')
-                        && window.location.hostname.startsWith('dev--'));
+                     || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
         const SUPABASE_URL = _IS_DEV
             ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
             : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piante v1.4.0</title>
+    <title>Piante v1.4.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -706,8 +706,8 @@
 // ════════════════════════════════════════════════════════════
 // PIANTE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.4.0';
-var BUILD_TIME  = '2026-09-29T16:00:00Z';
+var APP_VERSION = 'v1.4.1';
+var BUILD_TIME  = '2026-10-06T21:40:00Z';
 console.log('%c 🌱 PIANTE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#2E7D32;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -717,9 +717,7 @@ console.log('%c 🌱 PIANTE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
 // ════════════════════════════════════════════════════════════
 const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
 const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
-             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
-             || (window.location.hostname.endsWith('.netlify.app')
-                && window.location.hostname.startsWith('dev--'));
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
 
 const SUPABASE_URL = _IS_DEV
     ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'

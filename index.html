@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.9.7</title>
+<title>AppSphere v1.9.8</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2094,8 +2094,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.9.7';
-const BUILD_TIME  = '2026-10-06T17:44:43Z';
+const APP_VERSION = 'v1.9.8';
+const BUILD_TIME  = '2026-10-06T21:40:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2632,9 +2632,7 @@ function launchApp(app) {
 // ── AMBIENTE: dev vs produzione ─────────────────────────────────────────────
 const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
 const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
-             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
-             || (window.location.hostname.endsWith('.netlify.app')
-                && window.location.hostname.startsWith('dev--'));
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
 const SUPABASE_URL = _IS_DEV
     ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
     : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
