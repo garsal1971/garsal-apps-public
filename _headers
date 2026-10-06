@@ -24,11 +24,6 @@
   Content-Type: application/wasm
   Cache-Control: public, max-age=604800
 
-# Gli App Links di Android leggono questo file e vogliono il tipo giusto.
-/.well-known/assetlinks.json
-  Content-Type: application/json
-  Access-Control-Allow-Origin: *
-
 # Gli APK si scaricano, non si aprono.
 /releases/*
   Content-Disposition: attachment
