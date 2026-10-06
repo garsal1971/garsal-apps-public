@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.6</title>
+  <title>GarsalFinanza v1.27.7</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -613,8 +613,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.6';
-const APP_BUILD   = '2026-10-06T21:15:00Z';
+const APP_VERSION = 'v1.27.7';
+const APP_BUILD   = '2026-10-06T22:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -623,6 +623,7 @@ const PRICES_FN = `${SUPABASE_URL}/functions/v1/get-prices`;
 const S = {
   session: null,
   view: 'dashboard',
+  snapMensili: true,   // Snapshot salvati: uno per mese (true) o tutti. In memoria: è un modo di guardare
   portfolioId: null,
   dossierId: null,
   fundId: null,
@@ -1810,13 +1811,13 @@ function renderPatrimonioChart() {
 }
 /* ══════════════ RENDERERS ══════════════════════════════════════ */
 function renderProgressione() {
-  // Uno snapshot per mese: quello del giorno più grande. L'elenco è già dal più
-  // recente, quindi il primo che si incontra per ogni AAAA-MM è l'ultimo del mese.
-  // Il grafico qui sopra continua a leggere S.dashboardSnapshots per intero.
+  // Con lo switch su «uno per mese» resta lo snapshot del giorno più grande di ogni mese:
+  // l'elenco è già dal più recente, quindi il primo che si incontra per ogni AAAA-MM è
+  // l'ultimo del mese. Il grafico qui sopra legge comunque S.dashboardSnapshots per intero.
+  const tutti = S.dashboardSnapshots.slice().sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
   const visti = new Set();
-  const snaps = S.dashboardSnapshots.slice()
-    .sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date))
-    .filter(s => { const m = s.snapshot_date.slice(0, 7); if (visti.has(m)) return false; visti.add(m); return true; });
+  const snaps = !S.snapMensili ? tutti
+    : tutti.filter(s => { const m = s.snapshot_date.slice(0, 7); if (visti.has(m)) return false; visti.add(m); return true; });
   // Il migliore di ogni colonna, fra le righe mostrate: il più alto, tranne i debiti dove
   // è il più basso. Un valore assente non concorre (un portafoglio senza dato non è zero).
   const num = v => (v == null || v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
@@ -1860,7 +1861,11 @@ function renderProgressione() {
     <div class="card">
       <div class="card-header-row">
         <div class="card-title">Snapshot salvati</div>
-        <span class="text-muted text-sm">${snaps.length} voce${snaps.length !== 1 ? 'i' : ''}</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-sm ${S.snapMensili ? 'btn-primary' : 'btn-outline'}" data-action="snap-mensili" data-val="1">📅 Uno per mese</button>
+          <button class="btn btn-sm ${S.snapMensili ? 'btn-outline' : 'btn-primary'}" data-action="snap-mensili" data-val="0">📋 Tutti</button>
+          <span class="text-muted text-sm">${snaps.length} voc${snaps.length !== 1 ? 'i' : 'e'}</span>
+        </div>
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -8333,6 +8338,10 @@ document.addEventListener('click', async e => {
       renderPortafoglioDetail();
       break;
     }
+    case 'snap-mensili':
+      S.snapMensili = t.dataset.val === '1';
+      renderProgressione();
+      break;
     case 'snap-detail':
       await openSnapDetail(t.dataset.snapDate);
       break;
