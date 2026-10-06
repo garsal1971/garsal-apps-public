@@ -1,9 +1,8 @@
 name: Backup settimanale
 
 # ⚠️ I BACKUP NON RESTANO NEL REPOSITORY, E NON È UNA PREFERENZA.
-# `garsal1971/garsal-apps` è **pubblico**: patrimonio, spese, reddito e task
-# non ci vanno né su master — dove `netlify.toml` pubblica la radice, quindi
-# ogni file è anche scaricabile dal sito — né su un ramo a parte, che chiunque
+# `garsal1971/garsal-apps-public` è **pubblico**: patrimonio, spese, reddito e
+# task non ci vanno né su master né su un ramo a parte, che chiunque
 # apra la pagina del repo legge lo stesso.
 #
 # Dump e relazione salgono quindi su **Google Drive**, in una cartella

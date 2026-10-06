@@ -1,7 +1,6 @@
 # ── Header del sito, per Cloudflare Pages ────────────────────────────────────
-# Gemello di `netlify.toml`, che resta finché il sito sta su Netlify: Cloudflare
-# non legge quel file, legge questo. ⚠️ Se cambi una regola, cambiala in tutt'e
-# due finché convivono, o i due host serviranno la stessa pagina in due modi.
+# È l'unico posto dove stanno gli header: `netlify.toml` è stato tolto il
+# 6 ottobre 2026, quando il sito è rimasto solo su Cloudflare.
 
 # HTML mai in cache: l'APK carica la root "/" dentro una WebView e deve sempre
 # ricevere l'ultima versione, altrimenti resta su una vecchia (login rotto).

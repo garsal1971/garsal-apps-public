@@ -121,7 +121,7 @@ garsal-apps/
 ├── calorie.html         # rimando a weight-quest.html#diario (era il diario alimentare)
 ├── piante.html          # Piante v1.0.0 — diario di cura, azioni coi promemoria, IA, desideri
 ├── chiedi-a-pino.html   # Chiedi a Pino v1.1.0 — un prompt (con immagini), il motore IA scelto, risposte archiviate coi tag
-└── netlify.toml         # Netlify deployment config
+├── _headers / _redirects # Header e riscritture per Cloudflare Pages
 ```
 
 There is **no** `package.json`, `node_modules`, `build/`, or `dist/` directory. Every app ships as-is.
@@ -3449,7 +3449,7 @@ Il workflow scrive quindi accanto all'APK una `releases/AppSphereNative-latest.j
 `versionCode`, data di build, commit, peso, SHA-256) e il pannello di `comandi.html` la mostra sul
 pulsante, aggiungendo `?v=<versione>` al link perché il browser non riproponga il pacchetto già
 scaricato. La scheda si aggiorna **solo insieme all'APK** — `builtAt` cambia a ogni run, e
-pubblicarla da sola annuncerebbe una build nuova per un pacchetto identico — e `netlify.toml` la
+pubblicarla da sola annuncerebbe una build nuova per un pacchetto identico — e `_headers` la
 tiene fuori dalla cache, altrimenti la pagina annuncerebbe una versione e ne farebbe scaricare
 un'altra.
 
@@ -6485,8 +6485,8 @@ numeri del blocco di prima (46 confronti, nessuna differenza).
 
 ⚠️ **È una deroga dichiarata alla regola «un'app = un file HTML»**, come `/vendor/` del Forziere,
 e la ragione è la stessa del perché esiste: tre copie di una regola divergono in silenzio. ⚠️ Per
-la stessa ragione **non va in cache**: `netlify.toml` gli dà il `no-store` delle pagine
-(`_headers` ce l'ha già su `/*`), o una pagina nuova girerebbe sulle regole vecchie.
+la stessa ragione **non va in cache**: `_headers` gli dà il `no-store`
+delle pagine (su `/*`), o una pagina nuova girerebbe sulle regole vecchie.
 
 ⚠️ **Le regole ricevono i dati, non li leggono da uno stato globale**: ogni pagina tiene
 l'associazione movimento → categorie a modo suo (`CA.txCatIdx` di qua, `txCategories` in
@@ -6908,18 +6908,11 @@ const SUPABASE_KEY = _IS_DEV ? 'DEV_SUPABASE_ANON_KEY' : '<PROD_KEY>';
 1. Creare un nuovo progetto su [supabase.com](https://supabase.com) (piano gratuito va bene)
 2. Replicare lo schema: `supabase db push --project-ref <DEV_PROJECT_REF>`
 3. In Auth → URL Configuration → Redirect URLs, aggiungere: `http://localhost:8080`
-4. Aggiungere il secret `SUPABASE_DEV_PROJECT_REF` in GitHub → Settings → Secrets (usato da `deploy-dev.yml`)
-5. In Netlify → Site configuration → Build & deploy → Branch deploys → aggiungere pattern `dev/*`
 
 **Branch naming:**
-- `dev/<descrizione>` — sviluppo/test, preview su Netlify, **non va in produzione**
 - `claude/<descrizione>-<id>` — produzione, auto-merge su master
 
-**Preview URL per branch dev:**
-```
-dev--<nome-branch>--<sitename>.netlify.app
-```
-Usa automaticamente Supabase dev (rilevamento hostname).
+Le anteprime di Cloudflare Pages (`<ramo>.<progetto>.pages.dev`) usano Supabase dev.
 
 ### ⚠️ Il trasloco su Cloudflare e il dominio `garsal.men`
 
@@ -7040,9 +7033,8 @@ sull'immagine di build — e alla fine **elenca le APK che ha lasciato fuori**, 
 regola che toglie file dal sito senza dire quali è una regola che un giorno toglie quello
 sbagliato.
 
-**`_headers` e `_redirects`** sono il gemello di `netlify.toml`: Cloudflare quel file non lo
-legge. ⚠️ Finché i due host convivono **vanno cambiati insieme**, o la stessa pagina viene
-servita in due modi. Una differenza voluta: il `no-store` è su `/*` e non su `/*.html`, perché
+**`_headers` e `_redirects`** erano il gemello di `netlify.toml`, che è stato **tolto il
+6 ottobre 2026** insieme a `deploy-dev.yml`: ora sono gli unici. Una scelta voluta: il `no-store` è su `/*` e non su `/*.html`, perché
 che Cloudflare accetti un jolly a metà percorso non è verificato — e sbagliare da quella parte
 vuol dire pagine in cache, cioè la WebView ferma su una versione vecchia col login rotto. Con
 `/*` il caso peggiore è qualcosa che non va in cache: si perde velocità, non si rompe niente.
@@ -7081,20 +7073,13 @@ quel telefono** e non c'è nessun account da cui recuperarlo: **a viaggio in cor
 telefono non si installa niente**.
 
 ### Deployment
-Netlify auto-deploys on push to `master`. Configuration in `netlify.toml`:
-```toml
-[build]
-  publish = "."
-  base = "."
-```
-The root `/` is served directly by `index.html` (Netlify serves an existing physical file at a path before applying any redirect rule for that path — a redirect from `/` to another file would never actually fire).
-
-Push to `master` → Netlify picks it up → live within seconds.
+Cloudflare Pages pubblica a ogni push su `master`: *build command* `bash scripts/build-sito.sh`,
+*output* `dist`, header e riscritture in `_headers` / `_redirects`. La radice `/` è `index.html`.
+⚠️ Netlify non c'è più: `netlify.toml` e `deploy-dev.yml` sono stati tolti il 6 ottobre 2026.
 
 ### Git workflow
-- `master` — production branch (auto-deployed to Netlify)
+- `master` — production branch (pubblicato da Cloudflare Pages)
 - `claude/<description>-<id>` — feature branch → auto-merge to master → produzione
-- `dev/<description>` — development/staging branch → preview URL Netlify, **non va in produzione**
 - Commit message prefixes used in this repo:
   - `feat:` — new feature
   - `fix:` — bug fix
@@ -7105,7 +7090,7 @@ Push to `master` → Netlify picks it up → live within seconds.
 ### Deploy automatico
 Pushing to a `claude/**` branch triggers `.github/workflows/deploy.yml` which:
 1. Merges the branch into `master` automatically (no PR needed)
-2. Netlify picks up the master push and deploys within seconds
+2. Cloudflare Pages picks up the master push and deploys
 
 ⚠️ **Il push su master si riprova, perché può essere rifiutato senza nessun conflitto.** Dallo
 stesso push partono anche le due build APK, che a lavoro finito committano il pacchetto **su
@@ -7137,13 +7122,8 @@ mode), poi `db push --linked` e `functions deploy --project-ref` funzionano da s
 password del database non serve: senza `DB_PASSWORD` la CLI si crea da sola un ruolo di login
 temporaneo. **Se un giorno l'endpoint torna sano, `link` resta comunque superfluo.**
 
-Pushing to a `dev/**` branch triggers `.github/workflows/deploy-dev.yml` which:
-1. **Does NOT merge to master**
-2. Netlify creates a branch preview deploy at `dev--<branch>--<sitename>.netlify.app`
-3. Optionally applies Supabase migrations/functions to the dev project
-
 **Claude cannot push directly to `master`** (HTTP 403 — server-side branch protection).
-The only path to production is: push to `claude/**` → GitHub Actions merges → Netlify deploys.
+The only path to production is: push to `claude/**` → GitHub Actions merges → Cloudflare Pages deploys.
 
 ### Versioning — regola obbligatoria
 **Ad ogni modifica a qualsiasi file** (HTML o Android), Claude deve aggiornare la versione **nello stesso commit** delle modifiche, non dopo.
