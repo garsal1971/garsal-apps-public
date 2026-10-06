@@ -27,6 +27,57 @@ Questo elenco può cambiare nel tempo — se una richiesta menziona una persona 
 
 ---
 
+## ⚠️ La repo: `garsal-apps-public`, PUBBLICA dal 6 ottobre 2026
+
+Si lavora qui. `garsal1971/garsal-apps` resta **privata e ferma**, come archivio con tutto lo
+storico: non ci si fa più niente.
+
+**Perché il trasloco.** Da privata la vecchia repo aveva i minuti di Actions e lo spazio degli
+artifact contati, e a inizio ottobre 2026 li aveva finiti: le build restavano in coda e venivano
+cancellate senza log. Da pubblica i minuti sono gratis. Ma la vecchia repo **non si poteva
+rendere pubblica così com'era**: nello storico (e in parte ancora nei file) c'erano dati veri —
+un dump di Finanza con IBAN, redditi 2017-2025, pensione, acquisti, email di famiglia. Uno
+storico git non si ripulisce davvero, quindi si è fatta una repo **nuova, senza storico**, coi
+soli file di oggi ripuliti.
+
+**Cosa è rimasto fuori**, di proposito:
+
+| Fuori | Perché |
+|---|---|
+| Lo storico git | Conteneva i dati personali; sta nella repo vecchia |
+| Le APK (`releases/*.apk`) | Si scaricano da R2 (`apk.garsal.men`); le schede `-latest.json` restano |
+| `dati_migrazione_auto.sql` e gli script `.ps1` di migrazione | Dump con dati veri |
+| 34 migration con dati personali (redditi, pensione, acquisti, viaggi, partecipanti dei fondi, email, test con dati veri) | Già applicate in produzione: il deploy crea da sé un segnaposto per le versioni remote senza file (*Apply Supabase migrations*). ⚠️ Ne discende che **un database nuovo non si ricostruisce più dalle sole migration di qui**: per quello c'è il dump settimanale |
+| `wso-corriere-lavoro-99912.html` | Articolo copiato |
+| `claude.yml` e `modifiche-issue-chiusa.yml` | **Modifiche è sospesa** (vedi sotto) |
+
+⚠️ **Le regole nuove che ne discendono:**
+
+- **Niente dati personali nella repo, mai**: né importi veri, né IBAN, né email di famiglia, né
+  migration che inseriscono dati intestati a qualcuno. Una migration di dati si scrive, si applica
+  e **non si committa** — o la si mette in un posto che non è questa repo. Gli esempi nei commenti
+  e in questo file usano cifre inventate e tonde.
+- **Il sito pubblica solo le pagine**: `scripts/build-sito.sh` esclude ora, oltre alle APK, anche
+  `.github`, `android-app`, `supabase`, `scripts`, `tests`, `netlify`, `migrazioni-in-attesa` e
+  ogni `*.md`, `*.sql`, `*.ps1`, `*.sh`, `*.py`, `*.bat`. Fino al trasloco copiava tutta la radice,
+  quindi `CLAUDE.md`, le migration e il dump erano scaricabili da `garsal.men`.
+- **I secrets di GitHub sono stati copiati** dalla vecchia repo con un workflow una tantum (i
+  secrets non si rileggono, si possono solo riscrivere da un job che li riceve) — keystore delle
+  APK compreso, quindi le APK nuove si installano sopra le vecchie. Il workflow è stato tolto.
+- ⚠️ **Modifiche è SOSPESA**: niente evolutive su `modifiche.html` né sull'APK Modifiche. I
+  pulsanti 🐙 *Manda a Claude* e 🤖 *Fai la fix* puntano ancora alla repo vecchia e i loro
+  workflow qui non ci sono — **e non vanno rimessi**: su una repo pubblica una issue con le
+  schermate di Finanza la leggerebbe chiunque. Le sezioni su Modifiche qui sotto descrivono come
+  funzionava.
+- **Cloudflare Pages è collegato a questa repo.** Il deploy è quello di sempre: push su un ramo
+  `claude/**`, `deploy.yml` fonde su master.
+
+Le sezioni più sotto che parlano della repo **privata** (il 13 settembre 2026, i minuti contati,
+la ragione dei backup su Drive) sono la storia di prima del trasloco: dove contraddicono questa
+sezione, vale questa.
+
+---
+
 ## Client supportati
 
 Le app sono progettate per funzionare su:
@@ -3416,7 +3467,7 @@ non sta nella repo: `https://garsal.men/modifiche.html` (il link via email),
 di Supabase e non torna da nessuna parte. La password si imposta dalla pagina, ⚙️ →
 *Nuova password*: senza, l'app non può rientrare da sé e ogni volta tocca aspettare una mail.
 
-### 🐙 La richiesta diventa una issue — e per questo la repo è privata
+### 🐙 La richiesta diventa una issue — SOSPESA col trasloco nella repo pubblica
 
 Il pulsante **🐙 Manda a Claude** su ogni scheda apre una **issue** su
 `garsal1971/garsal-apps`, col testo della richiesta e le sue schermate dentro. È la strada per
@@ -6521,6 +6572,8 @@ l'ancora, con `#diario` come ripiego.
   form aperto soppianta quello di prima, o chiudendo questo si butterebbe via la bozza di un altro.
 - ⚠️ **Sotto le anteprime c'è il conteggio** (*N schermate pronte*): «zero perché non ne ho scelte»
   e «zero perché non sono arrivate» si somigliano troppo per lasciarle senza didascalia.
+- ⚠️ **SOSPESA dal 6 ottobre 2026** (vedi *La repo: `garsal-apps-public`*): 🐙 e 🤖 puntano alla
+  repo vecchia e non vanno riattivati su questa, che è pubblica.
 - **🐙 Manda a Claude** trasforma la richiesta in una **issue** su `garsal1971/garsal-apps`, con le
   schermate dentro come indirizzi firmati. Passa dall'Edge Function `modifiche-issue`, che tiene il
   PAT nei Secrets. ⚠️ **Vuole la repo privata** — lo è dal 13 settembre 2026 — e se tornasse
@@ -7057,6 +7110,10 @@ legale) e si può lanciare a mano da Actions. Fa due cose diverse:
 | **Relazione** | `scripts/backup-report.mjs` → `relazione.html` | Sapere **cosa c'era dentro** quella settimana |
 
 ### ⚠️ Nel repository non resta niente, e la ragione adesso è il SITO
+
+⚠️ **Dal 6 ottobre 2026 si lavora su `garsal-apps-public`, che è pubblica** (vedi *La repo*,
+in cima), e `build-sito.sh` pubblica le sole pagine. Quel che segue è com'era prima, e la regola
+resta: in repo non va niente che non si vorrebbe leggere su GitHub da chiunque.
 
 ⚠️ **`garsal1971/garsal-apps` è PRIVATA dal 13 settembre 2026.** Fino a quel giorno era
 pubblica, ed era quella la ragione scritta qui. La regola però **non è cambiata**, perché la
