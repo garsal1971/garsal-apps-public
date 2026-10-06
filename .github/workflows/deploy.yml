@@ -183,6 +183,14 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           for FN in ${{ steps.check_changes.outputs.fn_list }}; do
+            # Una funzione tolta dalla repo compare fra i file cambiati ma non
+            # c'è più niente da deployare: la si salta invece di far fallire il
+            # passo. Resta deployata su Supabase finché non la si cancella dalla
+            # dashboard.
+            if [ ! -f "supabase/functions/$FN/index.ts" ]; then
+              echo "⏭ $FN: tolta dalla repo, niente da deployare"
+              continue
+            fi
             echo "▶ Deploy edge function: $FN"
             EXTRA=""
             if grep -q "verify_jwt = false" "supabase/functions/$FN/config.toml" 2>/dev/null; then
