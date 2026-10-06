@@ -7163,7 +7163,7 @@ per impedire.
 Drive: caricando in una cartella condivisa da un account Google personale il file resterebbe di
 sua proprietà e la richiesta fallisce con `storageQuotaExceeded`. Funziona solo su un Drive
 condiviso, che è roba di Workspace. Col refresh token dell'account personale i file nascono
-**suoi**, nel suo spazio. È la stessa scelta già fatta per `YT_OAUTH_TOKEN`.
+**suoi**, nel suo spazio.
 
 ⚠️ **I nomi sono piatti** (`2026-09-06-relazione.html`), non una cartella per data: la data si
 legge dal nome, l'elenco arriva già ordinato e la rotazione è un confronto di stringhe. Si
@@ -7260,7 +7260,7 @@ della relazione non era quello della home.
 | Segreto | GitHub | Supabase | Serve a |
 |---|---|---|---|
 | `SUPABASE_ACCESS_TOKEN` | ✔ | — | `supabase db dump` (già usato da `deploy.yml`) |
-| `SUPABASE_SERVICE_KEY` | ✔ | — | Leggere i dati per la relazione (già usato da `ytp-download-audio.yml`) |
+| `SUPABASE_SERVICE_KEY` | ✔ | — | Leggere i dati per la relazione |
 | `GDRIVE_CLIENT_ID` | ✔ | ✔ | Client OAuth di Google Cloud |
 | `GDRIVE_CLIENT_SECRET` | ✔ | ✔ | idem |
 | `GDRIVE_REFRESH_TOKEN` | ✔ | ✔ | Caricare e leggere **come Salvatore** |
@@ -7641,9 +7641,9 @@ Su Android l'indietro è il gesto con cui si chiude qualunque cosa si sia aperta
 che non fa niente per governarlo, dentro un popup **esce dalla pagina**: la WebView non ha niente
 in cronologia e torna ad AppSphere, buttando via quel che si stava scrivendo.
 
-Il rimedio è il blocco `guardiaIndietroPopup`, **identico in tutte e undici le app** che hanno dei
+Il rimedio è il blocco `guardiaIndietroPopup`, **identico in tutte e dieci le app** che hanno dei
 popup (`index`, `weight-quest`, `finanza`, `obiettivi`, `casarosa`, `conto-risparmio-teresa`,
-`conto-spese-teresa`, `spese-ada`, `spese-personali`, `youtube-player`, `modifiche`) — in fondo
+`conto-spese-teresa`, `spese-ada`, `spese-personali`, `modifiche`) — in fondo
 al loro script,
 e l'unica cosa che cambia è l'elenco dei popup. ⚠️ **Se lo correggi in una, portalo nelle altre**:
 è la stessa duplicazione voluta dello snapshot del patrimonio.
@@ -7659,8 +7659,8 @@ Quattro cose che *sono* il funzionamento:
   `getComputedStyle(el).display !== 'none'` è il test che vale ovunque. Nell'elenco va però
   l'**overlay** e non la scheda interna: in `casarosa` e `conto-risparmio-teresa` la classe
   `.modal` è la scheda dentro l'overlay, e lo stile calcolato di un figlio non sa che il padre è
-  nascosto — un `.modal` messo lì risulterebbe sempre visibile. In `obiettivi` e
-  `youtube-player`, invece, `.modal` *è* l'overlay ed è giusto usarla.
+  nascosto — un `.modal` messo lì risulterebbe sempre visibile. In `obiettivi`, invece,
+  `.modal` *è* l'overlay ed è giusto usarla.
 - ⚠️ **Anche il ✕ consuma la voce di cronologia**, altrimenti ogni apri-e-chiudi ne lascerebbe una
   dietro di sé e dopo cinque popup servirebbero cinque indietro per uscire dalla pagina. Il
   consumo controlla prima `history.state`: se nel frattempo la pagina ha spinto una voce sua (un

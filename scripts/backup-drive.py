@@ -14,8 +14,7 @@
 # account Google personale il file resterebbe di sua proprietà e la richiesta
 # fallisce con `storageQuotaExceeded`. Funziona solo su un Drive condiviso, che
 # è roba di Workspace. Col refresh token dell'account personale i file nascono
-# **suoi**, nel suo spazio, e si vedono da Drive come tutti gli altri. È la
-# stessa scelta già fatta per `YT_OAUTH_TOKEN`.
+# **suoi**, nel suo spazio, e si vedono da Drive come tutti gli altri.
 #
 # ⚠️ I NOMI SONO PIATTI, NON UNA CARTELLA PER DATA: `2026-09-06-relazione.html`.
 # Un albero di cartelle costerebbe una chiamata in più per ogni giro e una
