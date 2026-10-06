@@ -3,10 +3,9 @@
 # backup-drive.py — porta dump e relazione su Google Drive, e fa la rotazione
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# ⚠️ PERCHÉ NON NEL REPOSITORY. `garsal1971/garsal-apps` è **pubblico**, e
-# `netlify.toml` pubblica la radice (`publish = "."`): un file su master è
-# scaricabile da chiunque ne conosca l'indirizzo, e un ramo a parte è comunque
-# leggibile da chiunque apra la pagina del repo. Patrimonio, spese, task e
+# ⚠️ PERCHÉ NON NEL REPOSITORY. `garsal1971/garsal-apps-public` è **pubblico**:
+# un file su master o su un ramo a parte lo legge chiunque apra la pagina del
+# repo. Patrimonio, spese, task e
 # reddito non ci vanno — né su master né su un ramo.
 #
 # ⚠️ PERCHÉ UN REFRESH TOKEN E NON UN ACCOUNT DI SERVIZIO. Un service account
