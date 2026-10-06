@@ -3198,8 +3198,7 @@ su fondo scuro «più scuro» vuol dire «meno leggibile», non «meno important
 `android-app/spese-in-giro/` è un **progetto Gradle standalone** (come `appsphere-native/`,
 `situazione-rosa/` e `pressure-tracker/`, e non un modulo di `android-app/`), `applicationId`
 `com.garsal.speseingiro`, APK `releases/SpeseInGiro-latest.apk`. Kotlin + Compose, Material 3, ML Kit per
-l'OCR. **Non ha un gemello web**: `spese-viaggio.html` è un'altra cosa — una nota spese statica —
-e non c'entra.
+l'OCR. **Non ha un gemello web.**
 
 ⚠️ **Si chiamava «Tandem» per mezza giornata, l'8 settembre 2026**, e la rinomina è stata
 completa — pacchetto, cartella, APK, Edge Function — perché è arrivata **prima che l'APK fosse
