@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.4</title>
+  <title>GarsalFinanza v1.27.5</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -611,8 +611,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.4';
-const APP_BUILD   = '2026-10-02T10:40:00Z';
+const APP_VERSION = 'v1.27.5';
+const APP_BUILD   = '2026-10-06T20:50:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -1808,7 +1808,13 @@ function renderPatrimonioChart() {
 }
 /* ══════════════ RENDERERS ══════════════════════════════════════ */
 function renderProgressione() {
-  const snaps = S.dashboardSnapshots.slice().sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
+  // Uno snapshot per mese: quello del giorno più grande. L'elenco è già dal più
+  // recente, quindi il primo che si incontra per ogni AAAA-MM è l'ultimo del mese.
+  // Il grafico qui sopra continua a leggere S.dashboardSnapshots per intero.
+  const visti = new Set();
+  const snaps = S.dashboardSnapshots.slice()
+    .sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date))
+    .filter(s => { const m = s.snapshot_date.slice(0, 7); if (visti.has(m)) return false; visti.add(m); return true; });
   const tableRows = snaps.length === 0
     ? `<tr><td colspan="7" class="text-muted text-sm" style="padding:16px;text-align:center">
         Nessuno snapshot salvato. Torna alla Dashboard o salva uno snapshot manualmente.
