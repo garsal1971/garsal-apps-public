@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-version" content="1.7.2">
-    <title>DecisionKeeper v2.1.4</title>
+    <title>DecisionKeeper v2.1.5</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -2386,8 +2386,8 @@
         // ============================================
         // APPLICATION CODE
         // ============================================
-        const APP_VERSION = 'v2.1.4';
-        const BUILD_TIME  = '2026-09-14T10:30:00Z';
+        const APP_VERSION = 'v2.1.5';
+        const BUILD_TIME  = '2026-10-06T21:40:00Z';
         const VERSION_KEY = 'decisionKeeperVersion';
         console.log('%c DECISIONKEEPER ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#7B2FBE;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
@@ -2396,9 +2396,7 @@
         // ── AMBIENTE: dev vs produzione ─────────────────────────────────────────────
         const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
         const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
-                     || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
-                     || (window.location.hostname.endsWith('.netlify.app')
-                        && window.location.hostname.startsWith('dev--'));
+                     || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
         const SUPABASE_URL = _IS_DEV
             ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
             : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
