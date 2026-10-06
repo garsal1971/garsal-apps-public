@@ -1,7 +1,6 @@
 [build]
   publish = "."
   base = "."
-  functions = "netlify/functions"
 
 [[redirects]]
   from = "/tests/dashboard"
@@ -20,12 +19,6 @@
   for = "/*.html"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
-
-[[headers]]
-  for = "/.well-known/assetlinks.json"
-  [headers.values]
-    Content-Type = "application/json"
-    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "/releases/*.apk"
