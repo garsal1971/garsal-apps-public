@@ -2,8 +2,8 @@
   "app": "Spese in giro",
   "version": "1.0.7",
   "versionCode": 8,
-  "builtAt": "2026-09-20T13:32:28Z",
-  "commit": "1b1c3edeb516336a7c6ae102d1beb5287b62fd53",
+  "builtAt": "2026-10-06T10:10:55Z",
+  "commit": "e96cab3aacc3698215d5a4e3664440e4f6e4aac9",
   "bytes": 8513925,
-  "sha256": "8d8353333e93e26226a40c4fe2c221b211750a0f3871c6a41b486162eb9e147a"
+  "sha256": "410450d68146c110ee8252efc89c99387c0d938baa3e7be13e2c27495ee92641"
 }
