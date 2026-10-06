@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- ⚠️ Nero come l'APK nativa e come Smart Blocker e SOS: il marchio a
-         cinque cerchi è pensato su fondo scuro, e sul verde petrolio il suo
-         cerchio verde ci sparirebbe dentro. Il verde petrolio resta il colore
-         dell'app — lo portano la barra di stato e il badge dell'icona. -->
-    <color name="ic_launcher_background">#111111</color>
-</resources>

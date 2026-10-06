@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.25.3</title>
+    <title>Tasks v19.25.4</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2348,8 +2348,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.25.3';
-        const BUILD_TIME  = '2026-09-23T00:00:00Z';
+        const APP_VERSION = 'v19.25.4';
+        const BUILD_TIME  = '2026-10-06T17:44:43Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -7373,7 +7373,7 @@
             const tokenStatus = document.getElementById('smartblockTokenStatus');
             if (tokenStatus) {
                 const token = sbDeviceToken;
-                tokenStatus.textContent = token ? token : '— nessun token (esegui setup in comandi.html)';
+                tokenStatus.textContent = token ? token : '— nessun token';
                 tokenStatus.style.color = token ? 'var(--secondary)' : 'var(--muted)';
             }
 

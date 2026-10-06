@@ -49,7 +49,7 @@ soli file di oggi ripuliti.
 | `dati_migrazione_auto.sql` e gli script `.ps1` di migrazione | Dump con dati veri |
 | 34 migration con dati personali (redditi, pensione, acquisti, viaggi, partecipanti dei fondi, email, test con dati veri) | Già applicate in produzione: il deploy crea da sé un segnaposto per le versioni remote senza file (*Apply Supabase migrations*). ⚠️ Ne discende che **un database nuovo non si ricostruisce più dalle sole migration di qui**: per quello c'è il dump settimanale |
 | `wso-corriere-lavoro-99912.html` | Articolo copiato |
-| `claude.yml` e `modifiche-issue-chiusa.yml` | **Modifiche è sospesa** (vedi sotto) |
+| `claude.yml` e `modifiche-issue-chiusa.yml` | Servivano a Modifiche, poi tolta del tutto |
 
 ⚠️ **Le regole nuove che ne discendono:**
 
@@ -64,11 +64,10 @@ soli file di oggi ripuliti.
 - **I secrets di GitHub sono stati copiati** dalla vecchia repo con un workflow una tantum (i
   secrets non si rileggono, si possono solo riscrivere da un job che li riceve) — keystore delle
   APK compreso, quindi le APK nuove si installano sopra le vecchie. Il workflow è stato tolto.
-- ⚠️ **Modifiche è SOSPESA**: niente evolutive su `modifiche.html` né sull'APK Modifiche. I
-  pulsanti 🐙 *Manda a Claude* e 🤖 *Fai la fix* puntano ancora alla repo vecchia e i loro
-  workflow qui non ci sono — **e non vanno rimessi**: su una repo pubblica una issue con le
-  schermate di Finanza la leggerebbe chiunque. Le sezioni su Modifiche qui sotto descrivono come
-  funzionava.
+- **Modifiche e Comandi sono stati TOLTI** (6 ottobre 2026): `modifiche.html`,
+  `comandi.html`, `oauth-callback-modifiche.html`, l'APK Modifiche col suo progetto e workflow, e
+  la Edge Function `modifiche-issue`. Su una repo pubblica una issue con le schermate di Finanza
+  la leggerebbe chiunque. Tabelle `mod_*` e bucket `mod-immagini` restano nel database.
 - **Cloudflare Pages è collegato a questa repo.** Il deploy è quello di sempre: push su un ramo
   `claude/**`, `deploy.yml` fonde su master.
 
@@ -1968,96 +1967,6 @@ migration, ma **se quell'INSERT non passa la migration non muore**: lo crea al p
 Edge Function (`assicuraBucket`) — un deploy fermo su una riga di storage si porterebbe dietro
 tutto il resto.
 
-### Modifiche (`mod_`)
-| Table | Purpose |
-|---|---|
-| `mod_richieste` | Una riga per richiesta di modifica: `titolo`, `apps` (**più d'una**), `descrizione`, `stato`; `app` porta la prima |
-| `mod_immagini` | Le schermate di una richiesta: `storage_path`, `position` (i file stanno nel bucket privato `mod-immagini`) |
-
-Il taccuino di quel che va cambiato nelle app, con le schermate che lo mostrano — si compila da
-`modifiche.html` e dall'APK omonima, e da lì si condivide un prompt già scritto.
-
-⚠️ **Nessuna riga in `cm_apps`, ed è voluto**: niente bolla, niente `score_query`, niente punti.
-Una richiesta di modifica non è una cosa fatta che dia punti, ed è il banco di lavoro delle app,
-non una di loro — è la stessa scelta di «Spese in giro», che pure sta fuori dalla suite. Ne
-discende che non ha nessun `cm_apps.conta_punti` da decidere.
-
-⚠️ **`stato` ha cinque valori e non un booleano «fatta»**: `aperta`, `inviata`, `in_corso`,
-`fatta`, `scartata` (`inviata` dal 2 ottobre 2026, issue #46). Il giro va solo **in avanti** e in
-tre punti lo fa da sé: 🐙 *Manda a Claude* → `inviata`, 🤖 *Fai la fix* → `in_corso`, la **issue
-chiusa** → `fatta` (o `scartata` se chiusa come *non pianificata*). La chiusura la fa il workflow
-`modifiche-issue-chiusa.yml` e la pagina la ripete all'apertura (`allineaChiuse`). ⚠️ La issue la
-chiude il `Closes #N` che il commento della fix chiede a Claude **solo a lavoro finito**: una fix
-fermata a metà resta `in_corso`, che è la verità. Sulla scheda il riquadro **🤖 Esito della fix**
-mostra l'ultimo commento di Claude sulla issue (azione `esito` di `modifiche-issue`, letta solo
-aprendo il riquadro), col Markdown tradotto **dopo** l'escape. Una richiesta scartata non è una richiesta fatta, e **non sparisce** — resta a schermo
-nel suo filtro, com'è una voce `excluded` nelle 🛡️ Possibili soluzioni: un elenco che si accorcia
-senza che niente spieghi perché è il modo peggiore di dire che si è deciso di non farla.
-
-⚠️ **Le immagini stanno in un bucket PRIVATO**, `<user_id>/<richiesta_id>/<uuid>.jpg`, e si
-guardano con un indirizzo firmato che dura due ore — la stessa forma di `mm-images` in Memo. La
-prima cartella è quella su cui la policy di storage confronta `auth.uid()`: cambiando la forma del
-percorso va cambiata anche la policy, o le foto diventano illeggibili al proprietario. Un bucket
-pubblico avrebbe risparmiato la firma e messo in chiaro delle schermate che possono contenere
-qualunque cosa.
-
-⚠️ **Si cancella prima il file e poi la riga**, come in Memo e nel Forziere: `richiesta_id` è
-`ON DELETE CASCADE`, ma quel vincolo il bucket non lo conosce — nell'ordine inverso resterebbe
-un'immagine che nessuna riga nomina, cioè un file che dall'app non si può più togliere.
-
-⚠️ **Il bucket la migration lo prova e AVVISA senza fallire** (un deploy fermo su una riga di
-storage si porterebbe dietro migration ed Edge Function di tutto il commit), e quell'avviso non lo
-legge nessuno: se `postgres` non può scrivere in `storage.buckets` o creare policy su
-`storage.objects`, il bucket **non c'è** e il caricamento fallisce a schermo senza che niente dica
-perché. ⚠️ Il rimedio era ⚙️ → 🔌 *Prova il caricamento*, **tolto nella v1.4.0** (issue #26):
-resta `spiegaStorage()`, che nomina la causa e **mostra il SQL** da incollare nel SQL editor quando
-è il salvataggio vero a fallire. È la stessa strada di `mm-images` in Memo, il cui bucket e le cui policy
-sono nati a mano dalla dashboard e il cui SQL sta scritto in ⚙️.
-
-⚠️ **Le schermate si riducono a 1600 px prima di partire** (`LATO_MAX`, JPEG 0,82 — gli stessi
-numeri di «Spese in giro»): restano leggibili e pesano qualche centinaio di KB. Non è solo il
-bucket: **quello stesso peso passa dal ponte della condivisione**, dove tre foto a piena
-risoluzione sarebbero una ventina di MB di base64 nella memoria dell'app.
-
-⚠️ **`app` è testo libero con dei suggerimenti** (`APP_SUGGERITE` in `modifiche.html`), non un
-vincolo: aggiungerne una è una riga di JavaScript e non una migration. È la stessa scelta di
-`item_key` in `fnz_coverage_items` e di `kind` in `fnz_income`.
-
-⚠️ **Una richiesta può toccare PIÙ APP**, e l'elenco sta in **`apps text[]`**
-(`20260914180000_mod_richieste_piu_app.sql`, issue #23): parecchie ne toccano due — la pagina e la
-sua gemella nativa — e prima toccava sceglierne una e scrivere l'altra nella descrizione, cioè
-metterla dove nessun filtro la legge.
-
-⚠️ **Un array e non un elenco separato da virgole dentro `app`**: quello sarebbe un formato da
-interpretare dentro un campo di testo, cioè il `'uovo|uova'` che la porzione abituale di `al_foods`
-porta come esempio di quel che non si fa. E **non una tabella di collegamento**: le app non sono
-righe di nessuna tabella — `APP_SUGGERITE` è un elenco di suggerimenti dentro la pagina e il campo
-resta testo libero — quindi una chiave esterna punterebbe al nulla. È la stessa scelta di
-`cm_bank_connections.uses` e di `ts_tasks.categories`.
-
-⚠️ **`app` RESTA e porta la PRIMA**, riscritta a ogni salvataggio: la legge la Edge Function
-`modifiche-issue` per l'intestazione della issue, e le issue **già aperte** la citano. La verità è
-`apps`; `app` è la sua prima voce, e si toglierà con una migration sua il giorno che non la legga
-più nessuno. ⚠️ Il salvataggio deve **nominarla sempre** nell'update, o resterebbe a un'app che
-nell'elenco non c'è più: è la stessa regola di `excluded` in `saveCoverage`.
-
-⚠️ **`apps` vuoto ripiega su `app`** in tutt'e due i posti che lo leggono — `appDi()` in
-`modifiche.html` e il suo gemello in `modifiche-issue` — e non è prudenza generica: la colonna è
-arrivata **dopo** le righe, e una che la migration non avesse toccato si vedrebbe altrimenti senza
-nessuna app, cioè un dato sparito e non un dato mancante. È la stessa ragione per cui il filtro di
-`riservato` va scritto `eq.false,is.null`. Le due copie di `appDi()` vanno cambiate insieme.
-
-⚠️ **Nel form le app scelte sono PILLOLE con la ✕, non una tendina a scelta multipla**: il campo
-resta testo libero, quindi una tendina chiusa sui suggerimenti toglierebbe proprio quel che il
-campo ha di suo. Quel che è rimasto scritto nella casella **senza premere ＋ conta lo stesso** al
-salvataggio: scrivere il nome e poi Salva è il gesto più naturale che ci sia, e perderlo in
-silenzio sarebbe il modo peggiore di chiedere un tocco in più. ⚠️ Togliendo o aggiungendo una
-pillola si ridisegna **il solo elenco** e non tutto l'editor: un redraw sostituirebbe i campi di
-testo e chi sta scrivendo si vedrebbe sparire il cursore da sotto le dita — lo stesso inciampo
-degli step in `obiettivi.html`. ⚠️ La stessa app non si aggiunge due volte, e il confronto è senza
-maiuscole e senza spazi ai bordi; **resta scritta com'è stata digitata**, perché normalizzarla
-d'ufficio riscriverebbe quel che qualcuno ha deciso di scrivere così.
-
 ### Piante (`pv_`)
 | Table | Purpose |
 |---|---|
@@ -2413,7 +2322,6 @@ role key letta dal vault (vedi `20260724320000_ca_revolut_auto_categorize_cron.s
 | `notification-action` | manuale (da `telegram-webhook` e dall'APK nativo) | Che cosa fa un pulsante di un promemoria: ✅ Fatto, ⏸ rinvia, ❌ annulla. **L'unica implementazione**, chiamata sia dal bot sia dal telefono |
 | `forziere-drive` | manuale (da `forziere.html`) | Il ponte col Drive del Forziere: crea la cartella (e una sottocartella per scomparto, con `mkdir`/`rmdir`/`move`), apre i caricamenti, restituisce e cancella i file. ⚠️ **Non vede mai niente in chiaro** — tutto quel che le passa davanti è già cifrato con OpenPGP dalle 24 parole, che qui non arrivano né adesso né mai. Il caricamento **non passa di qui**: `upload-url` chiede a Google un indirizzo ripristinabile e i byte vanno dal browser a Google diretti (con ripiego su `put` per i file piccoli, se quella strada è bloccata). Lo scaricamento passa — Drive non ha indirizzi firmati — ma **in flusso** |
 | `al-food-search` | manuale (da `calorie.html`) | **Legge e basta**: cerca un alimento per nome o per codice a barre nelle banche dati pubbliche e lo restituisce **già normalizzato**. Fonti in ordine: Open Food Facts Search-a-licious, la vecchia `/cgi/search.pl` come ripiego, e USDA FoodData Central se c'è il secret `USDA_API_KEY`. Ogni fonte torna col suo esito (HTTP, tempo, errore) |
-| `modifiche-issue` | manuale (da `modifiche.html`) | Una richiesta di 🛠️ Modifiche diventa una **issue** su GitHub, schermate comprese. Tiene il PAT nei Secrets — in chiaro nella pagina sarebbe un token di scrittura sulla repo di tutte le app — e verifica il JWT contro Supabase, passando il solo `MODIFICHE_EMAIL`. ⚠️ **Vuole la repo privata**: una issue porta dentro schermate di Finanza e spese |
 | `pv-ai` | manuale (da `piante.html` e dall'APK nativa) | «Chiedi all'IA» delle Piante: col JWT dell'utente (quindi sotto RLS) raccoglie scheda, ultime 15 voci di diario, azioni in corso e fino a **quattro foto** (copertina + le più recenti del diario, come indirizzi firmati di dieci minuti), le manda all'IA **scelta nella tendina** — **Gemini** (`GEMINI_API_KEY`, modello `GEMINI_MODEL`, di partenza `gemini-2.5-flash`; le foto vanno inline in base64), **Qwen** via Alibaba DashScope internazionale, compatibile OpenAI (`DASHSCOPE_API_KEY`; `qwen-plus`, o `qwen-vl-max` quando ci sono foto; `QWEN_MODEL`/`QWEN_VL_MODEL`/`DASHSCOPE_BASE_URL` per cambiarli), **Groq** (piano gratuito, `GROQ_API_KEY`; il modello **non è scritto da nessuna parte**: `scegliModelloGroq` chiede a Groq l'elenco `/models`, cache di un'ora, e prende il primo dei preferiti che c'è ancora o altrimenti il più grande; con le foto un modello *vision*, e se non ce n'è nessuno risponde sul solo testo dicendolo. `GROQ_MODEL`/`GROQ_VL_MODEL` restano facoltativi e valgono solo se quel modello è ancora nell'elenco — Groq toglie i modelli senza preavviso) — Qwen e Groq passano dalla stessa `chiediCompatibile`, perché parlano tutt'e due il dialetto OpenAI — o **Claude** (`ANTHROPIC_API_KEY`, `claude-opus-5`, thinking adattivo, effort `medium`, fallback lato server) — e salva la risposta in `pv_ai_answers` con `provider` e `model`. `{action:'fornitori'}` dice quali IA hanno la chiave: la tendina offre solo quelle. ⚠️ Un'IA scelta senza chiave **lo dice** e non ripiega su un'altra di nascosto. Senza `plant_id` il contesto è la lista dei desideri più le piante che si hanno già |
 | `ia-tunnel` | manuale (da `chiedi-a-pino.html`) | Il prompt di Chiedi a Pino, **così com'è** e con le sue immagini (indirizzi firmati di dieci minuti), al motore scelto (Gemini, Qwen, Groq, Claude — stessi Secrets di `pv-ai`); archivia domanda, risposta, motore, modello e tag in `ia_tunnel_*`. `{action:'fornitori'}` come in `pv-ai`. ⚠️ Le chiamate ai quattro motori sono **copiate** da `pv-ai`, foto comprese: cambiando un fornitore là, portalo qui |
 | `spese-in-giro-foto` | manuale (dall'APK Spese in giro) | Gli scontrini di «Spese in giro»: carica una foto, ne firma l'URL per un'ora e la cancella. ⚠️ È il **solo** ponte fra un'APK senza login e lo Storage: risolve il token del telefono con `vg_viaggio_del_token` (eseguibile dal solo service role) e scrive dentro la cartella di **quel** viaggio, `<viaggio_id>/…`. Per leggere si passa l'id della **voce**, mai il percorso: dove sta quella foto lo dice il database |
@@ -3357,225 +3265,6 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
   legge come «cancella» — è la stessa scelta della conferma che elimina uno scomparto del Forziere.
 
 ---
-
-## Modifiche — il banco di lavoro, e l'unica WebView che carica dei file
-
-`android-app/modifiche/` è un **progetto Gradle standalone** (come `situazione-rosa/` e
-`spese-in-giro/`, e non un modulo di `android-app/`), `applicationId`
-`com.garsal.modifiche`, APK `releases/Modifiche-latest.apk`. È una **WebView** che apre
-`garsal.men/modifiche.html`: qui non c'è niente di nativo se non le tre cose che la pagina da sola
-non può fare.
-
-⚠️ **Sta fuori dalla suite in tutti i sensi**: nessuna riga in `cm_apps` (quindi nessuna bolla, né
-web né nativa), nessun punteggio e nessun login Google. L'**icona** però è il marchio a cinque
-cerchi col **badge della chiave inglese** (dalla v1.1.0, issue #25 — vedi *Il marchio vive in
-cinque posti*): è il banco di lavoro dove si scrive cosa cambiare nelle app, e il marchio dice di
-che famiglia è, non che è una di loro.
-
-### Le tre cose che deve fare l'APK
-
-| Cosa | Dove | Senza |
-|---|---|---|
-| **Il selettore dei file** | `onShowFileChooser` in `MainActivity` | Un `<input type="file">` dentro una WebView **non fa niente**: nessun errore, nessun selettore, il tocco cade nel vuoto |
-| **Il tasto Condividi** | `CondivisioneBridge`, esposto come `window.AndroidBridge` | Il prompt resterebbe dentro la pagina |
-| **Le credenziali** | `CredentialsBridge`, esposto come `window.AndroidCreds` | Ogni apertura chiederebbe di nuovo il link via email |
-| **Il rientro dal login Google** | l'intent-filter `garsalmodifiche://oauth` + `indirizzoDa()` in `MainActivity` | Il login Google resterebbe nel browser: Chrome non consegna a nessuna app un **redirect** https senza App Links verificati |
-| **Versione e download** | `AppBridge`, esposto come `window.AndroidApp` | ⚙️ → 📱 Versione app non saprebbe quale versione è installata, e l'APK scesa dentro la WebView non si installerebbe. `apriNelBrowser` serve anche al 🐙: una issue aperta dentro la WebView mostrerebbe la pagina di login di GitHub |
-
-⚠️ **`allowContentAccess` deve restare ACCESO**, ed è l'opposto delle altre WebView della repo:
-le schermate scelte col selettore di sistema arrivano come `content://`, e con l'accesso spento la
-pagina se le ritrova **vuote** — cioè si scelgono le foto e non compare niente, senza nessun
-errore da nessuna parte. È il difetto della v1.0.0, chiuso nella v1.0.1. `allowFileAccess` resta
-invece spento: quello è `file://`, che qui non serve a nessuno.
-
-⚠️ **La callback del selettore va chiamata SEMPRE, annullamento compreso**: se resta appesa,
-l'`<input type="file">` della pagina è **morto per il resto della sessione** e ogni tocco
-successivo non apre più niente — che si legge come un pulsante rotto, non come un annullamento.
-
-⚠️ **IL SELETTORE È IL PHOTO PICKER DI SISTEMA, non l'Intent che la WebView propone** (v1.0.2).
-`FileChooserParams.createIntent()` produce un `ACTION_GET_CONTENT`, e **quale app lo apra lo
-decide il telefono**: una galleria qualunque, che può restituire le foto scelte con un
-`resultCode` diverso da `RESULT_OK`. `FileChooserParams.parseResult` a quel punto **butta via
-tutto senza guardarlo** — le immagini sono dentro l'Intent e la pagina riceve `null`. Da fuori è
-indistinguibile da un annullamento: si scelgono le schermate, si preme Fine, si torna nell'app e
-**non c'è niente**, form ancora compilato e nessun errore da nessuna parte. È il difetto del
-14 settembre 2026, ed è costato quattro giri di diagnosi — bucket, `allowContentAccess`, versione
-dell'APK, «Non conservare le attività» e il `<label>` attorno al campo erano tutti a posto.
-`PickMultipleVisualMedia` restituisce invece **direttamente la lista degli URI**: niente Intent da
-costruire, niente `resultCode` da indovinare, niente `parseResult`.
-⚠️ **La strada vecchia resta come ripiego** — per quel che immagini non è, e dove il Photo Picker
-non c'è — ma **guarda l'Intent PRIMA di `parseResult`** (`uriDa`: `clipData`, poi `data`): se
-porta degli URI quelle sono le foto scelte, comunque sia andato il `resultCode`.
-⚠️ **Una seconda richiesta entro un secondo non annulla la prima** (`quandoChiesto`): un tocco può
-arrivare doppio, e il secondo giro chiuderebbe la callback del primo — il selettore che si vede a
-schermo sarebbe quello la cui risposta non aspetta più nessuno. Un selettore rimasto appeso da
-*prima* invece va chiuso, o l'input della pagina è morto per il resto della sessione.
-
-⚠️ **Nessun permesso per la fotocamera né per le immagini**, ed è la stessa scelta di «Spese in
-giro»: le schermate le sceglie il selettore di sistema, che restituisce le sole foto scelte —
-dichiarando `READ_MEDIA_IMAGES`, Android lo pretenderebbe concesso a runtime per una cosa che
-funziona senza.
-
-### Il tasto «Condividi»: testo **e** schermate insieme
-
-La pagina costruisce il prompt, riscarica le sue immagini dal bucket (sono già ridotte a 1600 px) e
-le passa al ponte in base64; l'APK le scrive nella **cache privata**, le presta con un
-**FileProvider** e le allega all'`ACTION_SEND` / `ACTION_SEND_MULTIPLE` insieme al testo.
-
-⚠️ **Un `file://` non si può condividere**: da Android 7 alza `FileUriExposedException`, cioè
-l'app che si chiude proprio nel gesto per cui esiste. Il FileProvider presta la **sola** cartella
-`cache/condivise`, che si svuota a ogni condivisione: sono copie in chiaro di schermate che possono
-contenere qualunque cosa, e non c'è ragione perché restino lì dopo essere state consegnate.
-
-⚠️ **Il prompt finisce anche negli appunti quando ci sono delle immagini**, e non è un doppione:
-parecchie app che ricevono un `ACTION_SEND` di tipo immagine tengono i file e **buttano via**
-l'`EXTRA_TEXT`. Quando succede il testo è a un incolla di distanza invece di essere da riscrivere —
-e un Toast lo dice, invece di lasciarlo scoprire a cose fatte.
-
-⚠️ **Senza nemmeno un'immagine scritta si condivide comunque il testo**: un tasto che non fa niente
-perché una foto non si è salvata è peggio di un tasto che fa metà del lavoro e lo dice.
-
-### Il login: 🔑 Google, email e password, o il link via email
-
-Dalla v1.5.0 (issue #21) si entra **anche con Google**. Fino a lì c'erano solo le altre due
-strade, e la ragione scritta allora era che questa WebView non ha né il launcher che passa il
-token né il giro del browser esterno: adesso quel giro ce l'ha, ed è il **terzo** identico dopo
-quelli dell'APK WebView e dell'APK nativa.
-
-⚠️ **Il giro è quello, e ogni pezzo serve**:
-
-| Pezzo | Perché |
-|---|---|
-| **Browser di sistema**, non la WebView (`AppBridge.apriNelBrowser`) | Google **rifiuta** il login da una WebView incorporata — lo stesso motivo per cui l'APK nativa apre il browser completo e non una Custom Tab |
-| Pagina-ponte **`oauth-callback-modifiche.html`** | Il ritorno è un **redirect**, e senza App Links verificati Chrome non lo consegna a nessuna app: l'intent-filter su `garsal.men/modifiche.html` scatta solo quando il link lo tocca una persona (dall'email) |
-| Schema **`garsalmodifiche://oauth`** | Il tap su uno schema custom esce dal browser **sempre**. È proprio di quest'app: con `garsalapps://` o `garsalnative://` Android chiederebbe a ogni login quale delle tre aprire |
-| `indirizzoDa()` in `MainActivity` | Una WebView quello schema non lo sa caricare: si prende il **fragment** e lo si riattacca a `APP_URL`, dove supabase-js lo raccoglie da sé |
-
-⚠️ **La pagina-ponte non fa auto-redirect**, come le altre due: l'auto-navigazione verso uno
-schema custom viene rimbalzata da Chrome e il login resta lì. Rientra solo col **tap**.
-`oauth-callback.html`, `oauth-callback-native.html` e `oauth-callback-modifiche.html` sono
-**gemelle a meno dello schema**: se modifichi una, guarda le altre due.
-
-⚠️ **Il token non passa da `evaluateJavascript`**: là finirebbe dentro una stringa di codice
-sorgente. Sta nell'indirizzo, che è dove la libreria lo cerca già. E l'intent si **consuma**
-(`intent.data = null`), o a ogni ricreazione dell'Activity `onCreate` rimetterebbe lo stesso
-`access_token` — ormai scaduto o già speso — al posto di una sessione buona: è lo stesso inciampo
-già pagato da `gestisciDeepLink` dell'APK nativa.
-
-⚠️ **Email e password restano, e non sono un ripiego**: sono l'unica strada che l'APK sa rifare
-**da sola** al riavvio — `CredentialsBridge` le tiene cifrate nell'Android Keystore. È la stessa
-scelta di «Situazione Rosa», e `CredentialsBridge` ne è il **gemello riga per riga** a meno del
-nome dell'archivio — due progetti Gradle separati non condividono sorgenti, quindi **se lo
-correggi in uno, guarda anche l'altro**. Con Google la sessione dura finché dura il refresh token
-di supabase-js: più a lungo di quanto serva, ma il giorno che scade si rientra a mano.
-
-⚠️ **Tre indirizzi vanno in whitelist fra i Redirect URLs di Supabase**, ed è l'unico passo che
-non sta nella repo: `https://garsal.men/modifiche.html` (il link via email),
-`https://garsal.men/oauth-callback-modifiche.html` (il ritorno di Google) e
-`https://garsal-apps.pages.dev/modifiche`. Senza il secondo il login Google finisce su un errore
-di Supabase e non torna da nessuna parte. La password si imposta dalla pagina, ⚙️ →
-*Nuova password*: senza, l'app non può rientrare da sé e ogni volta tocca aspettare una mail.
-
-### 🐙 La richiesta diventa una issue — SOSPESA col trasloco nella repo pubblica
-
-Il pulsante **🐙 Manda a Claude** su ogni scheda apre una **issue** su
-`garsal1971/garsal-apps`, col testo della richiesta e le sue schermate dentro. È la strada per
-cui questa app esiste: si scrive dal telefono, e il lavoro lo si ritrova dove si lavora.
-
-⚠️ **È la ragione per cui la repo è stata resa privata** (13 settembre 2026). Una issue porta
-dentro titolo, descrizione e **schermate**, e quelle schermate sono di Finanza, spese e
-patrimonio: su una repo pubblica le leggerebbe chiunque passi, e le troverebbe da Google. Se un
-giorno la repo tornasse pubblica, **questo pulsante va spento nello stesso momento**.
-
-⚠️ **Il token sta nei Secrets di Supabase, non nella pagina**: `modifiche-issue` è una Edge
-Function, e il PAT (`GH_PAT`) non arriva mai al browser — in chiaro dentro `modifiche.html`
-sarebbe un token con diritto di scrittura sulla repo di tutte le app, che chiunque apra il
-sorgente si porta via. Il JWT si verifica **contro Supabase** e passa il solo `MODIFICHE_EMAIL`,
-come in `backup-drive`.
-
-⚠️ **Le schermate NON si committano nella repo**, e non è una scelta di peso: quel che sta nella
-repo sta anche sul **sito pubblico** — `build-sito.sh` copia la radice dentro `dist` escludendo
-le sole `*.apk` — quindi committarle vorrebbe dire pubblicarle su `garsal.men`, cioè rifare in
-grande esattamente il problema che rendere privata la repo ha appena chiuso. Restano nel bucket
-privato, e nella issue ci vanno come **indirizzi firmati validi un anno**.
-
-⚠️ **Un anno e non le due ore della pagina**: quell'indirizzo resta scritto dentro la issue, e a
-due ore il giorno dopo la issue mostrerebbe dei riquadri rotti. GitHub fa comunque una copia
-propria delle immagini che incontra, quindi quel che si vede sopravvive anche alla scadenza —
-l'indirizzo no, e per questo il corpo porta accanto i **percorsi nel bucket**, che non scadono.
-
-⚠️ **Non c'è nessuna colonna `issue_number`, ed è voluto**: la verità è la issue. Il corpo porta
-`<!-- richiesta: <uuid> -->` e `modifiche-issue` la ritrova da lì (etichetta `modifiche`), quindi
-due tocchi non fanno due issue e una issue cancellata a mano rimette la richiesta fra quelle da
-mandare — che è quel che è davvero. Una colonna accanto sarebbe una seconda verità che diverge
-quel giorno lì, ed è la stessa scelta delle colonne calcolate della liquidazione in `fnz_income`.
-
-⚠️ **Già mandata, il pulsante propone un AGGIORNAMENTO e non una seconda issue**: il testo di
-adesso e le schermate di adesso vanno in un **commento** sulla stessa issue. Una seconda issue
-sulla stessa cosa la dovrebbe poi chiudere qualcuno a mano.
-
-⚠️ **I numeri sulle schede si chiedono in silenzio e non bloccano niente**: `elencoIssue()` parte
-dopo che l'elenco è già a schermo, e se fallisce scrive in console. A dirlo forte è ⚙️ → 🐙
-*Prova adesso*, che distingue le quattro cause — secret assente, token scaduto, token che non
-vede la repo, issue spente sulla repo — perché «non l'ho mandata» da solo non ne distingue
-nessuna. ⚠️ **Dalla v1.4.0 quel pulsante non c'è più** (issue #26): l'azione `prova` resta nella
-Edge Function e dall'app non la chiama nessuno.
-
-⚠️ **GitHub si apre nel browser di sistema** (`AndroidApp.apriNelBrowser`) e non dentro la
-WebView: là dentro non c'è nessun login di GitHub, quindi una repo privata risponderebbe con la
-pagina di accesso — cioè un pulsante che sembra rotto. È la stessa strada del download dell'APK.
-
-⚠️ **I secret non stanno nella repo** e vanno messi a mano in Supabase → Edge Functions →
-Secrets: `GH_PAT` (fine-grained, *Issues: Read and write* su questa repo) e, solo se la repo
-cambia nome, `GH_REPO`. Senza, il pulsante dice cosa manca invece di fallire e basta.
-
-### 🤖 «Fai la fix» — una sessione di Claude Code che parte da una issue
-
-Il pulsante **🤖 Fai la fix** su ogni scheda chiama `modifiche-issue` con `azione: 'fix'`: la
-funzione apre la issue se non c'è ancora e ci scrive un commento `@claude …`. Quel commento
-sveglia `.github/workflows/claude.yml` (`anthropics/claude-code-action@v1`), che fa la modifica
-su un ramo `claude/…`.
-
-⚠️ **Va in produzione da sola, di proposito**: il push su `claude/**` fa scattare `deploy.yml`,
-che fonde su master. È una scelta esplicita di Salvatore (30 settembre 2026), e la conferma prima
-dell'avvio lo dice. Per passare da una PR basta cambiare `branch_prefix` nel workflow con un
-prefisso che `deploy.yml` non guarda.
-
-⚠️ **Il commento lo scrive il PAT, non il `GITHUB_TOKEN`**: un evento creato dal
-`GITHUB_TOKEN` non sveglia nessun workflow, e l'action accetta solo chi ha diritto di scrittura
-sulla repo. ⚠️ Il token di Claude è quello dell'**abbonamento** (`claude setup-token`), nel secret
-GitHub **`CLAUDE_CODE_OAUTH_TOKEN`**; serve anche la GitHub App di Claude installata sulla repo.
-Il lavoro consuma minuti di Actions, che da quando la repo è privata sono contati.
-
-### ⚙️ → 📱 Versione app: il settimo giro, ma in JavaScript
-
-`build-modifiche-apk.yml` pubblica `releases/Modifiche-latest.json` con le **stesse sette chiavi**
-delle altre schede, e ⚙️ Impostazioni la legge: versione installata, versione pubblicata, data e
-peso, più il pulsante che scarica.
-
-⚠️ **A leggerla è la PAGINA e non un `Aggiornamento.kt`**, e questa è la differenza che conta:
-sarebbe stato il **settimo** gemello Kotlin da tenere allineato agli altri sei, per un'app che è
-già una WebView. Cambiando la *forma* della scheda in un workflow, qui il posto da toccare è
-`mostraVersione()` in `modifiche.html`.
-
-⚠️ **La versione installata la dice il telefono** (`AppBridge.versione()`, dal `PackageManager`) e
-non una costante in pagina: dentro la WebView `APP_VERSION` è la versione della **pagina**, che si
-aggiorna da sé a ogni deploy e non dice niente su quale pacchetto è installato.
-
-⚠️ **Il download passa al browser di sistema** (`AppBridge.apriNelBrowser`): un APK sceso dentro
-la WebView **non si installa** — non c'è nessun gestore di download e nessun modo di lanciare
-l'installer.
-
-⚠️ **Il pulsante c'è anche quando la scheda non si legge**, com'è nell'APK nativa dalla v1.0.3:
-legarlo alla scheda vuol dire che una rete lenta o un 404 tolgono di mezzo la sola cosa per cui
-quel riquadro esiste. Manca allora il *quale*, e il riquadro lo dice.
-
-⚠️ **L'indirizzo si SCRIVE sotto il pulsante e non sta solo dentro di lui** (v1.2.1): su un'APK
-precedente alla v1.0.1 il ponte `AndroidApp` **non esiste**, quindi `scaricaApk()` ripiega su
-`window.open` — che dentro una WebView non fa assolutamente niente, senza nessun errore. È il cane
-che si morde la coda del 13 settembre 2026: *il pulsante che scarica l'APK nuova vive nell'APK
-nuova*, e senza l'indirizzo a schermo non resta nessuna via per uscirne. Le altre sei app quel
-problema non ce l'hanno — là il download lo fa Kotlin, che c'è sempre.
 
 ## AppSphere nativa — l'unico modulo Android che non è un WebView
 
@@ -5036,11 +4725,10 @@ reimparati dal nativo l'11 agosto 2026 (v1.0.6):
    tap non rilancia l'app. Per questo `AuthRepo.loginConGoogle` costruisce l'URL da sé invece di
    chiamare `signInWith(Google)`, che aprirebbe una Custom Tab.
 
-`oauth-callback-native.html`, `oauth-callback.html` e `oauth-callback-modifiche.html` sono
-**gemelle a meno dello schema** (`garsalnative://`, `garsalapps://`, `garsalmodifiche://`). Tre
-pagine e non una con un parametro perché ciascuna va in whitelist esattamente com'è, e una query
-string nella whitelist di Supabase è un modo in più di sbagliare. Se modifichi una delle tre,
-guarda anche le altre.
+`oauth-callback-native.html` e `oauth-callback.html` sono **gemelle a meno dello schema**
+(`garsalnative://`, `garsalapps://`). Due pagine e non una con un parametro perché ciascuna va in
+whitelist esattamente com'è, e una query string nella whitelist di Supabase è un modo in più di
+sbagliare. Se modifichi una, guarda anche l'altra.
 
 ⚠️ Nota storica: fino alla 1.0.5 un commento in `Supabase.kt` diceva che la Custom Tab era
 «l'unico modo per cui Google non rifiuti il login come user agent non sicuro», attribuendola
@@ -5105,29 +4793,6 @@ non è un'app della suite: non ha una bolla in `cm_apps`, non fa il login Google
 tabella delle altre e i suoi dati non appartengono a un account. Mettere lì il marchio direbbe il
 falso proprio nel posto dove il marchio serve a dire di che famiglia è un'app. Il giorno che
 la sua icona cambia, **non** si tocca nient'altro; e cambiando il marchio, lei resta com'è.
-
-⚠️ **«Modifiche» lo porta dalla v1.1.0**, ed è un cambio di idea: la sua icona era una **chiave
-inglese su fondo verde petrolio**, e la ragione scritta allora era che non ha una riga in `cm_apps`
-— nessuna bolla, nessun punteggio — e che le sue tabelle non le legge nessun'altra app. La ragione
-era buona e la conclusione no (issue #25): **il marchio non dice che è un'app della suite, dice di
-che famiglia è**, e questa è l'app con cui si cambiano le altre. Porta quindi i cinque cerchi su
-fondo nero **più un badge verde petrolio con la chiave inglese** in alto a destra: è la stessa
-struttura del lucchetto di Smart Blocker e del badge `SOS`, e il verde petrolio resta il colore
-dell'app — lo porta anche la barra di stato. Le APK che portano il marchio diventano **quattro**.
-
-⚠️ **La chiave dentro il badge è quella di prima, rimpicciolita con un `<group>`** (pivot sul
-centro del suo riquadro, `scale` 0.35) e non ridisegnata a coordinate nuove: due disegni della
-stessa chiave divergono il giorno che una delle due si ritocca, e lo `scale` porta con sé anche gli
-spessori dei tratti. ⚠️ **L'alone scuro non è decorazione**, ed è la stessa ragione di SOS letta su
-un altro colore: il badge (`#0F766E`) e il cerchio rosso del marchio che gli sta sotto (`#CA372E`)
-hanno **quasi la stessa luminosità** — 0,141 contro 0,156 — quindi senza un bordo scuro in mezzo, a
-48 dp nel cassetto si leggerebbero come una macchia sola. ⚠️ Il badge ha **la stessa geometria di
-SOS**: l'angolo alto-destro dell'alone, (80, 30), cade a 35,4 dp dal centro, cioè dentro il cerchio
-di sicurezza per un pelo. ⚠️ Il **fondo è passato a nero** (`ic_launcher_background` `#111111`, lo
-stesso dell'APK nativa): sul verde petrolio il cerchio verde del marchio ci sparirebbe dentro.
-
-⚠️ **«Spese in giro» resta l'unica fuori**, e adesso la ragione si legge meglio: quella non tocca
-né le app della suite né i loro dati — i suoi appartengono a un codice, non a un account.
 
 ⚠️ **Nella barra il marchio sta su un disco bianco**, e non è decorazione: la barra è `#0081C8` e
 il cerchio centrale del marchio è `#067BC0`, quindi senza fondo il pezzo che regge il disegno
@@ -6505,103 +6170,6 @@ l'ancora, con `#diario` come ripiego.
 - ⚠️ **Il prompt si svuota solo quando la risposta c'è**: un errore non deve costare il testo
   appena scritto. I tag scelti restano per l'invio dopo.
 
-### `modifiche.html` — Modifiche
-- Il taccuino delle cose da cambiare nelle app: un titolo, quale app tocca, la descrizione, e le
-  **schermate** che lo mostrano. Da ogni richiesta parte un **📤 Condividi il prompt** già scritto,
-  con le immagini allegate.
-- Si apre da AppSphere → ☰ → 🛠️ **Modifiche**, e dall'APK omonima
-  (`android-app/modifiche/`, vedi la sua sezione).
-- **Identità propria, nessun collegamento a `/`**: la barra non porta il marchio e non rimanda ad
-  AppSphere. Dentro l'APK quel collegamento aprirebbe un login che quella WebView non sa fare — è
-  la stessa ragione per cui la pagina ha un suo accesso a email e password invece del Google della
-  suite.
-- Quattro filtri in cima (📌 Da fare · ✅ Fatte · 🚫 Scartate · Tutte) col conteggio: **le scartate
-  restano**, non spariscono.
-- ⚠️ **Lo stato gira fra i quattro toccando un pulsante** invece di aprire una tendina: sono
-  quattro, e una finestra per cambiare una parola è una finestra di troppo.
-- ⚠️ **Le foto si caricano DOPO la riga**: il percorso nel bucket porta l'id della richiesta, e per
-  una richiesta nuova quell'id non esiste ancora. È la stessa regola delle foto di Memo. Finché non
-  si salva, le immagini scelte vivono come blob in memoria — così una richiesta abbandonata non
-  lascia niente nel bucket.
-- ⚠️ **Il prompt nomina le schermate e non le descrive**: `costruisciPrompt()` mette titolo, app
-  (tutte, separate da virgola), data e descrizione, e in coda dice quante immagini viaggiano con lui. Un prompt che raccontasse
-  cosa si vede in una schermata sarebbe una seconda verità sulla stessa cosa.
-- ⚠️ **Fuori dall'APK il tasto Condividi fa comunque qualcosa**: il `navigator.share` del browser
-  dove c'è, e gli appunti dove non c'è. Un pulsante che sul PC non fa niente si legge come un
-  pulsante rotto.
-- ⚠️ **I due banchi di prova delle ⚙️ Impostazioni sono stati TOLTI** (v1.4.0, issue #26, su
-  richiesta esplicita): 🔌 *Prova il caricamento delle immagini* — che caricava un pixel e lo
-  ricancellava — e 🐙 *Manda a Claude Code*, che diceva quale delle quattro cause impediva a una
-  issue di partire. **Il prezzo è dichiarato**: quando un caricamento o un invio non passa, la
-  causa non si distingue più a freddo. `spiegaStorage()` però **resta** e la nomina lo stesso, col
-  SQL da incollare, nel punto in cui il salvataggio vero fallisce — che è dove serve davvero: a
-  sparire è la prova, non il messaggio. L'azione `prova` di `modifiche-issue` resta deployata e non
-  la chiama più nessuno.
-- ⚠️ **L'errore di un salvataggio si scrive NEL form, non in un toast**: quando a mancare è il
-  bucket il rimedio è un SQL da incollare, e un rimedio che sparisce dopo due secondi non è un
-  rimedio.
-- ⚠️ **Un salvataggio fallito a metà si riprende, non si rifà**: la bozza si tiene l'id della riga
-  appena creata e ogni schermata già caricata smette di essere «nuova». Senza, ripremere Salva
-  dopo un errore creerebbe una seconda richiesta identica e ricaricherebbe le foto già su.
-- ⚠️ **La riduzione a 1600 px ha tre gradini** (`createImageBitmap` con le opzioni, senza, e un
-  `<img>`): una WebView che non conosce la prima chiamata altrimenti non carica **niente** e non
-  dice perché.
-- ⚠️ **Un selettore che torna a MANI VUOTE non è un annullamento silenzioso** (v1.2.1,
-  `avvisoSelettore`): annullando, il `change` non scatta affatto, quindi zero file — o un file da
-  **zero byte** — vuol dire che la WebView non li ha potuti leggere, cioè `allowContentAccess`
-  spento su un'APK precedente alla v1.0.1. Fino alla v1.2.0 quel caso finiva in un `for` che non
-  girava: nessuna anteprima, nessun errore, e il pulsante che sembra rotto. Ora l'avviso lo dice
-  **e nomina la versione installata**, letta dal `PackageManager`: la domanda «quale APK ho?» ha
-  la risposta lì, non in un altro menù.
-- ⚠️ **Il campo delle schermate sta in un `<div>` e non in un `<label>`**, ed è l'unico campo del
-  form a farlo (v1.3.0). Dentro un'etichetta il tocco può arrivare **due volte** — una all'input e
-  una all'etichetta, che lo rilancia — e `onShowFileChooser` partirebbe due volte. ⚠️ **Non era
-  la causa del difetto del 14 settembre 2026**, che stava nell'APK (vedi *Modifiche → il Photo
-  Picker*): la sentinella qui sotto lo ha dimostrato, dicendo che il selettore tornava a mani vuote
-  anche col `<div>`. Il campo resta fuori dall'etichetta perché la ragione vale di suo, e perché il
-  doppio tocco ha comunque una guardia dall'altra parte — ma la diagnosi era sbagliata, e questa
-  riga lo dice invece di lasciar credere che sia stata lei a chiudere il caso.
-  ⚠️ Il commento che lo spiega sta **fuori** dal template literal di `disegnaEditor`: dentro, i
-  backtick del codice citato chiuderebbero la stringa.
-- ⚠️ **La sentinella del selettore** (`armaSelettore` + `visibilitychange`): il caso peggiore non è
-  un errore, è il **silenzio** — un selettore che torna senza consegnare niente è indistinguibile
-  da un annullamento voluto. Il tocco arma un flag, e al rientro nella pagina, passati **due
-  secondi** senza `change`, l'avviso lo dice. I due secondi non sono prudenza generica:
-  `visibilitychange` arriva **prima** che la WebView consegni i file, non dopo.
-- ⚠️ **La bozza vive in `localStorage` mentre la si scrive**, e la pagina la rioffre con un banner
-  in cima all'elenco: aprire il selettore vuol dire **uscire dall'app**, e Android è libero di
-  chiudere quel che sta dietro — al rientro la pagina si ricarica e tutto quel che era in memoria è
-  andato, cioè si ritrova il foglio bianco dopo aver scritto. Tre cose volute: le **schermate non
-  ci stanno** (sono blob, e qualche megabyte in base64 riempirebbe il tetto dei cinque facendo
-  fallire anche il salvataggio del testo — il banner lo dice invece di lasciarlo scoprire); il
-  banner **non riapre il form da sé**, perché una finestra che compare all'avvio si chiude per
-  riflesso e con lei la bozza; e **chiudere il form la butta via** (✕, Annulla e l'indietro sono un
-  gesto), mentre un'app chiusa da Android non passa da `chiudiPopup` — che è esattamente il caso
-  per cui la copia esiste. Per la stessa ragione `apriEditor` **riscrive** la bozza in archivio: un
-  form aperto soppianta quello di prima, o chiudendo questo si butterebbe via la bozza di un altro.
-- ⚠️ **Sotto le anteprime c'è il conteggio** (*N schermate pronte*): «zero perché non ne ho scelte»
-  e «zero perché non sono arrivate» si somigliano troppo per lasciarle senza didascalia.
-- ⚠️ **SOSPESA dal 6 ottobre 2026** (vedi *La repo: `garsal-apps-public`*): 🐙 e 🤖 puntano alla
-  repo vecchia e non vanno riattivati su questa, che è pubblica.
-- **🐙 Manda a Claude** trasforma la richiesta in una **issue** su `garsal1971/garsal-apps`, con le
-  schermate dentro come indirizzi firmati. Passa dall'Edge Function `modifiche-issue`, che tiene il
-  PAT nei Secrets. ⚠️ **Vuole la repo privata** — lo è dal 13 settembre 2026 — e se tornasse
-  pubblica il pulsante va spento con lei. Dettagli in *Modifiche → 🐙 La richiesta diventa una
-  issue*.
-- ⚠️ **Il 📤 Condividi resta**, e non è un doppione: la issue è la strada per il lavoro, il
-  Condividi è quella per una chat aperta adesso. Il primo vuole rete e token, il secondo no.
-- **🛠 Comandi** (⚙️ Impostazioni, issue #24) apre `comandi.html` — gli APK da scaricare, il giro
-  degli User Test e il SQL una-tantum. Stava nel ☰ di AppSphere ed è stato tolto di là: quella è la
-  casa delle app, questo è il posto dove si lavora su di loro.
-  ⚠️ **Si apre nel browser di sistema**, come il 🐙 e il download dell'APK: metà di quella pagina
-  sono pulsanti che scaricano un `.apk`, e dentro una WebView un download **non fa assolutamente
-  niente** — nessun gestore, nessun installer, nessun errore.
-  ⚠️ **Il file resta dov'è e non si ricopia qui**: 600 righe fra pannelli APK, User Test e SQL, in
-  due posti, sono due pagine che divergono il giorno che una delle due si tocca. A spostarsi è la
-  porta, non la stanza.
-- Le tabelle sono `mod_richieste` e `mod_immagini`, il bucket privato `mod-immagini` — dettagli
-  nello schema `mod_`.
-
 ### `casarosa.html` — Cassa Casa Rosa
 - Movimenti e saldo della cassa di Casa Rosa (`cntrs_transactions`, `cntrs_categories`,
   `cntrs_saldi`). Si apre dal collegamento *🏠 Casa* nella sidebar di `finanza.html`.
@@ -7144,8 +6712,8 @@ della stessa modifica.
 
 Cosa è cambiato davvero col passaggio a privata: i **minuti di GitHub Actions** smettono di
 essere illimitati (~1.000 al mese misurati, contro i 2.000 del piano Free — le build APK sono la
-parte grossa), e le **issue** diventano leggibili solo da chi ha accesso alla repo: è la
-condizione per cui esiste 🐙 *Manda a Claude* in `modifiche.html`. Il resto non si accorge di
+parte grossa), e le **issue** diventano leggibili solo da chi ha accesso alla repo: era la
+condizione per cui esisteva 🐙 *Manda a Claude* in `modifiche.html`, ora tolta. Il resto non si accorge di
 niente: il sito lo costruisce Cloudflare Pages anche da una repo privata, le APK si scaricano da
 R2 e le schede `-latest.json` da `garsal.men` — nessun telefono chiede niente a GitHub.
 
@@ -7499,8 +7067,7 @@ l'unica via da quel computer e nessun altro ci passava mai.
 
 ⚠️ **Ne discende che quell'indirizzo è una seconda porta sui dati veri**, pubblica come
 `garsal.men`, e perché il login ci funzioni va messo fra i **Redirect URLs** di Supabase
-(produzione): `https://garsal-apps.pages.dev` per il Google di AppSphere e
-`https://garsal-apps.pages.dev/modifiche` per il link via email di Modifiche. Non è un passo che
+(produzione): `https://garsal-apps.pages.dev` per il Google di AppSphere. Non è un passo che
 sta nella repo.
 
 Vale in **17 pagine**; `finanza.html` è l'eccezione e non è una dimenticanza — lì `_IS_DEV` è
@@ -7641,9 +7208,9 @@ Su Android l'indietro è il gesto con cui si chiude qualunque cosa si sia aperta
 che non fa niente per governarlo, dentro un popup **esce dalla pagina**: la WebView non ha niente
 in cronologia e torna ad AppSphere, buttando via quel che si stava scrivendo.
 
-Il rimedio è il blocco `guardiaIndietroPopup`, **identico in tutte e dieci le app** che hanno dei
+Il rimedio è il blocco `guardiaIndietroPopup`, **identico in tutte e nove le app** che hanno dei
 popup (`index`, `weight-quest`, `finanza`, `obiettivi`, `casarosa`, `conto-risparmio-teresa`,
-`conto-spese-teresa`, `spese-ada`, `spese-personali`, `modifiche`) — in fondo
+`conto-spese-teresa`, `spese-ada`, `spese-personali`) — in fondo
 al loro script,
 e l'unica cosa che cambia è l'elenco dei popup. ⚠️ **Se lo correggi in una, portalo nelle altre**:
 è la stessa duplicazione voluta dello snapshot del patrimonio.
