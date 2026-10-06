@@ -32,7 +32,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const ENABLE_BANKING_API_BASE = 'https://api.enablebanking.com';
-const APP_BASE_URL = 'https://garsal.netlify.app';
+const APP_BASE_URL = 'https://garsal.men';
 // La gestione dei conti sta tutta in finanza.html (sezione Banche e Conti): c'è un solo
 // posto dove tornare, qualunque uso avrà poi il conto.
 const REDIRECT_URL = `${APP_BASE_URL}/finanza.html`;
