@@ -1,5 +1,5 @@
 /**
- * User test live — https://garsal.netlify.app
+ * User test live — https://garsal.men
  * Esecuzione: node tests/run-tests.js
  *
  * Al primo avvio chiede il token Supabase (copia da DevTools), poi salva la sessione.
@@ -24,7 +24,7 @@ const { chromium } = loadPlaywright();
 const SESSION = path.join(__dirname, 'session.json');
 const SHOTS   = path.join(__dirname, 'screenshots');
 const REPORT  = path.join(__dirname, 'report.txt');
-const BASE    = 'https://garsal.netlify.app';
+const BASE    = 'https://garsal.men';
 const SB_KEY  = 'sb_token';
 
 // ── Crea sessione se non esiste ───────────────────────────────────────────────

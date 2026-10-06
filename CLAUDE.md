@@ -6,7 +6,7 @@ This file provides context for AI assistants working in this repository.
 
 ## Project Overview
 
-**garsal-apps** is a collection of personal productivity web applications deployed to Netlify. Each app is a **single self-contained HTML file** with no build step, no package manager, and no external source files. All styling and JavaScript live inline within the HTML.
+**garsal-apps** is a collection of personal productivity web applications deployed to Cloudflare Pages (`garsal.men`). Each app is a **single self-contained HTML file** with no build step, no package manager, and no external source files. All styling and JavaScript live inline within the HTML.
 
 The suite is branded **AppSphere** and the UI language is **Italian**.
 
@@ -136,7 +136,7 @@ There is **no** `package.json`, `node_modules`, `build/`, or `dist/` directory. 
 |---|---|
 | Language | Vanilla HTML + CSS + JavaScript (ES2020+) |
 | Backend / Auth | [Supabase](https://supabase.com) (PostgreSQL BaaS) |
-| Deployment | Netlify (static hosting, no functions) |
+| Deployment | Cloudflare Pages (`garsal.men`), APK su R2 (`apk.garsal.men`) |
 | Charts | Chart.js v4.4.0 + chartjs-plugin-zoom (weight-quest only) |
 | Touch gestures | Hammer.js (weight-quest only) |
 | Fonts | Google Fonts — DM Sans / DM Mono (launcher), Space Mono / Darker Grotesque (other apps) |
@@ -3272,7 +3272,7 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 `android-app/appsphere-native/` è un progetto Gradle standalone (come `situazione-rosa/`)
 e **l'unica app Android della repo scritta davvero in nativo**: schermate in
 Kotlin/Compose, dati da PostgREST via `supabase-kt`. Tutti gli altri moduli caricano una pagina
-Netlify dentro una `WebView`.
+del sito (`garsal.men`) dentro una `WebView`.
 
 **Non sostituisce l'APK WebView, gli si affianca.** `applicationId` è `com.garsal.appsphere`
 (contro `com.garsalapps`), quindi i due si installano insieme sullo stesso telefono e leggono lo
@@ -7075,7 +7075,10 @@ telefono non si installa niente**.
 ### Deployment
 Cloudflare Pages pubblica a ogni push su `master`: *build command* `bash scripts/build-sito.sh`,
 *output* `dist`, header e riscritture in `_headers` / `_redirects`. La radice `/` è `index.html`.
-⚠️ Netlify non c'è più: `netlify.toml` e `deploy-dev.yml` sono stati tolti il 6 ottobre 2026.
+⚠️ Netlify non c'è più: `netlify.toml` e `deploy-dev.yml` sono stati tolti il 6 ottobre 2026, e
+l'account è stato chiuso. `enable-banking-callback` riporta su `garsal.men`. Restano due tracce
+innocue: il controllo `.netlify.app` di `_IS_DEV` nelle pagine e il nome «scaricabile via Netlify»
+di un passo in tre workflow di build.
 
 ### Git workflow
 - `master` — production branch (pubblicato da Cloudflare Pages)
