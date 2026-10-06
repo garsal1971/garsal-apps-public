@@ -1,6 +1,6 @@
 # AppSphere — App Android
 
-App Android che carica AppSphere (Netlify) con:
+App Android che carica AppSphere (`https://garsal.men`, Cloudflare Pages) con:
 - **Impronta digitale** all'avvio (o PIN come fallback)
 - **Sessione persistente** — nessun login ripetuto
 - **Notifiche native** schedulate (task, abitudini, peso)
@@ -15,15 +15,15 @@ App Android che carica AppSphere (Netlify) con:
 
 ---
 
-## Cambia la URL (OBBLIGATORIO)
+## La URL
 
-Apri `app/src/main/java/com/garsalapps/MainActivity.kt` e modifica la riga:
+È già impostata in `app/src/main/java/com/garsalapps/MainActivity.kt`:
 
 ```kotlin
-private val APP_URL = "https://garsal-apps.netlify.app"
+private val APP_URL             = "https://garsal.men/"
 ```
 
-Sostituisci con la tua URL Netlify reale.
+Va cambiata solo se il sito si sposta su un altro dominio.
 
 ---
 
