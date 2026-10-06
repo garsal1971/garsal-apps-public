@@ -3205,8 +3205,8 @@ su fondo scuro «più scuro» vuol dire «meno leggibile», non «meno important
 
 ## Spese in giro — le spese di un viaggio in bici, divise in due
 
-`android-app/spese-in-giro/` è un **progetto Gradle standalone** (come `appsphere-native/`,
-`situazione-rosa/` e `pressure-tracker/`, e non un modulo di `android-app/`), `applicationId`
+`android-app/spese-in-giro/` è un **progetto Gradle standalone** (come `appsphere-native/` e
+`situazione-rosa/`, e non un modulo di `android-app/`), `applicationId`
 `com.garsal.speseingiro`, APK `releases/SpeseInGiro-latest.apk`. Kotlin + Compose, Material 3, ML Kit per
 l'OCR. **Non ha un gemello web.**
 
@@ -3360,8 +3360,8 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 
 ## Modifiche — il banco di lavoro, e l'unica WebView che carica dei file
 
-`android-app/modifiche/` è un **progetto Gradle standalone** (come `situazione-rosa/`,
-`pressure-tracker/` e `spese-in-giro/`, e non un modulo di `android-app/`), `applicationId`
+`android-app/modifiche/` è un **progetto Gradle standalone** (come `situazione-rosa/` e
+`spese-in-giro/`, e non un modulo di `android-app/`), `applicationId`
 `com.garsal.modifiche`, APK `releases/Modifiche-latest.apk`. È una **WebView** che apre
 `garsal.men/modifiche.html`: qui non c'è niente di nativo se non le tre cose che la pagina da sola
 non può fare.
@@ -3579,8 +3579,8 @@ problema non ce l'hanno — là il download lo fa Kotlin, che c'è sempre.
 
 ## AppSphere nativa — l'unico modulo Android che non è un WebView
 
-`android-app/appsphere-native/` è un progetto Gradle standalone (come `situazione-rosa/` e
-`pressure-tracker/`) e **l'unica app Android della repo scritta davvero in nativo**: schermate in
+`android-app/appsphere-native/` è un progetto Gradle standalone (come `situazione-rosa/`)
+e **l'unica app Android della repo scritta davvero in nativo**: schermate in
 Kotlin/Compose, dati da PostgREST via `supabase-kt`. Tutti gli altri moduli caricano una pagina
 Netlify dentro una `WebView`.
 
@@ -7550,8 +7550,8 @@ master e rifà il merge fino a cinque volte. **Un conflitto vero non si riprova*
 esce diverso da zero, e con `bash -e` il passo muore lì — un conflitto lo risolve una persona.
 
 ⚠️ **La stessa rete ce l'hanno tutt'e otto i workflow di build**, che a lavoro finito committano
-l'APK su master e si contendono lo stesso ref. Tre non l'avevano — `build-pressure-tracker-apk`,
-`build-situazione-rosa-apk`, `build-situazione-teresa-apk`, che facevano un `git push` secco — e
+l'APK su master e si contendono lo stesso ref. Tre non l'avevano — fra cui
+`build-situazione-rosa-apk` e `build-situazione-teresa-apk`, che facevano un `git push` secco — e
 il 10 settembre 2026 Situazione Rosa ci è cascata: `cannot lock ref … is at ae64430 but expected
 1a2250f`, con l'APK già compilato e buttato via. Il passo che carica su R2 aggiunge ~25 secondi
 prima del push, quindi la finestra fra il `fetch` e il `push` si è allargata e l'ha reso
