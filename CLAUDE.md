@@ -67,7 +67,8 @@ soli file di oggi ripuliti.
 - **Modifiche e Comandi sono stati TOLTI** (6 ottobre 2026): `modifiche.html`,
   `comandi.html`, `oauth-callback-modifiche.html`, l'APK Modifiche col suo progetto e workflow, e
   la Edge Function `modifiche-issue`. Su una repo pubblica una issue con le schermate di Finanza
-  la leggerebbe chiunque. Tabelle `mod_*` e bucket `mod-immagini` restano nel database.
+  la leggerebbe chiunque. Tabelle `mod_*` e bucket
+  `mod-immagini` cancellati da `20261006180000_mod_rimozione.sql`.
 - **Cloudflare Pages è collegato a questa repo.** Il deploy è quello di sempre: push su un ramo
   `claude/**`, `deploy.yml` fonde su master.
 
