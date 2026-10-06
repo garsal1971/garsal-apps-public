@@ -2,8 +2,8 @@
   "app": "SOS",
   "version": "1.1.3",
   "versionCode": 6,
-  "builtAt": "2026-09-20T13:32:17Z",
-  "commit": "1b1c3edeb516336a7c6ae102d1beb5287b62fd53",
+  "builtAt": "2026-10-06T10:09:45Z",
+  "commit": "e96cab3aacc3698215d5a4e3664440e4f6e4aac9",
   "bytes": 19630376,
-  "sha256": "e72bf2e1319d29444da840da1c49d5845f2bde2bb673d39eb7f179b37eaf3fd6"
+  "sha256": "29e8ccb9bfb0b0eee85160d829ceca92a8bd046f7698745000e62708fd17b5bc"
 }
