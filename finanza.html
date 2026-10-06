@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.5</title>
+  <title>GarsalFinanza v1.27.6</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -37,6 +37,8 @@
     .hidden { display: none !important; }
     .mono   { font-family: var(--font-mono); }
     .pos    { color: var(--c-success); }
+    /* Snapshot salvati: il valore migliore di ogni colonna (il più alto, il più basso per i debiti) */
+    td.snap-top { background: #dcfce7; box-shadow: inset 0 0 0 2px #16a34a; }
     .neg    { color: var(--c-danger); }
     .text-muted { color: var(--c-muted); }
     .text-sm    { font-size: .82rem; }
@@ -611,8 +613,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.5';
-const APP_BUILD   = '2026-10-06T20:50:00Z';
+const APP_VERSION = 'v1.27.6';
+const APP_BUILD   = '2026-10-06T21:15:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -1815,6 +1817,20 @@ function renderProgressione() {
   const snaps = S.dashboardSnapshots.slice()
     .sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date))
     .filter(s => { const m = s.snapshot_date.slice(0, 7); if (visti.has(m)) return false; visti.add(m); return true; });
+  // Il migliore di ogni colonna, fra le righe mostrate: il più alto, tranne i debiti dove
+  // è il più basso. Un valore assente non concorre (un portafoglio senza dato non è zero).
+  const num = v => (v == null || v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
+  const migliore = (campo, piuBasso) => {
+    const vals = snaps.map(x => num(x[campo])).filter(v => v != null);
+    return vals.length ? (piuBasso ? Math.min(...vals) : Math.max(...vals)) : null;
+  };
+  const top = {
+    patrimonio_netto:  migliore('patrimonio_netto'),
+    portafogli_totali: migliore('portafogli_totali'),
+    asset_totali:      migliore('asset_totali'),
+    debiti_totali:     migliore('debiti_totali', true),
+  };
+  const evid = (s, campo) => (top[campo] != null && num(s[campo]) === top[campo]) ? ' snap-top' : '';
   const tableRows = snaps.length === 0
     ? `<tr><td colspan="7" class="text-muted text-sm" style="padding:16px;text-align:center">
         Nessuno snapshot salvato. Torna alla Dashboard o salva uno snapshot manualmente.
@@ -1822,10 +1838,10 @@ function renderProgressione() {
     : snaps.map(s => `
       <tr style="cursor:pointer" data-action="snap-detail" data-snap-date="${s.snapshot_date}">
         <td class="mono fw-600">${fmtDate(s.snapshot_date)}</td>
-        <td class="text-right mono ${parseFloat(s.patrimonio_netto) >= 0 ? 'pos' : 'neg'} fw-600">${fmtEUR(parseFloat(s.patrimonio_netto))}</td>
-        <td class="text-right mono">${s.portafogli_totali != null ? fmtEUR(parseFloat(s.portafogli_totali)) : '—'}</td>
-        <td class="text-right mono">${fmtEUR(parseFloat(s.asset_totali))}</td>
-        <td class="text-right mono neg">${fmtEUR(parseFloat(s.debiti_totali))}</td>
+        <td class="text-right mono ${parseFloat(s.patrimonio_netto) >= 0 ? 'pos' : 'neg'} fw-600${evid(s, 'patrimonio_netto')}">${fmtEUR(parseFloat(s.patrimonio_netto))}</td>
+        <td class="text-right mono${evid(s, 'portafogli_totali')}">${s.portafogli_totali != null ? fmtEUR(parseFloat(s.portafogli_totali)) : '—'}</td>
+        <td class="text-right mono${evid(s, 'asset_totali')}">${fmtEUR(parseFloat(s.asset_totali))}</td>
+        <td class="text-right mono neg${evid(s, 'debiti_totali')}">${fmtEUR(parseFloat(s.debiti_totali))}</td>
         <td class="text-right mono text-muted text-sm">${fmtUpdatedAt(s.updated_at, s.snapshot_date)}</td>
         <td class="text-right"><span class="text-muted text-sm">→</span></td>
       </tr>`).join('');
