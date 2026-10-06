@@ -1,0 +1,2 @@
+[functions.enable-banking-connect]
+verify_jwt = false

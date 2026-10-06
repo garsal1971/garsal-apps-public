@@ -1,0 +1,2444 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events Log v2.2.31</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF3366;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --accent: #2563EB;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+            /* Badge size scales */
+            --badge-smart-name: 0.82rem;
+            --badge-smart-pts: 0.68rem;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            padding-top: 56px;
+        }
+
+        /* ── GARSAL TOP BAR ── */
+        #garsal-top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #0081C8;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 10px;
+            z-index: 3000;
+        }
+        #garsal-top-bar-icon {
+            width: 22px;
+            height: 22px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            font-family: 'Space Mono', monospace;
+            flex-shrink: 0;
+        }
+        #garsal-top-bar-text {
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.2px;
+        }
+
+        /* ===== LAYOUT ===== */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: #F3F4F6;
+            padding: 1.0rem 0.75rem;
+            border-right: 1px solid var(--border);
+        }
+
+        .logo {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 3rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .nav-menu { display: flex; flex-direction: column; }
+
+        .nav-item {
+            padding: 0.5rem 0.6rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .nav-item.active { background: var(--primary); }
+
+        /* Desktop: mostra testo via data-text */
+        @media (min-width: 769px) {
+            .sidebar { display: block !important; position: relative !important; left: 0 !important; }
+            .nav-item::after { content: " " attr(data-text); }
+        }
+
+        .score-widget {
+            margin-top: 3rem;
+            padding: 0.75rem;
+            background: rgba(0, 217, 163, 0.1);
+            border-radius: 0;
+            border: 2px solid var(--success);
+        }
+
+        .score-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--success);
+            text-align: center;
+        }
+
+        .score-label { text-align: center; margin-top: 0.5rem; opacity: 0.8; }
+
+        /* ===== MAIN ===== */
+        .main-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            padding: 0.45rem 0.9rem;
+            border: none;
+            cursor: pointer;
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--border); color: var(--dark); }
+        .btn-secondary:hover { background: #d1d5db; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-small { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+        .btn-ghost { background: transparent; border: 2px solid var(--border); color: var(--dark); }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--card-bg);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .card:hover { border-color: #d1d5db; }
+
+        /* ===== FORMS ===== */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; margin-bottom: 0.4rem; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dark); }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 0.5rem 0.65rem;
+            border: 2px solid var(--border);
+            background: var(--input-bg);
+            color: var(--dark);
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.05rem;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent); background: white; }
+        .form-input::placeholder, .form-textarea::placeholder { color: #9CA3AF; }
+        .form-textarea { resize: vertical; min-height: 70px; }
+        .form-hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+
+        input[type="color"].form-input { height: 48px; cursor: pointer; padding: 4px; }
+
+        /* ===== MODAL ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(6px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 1.5rem;
+            max-width: 560px;
+            width: 92%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.7rem; font-weight: 900; color: var(--accent); }
+        .modal-close { font-size: 1.8rem; cursor: pointer; color: var(--muted); transition: all 0.2s; line-height: 1; }
+        .modal-close:hover { color: var(--danger); transform: rotate(90deg); }
+
+        /* ===== GROUP TABS ===== */
+        .group-tabs-wrapper {
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            scrollbar-width: none;
+        }
+
+        .group-tabs-wrapper::-webkit-scrollbar { display: none; }
+
+        .group-tab {
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .group-tab:hover { color: var(--dark); }
+        .group-tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+        .group-tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .group-tab[draggable="true"] { cursor: grab; user-select: none; }
+        .group-tab[draggable="true"]:active { cursor: grabbing; }
+        .group-tab.tab-dragging { opacity: 0.4; border-bottom-color: transparent; }
+        .group-tab.tab-drag-over { border-bottom-color: var(--accent); background: rgba(37,99,235,0.08); color: var(--accent); }
+        .group-tab .tab-drag-handle { font-size: 0.7rem; opacity: 0.35; margin-right: 0.1rem; pointer-events: none; }
+
+        /* ===== EVENT BUTTONS GRID ===== */
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .event-btn {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            border: 2px solid var(--border);
+            background: white;
+            transition: all 0.18s;
+            padding: 0.75rem 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .event-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .event-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+        .event-btn:hover::before { opacity: 0.06; }
+        .event-btn:active { transform: translateY(-1px); }
+
+        .event-btn .ev-icon { font-size: 2rem; line-height: 1; }
+        .event-btn .ev-name { font-size: var(--badge-smart-name); font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; }
+        .event-btn .ev-pts { font-family: 'Space Mono', monospace; font-size: var(--badge-smart-pts); font-weight: 700; }
+        .event-btn .ev-divider { width: 60%; height: 1px; background: currentColor; opacity: 0.15; }
+        .event-btn .ev-total { font-family: 'Space Mono', monospace; font-size: 0.95rem; font-weight: 700; }
+        .event-btn .ev-total-label { font-size: 0.62rem; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.3px; margin-top: -0.15rem; }
+
+        /* ===== STATS STRIP ===== */
+        .stats-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-box {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            text-align: center;
+            background: var(--card-bg);
+        }
+
+        .stat-val {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.6rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-lbl { font-size: 0.70rem; text-transform: uppercase; opacity: 0.6; margin-top: 0.3rem; letter-spacing: 0.5px; }
+
+        /* ===== LOG LIST ===== */
+        .log-entry {
+            display: grid;
+            grid-template-columns: 48px 1fr auto;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: white;
+        }
+
+        .log-entry:hover { border-color: var(--primary); background: rgba(255,51,102,0.02); }
+        .log-icon { font-size: 1.8rem; text-align: center; }
+        .log-name { font-weight: 700; font-size: 1rem; }
+        .log-meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+        .log-note { font-size: 0.85rem; opacity: 0.75; font-style: italic; margin-top: 0.2rem; }
+        .log-pts { font-family: 'Space Mono', monospace; font-size: 1.3rem; font-weight: 700; text-align: right; white-space: nowrap; }
+
+        .pts-pos { color: var(--success); }
+        .pts-neg { color: var(--danger); }
+        .pts-zero { color: var(--muted); }
+
+        /* ===== GROUP DATE SEPARATOR ===== */
+        .date-sep {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0.75rem;
+            background: var(--input-bg);
+            border-left: 4px solid var(--accent);
+            margin-bottom: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .date-sep strong { font-size: 0.9rem; text-transform: capitalize; }
+        .date-sep span { font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+
+        /* ===== MANAGEMENT CARDS ===== */
+        .mgmt-group-card {
+            border: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+            background: white;
+        }
+
+        .mgmt-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .mgmt-group-header:hover { background: var(--input-bg); }
+
+        .mgmt-group-title {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .mgmt-group-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
+        .mgmt-group-body { padding: 0.75rem 1rem; }
+
+        .mgmt-event-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mgmt-event-row:last-child { border-bottom: none; }
+
+        .mgmt-event-info { display: flex; align-items: center; gap: 0.6rem; }
+        .mgmt-event-name { font-weight: 600; font-size: 1rem; }
+        .mgmt-event-pts { font-family: 'Space Mono', monospace; font-size: 0.9rem; }
+        .mgmt-event-actions { display: flex; gap: 0.4rem; }
+
+        /* ===== CHART BAR ===== */
+        .chart-bar-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 100px;
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        .chart-bar-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
+            position: relative;
+        }
+
+        .chart-bar { width: 100%; transition: height 0.5s ease; min-height: 2px; }
+        .chart-bar-label { position: absolute; bottom: 0; font-size: 0.55rem; color: var(--muted); transform: translateY(100%); white-space: nowrap; font-weight: 600; }
+        .chart-bar-val { font-size: 0.6rem; font-weight: 700; margin-bottom: 2px; white-space: nowrap; }
+
+        /* ===== TOP EVENT ROW ===== */
+        .top-event-row { margin-bottom: 0.75rem; }
+        .top-event-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem; }
+        .top-event-bar { height: 6px; background: var(--border); }
+        .top-event-bar-fill { height: 100%; transition: width 0.6s ease; }
+
+        /* ===== FILTER CHIPS ===== */
+        .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+        .chip {
+            padding: 0.25rem 0.7rem;
+            border: 2px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            background: white;
+        }
+
+        .chip:hover { border-color: var(--accent); color: var(--accent); }
+        .chip.active { border-color: var(--primary); background: var(--primary); color: white; }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: var(--dark);
+            color: white;
+            padding: 0.9rem 1.4rem;
+            z-index: 9999;
+            font-weight: 700;
+            font-size: 1rem;
+            border-left: 4px solid var(--success);
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 320px;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { border-left-color: var(--danger); }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state .empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+        .empty-state p { font-size: 1rem; margin-bottom: 1rem; }
+
+        /* ===== SECTION TITLE ===== */
+        .section-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .section-bar h3 { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ===== DA_SELECT BUTTON ===== */
+        .event-btn.da-select {
+            cursor: default;
+            border-style: dashed;
+        }
+        .event-btn.da-select:hover { transform: none; box-shadow: none; }
+        .event-btn.da-select:active { transform: none; }
+        .ev-type-badge {
+            font-size: 0.58rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 0.1rem 0.35rem;
+            border-radius: 2px;
+            background: currentColor;
+        }
+        .ev-type-badge span { mix-blend-mode: difference; color: white; }
+        .ev-current-val {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .ev-loading { font-size: 0.7rem; opacity: 0.5; animation: blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:0.5} 50%{opacity:1} }
+        @keyframes scorePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        .score-pulse { animation: scorePulse 0.35s ease; }
+
+        /* ===== LOG CONFIRM MODAL ===== */
+        .log-confirm-event {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--input-bg);
+            border-left: 4px solid var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        /* ===== MOBILE ===== */
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+
+            .sidebar {
+                display: flex !important;
+                position: fixed !important;
+                top: 56px !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: #F3F4F6 !important;
+                border-bottom: 2px solid var(--border) !important;
+                border-right: none !important;
+                padding: 0.1rem 0 !important;
+                z-index: 1000;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+
+            .logo, .score-widget { display: none !important; }
+
+            .nav-menu {
+                display: flex !important;
+                flex-direction: row !important;
+                width: 100% !important;
+                justify-content: space-around !important;
+                align-items: center !important;
+                gap: 0.3rem !important;
+                margin: 0 !important;
+            }
+
+            .nav-item {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 0.05rem !important;
+                padding: 0.15rem 0.1rem !important;
+                margin: 0 !important;
+                font-size: 2.2rem !important;
+                min-width: 0 !important;
+                flex: 1 !important;
+                text-align: center !important;
+                position: relative !important;
+                transform: none !important;
+            }
+
+            .nav-item:hover { transform: none !important; }
+
+            .nav-item.active {
+                background: var(--primary) !important;
+                border-radius: 0;
+            }
+
+            .nav-item::after { content: none !important; display: none !important; }
+
+            .score-widget { display: none !important; }
+
+            .main-content { padding: 0 0.75rem 1rem !important; padding-top: 4.5rem !important; }
+
+            .stats-strip { grid-template-columns: repeat(2, 1fr); }
+            .events-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; }
+
+            .page-title { font-size: 1.8rem; }
+        }
+
+        @media (max-width: 480px) {
+            .events-grid { grid-template-columns: repeat(3, 1fr); }
+            .event-btn .ev-icon { font-size: 1.8rem; }
+            .event-btn .ev-name { font-size: var(--badge-smart-name); }
+        }
+
+        /* Hidden Mode FAB */
+        .hidden-mode-fab {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            background: var(--muted, #6B7280);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.4rem;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            transition: all 0.3s ease;
+        }
+        .hidden-mode-fab:hover { transform: scale(1.1); }
+        .hidden-mode-fab:active { transform: scale(0.95); }
+        .hidden-mode-fab.active {
+            background: var(--secondary, #6C5CE7);
+            box-shadow: 0 4px 20px rgba(108,92,231,0.5);
+            animation: pulse-hidden 2s infinite;
+        }
+        @keyframes pulse-hidden {
+            0%   { box-shadow: 0 4px 20px rgba(108,92,231,0.5); }
+            50%  { box-shadow: 0 4px 28px rgba(108,92,231,0.8); }
+            100% { box-shadow: 0 4px 20px rgba(108,92,231,0.5); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- GARSAL TOP BAR -->
+    <div id="garsal-top-bar">
+        <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+            <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+            <div id="garsal-top-bar-text">Garsal Apps</div>
+        </a>
+    </div>
+
+    <!-- AUTH OVERLAY — mostrato se app aperta senza token -->
+    <div id="authOverlay" style="display:none; position:fixed; inset:0; background:rgba(15,15,30,0.97); z-index:9999; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem; font-family:inherit;">
+        <div style="font-size:3.5rem;">🔐</div>
+        <h2 style="color:#fff; margin:0; font-size:1.4rem; font-weight:700;">Accesso richiesto</h2>
+        <p style="color:#aaa; margin:0; text-align:center; max-width:320px; line-height:1.6;">Apri <strong style="color:#FF3366;">Events Log</strong> da AppSphere per accedere con il tuo account Google.</p>
+        <a href="/" style="margin-top:0.5rem; padding:0.8rem 2rem; background:#FF3366; color:#fff; border-radius:10px; text-decoration:none; font-weight:700; font-size:0.95rem;">Vai ad AppSphere</a>
+    </div>
+
+<div class="app-container">
+
+    <!-- Hidden Mode FAB -->
+    <button class="hidden-mode-fab" id="hiddenModeFab" onclick="toggleHiddenMode()" title="Mostra solo riservati">🙈</button>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="nav-menu">
+            <div class="nav-item active" onclick="showPage('logPage', this)" data-text="Log Rapido">⚡</div>
+            <div class="nav-item" onclick="showPage('historyPage', this)" data-text="Storico">📋</div>
+            <div class="nav-item" onclick="showPage('mgmtPage', this)" data-text="Gestione">⚙️</div>
+            <div class="nav-item" onclick="showPage('statsPage', this)" data-text="Statistiche">📊</div>
+            <div class="nav-item" onclick="showPage('settingsPage', this)" data-text="Impostazioni">🔧</div>
+        </nav>
+
+        <div class="score-widget">
+            <div class="score-value" id="totalScore">0</div>
+            <div class="score-label">Punteggio Totale</div>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+
+        <!-- ====== LOG PAGE ====== -->
+        <div class="page active" id="logPage">
+
+            <!-- Stats strip -->
+            <div class="stats-strip" style="grid-template-columns: repeat(4, 1fr)">
+                <div class="stat-box">
+                    <div class="stat-val pts-pos" id="sPtsOggi">0</div>
+                    <div class="stat-lbl">Punti Oggi</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" style="color:var(--accent)" id="sLogOggi">0</div>
+                    <div class="stat-lbl">Log Oggi</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" style="color:var(--secondary)" id="sPtsSettimana">0</div>
+                    <div class="stat-lbl">Settimana</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" style="color:var(--warning)" id="sTotLogs">0</div>
+                    <div class="stat-lbl">Log Totali</div>
+                </div>
+            </div>
+
+            <!-- Group tabs -->
+            <div class="group-tabs-wrapper" id="logGroupTabs"></div>
+
+            <!-- Events grid -->
+            <div class="events-grid" id="logEventsGrid"></div>
+
+            <!-- Recent -->
+            <div class="section-bar" style="margin-top:2rem;">
+                <h3>Ultimi Log</h3>
+                <button class="btn btn-small btn-ghost" onclick="showPage('historyPage', document.querySelectorAll('.nav-item')[1])">Vedi tutto →</button>
+            </div>
+            <div id="recentLogs"></div>
+        </div>
+
+        <!-- ====== HISTORY PAGE ====== -->
+        <div class="page" id="historyPage">
+            <div class="page-header">
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <select class="form-select" id="histFilterDays" onchange="renderHistory()" style="width:auto; font-size:0.9rem;">
+                        <option value="7">7 giorni</option>
+                        <option value="30">30 giorni</option>
+                        <option value="90">3 mesi</option>
+                        <option value="">Tutto</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Group filter chips -->
+            <div class="filter-chips" id="histGroupChips"></div>
+
+            <div id="historyList">
+                <div class="empty-state"><div class="empty-icon">📭</div><p>Nessun log registrato</p></div>
+            </div>
+        </div>
+
+        <!-- ====== MANAGEMENT PAGE ====== -->
+        <div class="page" id="mgmtPage">
+            <div class="page-header">
+                <button class="btn btn-primary" onclick="openGroupModal()">+ Nuovo Gruppo</button>
+            </div>
+
+            <div id="mgmtList">
+                <div class="empty-state">
+                    <div class="empty-icon">🗂️</div>
+                    <p>Nessun gruppo configurato.</p>
+                    <button class="btn btn-accent" onclick="openGroupModal()">+ Crea il primo gruppo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== SETTINGS PAGE ====== -->
+        <div class="page" id="settingsPage">
+
+            <div class="card" style="margin-bottom:1rem;">
+                <h3 style="margin-bottom:1.5rem;">📏 Dimensione Badge</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Vista Smart (Log Rapido)</label>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <span style="font-size:0.8rem; color:#999;">A</span>
+                        <input type="range" id="settingBadgeSmart" min="60" max="250" step="5" value="100"
+                               style="flex:1; height:6px; -webkit-appearance:auto; appearance:auto; accent-color:var(--primary);"
+                               oninput="document.getElementById('badgeSmartLabel').textContent = this.value + '%';">
+                        <span style="font-size:1.2rem; color:#999;">A</span>
+                        <span id="badgeSmartLabel" style="font-weight:700; min-width:3.5rem; text-align:center; background:var(--primary); color:white; padding:0.2rem 0.5rem; border-radius:4px; font-size:0.9rem;">100%</span>
+                    </div>
+                    <small style="opacity:0.7; display:block; margin-top:0.5rem;">
+                        Testo dei pulsanti nella pagina Log Rapido — nome evento e punti (60%–250%)
+                    </small>
+                </div>
+
+<button class="btn btn-primary" onclick="saveSettings()">💾 Salva Impostazioni</button>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom:1rem;">Informazioni Sistema</h3>
+                <div style="display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid var(--border);">
+                    <span style="color:var(--muted); font-size:0.9rem;">Versione</span>
+                    <span style="font-weight:700;" id="infoVersion"></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:0.4rem 0;">
+                    <span style="color:var(--muted); font-size:0.9rem;">Database</span>
+                    <span style="font-weight:700;">Supabase PostgreSQL</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== STATS PAGE ====== -->
+        <div class="page" id="statsPage">
+            <div class="stats-strip" style="grid-template-columns: repeat(3,1fr);">
+                <div class="stat-box">
+                    <div class="stat-val pts-pos" id="stTotPts">0</div>
+                    <div class="stat-lbl">Punteggio Totale</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" style="color:var(--accent)" id="stAvgDay">0</div>
+                    <div class="stat-lbl">Media/Giorno</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" style="color:var(--warning)" id="stTotCount">0</div>
+                    <div class="stat-lbl">Log Totali</div>
+                </div>
+            </div>
+
+            <div class="section-bar"><h3>Andamento (14 giorni)</h3></div>
+            <div class="card" style="padding:1rem 0.75rem 0.75rem;">
+                <div class="chart-bar-container" id="statsChart"></div>
+            </div>
+
+            <div class="section-bar" style="margin-top:1.5rem;"><h3>Top Eventi</h3></div>
+            <div id="statsTopEvents"></div>
+
+            <div class="section-bar" style="margin-top:1.5rem;"><h3>Per Gruppo</h3></div>
+            <div id="statsPerGroup"></div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ====== MODAL: QUICK LOG CONFIRM ====== -->
+<div class="modal" id="quickLogModal">
+    <div class="modal-content" style="max-width:300px; padding:1.25rem; border-radius:16px;">
+        <div id="quickLogInfo" style="text-align:center; margin-bottom:1.25rem;"></div>
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            <button class="btn btn-primary" onclick="quickConfirmLog()">✅ Registra</button>
+            <button class="btn btn-secondary" onclick="quickOpenDetails()">📝 Aggiungi dettagli</button>
+            <button class="btn btn-ghost" onclick="closeQuickLogModal()" style="opacity:0.7;">Annulla</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== MODAL: LOG CONFIRM ====== -->
+<div class="modal" id="logModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <h2 class="modal-title" id="logModalTitle">Registra</h2>
+            <span class="modal-close" onclick="closeLogModal()">✕</span>
+        </div>
+        <div class="log-confirm-event" id="logModalEventInfo"></div>
+        <div class="form-group">
+            <label class="form-label">Nota (opzionale)</label>
+            <textarea class="form-textarea" id="logModalNote" placeholder="Aggiungi un'annotazione..."></textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Data e Ora</label>
+            <input type="datetime-local" class="form-input" id="logModalDateTime">
+        </div>
+        <div style="display:flex; gap:0.75rem;">
+            <button class="btn btn-primary" onclick="confirmLog()" style="flex:1;">✅ Registra</button>
+            <button class="btn btn-secondary" onclick="closeLogModal()">Annulla</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== MODAL: GROUP ====== -->
+<div class="modal" id="groupModal">
+    <div class="modal-content" style="max-width:440px;">
+        <div class="modal-header">
+            <h2 class="modal-title" id="groupModalTitle">Nuovo Gruppo</h2>
+            <span class="modal-close" onclick="closeGroupModal()">✕</span>
+        </div>
+        <form onsubmit="saveGroup(event)">
+            <input type="hidden" id="editGroupId">
+            <div class="form-group">
+                <label class="form-label">Nome Gruppo *</label>
+                <input type="text" class="form-input" id="groupName" required placeholder="Es: Salute, Sport, Lavoro...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Icona (emoji)</label>
+                <input type="text" class="form-input" id="groupIcon" placeholder="🏋️" maxlength="4">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Colore</label>
+                <input type="color" class="form-input" id="groupColor" value="#2563EB">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descrizione</label>
+                <textarea class="form-textarea" id="groupDescription" placeholder="Descrizione del gruppo (opzionale)..." style="min-height:60px;"></textarea>
+            </div>
+            <div class="form-group" style="margin-top:0.5rem;">
+                <label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="groupRiservato" style="width:18px;height:18px;accent-color:var(--secondary);cursor:pointer;">
+                    <span class="form-label" style="margin:0;">Gruppo nascosto (riservato)</span>
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Salva Gruppo</button>
+        </form>
+    </div>
+</div>
+
+<!-- ====== MODAL: EVENT ====== -->
+<div class="modal" id="eventModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title" id="eventModalTitle">Nuovo Evento</h2>
+            <span class="modal-close" onclick="closeEventModal()">✕</span>
+        </div>
+        <form onsubmit="saveEvent(event)">
+            <input type="hidden" id="editEventId">
+            <input type="hidden" id="editEventGroupId">
+
+            <!-- Tipo evento -->
+            <div class="form-group">
+                <label class="form-label">Tipo Evento</label>
+                <div style="display:flex; gap:0.5rem;">
+                    <label style="flex:1; display:flex; align-items:center; gap:0.5rem; padding:0.6rem; border:2px solid var(--border); cursor:pointer;" id="typeManualLabel">
+                        <input type="radio" name="eventType" id="typeManual" value="MANUALE" onchange="onEventTypeChange()" checked>
+                        <span>🖱️ <strong>Manuale</strong></span>
+                    </label>
+                    <label style="flex:1; display:flex; align-items:center; gap:0.5rem; padding:0.6rem; border:2px solid var(--border); cursor:pointer;" id="typeDaSelectLabel">
+                        <input type="radio" name="eventType" id="typeDaSelect" value="DA_SELECT" onchange="onEventTypeChange()">
+                        <span>🔍 <strong>DA_SELECT</strong></span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr auto; gap:0.75rem; align-items:end;">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Nome Evento *</label>
+                    <input type="text" class="form-input" id="eventName" required placeholder="Es: Allenamento, Lettura...">
+                </div>
+                <div class="form-group" style="margin-bottom:0; width:70px;">
+                    <label class="form-label">Icona</label>
+                    <input type="text" class="form-input" id="eventIcon" placeholder="💪" maxlength="4" style="text-align:center; font-size:1.4rem;">
+                </div>
+            </div>
+
+            <!-- Campi MANUALE -->
+            <div id="manualFields">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:1.25rem;">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Punteggio *</label>
+                        <input type="number" class="form-input" id="eventPoints" value="10">
+                        <div class="form-hint">Negativo per penalità</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Colore</label>
+                        <input type="color" class="form-input" id="eventColor" value="#2563EB">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campi DA_SELECT -->
+            <div id="daSelectFields" style="display:none; margin-top:1.25rem;">
+                <div class="form-group">
+                    <label class="form-label">Query SQL</label>
+                    <textarea class="form-textarea" id="eventScoreQuery" rows="4"
+                        placeholder="SELECT count(*)::int FROM my_table WHERE user_id = 'xyz'&#10;-- Deve restituire un singolo valore numerico"></textarea>
+                    <div class="form-hint">La query viene eseguita tramite <code>run_score_query(query)</code> e deve restituire un singolo numero.</div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Punti per evento *</label>
+                        <input type="number" class="form-input" id="eventPointsDaSelect" value="10">
+                        <div class="form-hint">Punteggio × numero eventi</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Colore</label>
+                        <input type="color" class="form-input" id="eventColorDaSelect" value="#6C5CE7">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:1.25rem;">
+                <label class="form-label">Descrizione</label>
+                <textarea class="form-textarea" id="eventDescription" placeholder="Descrizione breve..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:0.25rem;">Salva Evento</button>
+        </form>
+    </div>
+</div>
+
+<!-- ====== MODAL: LOG DETAIL ====== -->
+<div class="modal" id="logDetailModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Dettaglio Log</h2>
+            <span class="modal-close" onclick="closeLogDetailModal()">✕</span>
+        </div>
+        <div id="logDetailContent"></div>
+        <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+            <button class="btn btn-danger" id="logDetailDeleteBtn" style="flex:1;">🗑️ Elimina</button>
+            <button class="btn btn-secondary" onclick="closeLogDetailModal()">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ====== MODAL: EVENT DETAIL ====== -->
+<div class="modal" id="eventDetailModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header">
+            <h2 class="modal-title" id="evDetailTitle">Dettaglio</h2>
+            <span class="modal-close" onclick="closeEventDetail()">✕</span>
+        </div>
+        <div id="evDetailContent"></div>
+        <div style="display:flex; gap:0.75rem; margin-top:1.25rem;">
+            <button class="btn btn-primary" id="evDetailLogBtn" style="flex:1;">✅ Registra</button>
+            <button class="btn btn-secondary" onclick="closeEventDetail()">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // VERSION
+    // ==========================================
+    var APP_VERSION = 'v2.2.31';
+    var BUILD_TIME  = '2026-09-14T10:30:00Z';
+    console.log('%c Events Log ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+        'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+        'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+    // ==========================================
+    // SUPABASE — client inizializzato dopo auth
+    // ==========================================
+    // ── AMBIENTE: dev vs produzione ─────────────────────────────────────────────
+    const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+    const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+                 || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+                 || (window.location.hostname.endsWith('.netlify.app')
+                    && window.location.hostname.startsWith('dev--'));
+    const SUPABASE_URL = _IS_DEV
+        ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+        : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+    const SUPABASE_KEY = _IS_DEV
+        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+        : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+    let sb             = null; // inizializzato in initWithToken()
+    let sbAccessToken  = null;
+    let hiddenMode      = false; // modalità nascosta: attivata dal launcher
+    let riservatoFilter = false; // filtro FAB: mostra solo riservati
+
+    function updateHiddenModeFab() {
+        const fab = document.getElementById('hiddenModeFab');
+        if (!fab) return;
+        if (riservatoFilter) {
+            fab.classList.add('active');
+            fab.title = 'Solo riservati — clicca per mostrare tutti';
+            fab.textContent = '👁';
+        } else {
+            fab.classList.remove('active');
+            fab.title = 'Mostra solo riservati';
+            fab.textContent = '🙈';
+        }
+        fab.style.display = hiddenMode ? 'flex' : 'none';
+    }
+
+    function toggleHiddenMode() {
+        if (!hiddenMode) return;
+        riservatoFilter = !riservatoFilter;
+        sessionStorage.setItem('riservato_filter', riservatoFilter ? '1' : '0');
+        updateHiddenModeFab();
+        if (sb) Promise.all([loadGroups(), loadEvents()]).then(() => { filterEventsByVisibleGroups(); renderActivePage(); });
+    }
+
+    function initWithToken(token) {
+        if (sb) return; // già inizializzato
+        sbAccessToken = token;
+        localStorage.setItem('sb_token', token);
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth:   { persistSession: false, autoRefreshToken: false },
+            global: { headers: { Authorization: 'Bearer ' + token } }
+        });
+        console.log('✅ Supabase autenticato con token Google (Events Log ' + APP_VERSION + ')');
+        document.getElementById('authOverlay').style.display = 'none';
+        startApp();
+    }
+
+    // Rileva errori JWT scaduto/non autenticato e mostra l'overlay di login.
+    // Ritorna true se era un errore auth (il chiamante deve abortire), false altrimenti.
+    function handleAuthError(error) {
+        if (!error) return false;
+        const msg = (error.message || '').toLowerCase();
+        const isAuthError = error.status === 401
+            || msg.includes('jwt expired')
+            || msg.includes('invalid jwt')
+            || msg.includes('not authenticated')
+            || msg.includes('pgjwt');
+        if (!isAuthError) return false;
+        console.warn('🔒 Token scaduto — sessione invalidata');
+        sb = null;
+        sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+        return true;
+    }
+
+    function decodeJWT(token) {
+        try {
+            return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        } catch(e) { return null; }
+    }
+
+// ==========================================
+// DATA STORE
+// ==========================================
+let groups = [];
+let events = [];
+let logs = [];
+let daSelectValues = {}; // { eventId: currentValue }
+
+let activeGroupTab = null;      // id gruppo attivo nel log rapido
+let pendingLogEventId = null;   // evento selezionato per log
+let histActiveGroup = null;     // filtro storico per gruppo
+
+// ==========================================
+// PAGES
+// ==========================================
+function showPage(pageId, navEl) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (navEl) navEl.classList.add('active');
+
+    if (pageId === 'logPage')      { renderLogPage(); }
+    if (pageId === 'historyPage')  { renderHistory(); }
+    if (pageId === 'mgmtPage')     { renderMgmt(); }
+    if (pageId === 'statsPage')    { renderStats(); }
+    if (pageId === 'settingsPage') { renderSettingsPage(); }
+}
+
+function renderActivePage() {
+    const activePage = document.querySelector('.page.active');
+    if (!activePage) { renderLogPage(); return; }
+    switch (activePage.id) {
+        case 'logPage':      renderLogPage(); break;
+        case 'historyPage':  renderHistory(); break;
+        case 'mgmtPage':     renderMgmt();    break;
+        case 'statsPage':    renderStats();   break;
+    }
+}
+
+// ==========================================
+// LOG PAGE
+// ==========================================
+function renderLogPage() {
+    renderGroupTabs();
+    renderEventsGrid();
+    renderRecentLogs();
+    updateAllStats();
+}
+
+function renderGroupTabs() {
+    const container = document.getElementById('logGroupTabs');
+
+    if (!groups.length) {
+        container.innerHTML = '<div style="opacity:0.5; font-size:0.9rem; padding:0.5rem;">Nessun gruppo. Vai in Gestione →</div>';
+        return;
+    }
+
+    // If no active tab, set first group
+    if (!activeGroupTab || !groups.find(g => g.id === activeGroupTab)) {
+        activeGroupTab = groups[0].id;
+    }
+
+    container.innerHTML = groups.map((g, idx) => `
+        <div class="group-tab ${g.id === activeGroupTab ? 'active' : ''}"
+             draggable="true"
+             data-group-idx="${idx}"
+             onclick="selectGroupTab('${g.id}')"
+             ondragstart="onTabDragStart(event, ${idx})"
+             ondragover="onTabDragOver(event)"
+             ondrop="onTabDrop(event, ${idx})"
+             ondragend="onTabDragEnd(event)">
+            <span class="tab-drag-handle">⠿</span>
+            <span class="tab-dot" style="background:${g.color};"></span>
+            ${g.icon || ''} ${g.name}
+        </div>
+    `).join('');
+}
+
+function selectGroupTab(groupId) {
+    activeGroupTab = groupId;
+    renderGroupTabs();
+    renderEventsGrid();
+    renderRecentLogs();
+}
+
+// ==========================================
+// DRAG & DROP TABS
+// ==========================================
+let _dragSrcTabIdx = null;
+
+function onTabDragStart(e, idx) {
+    _dragSrcTabIdx = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    // delay class add so browser can snapshot the element first
+    setTimeout(() => {
+        const tabs = document.querySelectorAll('#logGroupTabs .group-tab');
+        if (tabs[idx]) tabs[idx].classList.add('tab-dragging');
+    }, 0);
+}
+
+function onTabDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('#logGroupTabs .group-tab').forEach(t => t.classList.remove('tab-drag-over'));
+    e.currentTarget.classList.add('tab-drag-over');
+    return false;
+}
+
+function onTabDrop(e, idx) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (_dragSrcTabIdx === null || _dragSrcTabIdx === idx) return;
+    const moved = groups.splice(_dragSrcTabIdx, 1)[0];
+    groups.splice(idx, 0, moved);
+    renderGroupTabs();
+    saveGroupsOrder();
+    return false;
+}
+
+function onTabDragEnd(e) {
+    _dragSrcTabIdx = null;
+    document.querySelectorAll('#logGroupTabs .group-tab').forEach(t => {
+        t.classList.remove('tab-dragging');
+        t.classList.remove('tab-drag-over');
+    });
+}
+
+async function saveGroupsOrder() {
+    for (let i = 0; i < groups.length; i++) {
+        groups[i].sort_order = i;
+        await sb.from('el_groups').update({ sort_order: i }).eq('id', groups[i].id);
+    }
+    showToast('↕️ Ordine gruppi salvato');
+}
+
+function renderEventsGrid() {
+    const grid = document.getElementById('logEventsGrid');
+
+    if (!activeGroupTab) {
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><p>Seleziona un gruppo</p></div>';
+        return;
+    }
+
+    const groupEvents = events.filter(e => e.groupId === activeGroupTab);
+
+    if (!groupEvents.length) {
+        const g = groups.find(g => g.id === activeGroupTab);
+        grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+            <div class="empty-icon">${g?.icon || '📂'}</div>
+            <p>Nessun evento in questo gruppo</p>
+            <button class="btn btn-accent btn-small" onclick="openEventModal(null, '${activeGroupTab}')">+ Aggiungi evento</button>
+        </div>`;
+        return;
+    }
+
+    grid.innerHTML = groupEvents.map(ev => {
+        const bgLight = hexToRGBA(ev.color || '#2563EB', 0.07);
+        const isDaSelect = ev.event_type === 'DA_SELECT';
+
+        if (isDaSelect) {
+            const val = daSelectValues[ev.id];
+            const pointsPerEvent = ev.points ?? 1;
+            const bgLight = hexToRGBA(ev.color || '#6C5CE7', 0.07);
+
+            let countDisplay;
+            if (val === undefined) {
+                countDisplay = '<div class="ev-loading">...</div>';
+            } else {
+                const ptsStr = pointsPerEvent >= 0 ? '+' + pointsPerEvent : String(pointsPerEvent);
+                const ptsColor = val.total > 0 ? '#00B894' : val.total < 0 ? '#E74C3C' : '#6B7280';
+                countDisplay = `<div class="ev-pts" style="color:${ptsColor}">${val.count} ~ ${val.total}</div>`;
+            }
+
+            return `
+                <div class="event-btn da-select"
+                     style="border-color:${ev.color || '#6C5CE7'}; background:${bgLight};">
+                    <div class="ev-name" style="color:${ev.color || '#6C5CE7'}">${ev.name}</div>
+                    ${countDisplay}
+                    <div onclick="event.stopPropagation(); openEventDetail('${ev.id}')" style="font-size:0.6rem; color:var(--accent); margin-top:0.2rem; cursor:pointer; font-weight:700; opacity:0.85; letter-spacing:0.03em;">vedi ›</div>
+                </div>
+            `;
+        }
+
+        // MANUALE
+        const pts = ev.points >= 0 ? '+' + ev.points : String(ev.points);
+        const ptsColor = ev.points > 0 ? '#00B894' : ev.points < 0 ? '#E74C3C' : '#6B7280';
+        const evLogs = logs.filter(l => l.eventId === ev.id);
+        const totalAccum = evLogs.reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+        const totalStr = (totalAccum >= 0 ? '+' : '') + totalAccum;
+        const totalColor = totalAccum > 0 ? '#00B894' : totalAccum < 0 ? '#E74C3C' : '#6B7280';
+
+        return `
+            <div class="event-btn" onclick="openLogModal('${ev.id}')"
+                 style="border-color:${ev.color || '#E5E7EB'}; background:${bgLight};">
+                <div class="ev-name" style="color:${ev.color || '#1F2937'}">${ev.name}</div>
+                <div class="ev-pts" style="color:${ptsColor}">${evLogs.length} ~ ${totalAccum}</div>
+                <div onclick="event.stopPropagation(); openEventDetail('${ev.id}')" style="font-size:0.6rem; color:var(--accent); margin-top:0.2rem; cursor:pointer; font-weight:700; opacity:0.85; letter-spacing:0.03em;">vedi ›</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderRecentLogs() {
+    const el = document.getElementById('recentLogs');
+    const groupEventIds = new Set(events.filter(e => e.groupId === activeGroupTab).map(e => e.id));
+    const recent = logs.filter(l => groupEventIds.has(l.eventId)).slice(0, 8);
+
+    if (!recent.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:1.5rem;"><p>Nessun log registrato</p></div>';
+        return;
+    }
+
+    el.innerHTML = recent.map(l => renderLogRow(l)).join('');
+}
+
+// ==========================================
+// LOG MODAL
+// ==========================================
+function openLogModal(eventId) {
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return;
+
+    pendingLogEventId = eventId;
+
+    const g = groups.find(g => g.id === ev.groupId);
+    const pts = ev.points >= 0 ? '+' + ev.points : String(ev.points);
+    const ptsColor = ev.points > 0 ? '#00B894' : ev.points < 0 ? '#E74C3C' : '#6B7280';
+
+    document.getElementById('quickLogInfo').innerHTML = `
+        <div style="font-weight:900; font-size:1.1rem; color:${ev.color || '#1F2937'}; margin-bottom:0.3rem;">${ev.name}</div>
+        ${g ? `<div style="font-size:0.8rem; color:var(--muted);">${g.icon || ''} ${g.name}</div>` : ''}
+        <div style="font-family:'Space Mono',monospace; color:${ptsColor}; font-size:1rem; font-weight:700; margin-top:0.4rem;">${pts} punti</div>
+    `;
+    document.getElementById('quickLogModal').classList.add('active');
+}
+
+function closeQuickLogModal() {
+    document.getElementById('quickLogModal').classList.remove('active');
+    pendingLogEventId = null;
+}
+
+function quickOpenDetails() {
+    document.getElementById('quickLogModal').classList.remove('active');
+    const ev = events.find(e => e.id === pendingLogEventId);
+    if (!ev) return;
+
+    const g = groups.find(g => g.id === ev.groupId);
+    const pts = ev.points >= 0 ? '+' + ev.points : String(ev.points);
+    const ptsColor = ev.points > 0 ? '#00B894' : ev.points < 0 ? '#E74C3C' : '#6B7280';
+
+    document.getElementById('logModalTitle').textContent = ev.name;
+    document.getElementById('logModalNote').value = '';
+    document.getElementById('logModalDateTime').value = toLocalISO(new Date());
+    document.getElementById('logModalEventInfo').innerHTML = `
+        <span style="font-size:2.5rem; line-height:1;">${ev.icon || '📌'}</span>
+        <div>
+            <div style="font-weight:900; font-size:1.2rem; color:${ev.color || '#1F2937'}">${ev.name}</div>
+            ${g ? `<div style="font-size:0.8rem; color:var(--muted); margin-top:0.15rem;">${g.icon || ''} ${g.name}</div>` : ''}
+            ${ev.description ? `<div style="font-size:0.85rem; opacity:0.75; margin-top:0.2rem;">${ev.description}</div>` : ''}
+            <div style="font-family:'Space Mono',monospace; color:${ptsColor}; font-size:1.2rem; font-weight:700; margin-top:0.3rem;">${pts} punti</div>
+        </div>
+    `;
+    document.getElementById('logModal').classList.add('active');
+    setTimeout(() => document.getElementById('logModalNote').focus(), 100);
+}
+
+function closeLogModal() {
+    document.getElementById('logModal').classList.remove('active');
+    pendingLogEventId = null;
+}
+
+// ==========================================
+// EVENT DETAIL MODAL
+// ==========================================
+function openEventDetail(eventId) {
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return;
+
+    const g = groups.find(g => g.id === ev.groupId);
+    const pts = ev.points >= 0 ? '+' + ev.points : String(ev.points);
+    const ptsColor = ev.points > 0 ? '#00B894' : ev.points < 0 ? '#E74C3C' : '#6B7280';
+    const evLogs = logs.filter(l => l.eventId === ev.id).sort((a, b) => new Date(b.loggedAt) - new Date(a.loggedAt));
+    const totalAccum = evLogs.reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+    const totalStr = (totalAccum >= 0 ? '+' : '') + totalAccum;
+    const totalColor = totalAccum > 0 ? '#00B894' : totalAccum < 0 ? '#E74C3C' : '#6B7280';
+    const isDaSelect = ev.event_type === 'DA_SELECT';
+
+    const recentLogsHtml = evLogs.slice(0, 10).map(l => {
+        const dt = new Date(l.loggedAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const lPts = l.pointsAtLog || 0;
+        const lPtsStr = (lPts >= 0 ? '+' : '') + lPts;
+        const lColor = lPts > 0 ? '#00B894' : lPts < 0 ? '#E74C3C' : '#6B7280';
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid var(--border); gap:0.5rem;">
+            <span style="font-size:0.78rem; color:var(--muted); white-space:nowrap;">${dt}</span>
+            ${l.note ? `<span style="font-size:0.78rem; font-style:italic; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--dark);">"${l.note}"</span>` : '<span style="flex:1"></span>'}
+            <span style="font-family:'Space Mono',monospace; font-size:0.78rem; color:${lColor}; font-weight:700; white-space:nowrap;">${lPtsStr}</span>
+        </div>`;
+    }).join('');
+
+    document.getElementById('evDetailTitle').textContent = ev.name;
+    document.getElementById('evDetailContent').innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--input-bg); border-left:4px solid ${ev.color || 'var(--primary)'}; border-radius:0 8px 8px 0; margin-bottom:1rem;">
+            <span style="font-size:2.5rem; line-height:1;">${ev.icon || '📌'}</span>
+            <div style="min-width:0;">
+                <div style="font-weight:900; font-size:1.15rem; color:${ev.color || '#1F2937'}">${ev.name}</div>
+                ${g ? `<div style="font-size:0.8rem; color:var(--muted); margin-top:0.1rem;">${g.icon || ''} ${g.name}</div>` : ''}
+                ${ev.description ? `<div style="font-size:0.85rem; color:var(--dark); opacity:0.75; margin-top:0.3rem; line-height:1.4;">${ev.description}</div>` : ''}
+                ${isDaSelect ? `<div style="font-size:0.72rem; margin-top:0.3rem; background:#f3f4f6; color:#6b7280; display:inline-block; padding:0.1rem 0.4rem; border-radius:4px;">AUTO</div>` : ''}
+            </div>
+        </div>
+        <div style="display:flex; gap:0.6rem; margin-bottom:1rem;">
+            <div style="flex:1; background:var(--input-bg); padding:0.65rem; border-radius:8px; text-align:center;">
+                <div style="font-size:0.7rem; color:var(--muted); margin-bottom:0.15rem;">Punti/log</div>
+                <div style="font-family:'Space Mono',monospace; font-size:1rem; font-weight:700; color:${ptsColor};">${isDaSelect ? '—' : pts}</div>
+            </div>
+            <div style="flex:1; background:var(--input-bg); padding:0.65rem; border-radius:8px; text-align:center;">
+                <div style="font-size:0.7rem; color:var(--muted); margin-bottom:0.15rem;">Log totali</div>
+                <div style="font-family:'Space Mono',monospace; font-size:1rem; font-weight:700;">${evLogs.length}</div>
+            </div>
+            <div style="flex:1; background:var(--input-bg); padding:0.65rem; border-radius:8px; text-align:center;">
+                <div style="font-size:0.7rem; color:var(--muted); margin-bottom:0.15rem;">Totale</div>
+                <div style="font-family:'Space Mono',monospace; font-size:1rem; font-weight:700; color:${totalColor};">${totalStr}</div>
+            </div>
+        </div>
+        ${evLogs.length > 0 ? `
+            <div style="font-weight:700; font-size:0.8rem; color:var(--muted); margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.05em;">Ultimi log</div>
+            <div style="max-height:220px; overflow-y:auto;">${recentLogsHtml}</div>
+        ` : `<div style="text-align:center; color:var(--muted); padding:1.5rem 0; font-size:0.9rem;">Nessun log registrato</div>`}
+    `;
+
+    const logBtn = document.getElementById('evDetailLogBtn');
+    if (isDaSelect) {
+        logBtn.style.display = 'none';
+    } else {
+        logBtn.style.display = '';
+        logBtn.onclick = () => { closeEventDetail(); openLogModal(eventId); };
+    }
+
+    document.getElementById('eventDetailModal').classList.add('active');
+}
+
+function closeEventDetail() {
+    document.getElementById('eventDetailModal').classList.remove('active');
+}
+
+// ==========================================
+// HISTORY PAGE
+// ==========================================
+function renderHistory() {
+    const daysVal = document.getElementById('histFilterDays').value;
+    renderHistChips();
+
+    let filtered = [...logs];
+
+    // Filtro riservato — events è già filtrato in base al 3 stati (normale/hidden/FAB)
+    const visibleEventIds = new Set(events.map(e => e.id));
+    filtered = filtered.filter(l => visibleEventIds.has(l.eventId));
+
+    // Date filter
+    if (daysVal) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - parseInt(daysVal));
+        filtered = filtered.filter(l => new Date(l.loggedAt) >= cutoff);
+    }
+
+    // Group filter (chip manuale)
+    if (histActiveGroup) {
+        const groupEventIds = events.filter(e => e.groupId === histActiveGroup).map(e => e.id);
+        filtered = filtered.filter(l => groupEventIds.includes(l.eventId));
+    }
+
+    const list = document.getElementById('historyList');
+
+    if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>Nessun log trovato</p></div>';
+        return;
+    }
+
+    // Group by date
+    const byDate = {};
+    filtered.forEach(l => {
+        const key = new Date(l.loggedAt).toDateString();
+        if (!byDate[key]) byDate[key] = [];
+        byDate[key].push(l);
+    });
+
+    let html = '';
+    Object.entries(byDate).forEach(([dateKey, dayLogs]) => {
+        const d = new Date(dateKey);
+        const label = d.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        const dayPts = dayLogs.reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+        const ptsStr = (dayPts >= 0 ? '+' : '') + dayPts;
+        const ptsColor = dayPts > 0 ? '#00B894' : dayPts < 0 ? '#E74C3C' : '#6B7280';
+
+        html += `
+            <div class="date-sep" style="margin-top:${html ? '1.25rem' : '0'};">
+                <strong>${label}</strong>
+                <span style="color:${ptsColor};">${ptsStr}</span>
+            </div>
+            ${dayLogs.map(l => renderLogRow(l)).join('')}
+        `;
+    });
+
+    list.innerHTML = html;
+}
+
+function renderHistChips() {
+    const el = document.getElementById('histGroupChips');
+
+    const chips = [{ id: null, name: 'Tutti', icon: '' }, ...groups];
+
+    el.innerHTML = chips.map(g => `
+        <div class="chip ${histActiveGroup === g.id ? 'active' : ''}" onclick="setHistGroup(${g.id ? `'${g.id}'` : 'null'})">
+            ${g.icon || ''} ${g.name}
+        </div>
+    `).join('');
+}
+
+function setHistGroup(gid) {
+    histActiveGroup = gid;
+    renderHistory();
+}
+
+// ==========================================
+// LOG ROW (shared render)
+// ==========================================
+function renderLogRow(log) {
+    const ev = events.find(e => e.id === log.eventId);
+    const evName = ev ? ev.name : 'Evento eliminato';
+    const evIcon = ev ? (ev.icon || '📌') : '❓';
+    const evColor = ev ? ev.color : '#6B7280';
+    const pts = log.pointsAtLog !== undefined ? log.pointsAtLog : (ev ? ev.points : 0);
+    const ptsStr = (pts >= 0 ? '+' : '') + pts;
+    const ptsClass = pts > 0 ? 'pts-pos' : pts < 0 ? 'pts-neg' : 'pts-zero';
+    const timeStr = new Date(log.loggedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const g = ev ? groups.find(g => g.id === ev.groupId) : null;
+
+    return `
+        <div class="log-entry" onclick="openLogDetail('${log.id}')">
+            <div class="log-icon" style="background:${hexToRGBA(evColor, 0.1)}; display:flex; align-items:center; justify-content:center; width:48px; height:48px;">
+                ${evIcon}
+            </div>
+            <div>
+                <div class="log-name">${evName}</div>
+                <div class="log-meta">${timeStr}${g ? ' · ' + (g.icon || '') + ' ' + g.name : ''}</div>
+                ${log.note ? `<div class="log-note">"${log.note}"</div>` : ''}
+            </div>
+            <div class="log-pts ${ptsClass}">${ptsStr}</div>
+        </div>
+    `;
+}
+
+// ==========================================
+// LOG DETAIL
+// ==========================================
+function openLogDetail(logId) {
+    const log = logs.find(l => l.id === logId);
+    if (!log) return;
+
+    const ev = events.find(e => e.id === log.eventId);
+    const g = ev ? groups.find(g => g.id === ev.groupId) : null;
+    const pts = log.pointsAtLog || 0;
+    const ptsStr = (pts >= 0 ? '+' : '') + pts;
+    const ptsColor = pts > 0 ? '#00B894' : pts < 0 ? '#E74C3C' : '#6B7280';
+    const dt = new Date(log.loggedAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    document.getElementById('logDetailContent').innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--input-bg); border-left:4px solid ${ev?.color || 'var(--primary)'}; margin-bottom:1.25rem;">
+            <span style="font-size:2.8rem;">${ev?.icon || '📌'}</span>
+            <div>
+                <div style="font-weight:900; font-size:1.3rem;">${ev?.name || 'Evento eliminato'}</div>
+                ${g ? `<div style="font-size:0.85rem; color:var(--muted);">${g.icon || ''} ${g.name}</div>` : ''}
+                <div style="font-family:'Space Mono',monospace; color:${ptsColor}; font-size:1.3rem; font-weight:700; margin-top:0.2rem;">${ptsStr} punti</div>
+            </div>
+        </div>
+        <table style="width:100%; border-collapse:collapse;">
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.5rem; font-weight:700; color:var(--accent); width:35%;">Data/Ora</td>
+                <td style="padding:0.5rem;">${dt}</td>
+            </tr>
+            ${log.note ? `<tr><td style="padding:0.5rem; font-weight:700; color:var(--accent);">Nota</td><td style="padding:0.5rem; font-style:italic;">"${log.note}"</td></tr>` : ''}
+        </table>
+    `;
+
+    document.getElementById('logDetailDeleteBtn').onclick = () => deleteLog(logId);
+    document.getElementById('logDetailModal').classList.add('active');
+}
+
+function closeLogDetailModal() {
+    document.getElementById('logDetailModal').classList.remove('active');
+}
+
+
+
+// ==========================================
+// MANAGEMENT PAGE
+// ==========================================
+function renderMgmt() {
+    const list = document.getElementById('mgmtList');
+
+    if (!groups.length) {
+        list.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">🗂️</div>
+            <p>Nessun gruppo configurato.</p>
+            <button class="btn btn-accent" onclick="openGroupModal()">+ Crea il primo gruppo</button>
+        </div>`;
+        return;
+    }
+
+    list.innerHTML = groups.map(g => {
+        const groupEvents = events.filter(e => e.groupId === g.id);
+        return `
+            <div class="mgmt-group-card">
+                <div class="mgmt-group-header" onclick="toggleMgmtGroup('mgmt_${g.id}')">
+                    <div class="mgmt-group-title">
+                        <div class="mgmt-group-dot" style="background:${g.color};"></div>
+                        <span>${g.icon || ''}</span>
+                        <div>
+                            <span>${g.name}</span>
+                            ${g.description ? `<div style="font-size:0.78rem; color:var(--muted); font-weight:400; margin-top:0.1rem;">${g.description}</div>` : ''}
+                        </div>
+                        <span style="font-size:0.8rem; color:var(--muted); font-weight:400;">(${groupEvents.length} eventi)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <button class="btn btn-small btn-ghost" onclick="event.stopPropagation(); openGroupModal('${g.id}')">✏️</button>
+                        <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteGroup('${g.id}')">🗑️</button>
+                        <span id="arrow_${g.id}" style="color:var(--muted); transition:transform 0.2s; display:inline-block;">▾</span>
+                    </div>
+                </div>
+                <div id="mgmt_${g.id}" style="display:block;">
+                    <div class="mgmt-group-body">
+                        ${groupEvents.length ? groupEvents.map(ev => {
+                            const pts = ev.points >= 0 ? '+' + ev.points : String(ev.points);
+                            const ptsColor = ev.points > 0 ? '#00B894' : ev.points < 0 ? '#E74C3C' : '#6B7280';
+                            return `
+                                <div class="mgmt-event-row">
+                                    <div class="mgmt-event-info">
+                                        <span style="font-size:1.5rem; width:32px; text-align:center; background:${hexToRGBA(ev.color,0.1)}; height:32px; display:flex; align-items:center; justify-content:center;">${ev.icon || '📌'}</span>
+                                        <div>
+                                            <div class="mgmt-event-name" style="color:${ev.color}">${ev.name}</div>
+                                            ${ev.description ? `<div style="font-size:0.78rem; color:var(--muted);">${ev.description}</div>` : ''}
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                                        <span class="mgmt-event-pts" style="color:${ptsColor}">${pts}</span>
+                                        <div class="mgmt-event-actions">
+                                            <button class="btn btn-small btn-ghost" onclick="openEventModal('${ev.id}', '${g.id}')">✏️</button>
+                                            <button class="btn btn-small btn-danger" onclick="deleteEvent('${ev.id}')">🗑️</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : `<p style="opacity:0.5; font-size:0.9rem; padding:0.5rem 0;">Nessun evento</p>`}
+                        <div style="margin-top:0.75rem;">
+                            <button class="btn btn-small btn-accent" onclick="openEventModal(null, '${g.id}')">+ Aggiungi Evento</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleMgmtGroup(bodyId) {
+    const body = document.getElementById(bodyId);
+    const gid = bodyId.replace('mgmt_', '');
+    const arrow = document.getElementById('arrow_' + gid);
+    if (!body) return;
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : '';
+}
+
+// ==========================================
+// GROUP MODAL
+// ==========================================
+function openGroupModal(groupId = null) {
+    document.getElementById('editGroupId').value = groupId || '';
+    document.getElementById('groupModalTitle').textContent = groupId ? 'Modifica Gruppo' : 'Nuovo Gruppo';
+
+    if (groupId) {
+        const g = groups.find(x => x.id === groupId);
+        if (!g) return;
+        document.getElementById('groupName').value        = g.name;
+        document.getElementById('groupIcon').value        = g.icon || '';
+        document.getElementById('groupColor').value       = g.color || '#2563EB';
+        document.getElementById('groupDescription').value = g.description || '';
+        document.getElementById('groupRiservato').checked  = !!g.riservato;
+    } else {
+        document.getElementById('groupName').value        = '';
+        document.getElementById('groupIcon').value        = '';
+        document.getElementById('groupColor').value       = '#2563EB';
+        document.getElementById('groupDescription').value = '';
+        document.getElementById('groupRiservato').checked  = false;
+    }
+
+    document.getElementById('groupModal').classList.add('active');
+    setTimeout(() => document.getElementById('groupName').focus(), 100);
+}
+
+function closeGroupModal() {
+    document.getElementById('groupModal').classList.remove('active');
+}
+
+
+
+
+
+function onEventTypeChange() {
+    const isDaSelect = document.getElementById('typeDaSelect').checked;
+    document.getElementById('manualFields').style.display   = isDaSelect ? 'none' : 'block';
+    document.getElementById('daSelectFields').style.display = isDaSelect ? 'block' : 'none';
+}
+
+// ==========================================
+// EVENT MODAL
+// ==========================================
+function openEventModal(eventId = null, groupId = null) {
+    document.getElementById('editEventId').value = eventId || '';
+    document.getElementById('editEventGroupId').value = groupId || '';
+    document.getElementById('eventModalTitle').textContent = eventId ? 'Modifica Evento' : 'Nuovo Evento';
+
+    if (eventId) {
+        const ev = events.find(e => e.id === eventId);
+        if (!ev) return;
+        const isDaSelect = ev.event_type === 'DA_SELECT';
+        document.getElementById('typeManual').checked   = !isDaSelect;
+        document.getElementById('typeDaSelect').checked = isDaSelect;
+        document.getElementById('eventName').value        = ev.name;
+        document.getElementById('eventIcon').value        = ev.icon || '';
+        document.getElementById('eventDescription').value = ev.description || '';
+        if (isDaSelect) {
+            document.getElementById('eventScoreQuery').value      = ev.score_query || '';
+            document.getElementById('eventColorDaSelect').value   = ev.color || '#6C5CE7';
+            document.getElementById('eventPointsDaSelect').value  = ev.points ?? 10;
+        } else {
+            document.getElementById('eventPoints').value = ev.points;
+            document.getElementById('eventColor').value  = ev.color || '#2563EB';
+        }
+    } else {
+        document.getElementById('typeManual').checked      = true;
+        document.getElementById('typeDaSelect').checked    = false;
+        document.getElementById('eventName').value         = '';
+        document.getElementById('eventIcon').value         = '';
+        document.getElementById('eventPoints').value       = '10';
+        document.getElementById('eventColor').value        = '#2563EB';
+        document.getElementById('eventScoreQuery').value   = '';
+        document.getElementById('eventColorDaSelect').value  = '#6C5CE7';
+        document.getElementById('eventPointsDaSelect').value = '10';
+        document.getElementById('eventDescription').value  = '';
+    }
+
+    onEventTypeChange();
+    document.getElementById('eventModal').classList.add('active');
+    setTimeout(() => document.getElementById('eventName').focus(), 100);
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').classList.remove('active');
+}
+
+
+
+
+
+// ==========================================
+// STATS PAGE
+// ==========================================
+function getGroupFilteredLogs() {
+    // Filtra log per eventi visibili (rispetta il 3 stati riservato, perché events è già filtrato)
+    const visibleEventIds = new Set(events.map(e => e.id));
+    const filtered = logs.filter(l => visibleEventIds.has(l.eventId));
+    if (!activeGroupTab) return filtered;
+    const groupEventIds = new Set(events.filter(e => e.groupId === activeGroupTab).map(e => e.id));
+    return filtered.filter(l => groupEventIds.has(l.eventId));
+}
+
+function renderStats() {
+    const filtLogs = getGroupFilteredLogs();
+    const total = filtLogs.reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+    const days = new Set(filtLogs.map(l => new Date(l.loggedAt).toDateString())).size || 1;
+    const avg = Math.round(total / days);
+
+    document.getElementById('stTotPts').textContent = (total >= 0 ? '+' : '') + total;
+    document.getElementById('stAvgDay').textContent = (avg >= 0 ? '+' : '') + avg;
+    document.getElementById('stTotCount').textContent = filtLogs.length;
+
+    renderStatsChart();
+    renderStatsTopEvents();
+    renderStatsPerGroup();
+}
+
+function renderStatsChart() {
+    const el = document.getElementById('statsChart');
+    const today = new Date();
+    const filtLogs = getGroupFilteredLogs();
+    const data = [];
+
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toDateString();
+        const pts = filtLogs.filter(l => new Date(l.loggedAt).toDateString() === key).reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+        data.push({ label: d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }), pts });
+    }
+
+    const maxAbs = Math.max(...data.map(d => Math.abs(d.pts)), 1);
+
+    el.innerHTML = data.map(d => {
+        const h = Math.round((Math.abs(d.pts) / maxAbs) * 80);
+        const clr = d.pts > 0 ? '#00B894' : d.pts < 0 ? '#E74C3C' : '#E5E7EB';
+        const valStr = d.pts !== 0 ? (d.pts > 0 ? '+' : '') + d.pts : '';
+        return `
+            <div class="chart-bar-col" title="${d.label}: ${d.pts > 0 ? '+' : ''}${d.pts}">
+                <div class="chart-bar-val" style="color:${clr};">${valStr}</div>
+                <div class="chart-bar" style="background:${clr}; height:${h}px;"></div>
+                <div class="chart-bar-label">${d.label}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderStatsTopEvents() {
+    const el = document.getElementById('statsTopEvents');
+    const filtLogs = getGroupFilteredLogs();
+
+    const counts = {};
+    const totPts = {};
+    filtLogs.forEach(l => {
+        counts[l.eventId] = (counts[l.eventId] || 0) + 1;
+        totPts[l.eventId] = (totPts[l.eventId] || 0) + (l.pointsAtLog || 0);
+    });
+
+    const top = Object.entries(counts)
+        .map(([id, count]) => ({ id, count, totPts: totPts[id] || 0, ev: events.find(e => e.id === id) }))
+        .filter(x => x.ev)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+
+    if (!top.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:1rem;"><p>Nessun dato</p></div>';
+        return;
+    }
+
+    const maxCount = top[0].count;
+    el.innerHTML = top.map(({ ev, count, totPts }) => {
+        const bar = Math.round((count / maxCount) * 100);
+        const pts = totPts >= 0 ? '+' + totPts : String(totPts);
+        const ptsColor = totPts > 0 ? '#00B894' : totPts < 0 ? '#E74C3C' : '#6B7280';
+        return `
+            <div class="top-event-row">
+                <div class="top-event-info">
+                    <span>${ev.icon || '📌'} <strong>${ev.name}</strong></span>
+                    <span style="display:flex; gap:1rem;">
+                        <span style="font-size:0.85rem; color:var(--muted);">${count}×</span>
+                        <span style="font-family:'Space Mono',monospace; font-weight:700; color:${ptsColor}; font-size:0.9rem;">${pts}</span>
+                    </span>
+                </div>
+                <div class="top-event-bar">
+                    <div class="top-event-bar-fill" style="background:${ev.color || 'var(--accent)'}; width:${bar}%;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderStatsPerGroup() {
+    const el = document.getElementById('statsPerGroup');
+
+    if (!groups.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:1rem;"><p>Nessun gruppo</p></div>';
+        return;
+    }
+
+    el.innerHTML = groups.map(g => {
+        const gEventIds = events.filter(e => e.groupId === g.id).map(e => e.id);
+        const gLogs = logs.filter(l => gEventIds.includes(l.eventId));
+        const gPts = gLogs.reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+        const ptsStr = (gPts >= 0 ? '+' : '') + gPts;
+        const ptsColor = gPts > 0 ? '#00B894' : gPts < 0 ? '#E74C3C' : '#6B7280';
+
+        return `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem; border:1px solid var(--border); margin-bottom:0.5rem; background:white;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:12px; height:12px; border-radius:50%; background:${g.color};"></div>
+                    <span style="font-weight:700;">${g.icon || ''} ${g.name}</span>
+                    <span style="font-size:0.8rem; color:var(--muted);">${gLogs.length} log</span>
+                </div>
+                <span style="font-family:'Space Mono',monospace; font-weight:700; font-size:1.1rem; color:${ptsColor};">${ptsStr}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// ==========================================
+// STATS UPDATER
+// ==========================================
+function calcScoreFromLogs(filteredLogs) {
+    // MANUALE: somma tutti i log del periodo
+    const manualTotal = filteredLogs
+        .filter(l => { const ev = events.find(e => e.id === l.eventId); return ev && ev.event_type !== 'DA_SELECT'; })
+        .reduce((s, l) => s + (l.pointsAtLog || 0), 0);
+    // DA_SELECT: per ogni evento prendi solo il log più recente (valore cumulativo)
+    const daEvents = events.filter(e => e.event_type === 'DA_SELECT');
+    const daTotal = daEvents.reduce((sum, ev) => {
+        const evLogs = filteredLogs.filter(l => l.eventId === ev.id);
+        if (!evLogs.length) return sum;
+        const latest = evLogs.reduce((a, b) => new Date(a.loggedAt) > new Date(b.loggedAt) ? a : b);
+        return sum + (latest.pointsAtLog || 0);
+    }, 0);
+    return manualTotal + daTotal;
+}
+
+function updateAllStats() {
+    const filtLogs = getGroupFilteredLogs();
+    const total = calcScoreFromLogs(filtLogs);
+    document.getElementById('totalScore').textContent = (total >= 0 ? '+' : '') + total;
+
+    const today = new Date().toDateString();
+    const todayLogs = filtLogs.filter(l => new Date(l.loggedAt).toDateString() === today);
+    const todayPts = calcScoreFromLogs(todayLogs);
+
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekLogs = filtLogs.filter(l => new Date(l.loggedAt) >= weekAgo);
+    const weekPts = calcScoreFromLogs(weekLogs);
+
+    document.getElementById('sPtsOggi').textContent = (todayPts >= 0 ? '+' : '') + todayPts;
+    document.getElementById('sLogOggi').textContent = todayLogs.length;
+    document.getElementById('sPtsSettimana').textContent = (weekPts >= 0 ? '+' : '') + weekPts;
+    document.getElementById('sTotLogs').textContent = filtLogs.length;
+}
+
+// ==========================================
+// UTILS
+// ==========================================
+function hexToRGBA(hex, alpha) {
+    if (!hex || !hex.startsWith('#')) return `rgba(100,100,100,${alpha})`;
+    const r = parseInt(hex.slice(1,3), 16);
+    const g = parseInt(hex.slice(3,5), 16);
+    const b = parseInt(hex.slice(5,7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function toLocalISO(date) {
+    const offset = date.getTimezoneOffset();
+    const local = new Date(date.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 16);
+}
+
+// Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
+function localDateStr(d) {
+    const dt = d || new Date();
+    return dt.getFullYear() + '-' +
+        String(dt.getMonth() + 1).padStart(2, '0') + '-' +
+        String(dt.getDate()).padStart(2, '0');
+}
+// Restituisce ISO UTC "YYYY-MM-DDTHH:MM:SS.sssZ" per il salvataggio su DB.
+// PostgreSQL timestamptz tratta stringhe senza offset come UTC; inviare esplicitamente
+// UTC evita lo shift di date per utenti in fuso UTC+N (es. CET/CEST).
+function localDateTimeStr(d) {
+    const dt = d || new Date();
+    return dt.toISOString();
+}
+
+function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ==========================================
+// SUPABASE: LOAD
+// ==========================================
+async function loadGroups() {
+    let groupsQuery = sb.from('el_groups').select('*').order('sort_order', { ascending: true }).order('name');
+    if (riservatoFilter) {
+        groupsQuery = groupsQuery.eq('riservato', true);
+    } else if (!hiddenMode) {
+        groupsQuery = groupsQuery.or('riservato.eq.false,riservato.is.null');
+    }
+    const { data, error } = await groupsQuery;
+    if (error) { console.error('loadGroups', error); return; }
+    groups = (data || []).map(g => ({ ...g, groupId: g.group_id }));
+}
+
+async function loadEvents() {
+    const { data, error } = await sb.from('el_events').select('*').order('sort_order', { ascending: true }).order('name');
+    if (error) { console.error('loadEvents', error); return; }
+    events = (data || []).map(e => ({ ...e, groupId: e.group_id }));
+}
+
+function filterEventsByVisibleGroups() {
+    const visibleGroupIds = new Set(groups.map(g => g.id));
+    events = events.filter(e => visibleGroupIds.has(e.groupId));
+}
+
+async function loadLogs() {
+    const { data, error } = await sb.from('el_logs')
+        .select('*')
+        .order('logged_at', { ascending: false })
+        .limit(500);
+    if (error) { console.error('loadLogs', error); return; }
+    logs = (data || []).map(l => ({
+        ...l,
+        eventId: l.event_id,
+        loggedAt: l.logged_at,
+        pointsAtLog: l.points_at_log,
+    }));
+}
+
+// ==========================================
+// SUPABASE: GROUPS CRUD
+// ==========================================
+async function saveGroup(e) {
+    e.preventDefault();
+    const editId = document.getElementById('editGroupId').value;
+    const data = {
+        name:        document.getElementById('groupName').value.trim(),
+        icon:        document.getElementById('groupIcon').value.trim() || null,
+        color:       document.getElementById('groupColor').value,
+        description: document.getElementById('groupDescription').value.trim() || null,
+        sort_order:  editId ? (groups.find(g => g.id === editId)?.sort_order ?? 0) : groups.length,
+        riservato:   document.getElementById('groupRiservato').checked || false,
+    };
+
+    setLoading(true);
+    if (editId) {
+        const { error } = await sb.from('el_groups').update(data).eq('id', editId);
+        if (error) { showToast('❌ Errore aggiornamento gruppo', true); setLoading(false); return; }
+        const idx = groups.findIndex(g => g.id === editId);
+        groups[idx] = { ...groups[idx], ...data };
+        showToast('✅ Gruppo aggiornato');
+    } else {
+        const newId = crypto.randomUUID();
+        const userId = decodeJWT(sbAccessToken)?.sub;
+        const { error } = await sb.from('el_groups').insert([{ id: newId, user_id: userId, ...data }]);
+        if (error) { showToast('❌ Errore creazione gruppo', true); setLoading(false); return; }
+        groups.push({ id: newId, ...data });
+        showToast('✅ Gruppo creato');
+    }
+
+    setLoading(false);
+    closeGroupModal();
+    renderMgmt();
+    renderLogPage();
+}
+
+async function deleteGroup(groupId) {
+    const evCount = events.filter(e => e.groupId === groupId).length;
+    const msg = evCount > 0
+        ? `Eliminare questo gruppo e i suoi ${evCount} eventi? I log correlati rimarranno.`
+        : 'Eliminare questo gruppo?';
+    if (!confirm(msg)) return;
+
+    setLoading(true);
+    // delete events first
+    if (evCount > 0) {
+        await sb.from('el_events').delete().eq('group_id', groupId);
+    }
+    const { error } = await sb.from('el_groups').delete().eq('id', groupId);
+    setLoading(false);
+
+    if (error) { showToast('❌ Errore eliminazione', true); return; }
+
+    groups = groups.filter(g => g.id !== groupId);
+    events = events.filter(e => e.groupId !== groupId);
+    if (activeGroupTab === groupId) activeGroupTab = groups[0]?.id || null;
+
+    renderMgmt();
+    renderLogPage();
+    showToast('🗑️ Gruppo eliminato');
+}
+
+// ==========================================
+// SUPABASE: EVENTS CRUD
+// ==========================================
+async function saveEvent(e) {
+    e.preventDefault();
+    const editId   = document.getElementById('editEventId').value;
+    const groupId  = document.getElementById('editEventGroupId').value;
+    const isDaSelect = document.getElementById('typeDaSelect').checked;
+
+    const data = {
+        name:        document.getElementById('eventName').value.trim(),
+        icon:        document.getElementById('eventIcon').value.trim() || null,
+        description: document.getElementById('eventDescription').value.trim() || null,
+        group_id:    editId ? (events.find(ev => ev.id === editId)?.groupId || groupId) : groupId,
+        sort_order:  editId ? (events.find(ev => ev.id === editId)?.sort_order ?? 0) : events.filter(ev => ev.groupId === groupId).length,
+        event_type:  isDaSelect ? 'DA_SELECT' : 'MANUALE',
+        points:      isDaSelect ? parseInt(document.getElementById('eventPointsDaSelect').value) : parseInt(document.getElementById('eventPoints').value),
+        color:       isDaSelect ? document.getElementById('eventColorDaSelect').value : document.getElementById('eventColor').value,
+        score_query: isDaSelect ? (document.getElementById('eventScoreQuery').value.trim() || null) : null,
+    };
+
+    setLoading(true);
+    if (editId) {
+        const { error } = await sb.from('el_events').update(data).eq('id', editId);
+        if (error) { showToast('❌ Errore aggiornamento evento', true); setLoading(false); return; }
+        const idx = events.findIndex(ev => ev.id === editId);
+        events[idx] = { ...events[idx], ...data, groupId: data.group_id };
+        showToast('✅ Evento aggiornato');
+    } else {
+        const newId = crypto.randomUUID();
+        const userId = decodeJWT(sbAccessToken)?.sub;
+        const { error } = await sb.from('el_events').insert([{ id: newId, user_id: userId, ...data }]);
+        if (error) { showToast('❌ Errore creazione evento', true); setLoading(false); return; }
+        events.push({ id: newId, ...data, groupId: data.group_id });
+        showToast('✅ Evento creato');
+    }
+
+    setLoading(false);
+    closeEventModal();
+    renderMgmt();
+    const targetGroup = editId ? events.find(ev => ev.id === editId)?.groupId : groupId;
+    if (activeGroupTab === targetGroup) renderEventsGrid();
+}
+
+async function deleteEvent(eventId) {
+    if (!confirm('Eliminare questo evento? I log correlati rimarranno.')) return;
+    const gid = events.find(e => e.id === eventId)?.groupId;
+
+    setLoading(true);
+    const { error } = await sb.from('el_events').delete().eq('id', eventId);
+    setLoading(false);
+
+    if (error) { showToast('❌ Errore eliminazione', true); return; }
+    events = events.filter(e => e.id !== eventId);
+    renderMgmt();
+    if (activeGroupTab === gid) renderEventsGrid();
+    showToast('🗑️ Evento eliminato');
+}
+
+// ==========================================
+// SUPABASE: LOGS CRUD
+// ==========================================
+async function quickConfirmLog() {
+    if (!pendingLogEventId) return;
+    document.getElementById('quickLogModal').classList.remove('active');
+    const ev = events.find(e => e.id === pendingLogEventId);
+    if (!ev) return;
+    await _saveLog(ev, null, localDateTimeStr());
+    pendingLogEventId = null;
+}
+
+async function confirmLog() {
+    if (!pendingLogEventId) return;
+    const ev = events.find(e => e.id === pendingLogEventId);
+    if (!ev) return;
+
+    const note    = document.getElementById('logModalNote').value.trim();
+    const dtValue = document.getElementById('logModalDateTime').value;
+    const loggedAt = dtValue ? new Date(dtValue).toISOString() : localDateTimeStr();
+
+    await _saveLog(ev, note || null, loggedAt);
+    closeLogModal();
+}
+
+async function _saveLog(ev, note, loggedAt) {
+    const newLog = {
+        id:            crypto.randomUUID(),
+        user_id:       decodeJWT(sbAccessToken)?.sub,
+        event_id:      ev.id,
+        note:          note || null,
+        logged_at:     loggedAt,
+        points_at_log: ev.points,
+    };
+
+    setLoading(true);
+    const { error } = await sb.from('el_logs').insert([newLog]);
+    setLoading(false);
+
+    if (error) { showToast('❌ Errore salvataggio log', true); return; }
+
+    logs.unshift({
+        ...newLog,
+        eventId:     newLog.event_id,
+        loggedAt:    newLog.logged_at,
+        pointsAtLog: newLog.points_at_log,
+    });
+
+    renderRecentLogs();
+    renderEventsGrid();
+    updateAllStats();
+
+    const activePage = document.querySelector('.page.active');
+    if (activePage?.id === 'historyPage') renderHistory();
+    if (activePage?.id === 'statsPage')   renderStats();
+
+    const scoreEl = document.getElementById('totalScore');
+    scoreEl.classList.add('score-pulse');
+    setTimeout(() => scoreEl.classList.remove('score-pulse'), 400);
+
+    const pts = ev.points >= 0 ? '+' + ev.points : String(ev.points);
+    showToast(`${ev.icon || '✅'} ${ev.name}  ${pts} punti`);
+}
+
+async function deleteLog(logId) {
+    if (!confirm('Eliminare questo log?')) return;
+
+    setLoading(true);
+    const { error } = await sb.from('el_logs').delete().eq('id', logId);
+    setLoading(false);
+
+    if (error) { showToast('❌ Errore eliminazione', true); return; }
+
+    logs = logs.filter(l => l.id !== logId);
+    closeLogDetailModal();
+    updateAllStats();
+
+    const activePage = document.querySelector('.page.active');
+    if (activePage?.id === 'historyPage') renderHistory();
+    if (activePage?.id === 'logPage') renderRecentLogs();
+
+    showToast('🗑️ Log eliminato');
+}
+
+// ==========================================
+// DA_SELECT: controlla e logga al caricamento
+// ==========================================
+async function checkDaSelectEvents() {
+    const daEvents = events.filter(e => e.event_type === 'DA_SELECT' && e.score_query);
+    if (!daEvents.length) return;
+
+    for (const ev of daEvents) {
+        try {
+            // Passa la query SQL salvata nel record alla funzione run_score_query
+            const { data, error } = await sb.rpc('run_score_query', { query: ev.score_query });
+            if (error) { console.error(`DA_SELECT error for ${ev.name}:`, error); continue; }
+
+            // run_score_query restituisce un singolo valore numerico
+            const currentVal = typeof data === 'number' ? data
+                : Array.isArray(data) ? (Object.values(data[0])[0] ?? null)
+                : null;
+
+            if (currentVal === null || currentVal === undefined) continue;
+
+            // Punteggio totale = numero eventi × punti per evento
+            const pointsPerEvent = ev.points ?? 1;
+            const totalScore = currentVal * pointsPerEvent;
+
+            // Salva il valore per la visualizzazione nel bottone
+            daSelectValues[ev.id] = { count: currentVal, total: totalScore };
+
+            // Trova l'ultimo log di questo evento
+            const lastLog = logs.find(l => l.eventId === ev.id);
+            const lastCount = lastLog ? (lastLog.note?.match(/count:(\d+)/)?.[1] ?? null) : null;
+            const lastCountNum = lastCount !== null ? parseInt(lastCount) : null;
+
+            // Logga solo se il conteggio è aumentato rispetto all'ultimo log
+            if (lastCountNum === null || currentVal > lastCountNum) {
+                const newLog = {
+                    id:            crypto.randomUUID(),
+                    user_id:       decodeJWT(sbAccessToken)?.sub,
+                    event_id:      ev.id,
+                    note:          `count:${currentVal}`,
+                    logged_at:     localDateTimeStr(),
+                    points_at_log: totalScore,
+                };
+                const { error: insertError } = await sb.from('el_logs').insert([newLog]);
+                if (!insertError) {
+                    logs.unshift({
+                        ...newLog,
+                        eventId:     newLog.event_id,
+                        loggedAt:    newLog.logged_at,
+                        pointsAtLog: newLog.points_at_log,
+                    });
+                    showToast(`🔍 ${ev.name}: ${currentVal} × ${pointsPerEvent} = ${totalScore} pts`);
+                }
+            }
+        } catch (err) {
+            console.error(`checkDaSelectEvents error for ${ev.name}:`, err);
+        }
+    }
+
+    renderEventsGrid();
+    updateAllStats();
+}
+
+// ==========================================
+// LOADING STATE
+// ==========================================
+function setLoading(on) {
+    document.body.style.cursor = on ? 'wait' : '';
+}
+
+// ==========================================
+// SETTINGS
+// ==========================================
+const EL_SETTINGS_KEY = 'el_badge_settings';
+
+function loadSettings() {
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem(EL_SETTINGS_KEY) || '{}'); } catch(e) {}
+    const smartScale = parseInt(s.badge_smart_scale || '100');
+    applyBadgeScales(smartScale);
+}
+
+function applyBadgeScales(smartScale) {
+    const root = document.documentElement;
+    // il nome cresce al ritmo pieno; il punteggio cresce a metà ritmo
+    const ptsScale = 1 + (smartScale - 100) / 200;
+    root.style.setProperty('--badge-smart-name', (0.82 * smartScale / 100).toFixed(3) + 'rem');
+    root.style.setProperty('--badge-smart-pts',  (0.68 * ptsScale).toFixed(3) + 'rem');
+}
+
+function renderSettingsPage() {
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem(EL_SETTINGS_KEY) || '{}'); } catch(e) {}
+    const smartScale = parseInt(s.badge_smart_scale || '100');
+
+    document.getElementById('settingBadgeSmart').value = smartScale;
+    document.getElementById('badgeSmartLabel').textContent = smartScale + '%';
+    document.getElementById('infoVersion').textContent = APP_VERSION;
+}
+
+function saveSettings() {
+    const smartScale = parseInt(document.getElementById('settingBadgeSmart').value);
+    localStorage.setItem(EL_SETTINGS_KEY, JSON.stringify({ badge_smart_scale: smartScale }));
+    applyBadgeScales(smartScale);
+    showToast('✅ Impostazioni salvate');
+}
+
+// ==========================================
+// INIT
+// ==========================================
+async function startApp() {
+    loadSettings();
+    showToast('⏳ Caricamento dati...');
+    await loadGroups();
+    await loadEvents();
+    filterEventsByVisibleGroups();
+    await loadLogs();
+    renderLogPage();
+    await checkDaSelectEvents();
+    showToast('✅ Dati caricati');
+}
+
+// AUTH — token da launcher via postMessage o sessionStorage
+window.addEventListener('message', (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'SB_TOKEN' && e.data.token) {
+        console.log('✅ SB_TOKEN ricevuto dal launcher (Events Log)');
+        initWithToken(e.data.token);
+    } else if (e.data.type === 'HIDDEN_MODE') {
+        hiddenMode = !!e.data.active;
+        riservatoFilter = false; sessionStorage.setItem('riservato_filter', '0');
+        console.log('👁 Modalità nascosta:', hiddenMode ? 'ATTIVA' : 'DISATTIVA');
+        updateHiddenModeFab();
+        if (sb) Promise.all([loadGroups(), loadEvents()]).then(() => { filterEventsByVisibleGroups(); renderActivePage(); });
+    }
+});
+
+// Logout/token refresh/hidden mode broadcast da AppSphere
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null;
+        sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+        console.log('🔒 Sessione invalidata da AppSphere (logout)');
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        const newToken = e.data.sbToken;
+        localStorage.setItem('sb_token', newToken);
+        sbAccessToken = newToken;
+        if (sb) {
+            sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                auth:   { persistSession: false, autoRefreshToken: false },
+                global: { headers: { Authorization: 'Bearer ' + newToken } }
+            });
+        }
+        console.log('🔄 Token rinnovato silenziosamente (AppSphere)');
+    } else if (e.data.type === 'HIDDEN_MODE') {
+        hiddenMode = !!e.data.active;
+        riservatoFilter = false;
+        console.log('👁 Modalità nascosta (broadcast):', hiddenMode ? 'ATTIVA' : 'DISATTIVA');
+        updateHiddenModeFab();
+        if (sb) Promise.all([loadGroups(), loadEvents()]).then(() => { filterEventsByVisibleGroups(); renderActivePage(); });
+    }
+};
+
+window.addEventListener('load', () => {
+    // Legge hidden_mode impostato dal launcher (navigazione stessa pagina)
+    const storedHidden = sessionStorage.getItem('hidden_mode');
+    if (storedHidden !== null) {
+        hiddenMode = storedHidden === '1';
+        riservatoFilter = hiddenMode && sessionStorage.getItem('riservato_filter') === '1';
+        updateHiddenModeFab();
+    }
+
+    const stored = localStorage.getItem('sb_token');
+    if (stored) {
+        initWithToken(stored);
+    } else {
+        // Mostra overlay di blocco e attende postMessage dal launcher
+        document.getElementById('authOverlay').style.display = 'flex';
+        console.warn('⚠️ Nessun SB_TOKEN — attendo dal launcher (AppSphere)');
+    }
+});
+</script>
+</body>
+</html>

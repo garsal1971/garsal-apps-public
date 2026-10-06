@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Primo piano dell'icona «AppSphere pasto» (l'activity-alias SegnaPasto): il
+    marchio di AppSphere col badge verde delle posate in alto a destra.
+
+    ⚠️ I cinque cerchi sono la **copia identica** di ic_launcher_foreground.xml,
+    colori e coordinate compresi: il marchio vive in più posti e vanno cambiati
+    insieme (vedi CLAUDE.md, «Il marchio vive in … posti»). Quel che distingue
+    quest'icona da AppSphere nel cassetto è il badge, non un disegno diverso.
+
+    ⚠️ Il badge ha la stessa geometria di quello di SOS: l'angolo alto-destro
+    dell'alone, (80, 30), cade a 35,4 dp dal centro, dentro il cerchio di
+    sicurezza da 36 dp dell'icona adattiva. Sporgendo, la maschera tonda lo
+    taglierebbe.
+
+    ⚠️ Forchetta e coltello sono gli STESSI tracciati di ic_scorciatoia_pasto.xml
+    (viewport 48), rimpiccioliti con un <group> e non ridisegnati: due disegni
+    della stessa forchetta divergono il giorno che uno dei due si ritocca.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- arancio, in alto a sinistra -->
+    <path
+        android:fillColor="#DE8026"
+        android:pathData="M40.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- rosso, in alto a destra -->
+    <path
+        android:fillColor="#CA372E"
+        android:pathData="M68.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- verde, in basso a sinistra -->
+    <path
+        android:fillColor="#32974C"
+        android:pathData="M40.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- viola, in basso a destra -->
+    <path
+        android:fillColor="#824FA5"
+        android:pathData="M68.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- blu, al centro e sopra a tutti -->
+    <path
+        android:fillColor="#067BC0"
+        android:pathData="M54.0,54.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- ── Il badge ────────────────────────────────────────────────────────
+         L'alone scuro separa il badge dal cerchio rosso che gli sta sotto: a
+         48 dp nel cassetto, senza un bordo, si leggerebbero come una macchia
+         sola. Il verde è quello di Calorie (VerdeCalorie in CalorieScreen.kt). -->
+    <path
+        android:fillColor="#22262A"
+        android:pathData="M56.8,30 L74.2,30 A5.8,5.8 0 0 1 80,35.8 L80,49.2 A5.8,5.8 0 0 1 74.2,55 L56.8,55 A5.8,5.8 0 0 1 51,49.2 L51,35.8 A5.8,5.8 0 0 1 56.8,30 Z" />
+    <path
+        android:fillColor="#16A34A"
+        android:pathData="M57,31 L74,31 A5,5 0 0 1 79,36 L79,49 A5,5 0 0 1 74,54 L57,54 A5,5 0 0 1 52,49 L52,36 A5,5 0 0 1 57,31 Z" />
+
+    <!-- Forchetta e coltello: il disegno (x 14-36, y 11-39,5 nel viewport 48)
+         scalato a 0,63 attorno al suo centro (25, 25,25) e portato al centro
+         del badge (65,5, 42,5): ~14 × 18 dp dentro i 27 × 23 del badge. -->
+    <group
+        android:pivotX="25"
+        android:pivotY="25.25"
+        android:scaleX="0.63"
+        android:scaleY="0.63"
+        android:translateX="40.5"
+        android:translateY="17.25">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M14,11h2v8h1.5v-8h2v8h1.5v-8h2v10c0,2 -1.4,3.4 -3.2,3.8v12.2c0,0.8 -0.7,1.5 -1.5,1.5h-0.6c-0.8,0 -1.5,-0.7 -1.5,-1.5v-12.2c-1.8,-0.4 -3.2,-1.8 -3.2,-3.8z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M31.5,11c2.8,1.5 4.5,5 4.5,10v4h-2.5v12c0,0.8 -0.7,1.5 -1.5,1.5h-0.5c-0.8,0 -1.5,-0.7 -1.5,-1.5v-26z" />
+    </group>
+</vector>

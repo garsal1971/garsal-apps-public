@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dove il FileProvider può prendere i file da condividere: solo la
+    sottocartella `foto/` della cache, dove finisce lo scatto della fotocamera
+    prima di essere caricato nel bucket. Non c'è niente altro da condividere e
+    aprire di più sarebbe regalare accesso ai file dell'app.
+-->
+<paths>
+    <cache-path name="foto" path="foto/" />
+</paths>

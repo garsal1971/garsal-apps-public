@@ -1,0 +1,10 @@
+// Progetto Gradle a sé, come appsphere-native e pressure-tracker, e non un modulo
+// di `android-app`: Spese in giro è un'app separata dal resto della suite — non legge le
+// tabelle di AppSphere, non fa il login Google e non compare fra le bolle. Stando
+// dentro quel progetto, ogni tocco a `settings.gradle` sveglierebbe per giunta le
+// build di tutti gli altri APK.
+plugins {
+    id 'com.android.application'             version '8.9.1'  apply false
+    id 'org.jetbrains.kotlin.android'         version '2.1.20' apply false
+    id 'org.jetbrains.kotlin.plugin.compose'  version '2.1.20' apply false
+}

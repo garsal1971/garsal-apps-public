@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Smart Blocker</string>
+    <string name="accessibility_label">Smart Blocker — controllo schedule</string>
+    <string name="accessibility_description">Mantiene attivo il blocco schedulato del telefono impedendo l\'uso di altre app durante le fasce orarie configurate.</string>
+</resources>

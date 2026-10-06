@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Download Migration SQL</title></head>
+<body>
+<script>
+const sql = `-- ============================================================
+-- Sistema notifiche trasversale — garsal-apps
+-- Migration: 20260225120000_notification_system
+--
+-- Tabelle create:
+--   1. cm_user_notification_settings  -- config per utente (Telegram, Push)
+--   2. cm_notification_rules          -- regole scritte/cancellate dalle app
+--   3. cm_notification_queue          -- coda pre-calcolata da Job 1, letta da Job 2
+--
+-- Flusso:
+--   [APP] -> cm_notification_rules
+--   [Job 1 / ogni 6h] -> legge regole + popola cm_notification_queue
+--   [Job 2 / ogni 1m] -> legge queue + manda Telegram
+-- ============================================================
+
+
+-- ============================================================
+-- 1. cm_user_notification_settings
+-- ============================================================
+CREATE TABLE IF NOT EXISTS cm_user_notification_settings (
+    id                  uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             uuid        NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+    telegram_chat_id    text,
+    telegram_enabled    boolean     NOT NULL DEFAULT false,
+    push_enabled        boolean     NOT NULL DEFAULT false,
+    push_token          text,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION cm_set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_cm_user_notification_settings_updated_at
+    BEFORE UPDATE ON cm_user_notification_settings
+    FOR EACH ROW EXECUTE FUNCTION cm_set_updated_at();
+
+ALTER TABLE cm_user_notification_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Utente vede solo le proprie impostazioni"
+    ON cm_user_notification_settings
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+
+-- ============================================================
+-- 2. cm_notification_rules
+-- ============================================================
+CREATE TABLE IF NOT EXISTS cm_notification_rules (
+    id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    app             text        NOT NULL CHECK (app IN ('tasks', 'habits', 'events', 'weight')),
+    entity_id       text        NOT NULL,
+    entity_type     text        NOT NULL,
+    offset_minutes  integer     NOT NULL CHECK (offset_minutes > 0),
+    offset_label    text        NOT NULL,
+    channel         text        NOT NULL DEFAULT 'telegram'
+                                CHECK (channel IN ('telegram', 'browser', 'push')),
+    enabled         boolean     NOT NULL DEFAULT true,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (user_id, app, entity_id, offset_minutes, channel)
+);
+
+CREATE INDEX idx_rules_user_app ON cm_notification_rules (user_id, app);
+CREATE INDEX idx_rules_entity   ON cm_notification_rules (app, entity_id);
+
+ALTER TABLE cm_notification_rules ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Utente gestisce solo le proprie regole"
+    ON cm_notification_rules
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+
+-- ============================================================
+-- 3. cm_notification_queue
+-- ============================================================
+CREATE TABLE IF NOT EXISTS cm_notification_queue (
+    id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    rule_id     uuid        NOT NULL REFERENCES cm_notification_rules(id) ON DELETE CASCADE,
+    user_id     uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    app         text        NOT NULL,
+    entity_id   text        NOT NULL,
+    title       text        NOT NULL,
+    body        text        NOT NULL,
+    channel     text        NOT NULL,
+    fire_at     timestamptz NOT NULL,
+    status      text        NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending', 'sent', 'failed', 'cancelled')),
+    created_at  timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (rule_id, fire_at)
+);
+
+CREATE INDEX idx_queue_fire_at_status ON cm_notification_queue (fire_at, status)
+    WHERE status = 'pending';
+
+ALTER TABLE cm_notification_queue ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Utente legge la propria queue"
+    ON cm_notification_queue
+    FOR SELECT
+    USING (auth.uid() = user_id);
+
+
+`;
+
+const blob = new Blob([sql], { type: 'text/plain' });
+const a = document.createElement('a');
+a.href = URL.createObjectURL(blob);
+a.download = '20260225120000_notification_system.sql';
+document.body.appendChild(a);
+a.click();
+</script>
+<p>Download avviato. Puoi chiudere questa pagina.</p>
+</body>
+</html>

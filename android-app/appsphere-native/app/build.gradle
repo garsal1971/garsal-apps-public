@@ -1,0 +1,172 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+}
+
+// ⚠️ Il plugin di Firebase si applica SOLO se la scheda del progetto c'è.
+//
+// `google-services.json` si scarica dalla console Firebase e non è un segreto —
+// sta dentro ogni APK pubblicato — ma finché non lo si mette qui il plugin
+// fermerebbe la build con «File google-services.json is missing», cioè un APK
+// che non si compila più per una funzionalità che non è ancora accesa.
+//
+// Senza quel file l'app compila, si installa e funziona: solo, FirebaseApp non
+// si inizializza e le push restano spente (vedi `Push.disponibile()`). Messo il
+// file, si accendono senza toccare una riga di codice.
+def schedaFirebase = file('google-services.json')
+if (schedaFirebase.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+    println "google-services.json trovato: notifiche push abilitate"
+} else {
+    println "google-services.json assente: l'APK si compila, le push restano spente"
+}
+
+android {
+    namespace 'com.garsal.appsphere'
+    compileSdk 36
+
+    defaultConfig {
+        // applicationId diverso da com.garsalapps: il nuovo APK si installa
+        // ACCANTO a quello WebView, che resta l'app da usare per tutto ciò
+        // che non è ancora nativo.
+        applicationId "com.garsal.appsphere"
+        minSdk 28
+        targetSdk 36
+        versionCode 111
+        versionName "1.0.110"
+    }
+
+    // Le pagine HTML scelgono fra dev e produzione dall'hostname (_IS_DEV).
+    // Qui un hostname non c'è: la scelta la fa il build type, così nel codice
+    // non c'è nessun if sull'ambiente — si legge BuildConfig e basta.
+    buildTypes {
+        debug {
+            buildConfigField "String", "SUPABASE_URL", '"https://hcmmywitrbmcsmytjbaf.supabase.co"'
+            buildConfigField "String", "SUPABASE_ANON_KEY", '"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE"'
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "SUPABASE_URL", '"https://jajlmmdsjlvzgcxiiypk.supabase.co"'
+            buildConfigField "String", "SUPABASE_ANON_KEY", '"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU"'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    packaging {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}', '/META-INF/INDEX.LIST', '/META-INF/DEPENDENCIES']
+        }
+    }
+}
+
+dependencies {
+    implementation platform('androidx.compose:compose-bom:2025.04.01')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.material3:material3'
+    // ⚠️ NON aggiungere `material-icons-extended`: contiene migliaia di icone
+    // compilate come codice Kotlin e, senza minificazione, finiscono tutte nel
+    // DEX — da sola portava l'APK a 51 MB (~50 dei quali di bytecode) contro i
+    // ~10 di adesso. Le icone in uso sono quattro (ArrowBack, Close, Refresh,
+    // Settings) e stanno tutte in material-icons-core, che arriva già con
+    // material3. Se ne serve una che qui non c'è, si disegna come i
+    // CerchiOlimpici invece di reimbarcare il pacchetto intero.
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+    implementation 'androidx.navigation:navigation-compose:2.8.9'
+
+    // Biometria all'avvio — stessa dipendenza dell'APK WebView
+    implementation 'androidx.biometric:biometric:1.1.0'
+
+    // Supabase: auth (OAuth Google, sessione persistita, refresh del JWT) + PostgREST.
+    // ⚠️ La versione è agganciata a Kotlin 2.1.20 nel build.gradle di root.
+    implementation platform('io.github.jan-tennert.supabase:bom:3.1.4')
+    implementation 'io.github.jan-tennert.supabase:auth-kt'
+    implementation 'io.github.jan-tennert.supabase:postgrest-kt'
+    // Serve a una chiamata sola: `fill-notification-queue` dopo aver scritto
+    // una regola Smart Block di Ta Firi?, per non aspettare il cron delle sei
+    // ore. È la stessa fetch che fa `ta-firi.html`.
+    implementation 'io.github.jan-tennert.supabase:functions-kt'
+    // Le immagini di Memo stanno nel bucket `mm-images`, che è privato: servono
+    // gli URL firmati e l'upload dei file scelti dal telefono.
+    implementation 'io.github.jan-tennert.supabase:storage-kt'
+    // supabase-kt non porta un engine Ktor: va scelto qui. Versione allineata
+    // a quella che supabase-kt 3.1.4 usa internamente (Ktor 3.1.2).
+    implementation 'io.ktor:ktor-client-okhttp:3.1.2'
+
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1'
+
+    // Memo: le foto delle schede si scaricano da URL firmati e si mostrano in
+    // griglia. Coil pesa poche centinaia di KB — è l'opposto di
+    // material-icons-extended, che è la ragione dell'avviso qui sopra.
+    implementation 'io.coil-kt:coil-compose:2.7.0'
+    // OCR delle foto — ML Kit, ma nella variante **non incorporata**.
+    //
+    // ⚠️ `com.google.mlkit:text-recognition` (quella dell'APK WebView) porta
+    // dentro l'APK il modello e le librerie native per tutte e quattro le ABI:
+    // da sola ha portato questo pacchetto da 30 a **73 MB** — oltre il limite
+    // di 50 MB oltre il quale GitHub avvisa, e con l'APK committato a ogni
+    // build anche la repo ci va di mezzo. È lo stesso difetto di
+    // material-icons-extended, con un'altra faccia.
+    //
+    // Qui il modello lo tiene Google Play Services e l'APK cresce di poco. Il
+    // codice è identico (`TextRecognition.getClient(DEFAULT_OPTIONS)`), il
+    // riconoscimento pure: cambia solo *dove sta* il modello. Il `meta-data`
+    // nel manifest lo fa scaricare all'installazione, così al primo OCR è già
+    // pronto.
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+    // Forziere: OpenPGP simmetrico (AES-256 + MDC, SEIPD v1), lo stesso formato
+    // che `forziere.html` scrive con OpenPGP.js e che un `gpg` qualunque apre.
+    //
+    // ⚠️ Variante **jdk15to18** e non `jdk18on`: è quella che BouncyCastle
+    // pubblica per Android: `jdk18on` è un jar multi-release, con classi sotto
+    // `META-INF/versions` che qui non servono e che il compilatore DEX deve
+    // scartare. `bcpg` si porta dietro `bcprov` e `bcutil`, e servono tutt'e
+    // tre: senza `bcutil` la prima decifratura muore con un
+    // `NoClassDefFoundError` su `CryptlibObjectIdentifiers` — verificato.
+    //
+    // ⚠️ **Pesa**, e con `minifyEnabled false` finisce intero nel DEX: è la
+    // stessa faccenda dell'avviso su `material-icons-extended`, con la
+    // differenza che qui non c'è un'alternativa leggera — l'unica sarebbe
+    // riscrivere OpenPGP a mano, che in un forziere è precisamente ciò che non
+    // si fa. Il workflow avvisa oltre i 25 MB: quel numero va guardato.
+    implementation 'org.bouncycastle:bcpg-jdk15to18:1.78.1'
+
+    // FileProvider per la foto scattata dalla fotocamera: la si scrive in
+    // cache e se ne passa l'uri alla fotocamera di sistema.
+    implementation 'androidx.core:core-ktx:1.16.0'
+
+    // Health Connect — lettura del peso per la sincronizzazione con la
+    // bilancia Renpho. Stessa versione dell'APK WebView (`HealthConnectBridge.kt`).
+    implementation 'androidx.health.connect:connect-client:1.1.0-rc01'
+
+    // Notifiche push. ⚠️ La dipendenza c'è sempre, il plugin no (vedi sopra): il
+    // codice si compila comunque, e a runtime `Push.disponibile()` dice se
+    // FirebaseApp è stato inizializzato davvero.
+    // Solo -messaging: il BoM tira dentro il resto solo se lo si chiede.
+    implementation platform('com.google.firebase:firebase-bom:33.13.0')
+    implementation 'com.google.firebase:firebase-messaging'
+
+    // Anteprime dell'IDE: servono solo mentre si sviluppa, non nell'APK
+    // pubblicato. Erano `implementation`, quindi finivano anche nel release.
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-tooling-preview'
+}

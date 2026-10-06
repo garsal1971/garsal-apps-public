@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ⚠️ Nero e non più il rosso `sos_red`: il marchio AppSphere è pensato su
+     fondo scuro (è quello dell'APK nativa), e sul rosso il cerchio rosso del
+     marchio sparirebbe nel fondo. Il rosso resta il colore dell'app — lo
+     porta il badge, che è la cosa che la distingue. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#111111" />
+</shape>

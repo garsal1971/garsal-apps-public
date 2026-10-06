@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chiedi a Pino v1.1.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #5E35B1;
+            --primary-soft: #EDE7F6;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --accent: #2563EB;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Coi caratteri di sistema grandi una parola può essere più larga del
+           riquadro: `anywhere` la spezza invece di farla sbordare. */
+        body {
+            overflow-wrap: anywhere;
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light); color: var(--dark);
+            min-height: 100vh; padding-top: 56px; font-size: 1.1rem;
+        }
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; min-height: 56px;
+            background: #0081C8; display: flex; align-items: center; padding: 0 20px; gap: 10px; z-index: 3000;
+        }
+        #garsal-top-bar-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+        #garsal-top-bar-ver { margin-left: auto; font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.8); }
+
+        .wrap { max-width: 56rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+        .page-title { font-size: 2.3rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
+        .page-hint { color: var(--muted); margin: 0.2rem 0 1.1rem; }
+        .card { border: 2px solid var(--border); background: var(--card-bg); padding: 1rem; margin-bottom: 1.2rem; }
+        .form-label { display: block; font-weight: 700; margin: 0.6rem 0 0.3rem; }
+        .form-input, textarea.form-input, select.form-input {
+            width: 100%; font: inherit; font-size: 1.05rem; padding: 0.55rem 0.7rem;
+            border: 2px solid var(--border); background: var(--input-bg); color: var(--dark);
+            min-height: 2.8rem;
+        }
+        textarea.form-input { min-height: 9rem; resize: vertical; font-family: inherit; }
+        .form-input:focus { outline: none; border-color: var(--primary); }
+        /* ⚠️ Righe di controlli che vanno a capo: coi caratteri di sistema grandi
+           tendina e pulsante affiancati non ci stanno su 360 px. */
+        .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: stretch; }
+        .row > .grow { flex: 1 1 12rem; min-width: 0; }
+        .btn {
+            font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
+            padding: 0.5rem 1rem; min-height: 2.8rem; border: 2px solid var(--primary);
+            background: var(--light); color: var(--primary);
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-send { width: 100%; margin-top: 0.9rem; font-size: 1.2rem; }
+        .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+        .chip {
+            font: inherit; font-size: 1rem; font-weight: 700; padding: 0.15rem 0.6rem;
+            border: 2px solid var(--primary); background: var(--primary-soft); color: var(--primary);
+            display: inline-flex; align-items: center; gap: 0.35rem; cursor: default;
+        }
+        .chip button { border: none; background: none; font: inherit; cursor: pointer; color: var(--primary); padding: 0 0.1rem; }
+        .chip.filtro { cursor: pointer; background: var(--light); }
+        .chip.filtro.on { background: var(--primary); color: #fff; }
+        .muted { color: var(--muted); }
+
+        .risultato { margin-top: 1rem; }
+        .ia-wait { padding: 0.8rem; background: var(--primary-soft); font-weight: 700; }
+        .form-error { color: var(--danger); font-weight: 700; padding: 0.6rem 0; }
+        .msg { border: 2px solid var(--border); padding: 0.8rem 0.9rem; margin-bottom: 0.9rem; background: var(--card-bg); }
+        .msg.nuova { border-color: var(--primary); }
+        .msg-head { display: flex; gap: 0.5rem; align-items: flex-start; }
+        .msg-head .icon-btn { flex-shrink: 0; }
+        .msg-q { flex: 1; min-width: 0; font-weight: 700; white-space: pre-wrap; }
+        .msg-meta { font-size: 0.95rem; color: var(--muted); margin: 0.3rem 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; align-items: center; }
+        .ia-chi { font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; padding: 0.05rem 0.45rem; background: var(--dark); color: #fff; }
+        .tag-mini { font-size: 0.9rem; font-weight: 700; color: var(--primary); border: 1.5px solid var(--primary); padding: 0 0.4rem; }
+        .msg-a { border-top: 1px dashed var(--border); padding-top: 0.5rem; line-height: 1.35; }
+        .msg-a p { margin: 0.35rem 0; }
+        .msg-a ul, .msg-a ol { margin: 0.35rem 0 0.35rem 1.4rem; }
+        .msg-a h4 { margin: 0.6rem 0 0.2rem; font-size: 1.15rem; }
+        .msg-a pre { background: #F3F4F6; padding: 0.6rem; overflow-x: auto; font-family: 'Space Mono', monospace; font-size: 0.85rem; white-space: pre; overflow-wrap: normal; }
+        .msg-a code { font-family: 'Space Mono', monospace; font-size: 0.85em; background: #F3F4F6; padding: 0 0.2rem; }
+        .icon-btn { border: none; background: none; font-size: 1.3rem; cursor: pointer; min-width: 2.4rem; min-height: 2.4rem; }
+        /* Le immagini allegate: miniature quadrate che vanno a capo. */
+        .thumbs { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.5rem; }
+        .thumb { position: relative; width: 5.2rem; height: 5.2rem; border: 2px solid var(--border);
+                 background: #F3F4F6 center / cover no-repeat; cursor: pointer; flex-shrink: 0; }
+        .thumb button { position: absolute; top: -0.5rem; right: -0.5rem; width: 1.7rem; height: 1.7rem;
+                        border-radius: 50%; border: 2px solid #fff; background: var(--danger); color: #fff;
+                        font: inherit; font-weight: 900; line-height: 1; cursor: pointer; padding: 0; }
+        #fotoGrande { max-width: 100%; max-height: 75vh; display: block; margin: 0 auto; }
+        .msg-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.4rem; }
+        .msg-actions .btn { font-size: 0.95rem; min-height: 2.4rem; padding: 0.25rem 0.7rem; }
+
+        #authOverlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.97); z-index: 2500;
+            display: none; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .auth-box { text-align: center; font-size: 1.2rem; }
+        .auth-icon { font-size: 3rem; }
+        .auth-title { font-size: 2rem; font-weight: 900; color: var(--primary); }
+
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 4000;
+            display: none; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal.active { display: flex; }
+        .modal-box { background: #fff; padding: 1.1rem; width: min(100%, 28rem); max-height: 90vh; overflow-y: auto; overflow-x: hidden; }
+        .modal-title { font-size: 1.5rem; font-weight: 900; margin-bottom: 0.5rem; }
+        .modal-btns { display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; margin-top: 1rem; }
+        .tag-row { display: flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+        .tag-row .nome { flex: 1; min-width: 0; font-weight: 700; }
+        #toast {
+            position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%);
+            background: var(--dark); color: #fff; padding: 0.6rem 1rem; font-weight: 700;
+            z-index: 5000; display: none; max-width: calc(100% - 2rem);
+        }
+    </style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+    <div id="garsal-top-bar-ver"></div>
+</div>
+
+<div id="authOverlay">
+    <div class="auth-box">
+        <div class="auth-icon">🧔</div>
+        <div class="auth-title">Chiedi a Pino</div>
+        <div>Apri questa app da AppSphere per accedere.</div>
+    </div>
+</div>
+
+<div class="wrap">
+    <div class="page-title">🧔 Chiedi a Pino</div>
+    <div class="page-hint">Scrivi il prompt, allega se vuoi fino a 4 immagini, scegli i tag e il motore IA: domanda e risposta restano in archivio.</div>
+
+    <div class="card">
+        <label class="form-label" for="prompt">Prompt</label>
+        <textarea id="prompt" class="form-input" placeholder="Scrivi qui la tua domanda…"></textarea>
+
+        <!-- ⚠️ Il campo sta in un <div> e non in un <label>: dentro un'etichetta
+             il tocco può arrivare due volte e il selettore aprirsi due volte
+             (è la stessa scelta di modifiche.html). -->
+        <div class="form-label">🖼️ Immagini <span class="muted" style="font-weight:500">(fino a 4)</span></div>
+        <div class="row">
+            <button class="btn" id="btnFoto" onclick="document.getElementById('fotoInput').click()">📎 Allega immagini</button>
+            <input id="fotoInput" type="file" accept="image/*" multiple style="display:none" onchange="aggiungiAllegati(event)">
+        </div>
+        <div id="allegati" class="thumbs"></div>
+
+        <label class="form-label" for="tagScelta">🏷️ Tag</label>
+        <div class="row">
+            <select id="tagScelta" class="form-input grow"></select>
+            <button class="btn" onclick="aggiungiTagScelto()">＋ Aggiungi</button>
+            <button class="btn" onclick="apriGestioneTag()" title="Gestisci i tag">⚙️</button>
+        </div>
+        <div id="tagScelti" class="chips"></div>
+
+        <label class="form-label" for="motore">🤖 Motore IA</label>
+        <select id="motore" class="form-input" onchange="ricordaFornitore(this.value)"></select>
+
+        <button id="btnInvia" class="btn btn-primary btn-send" onclick="invia()">🚀 Invia</button>
+        <div id="risultato" class="risultato"></div>
+    </div>
+
+    <div class="page-title" style="font-size:1.8rem">🗂 Domande e risposte</div>
+    <div id="filtri" class="chips" style="margin:0.6rem 0 1rem"></div>
+    <div id="storico"></div>
+</div>
+
+<!-- Nuovo tag -->
+<div class="modal" id="modalNuovoTag">
+    <div class="modal-box">
+        <div class="modal-title">🏷️ Nuovo tag</div>
+        <input id="nuovoTagNome" class="form-input" maxlength="60" placeholder="Nome del tag"
+               onkeydown="if(event.key==='Enter')salvaNuovoTag()">
+        <div id="nuovoTagErr" class="form-error"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalNuovoTag')">Annulla</button>
+            <button class="btn btn-primary" onclick="salvaNuovoTag()">Crea</button>
+        </div>
+    </div>
+</div>
+
+<!-- Gestione tag -->
+<div class="modal" id="modalTag">
+    <div class="modal-box">
+        <div class="modal-title">⚙️ I tag</div>
+        <div id="elencoTag"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalTag')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tag di una domanda già archiviata -->
+<div class="modal" id="modalTagMsg">
+    <div class="modal-box">
+        <div class="modal-title">🏷️ Tag della domanda</div>
+        <div id="tagMsgElenco"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalTagMsg')">Annulla</button>
+            <button class="btn btn-primary" onclick="salvaTagMsg()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- Un'immagine a tutto schermo -->
+<div class="modal" id="modalFoto" onclick="closeModal('modalFoto')">
+    <div class="modal-box" style="width:min(100%, 60rem)">
+        <img id="fotoGrande" alt="">
+        <div class="modal-btns"><button class="btn" onclick="closeModal('modalFoto')">Chiudi</button></div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// CHIEDI A PINO — versione (nomi interni ia_tunnel_* / ia-tunnel)
+// ════════════════════════════════════════════════════════════
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-09-27T20:00:00Z';
+console.log('%c 🧔 CHIEDI A PINO ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#5E35B1;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+function log(...a) { console.log('[chiedi-a-pino]', ...a); }
+log('CHIEDI A PINO ' + APP_VERSION + ' — build: ' + BUILD_TIME);
+
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+             || (window.location.hostname.endsWith('.netlify.app')
+                && window.location.hostname.startsWith('dev--'));
+
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+const FUNZIONE = `${SUPABASE_URL}/functions/v1/ia-tunnel`;
+
+const BUCKET   = 'ia-tunnel-images';
+const MAX_FOTO = 4;
+const LATO_MAX = 1600;   // le immagini si riducono prima di partire, come in Piante e Modifiche
+const QUALITA  = 0.82;
+
+let sb = null, sbAccessToken = null, currentUserId = null;
+
+const S = {
+    messaggi: [],        // ia_tunnel_messages, dal più recente
+    tag: [],             // ia_tunnel_tags
+    legami: [],          // ia_tunnel_message_tags { message_id, tag_id }
+    scelti: [],          // tag_id scelti per il prossimo invio
+    filtro: null,        // tag_id del filtro dello storico (null = tutte)
+    fornitori: null,     // le IA con la chiave nei Secrets
+    inCorso: false,
+    nuovaId: null,       // l'ultima risposta arrivata, evidenziata
+    tagMsgId: null, tagMsgSel: [],
+    allegati: [],        // { blob, url } scelti per il prossimo invio (blob in memoria)
+    immagini: {},        // message_id → [storage_path] in ordine
+    urls: {},            // storage_path → indirizzo firmato
+};
+
+// ════════════════════════════════════════════════════════════
+// AUTH — lo stesso giro delle altre app della suite
+// ════════════════════════════════════════════════════════════
+function initWithToken(token) {
+    if (sb) return;
+    sbAccessToken = token;
+    localStorage.setItem('sb_token', token);
+    sb = creaClient(token);
+    try { currentUserId = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub || null; }
+    catch { currentUserId = null; }
+    document.getElementById('authOverlay').style.display = 'none';
+    startApp();
+}
+function creaClient(token) {
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+}
+function handleAuthError(error) {
+    if (!error) return false;
+    const msg = (error.message || '').toLowerCase();
+    const isAuth = error.status === 401 || msg.includes('jwt expired') || msg.includes('invalid jwt')
+        || msg.includes('not authenticated') || msg.includes('pgjwt');
+    if (!isAuth) return false;
+    sb = null; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return true;
+}
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SB_TOKEN' && e.data.token) initWithToken(e.data.token);
+});
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null; sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        const t = e.data.sbToken;
+        localStorage.setItem('sb_token', t); sbAccessToken = t;
+        if (sb) sb = creaClient(t); else initWithToken(t);
+    }
+};
+window.addEventListener('load', () => {
+    document.getElementById('garsal-top-bar-ver').textContent = APP_VERSION + (_IS_DEV ? ' · DEV' : '');
+    const stored = localStorage.getItem('sb_token');
+    if (stored) initWithToken(stored);
+    else document.getElementById('authOverlay').style.display = 'flex';
+});
+
+// ════════════════════════════════════════════════════════════
+// UTILITÀ
+// ════════════════════════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer = null;
+function showToast(msg, ms = 2600) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.style.display = 'none', ms);
+}
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function fmtQuando(ts) {
+    const d = new Date(ts);
+    if (isNaN(d)) return '';
+    const p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const confrontoNome = s => String(s || '').trim().toLowerCase();
+
+// ════════════════════════════════════════════════════════════
+// CARICAMENTO
+// ════════════════════════════════════════════════════════════
+async function startApp() {
+    caricaFornitori();
+    await caricaTutto();
+}
+async function caricaTutto() {
+    const [m, t, l, im] = await Promise.all([
+        sb.from('ia_tunnel_messages').select('*').order('created_at', { ascending: false }).limit(500),
+        sb.from('ia_tunnel_tags').select('*').order('name'),
+        sb.from('ia_tunnel_message_tags').select('message_id, tag_id'),
+        sb.from('ia_tunnel_images').select('message_id, storage_path, position').order('position'),
+    ]);
+    // Le immagini non fermano la pagina: senza la tabella lo storico si legge lo stesso.
+    if (im.error) console.warn('immagini:', im.error);
+    S.immagini = {};
+    for (const r of (im.data || [])) (S.immagini[r.message_id] ||= []).push(r.storage_path);
+    const err = m.error || t.error || l.error;
+    if (err) {
+        if (handleAuthError(err)) return;
+        document.getElementById('storico').innerHTML = `<div class="form-error">❌ ${esc(err.message)}</div>`;
+        return;
+    }
+    S.messaggi = m.data || []; S.tag = t.data || []; S.legami = l.data || [];
+    // un tag cancellato altrove non resta fra gli scelti né nel filtro
+    S.scelti = S.scelti.filter(id => S.tag.some(x => x.id === id));
+    if (S.filtro && !S.tag.some(x => x.id === S.filtro)) S.filtro = null;
+    renderTagForm(); renderStorico();
+    firmaImmagini();
+}
+
+// ════════════════════════════════════════════════════════════
+// MOTORE IA
+// ════════════════════════════════════════════════════════════
+const FORNITORI_TUTTI = [{ id: 'gemini', nome: 'Gemini' }, { id: 'qwen', nome: 'Qwen' }, { id: 'groq', nome: 'Groq' }, { id: 'claude', nome: 'Claude' }];
+const NOME_IA = { gemini: 'Gemini', qwen: 'Qwen', groq: 'Groq', claude: 'Claude' };
+// ⚠️ Le IA che si pagano chiedono conferma a OGNI invio: la tendina ricorda
+// l'ultima scelta, e senza la domanda si pagherebbe senza accorgersene. È la
+// stessa tabella di AVVISO_COSTO in piante.html: vanno cambiate insieme.
+const AVVISO_COSTO = {
+    claude: 'Claude si paga a consumo: questa domanda viene addebitata sulla chiave Anthropic.',
+    qwen: 'Qwen è gratuito solo finché dura il credito iniziale di Alibaba: dopo, questa domanda si paga.',
+};
+function fornitoreRicordato() { try { return localStorage.getItem('iat_fornitore') || ''; } catch { return ''; } }
+function ricordaFornitore(v) { try { localStorage.setItem('iat_fornitore', v); } catch {} }
+function elencoFornitori() { return S.fornitori?.length ? S.fornitori : FORNITORI_TUTTI; }
+function renderMotori() {
+    const elenco = elencoFornitori(), r = fornitoreRicordato();
+    const scelto = elenco.some(f => f.id === r) ? r : (elenco[0]?.id || 'gemini');
+    document.getElementById('motore').innerHTML = elenco.map(f =>
+        `<option value="${f.id}" ${f.id === scelto ? 'selected' : ''}>🤖 ${esc(f.nome)}${AVVISO_COSTO[f.id] ? ' 💶' : ''}</option>`).join('');
+}
+async function caricaFornitori() {
+    renderMotori();
+    try {
+        const r = await fetch(FUNZIONE, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${sbAccessToken}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'fornitori' }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.ok && Array.isArray(j.fornitori)) S.fornitori = j.fornitori;
+    } catch (e) { console.warn('fornitori IA:', e.message); }
+    renderMotori();
+}
+
+// ════════════════════════════════════════════════════════════
+// TAG
+// ════════════════════════════════════════════════════════════
+const NUOVO = '__nuovo__';
+function nomeTag(id) { return S.tag.find(t => t.id === id)?.name || '?'; }
+function renderTagForm() {
+    const liberi = S.tag.filter(t => !S.scelti.includes(t.id));
+    document.getElementById('tagScelta').innerHTML =
+        `<option value="">— scegli un tag —</option>`
+        + liberi.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')
+        + `<option value="${NUOVO}">➕ Nuovo tag…</option>`;
+    document.getElementById('tagScelti').innerHTML = S.scelti.length
+        ? S.scelti.map(id => `<span class="chip">🏷️ ${esc(nomeTag(id))}<button title="Togli" onclick="togliTagScelto('${id}')">✕</button></span>`).join('')
+        : `<span class="muted">Nessun tag: la domanda si salva lo stesso.</span>`;
+}
+// «➕ Nuovo tag…» si apre appena lo si sceglie, senza passare dal pulsante.
+document.getElementById('tagScelta').addEventListener('change', e => { if (e.target.value === NUOVO) aggiungiTagScelto(); });
+function aggiungiTagScelto() {
+    const v = document.getElementById('tagScelta').value;
+    if (!v) { showToast('Scegli un tag dalla tendina'); return; }
+    if (v === NUOVO) { apriNuovoTag(); return; }
+    if (!S.scelti.includes(v)) S.scelti.push(v);
+    renderTagForm();
+}
+function togliTagScelto(id) { S.scelti = S.scelti.filter(x => x !== id); renderTagForm(); }
+function apriNuovoTag() {
+    document.getElementById('nuovoTagNome').value = '';
+    document.getElementById('nuovoTagErr').textContent = '';
+    openModal('modalNuovoTag');
+    setTimeout(() => document.getElementById('nuovoTagNome').focus(), 50);
+    document.getElementById('tagScelta').value = '';
+}
+async function salvaNuovoTag() {
+    const nome = document.getElementById('nuovoTagNome').value.trim();
+    const errBox = document.getElementById('nuovoTagErr');
+    if (!nome) { errBox.textContent = 'Scrivi il nome del tag.'; return; }
+    // Già esistente (senza badare a maiuscole): si sceglie quello invece di duplicarlo.
+    const c = S.tag.find(t => confrontoNome(t.name) === confrontoNome(nome));
+    if (c) {
+        if (!S.scelti.includes(c.id)) S.scelti.push(c.id);
+        closeModal('modalNuovoTag'); renderTagForm();
+        showToast(`«${c.name}» c'era già: l'ho aggiunto`);
+        return;
+    }
+    const { data, error } = await sb.from('ia_tunnel_tags').insert({ name: nome }).select().single();
+    if (error) { if (handleAuthError(error)) return; errBox.textContent = '❌ ' + error.message; return; }
+    S.tag.push(data); S.tag.sort((a, b) => a.name.localeCompare(b.name, 'it'));
+    S.scelti.push(data.id);
+    closeModal('modalNuovoTag'); renderTagForm(); renderFiltri();
+}
+function apriGestioneTag() { renderGestioneTag(); openModal('modalTag'); }
+function renderGestioneTag() {
+    const usi = id => S.legami.filter(l => l.tag_id === id).length;
+    document.getElementById('elencoTag').innerHTML = S.tag.length
+        ? S.tag.map(t => `<div class="tag-row"><span class="nome">🏷️ ${esc(t.name)}</span>
+            <span class="muted">${usi(t.id)}</span>
+            <button class="icon-btn" title="Rinomina" onclick="rinominaTag('${t.id}')">✏️</button>
+            <button class="icon-btn" title="Elimina" onclick="eliminaTag('${t.id}')">🗑</button></div>`).join('')
+        : `<div class="muted">Nessun tag ancora. Si creano dalla tendina con «➕ Nuovo tag…».</div>`;
+}
+async function rinominaTag(id) {
+    const t = S.tag.find(x => x.id === id); if (!t) return;
+    const nome = (prompt('Nuovo nome del tag:', t.name) || '').trim();
+    if (!nome || nome === t.name) return;
+    if (S.tag.some(x => x.id !== id && confrontoNome(x.name) === confrontoNome(nome))) { showToast('Esiste già un tag con quel nome'); return; }
+    const { error } = await sb.from('ia_tunnel_tags').update({ name: nome }).eq('id', id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    t.name = nome; S.tag.sort((a, b) => a.name.localeCompare(b.name, 'it'));
+    renderGestioneTag(); renderTagForm(); renderStorico();
+}
+async function eliminaTag(id) {
+    const t = S.tag.find(x => x.id === id); if (!t) return;
+    const n = S.legami.filter(l => l.tag_id === id).length;
+    // ⚠️ La conferma dice cosa NON succede: le domande restano, perdono solo il tag.
+    if (!confirm(`Eliminare il tag «${t.name}»?` + (n ? `\n\nLo tolgo da ${n} domand${n === 1 ? 'a' : 'e'}: le domande restano.` : ''))) return;
+    const { error } = await sb.from('ia_tunnel_tags').delete().eq('id', id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    S.tag = S.tag.filter(x => x.id !== id);
+    S.legami = S.legami.filter(l => l.tag_id !== id);
+    S.scelti = S.scelti.filter(x => x !== id);
+    if (S.filtro === id) S.filtro = null;
+    renderGestioneTag(); renderTagForm(); renderStorico();
+}
+
+// ════════════════════════════════════════════════════════════
+// INVIO
+// ════════════════════════════════════════════════════════════
+async function invia() {
+    if (S.inCorso) return;
+    const prompt = document.getElementById('prompt').value.trim();
+    if (!prompt) { showToast('Scrivi un prompt'); return; }
+    const scelta = document.getElementById('motore').value;
+    if (AVVISO_COSTO[scelta] && !confirm('💶 ' + AVVISO_COSTO[scelta] + '\n\nGemini e Groq sono gratuiti.\n\nMando lo stesso il prompt?')) return;
+    S.inCorso = true;
+    const btn = document.getElementById('btnInvia'), out = document.getElementById('risultato');
+    btn.disabled = true;
+    // ⚠️ L'id della domanda lo decide la pagina: il percorso delle immagini lo
+    // porta dentro, e le immagini salgono PRIMA che la domanda esista.
+    const msgId = crypto.randomUUID();
+    let percorsi = [];
+    try {
+        if (S.allegati.length) {
+            out.innerHTML = `<div class="ia-wait">📤 Carico ${S.allegati.length} immagin${S.allegati.length === 1 ? 'e' : 'i'}…</div>`;
+            percorsi = await caricaAllegati(msgId);
+        }
+        out.innerHTML = `<div class="ia-wait">🤖 ${esc(NOME_IA[scelta] || scelta)} ci sta pensando… (può volerci anche un minuto${percorsi.length ? ', soprattutto con le immagini' : ''})</div>`;
+        const r = await fetch(FUNZIONE, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${sbAccessToken}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, provider: scelta, tag_ids: S.scelti, message_id: msgId, image_paths: percorsi }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 401) { await togliFile(percorsi); handleAuthError({ status: 401, message: 'jwt' }); out.innerHTML = ''; return; }
+        if (!r.ok || !j.ok) throw new Error(j.error || j.message || ('HTTP ' + r.status));
+        // Una domanda non salvata non ha righe che nominino le sue immagini:
+        // restando nel bucket sarebbero file che dall'app non si tolgono più.
+        if (!j.saved) await togliFile(percorsi);
+        else if (percorsi.length) S.immagini[j.id] = percorsi.slice();
+        const msg = {
+            id: j.id || ('tmp-' + Date.now()), prompt, answer: j.answer,
+            provider: j.provider || scelta, model: j.model || null,
+            created_at: j.created_at || new Date().toISOString(),
+        };
+        S.messaggi.unshift(msg);
+        if (j.id && j.tags_saved) S.scelti.forEach(tag_id => S.legami.push({ message_id: j.id, tag_id }));
+        S.nuovaId = msg.id;
+        // Il prompt si svuota solo quando la risposta c'è: un errore non deve
+        // costare il testo appena scritto. I tag restano: spesso la domanda dopo è della stessa serie.
+        document.getElementById('prompt').value = '';
+        svuotaAllegati();
+        out.innerHTML = htmlMessaggio(msg);
+        if (percorsi.length && j.saved) firmaImmagini();
+        if (!j.saved) showToast('⚠️ Risposta arrivata ma NON salvata', 5000);
+        else if (!j.tags_saved) showToast('⚠️ Risposta salvata, ma i tag non si sono collegati', 5000);
+        else if (percorsi.length && !j.images_saved) showToast('⚠️ Risposta salvata, ma le immagini non risultano collegate', 5000);
+        renderStorico();
+    } catch (e) {
+        // Il prompt e le immagini scelte restano: si ripreme Invia e basta.
+        await togliFile(percorsi);
+        out.innerHTML = `<div class="form-error">❌ ${esc(e.message || e)}</div>`;
+    } finally {
+        S.inCorso = false;
+        btn.disabled = false;
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// STORICO
+// ════════════════════════════════════════════════════════════
+function tagDi(messageId) { return S.legami.filter(l => l.message_id === messageId).map(l => l.tag_id); }
+function renderFiltri() {
+    const conta = id => id ? S.legami.filter(l => l.tag_id === id).length : S.messaggi.length;
+    const usati = S.tag.filter(t => conta(t.id) > 0 || S.filtro === t.id);
+    document.getElementById('filtri').innerHTML =
+        `<button class="chip filtro ${!S.filtro ? 'on' : ''}" onclick="filtra(null)">Tutte (${conta(null)})</button>`
+        + usati.map(t => `<button class="chip filtro ${S.filtro === t.id ? 'on' : ''}" onclick="filtra('${t.id}')">🏷️ ${esc(t.name)} (${conta(t.id)})</button>`).join('');
+}
+function filtra(id) { S.filtro = id; renderStorico(); }
+function renderStorico() {
+    renderFiltri();
+    const elenco = S.filtro ? S.messaggi.filter(m => tagDi(m.id).includes(S.filtro)) : S.messaggi;
+    document.getElementById('storico').innerHTML = elenco.length
+        ? elenco.map(htmlMessaggio).join('')
+        : `<div class="muted">${S.filtro ? 'Nessuna domanda con questo tag.' : 'Ancora nessuna domanda: la prima si scrive qui sopra.'}</div>`;
+}
+function htmlMessaggio(m) {
+    const tags = tagDi(m.id).map(id => `<span class="tag-mini">🏷️ ${esc(nomeTag(id))}</span>`).join('');
+    return `<div class="msg ${m.id === S.nuovaId ? 'nuova' : ''}">
+        <div class="msg-head">
+            <div class="msg-q">❓ ${esc(m.prompt)}</div>
+            <button class="icon-btn" title="Elimina" onclick="eliminaMessaggio('${m.id}')">🗑</button>
+        </div>
+        <div class="msg-meta">
+            <span>${fmtQuando(m.created_at)}</span>
+            <span class="ia-chi" title="${esc(m.model || '')}">${esc(NOME_IA[m.provider] || m.provider)}</span>
+            ${m.model ? `<span>${esc(m.model)}</span>` : ''}
+            ${tags}
+        </div>
+        ${htmlMiniature(m.id)}
+        <div class="msg-a">${markdownSemplice(m.answer)}</div>
+        <div class="msg-actions">
+            <button class="btn" onclick="copiaRisposta('${m.id}')">📋 Copia</button>
+            <button class="btn" onclick="riusaPrompt('${m.id}')">↩️ Riusa il prompt</button>
+            <button class="btn" onclick="rispostaNelPrompt('${m.id}')">⤴️ Risposta nel prompt</button>
+            ${String(m.id).startsWith('tmp-') ? '' : `<button class="btn" onclick="apriTagMsg('${m.id}')">🏷️ Tag</button>`}
+        </div>
+    </div>`;
+}
+async function copiaRisposta(id) {
+    const m = S.messaggi.find(x => x.id === id); if (!m) return;
+    try { await navigator.clipboard.writeText(m.answer); showToast('📋 Risposta copiata'); }
+    catch { showToast('Non riesco a copiare negli appunti'); }
+}
+function riusaPrompt(id) {
+    const m = S.messaggi.find(x => x.id === id); if (!m) return;
+    const t = document.getElementById('prompt');
+    t.value = m.prompt;
+    S.scelti = tagDi(id).slice(); renderTagForm();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    t.focus();
+}
+// Porta la RISPOSTA nel campo del prompt, per rilanciarla (a un altro motore,
+// o chiedendo di correggerla). Sostituisce quel che c'era: la conferma lo chiede
+// solo se il campo non è vuoto, perché un testo scritto non si butta in silenzio.
+function rispostaNelPrompt(id) {
+    const m = S.messaggi.find(x => x.id === id); if (!m) return;
+    const t = document.getElementById('prompt');
+    if (t.value.trim() && t.value !== m.answer && !confirm('Il prompt ha già del testo: lo sostituisco con la risposta?')) return;
+    t.value = m.answer;
+    S.scelti = tagDi(id).slice(); renderTagForm();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    t.focus();
+}
+async function eliminaMessaggio(id) {
+    const m = S.messaggi.find(x => x.id === id); if (!m) return;
+    const foto = S.immagini[id] || [];
+    if (!confirm('Eliminare questa domanda e la sua risposta?' + (foto.length ? `\n\nSe ne vanno anche le sue ${foto.length} immagini.` : '') + '\n\nNon si torna indietro.')) return;
+    if (!String(id).startsWith('tmp-')) {
+        // ⚠️ Prima i file e poi la riga, come in Memo e in Modifiche: il bucket
+        // non conosce il CASCADE, e nell'ordine inverso i file resterebbero lì
+        // senza più nessuna riga che dica dove sono.
+        if (foto.length) {
+            const { error: e1 } = await sb.storage.from(BUCKET).remove(foto);
+            if (e1) { if (handleAuthError(e1)) return; showToast('❌ Immagini non cancellate: ' + e1.message); return; }
+        }
+        // i collegamenti ai tag se ne vanno da sé (ON DELETE CASCADE)
+        const { error } = await sb.from('ia_tunnel_messages').delete().eq('id', id);
+        if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    }
+    S.messaggi = S.messaggi.filter(x => x.id !== id);
+    S.legami = S.legami.filter(l => l.message_id !== id);
+    delete S.immagini[id];
+    if (S.nuovaId === id) { S.nuovaId = null; document.getElementById('risultato').innerHTML = ''; }
+    renderStorico();
+}
+
+// ════════════════════════════════════════════════════════════
+// IMMAGINI
+// ════════════════════════════════════════════════════════════
+// ⚠️ Si riducono a 1600 px prima di partire, e la riduzione ha tre gradini
+// (createImageBitmap con le opzioni, senza, e un <img>): una WebView che non
+// conosce la prima chiamata altrimenti non caricherebbe niente. Gemelle di
+// riduci() / riduciConImg() in piante.html.
+async function riduci(file) {
+    let bmp = null;
+    try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e1) {
+        try { bmp = await createImageBitmap(file); }
+        catch (e2) { return await riduciConImg(file); }
+    }
+    const scala = Math.min(1, LATO_MAX / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scala)), h = Math.max(1, Math.round(bmp.height * scala));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', QUALITA));
+    if (!blob) throw new Error('non convertita');
+    return blob;
+}
+function riduciConImg(file) {
+    return new Promise((res, rej) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const scala = Math.min(1, LATO_MAX / Math.max(img.naturalWidth, img.naturalHeight));
+                const w = Math.max(1, Math.round(img.naturalWidth * scala)), h = Math.max(1, Math.round(img.naturalHeight * scala));
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                c.getContext('2d').drawImage(img, 0, 0, w, h);
+                c.toBlob(b => b ? res(b) : rej(new Error('non convertita')), 'image/jpeg', QUALITA);
+            } catch (e) { rej(e); } finally { URL.revokeObjectURL(url); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('immagine illeggibile')); };
+        img.src = url;
+    });
+}
+async function aggiungiAllegati(ev) {
+    const files = [...(ev.target.files || [])];
+    ev.target.value = '';
+    // ⚠️ Zero file vuol dire che il selettore è tornato a mani vuote: annullando
+    // il `change` non scatta affatto, quindi qui non è un annullamento.
+    if (!files.length) { showToast('⚠️ Nessuna immagine arrivata dal selettore'); return; }
+    const posto = MAX_FOTO - S.allegati.length;
+    if (files.length > posto) showToast(`Al massimo ${MAX_FOTO} immagini: ne prendo ${Math.max(0, posto)}`, 3500);
+    for (const f of files.slice(0, Math.max(0, posto))) {
+        try {
+            const blob = await riduci(f);
+            S.allegati.push({ blob, url: URL.createObjectURL(blob) });
+        } catch (e) { showToast('❌ Immagine illeggibile: ' + e.message); }
+    }
+    renderAllegati();
+}
+function renderAllegati() {
+    document.getElementById('allegati').innerHTML = S.allegati.map((a, i) =>
+        `<div class="thumb" style="background-image:url('${a.url}')" onclick="mostraFoto('${a.url}')">
+            <button title="Togli" onclick="event.stopPropagation(); togliAllegato(${i})">✕</button></div>`).join('');
+    const pieno = S.allegati.length >= MAX_FOTO;
+    const b = document.getElementById('btnFoto');
+    b.disabled = pieno;
+    b.textContent = pieno ? `📎 ${MAX_FOTO} su ${MAX_FOTO}` : (S.allegati.length ? `📎 Allega (${S.allegati.length}/${MAX_FOTO})` : '📎 Allega immagini');
+}
+function togliAllegato(i) {
+    const a = S.allegati.splice(i, 1)[0];
+    if (a) URL.revokeObjectURL(a.url);
+    renderAllegati();
+}
+function svuotaAllegati() {
+    S.allegati.forEach(a => URL.revokeObjectURL(a.url));
+    S.allegati = [];
+    renderAllegati();
+}
+// Carica gli allegati in <utente>/<domanda>/<uuid>.jpg e ne restituisce i percorsi.
+// Se uno non passa, toglie quelli già caricati e lo dice: una domanda mandata
+// con metà delle immagini risponderebbe su una cosa diversa da quella chiesta.
+async function caricaAllegati(msgId) {
+    if (!currentUserId) throw new Error('login non leggibile: riapri da AppSphere');
+    const fatti = [];
+    for (const a of S.allegati) {
+        const path = `${currentUserId}/${msgId}/${crypto.randomUUID()}.jpg`;
+        const { error } = await sb.storage.from(BUCKET).upload(path, a.blob, { contentType: 'image/jpeg', upsert: false });
+        if (error) {
+            await togliFile(fatti);
+            const bucketMancante = /bucket not found|not found/i.test(error.message || '');
+            throw new Error('immagine non caricata: ' + error.message + (bucketMancante ? ` — manca il bucket privato «${BUCKET}» su Supabase` : ''));
+        }
+        fatti.push(path);
+    }
+    return fatti;
+}
+async function togliFile(percorsi) {
+    if (!percorsi?.length) return;
+    const { error } = await sb.storage.from(BUCKET).remove(percorsi);
+    if (error) console.warn('file non tolti:', error);
+}
+// Gli indirizzi firmati durano due ore, come in Memo e Modifiche; si chiedono
+// tutti insieme e solo per i percorsi che non si hanno già.
+async function firmaImmagini() {
+    const mancanti = Object.values(S.immagini).flat().filter(p => !S.urls[p]);
+    if (!mancanti.length) return;
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(mancanti, 7200);
+    if (error) { console.warn('firma immagini:', error); return; }
+    for (const d of (data || [])) if (d.signedUrl) S.urls[d.path] = d.signedUrl;
+    renderStorico();
+    const out = document.getElementById('risultato');
+    const nuova = S.messaggi.find(x => x.id === S.nuovaId);
+    if (nuova && out.innerHTML) out.innerHTML = htmlMessaggio(nuova);
+}
+function htmlMiniature(msgId) {
+    const foto = S.immagini[msgId] || [];
+    if (!foto.length) return '';
+    return `<div class="thumbs">${foto.map(p => {
+        const u = S.urls[p];
+        return u ? `<div class="thumb" style="background-image:url('${u}')" onclick="mostraFoto('${u}')"></div>`
+                 : `<div class="thumb" title="Carico…"></div>`;
+    }).join('')}</div>`;
+}
+function mostraFoto(url) {
+    document.getElementById('fotoGrande').src = url;
+    openModal('modalFoto');
+}
+
+// ── i tag di una domanda già archiviata ──────────────────────
+function apriTagMsg(id) {
+    S.tagMsgId = id; S.tagMsgSel = tagDi(id).slice();
+    renderTagMsg(); openModal('modalTagMsg');
+}
+function renderTagMsg() {
+    document.getElementById('tagMsgElenco').innerHTML = S.tag.length
+        ? S.tag.map(t => `<label class="tag-row" style="cursor:pointer"><input type="checkbox" ${S.tagMsgSel.includes(t.id) ? 'checked' : ''}
+            onchange="S.tagMsgSel = this.checked ? [...S.tagMsgSel, '${t.id}'] : S.tagMsgSel.filter(x => x !== '${t.id}')"
+            style="width:1.3rem;height:1.3rem"> <span class="nome">🏷️ ${esc(t.name)}</span></label>`).join('')
+        : `<div class="muted">Nessun tag ancora. Si creano dalla tendina con «➕ Nuovo tag…».</div>`;
+}
+// ⚠️ I collegamenti si riscrivono da capo: si tolgono tutti e si rimettono quelli
+// scelti, come le categorie di una scheda di Memo — senza, un tag tolto resterebbe.
+async function salvaTagMsg() {
+    const id = S.tagMsgId; if (!id) return;
+    const del = await sb.from('ia_tunnel_message_tags').delete().eq('message_id', id);
+    if (del.error) { if (handleAuthError(del.error)) return; showToast('❌ ' + del.error.message); return; }
+    if (S.tagMsgSel.length) {
+        const ins = await sb.from('ia_tunnel_message_tags').insert(S.tagMsgSel.map(tag_id => ({ message_id: id, tag_id })));
+        if (ins.error) { showToast('❌ ' + ins.error.message); await caricaTutto(); return; }
+    }
+    S.legami = S.legami.filter(l => l.message_id !== id).concat(S.tagMsgSel.map(tag_id => ({ message_id: id, tag_id })));
+    closeModal('modalTagMsg');
+    const out = document.getElementById('risultato');
+    if (S.nuovaId === id && out.innerHTML) out.innerHTML = htmlMessaggio(S.messaggi.find(x => x.id === id));
+    renderStorico();
+}
+
+// Quel poco di Markdown che una risposta usa: titoli, grassetto, corsivo,
+// elenchi, codice. Si parte dal testo già ESCAPATO, quindi l'HTML della
+// risposta non passa mai.
+function markdownSemplice(md) {
+    const righe = esc(md).split('\n');
+    let html = '', lista = null, codice = null;
+    const inline = s => s.replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<i>$2</i>');
+    const chiudi = () => { if (lista) { html += `</${lista}>`; lista = null; } };
+    for (const r of righe) {
+        const t = r.trim();
+        let m;
+        if (t.startsWith('```')) {
+            if (codice === null) { chiudi(); codice = ''; } else { html += `<pre>${codice}</pre>`; codice = null; }
+            continue;
+        }
+        if (codice !== null) { codice += r + '\n'; continue; }
+        if (!t) { chiudi(); continue; }
+        if ((m = t.match(/^#{1,6}\s+(.*)$/))) { chiudi(); html += `<h4>${inline(m[1])}</h4>`; continue; }
+        if ((m = t.match(/^[-*•]\s+(.*)$/))) { if (lista !== 'ul') { chiudi(); html += '<ul>'; lista = 'ul'; } html += `<li>${inline(m[1])}</li>`; continue; }
+        if ((m = t.match(/^\d+[.)]\s+(.*)$/))) { if (lista !== 'ol') { chiudi(); html += '<ol>'; lista = 'ol'; } html += `<li>${inline(m[1])}</li>`; continue; }
+        chiudi(); html += `<p>${inline(t)}</p>`;
+    }
+    if (codice !== null) html += `<pre>${codice}</pre>`;
+    chiudi();
+    return html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   ⚠️ Il tasto «indietro» di Android dentro un popup.
+   Blocco UGUALE in tutte le app della suite (vedi CLAUDE.md): cambia solo
+   l'elenco dei popup. Se lo correggi qui, portalo anche nelle altre.
+   ════════════════════════════════════════════════════════════ */
+(function guardiaIndietroPopup(elenco) {
+  const visibile = el => el && getComputedStyle(el).display !== 'none';
+  const aperti = () => elenco.flatMap(p =>
+    [...document.querySelectorAll(p.sel)].filter(visibile).map(el => ({ el, chiudi: p.chiudi })));
+
+  let spinta = false;
+
+  function controlla() {
+    const n = aperti().length;
+    if (n && !spinta) { spinta = true; history.pushState({ __popup: true }, ''); }
+    else if (!n && spinta) {
+      spinta = false;
+      if (history.state && history.state.__popup) history.back();
+    }
+  }
+
+  function avvia() {
+    const osservatore = new MutationObserver(controlla);
+    elenco.forEach(p => document.querySelectorAll(p.sel).forEach(el =>
+      osservatore.observe(el, { attributes: true, attributeFilter: ['class', 'style'] })));
+    controlla();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.addEventListener('popstate', () => {
+    const a = aperti();
+    if (!a.length) return;
+    spinta = false;
+    const ultimo = a[a.length - 1];
+    try { ultimo.chiudi(ultimo.el); } catch (err) { console.warn('indietro:', err); }
+  });
+})([
+  { sel: '.modal', chiudi: el => closeModal(el.id) },
+]);
+</script>
+</body>
+</html>

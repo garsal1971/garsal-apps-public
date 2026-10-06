@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relazione dei backup v1.0.2 — garsal-apps</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Le regole di sempre per i caratteri di sistema grandi: niente altezze fisse,
+   soglie in `rem` e non in px, e quel che è largo scorre dentro il suo riquadro. */
+:root{
+  --blu:#0081C8; --scuro:#1F2937; --muto:#6B7280; --bordo:#E5E7EB;
+  --fondo:#F9FAFB; --carta:#FFFFFF; --ok:#00967A; --ko:#E74C3C;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--scuro);overflow-wrap:anywhere;
+     font:16px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
+#garsal-top-bar{position:fixed;top:0;left:0;right:0;min-height:56px;background:var(--blu);
+  display:flex;align-items:center;padding:0 16px;gap:10px;z-index:3000;flex-wrap:wrap}
+#garsal-top-bar-text{font-size:15px;font-weight:700;color:#fff}
+.topbar-spacer{flex:1}
+.app-version{color:#fff;opacity:.75;font-size:12px}
+.main{padding:72px 16px 40px;max-width:60rem;margin:0 auto}
+h1{font-size:1.35rem;margin:0 0 .2rem}
+.sub{color:var(--muto);font-size:.9rem;margin:0 0 1.2rem}
+.card{background:var(--carta);border:1px solid var(--bordo);border-radius:.75rem;
+      padding:1rem 1.1rem;margin:0 0 1rem}
+.giorno{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin:0 0 .6rem}
+.giorno b{font-size:1.05rem}
+.badge{background:var(--fondo);border:1px solid var(--bordo);border-radius:999px;
+       padding:.1rem .55rem;font-size:.78rem;color:var(--muto)}
+.file{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
+      padding:.5rem 0;border-top:1px solid var(--bordo)}
+.file .nome{flex:1;min-width:8rem;font-size:.92rem}
+.btn{border:1px solid var(--bordo);background:var(--carta);color:var(--scuro);
+     border-radius:.5rem;padding:.45rem .8rem;font:inherit;font-size:.88rem;cursor:pointer;
+     min-height:2.4rem}
+.btn:hover{background:var(--fondo)}
+.btn.primario{background:var(--blu);border-color:var(--blu);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.muto{color:var(--muto)}
+.errore{color:var(--ko);font-weight:600}
+.vuoto{color:var(--muto);font-size:.9rem}
+/* La relazione si apre a tutto schermo dentro un iframe: porta il suo CSS e
+   non deve mescolarsi con quello di questa pagina. */
+#lettore{position:fixed;inset:0;background:var(--fondo);z-index:4000;display:none;
+         flex-direction:column}
+#lettore.aperto{display:flex}
+#lettore-barra{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
+  padding:.6rem 1rem;background:var(--carta);border-bottom:1px solid var(--bordo);min-height:3rem}
+#lettore-titolo{flex:1;min-width:8rem;font-weight:600;font-size:.95rem}
+#lettore iframe{flex:1;width:100%;border:0;background:#fff}
+#velo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:5000;
+      display:none;align-items:center;justify-content:center;padding:1rem}
+#velo.aperto{display:flex}
+#velo .card{max-width:26rem;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+  <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+    <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+    <div id="garsal-top-bar-text">Garsal Apps</div>
+  </a>
+  <div class="topbar-spacer"></div>
+  <span class="app-version" id="versionBadge"></span>
+</div>
+
+<div class="main">
+  <h1>🗄️ Le relazioni dei backup</h1>
+  <p class="sub">Ogni domenica il database viene salvato e una relazione racconta cosa c'era dentro.
+     I file stanno su Google Drive — <strong>mai nel repository, che è pubblico</strong>.</p>
+  <div id="elenco"><p class="vuoto">Carico…</p></div>
+  <p class="sub" id="pieCartella"></p>
+</div>
+
+<div id="lettore">
+  <div id="lettore-barra">
+    <button class="btn" onclick="chiudiLettore()">‹ Torna all'elenco</button>
+    <span id="lettore-titolo"></span>
+  </div>
+  <iframe id="lettore-frame" sandbox="allow-same-origin" title="Relazione"></iframe>
+</div>
+
+<div id="velo">
+  <div class="card">
+    <h2 style="margin-top:0;font-size:1.1rem">Serve il login</h2>
+    <p class="muto">Questa pagina si apre da AppSphere: è lì che si entra con Google.</p>
+    <a class="btn primario" href="/" style="display:inline-block;text-decoration:none">Vai ad AppSphere</a>
+  </div>
+</div>
+
+<script>
+var APP_VERSION = 'v1.0.3';
+var BUILD_TIME  = '2026-09-14T10:30:00Z';
+console.log('%c 🗄️ RELAZIONE BACKUP ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+  'background:#0081C8;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+  'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+document.getElementById('versionBadge').textContent = APP_VERSION;
+
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+             || (window.location.hostname.endsWith('.netlify.app')
+                && window.location.hostname.startsWith('dev--'));
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+let token = null;
+
+// ── Formattazione ──────────────────────────────────────────────────────────
+const esc = (v) => String(v == null ? '' : v)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const peso = (b) => !b ? '—' : b < 1024 ? b + ' B'
+  : b < 1048576 ? Math.round(b/1024) + ' KB' : (b/1048576).toFixed(1) + ' MB';
+// La data si taglia dalla stringa e non passa da `new Date`: un 'YYYY-MM-DD'
+// letto come Date è mezzanotte UTC, che in Italia è il giorno prima.
+function giornoIt(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : esc(s || '—');
+}
+
+// ── Il ponte verso Drive ───────────────────────────────────────────────────
+async function chiedi(corpo) {
+  const r = await fetch(SUPABASE_URL + '/functions/v1/backup-drive', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_KEY,
+      Authorization: 'Bearer ' + token,
+    },
+    body: JSON.stringify(corpo),
+  });
+  const dati = await r.json().catch(() => ({}));
+  if (r.status === 401) { mostraVelo(); throw new Error('login scaduto'); }
+  if (!r.ok || !dati.ok) throw new Error(dati.error || ('HTTP ' + r.status));
+  return dati;
+}
+
+let BACKUP = [];
+
+async function carica() {
+  const box = document.getElementById('elenco');
+  box.innerHTML = '<p class="vuoto">Carico…</p>';
+  try {
+    const dati = await chiedi({ azione: 'list' });
+    BACKUP = dati.backup || [];
+    if (dati.cartella) {
+      document.getElementById('pieCartella').innerHTML =
+        'I dump sono file compressi e da qui non si aprono: si scaricano dalla ' +
+        '<a href="https://drive.google.com/drive/folders/' + esc(dati.cartella) +
+        '" target="_blank" rel="noopener">cartella su Drive</a>.';
+    }
+    disegna();
+  } catch (e) {
+    box.innerHTML = '<div class="card"><p class="errore">Non ho potuto leggere i backup.</p>' +
+      '<p class="muto">' + esc(e.message) + '</p>' +
+      '<p class="muto">Se dice che mancano dei secret, vanno messi in Supabase → Edge Functions → Secrets: ' +
+      '<code>GDRIVE_CLIENT_ID</code>, <code>GDRIVE_CLIENT_SECRET</code>, ' +
+      '<code>GDRIVE_REFRESH_TOKEN</code>, <code>GDRIVE_FOLDER_ID</code>.</p></div>';
+  }
+}
+
+function disegna() {
+  const box = document.getElementById('elenco');
+  if (!BACKUP.length) {
+    box.innerHTML = '<div class="card"><p class="vuoto">Nessun backup ancora. ' +
+      'Il primo arriva domenica, oppure si lancia a mano da GitHub → Actions → «Backup settimanale».</p></div>';
+    return;
+  }
+  box.innerHTML = BACKUP.map((b, i) => {
+    const file = (b.file || []).map((f, j) => {
+      // ⚠️ Solo la relazione si apre qui: un dump è un gzip, e passarlo per il
+      // ponte lo restituirebbe come testo rotto. Per quelli c'è Drive.
+      const leggibile = /\.html?$/i.test(f.nome);
+      return '<div class="file">' +
+        '<span class="nome">' + (leggibile ? '📄 ' : '🗜️ ') + esc(f.nome) + '</span>' +
+        '<span class="badge">' + peso(f.bytes) + '</span>' +
+        (leggibile
+          ? '<button class="btn primario" onclick="apri(' + i + ',' + j + ')">Apri</button>'
+          : '<span class="muto" style="font-size:.85rem">su Drive</span>') +
+        '</div>';
+    }).join('');
+    return '<div class="card">' +
+      '<div class="giorno"><b>' + giornoIt(b.giorno) + '</b>' +
+      (i === 0 ? '<span class="badge">l\'ultima</span>' : '') + '</div>' +
+      (file || '<p class="vuoto">Nessun file.</p>') + '</div>';
+  }).join('');
+}
+
+// ⚠️ Un documento dentro `srcdoc` eredita l'indirizzo della pagina che lo
+// contiene, quindi un «#tasks» dell'indice si risolve in
+// «…/relazione.html#tasks» e l'iframe **naviga** lì invece di scorrere: si
+// ricarica relazione.html dentro sé stessa, senza JavaScript (la sandbox non
+// lo concede), e resta per sempre su «Carico…». La base la scrive già la
+// relazione dalla v1.0.2 in poi; qui si aggiunge a quelle **già su Drive**,
+// che una base non ce l'hanno e senza questo non si potrebbero più sfogliare.
+function conBase(html) {
+  if (/<base\b/i.test(html)) return html;
+  return html.replace(/<head([^>]*)>/i, '<head$1><base href="about:srcdoc">');
+}
+
+async function apri(i, j) {
+  const f = BACKUP[i].file[j];
+  const titolo = giornoIt(BACKUP[i].giorno) + ' · ' + f.nome;
+  document.getElementById('lettore-titolo').textContent = 'Carico…';
+  document.getElementById('lettore').classList.add('aperto');
+  // Su Android l'indietro è il gesto con cui si chiude quel che si è aperto:
+  // senza questa voce uscirebbe dalla pagina, tornando ad AppSphere.
+  history.pushState({ relazione: true }, '');
+  try {
+    const dati = await chiedi({ azione: 'get', id: f.id });
+    document.getElementById('lettore-titolo').textContent = titolo;
+    // `srcdoc` con la sandbox: la relazione porta il suo CSS e resta chiusa lì
+    // dentro, senza toccare questa pagina.
+    document.getElementById('lettore-frame').srcdoc = conBase(dati.html);
+  } catch (e) {
+    document.getElementById('lettore-titolo').textContent = 'Errore';
+    document.getElementById('lettore-frame').srcdoc =
+      '<p style="font:16px sans-serif;padding:1rem;color:#E74C3C">' + esc(e.message) + '</p>';
+  }
+}
+
+function chiudiLettore() {
+  document.getElementById('lettore').classList.remove('aperto');
+  document.getElementById('lettore-frame').srcdoc = '';
+  // La voce si consuma, o ogni apri-e-chiudi ne lascerebbe una dietro e
+  // servirebbero cinque indietro per uscire dalla pagina.
+  if (history.state && history.state.relazione) history.back();
+}
+
+window.addEventListener('popstate', () => {
+  const l = document.getElementById('lettore');
+  if (l.classList.contains('aperto')) {
+    l.classList.remove('aperto');
+    document.getElementById('lettore-frame').srcdoc = '';
+  }
+});
+
+// ── Login ──────────────────────────────────────────────────────────────────
+function mostraVelo() { document.getElementById('velo').classList.add('aperto'); }
+
+function conToken(t) {
+  if (!t) { mostraVelo(); return; }
+  token = t;
+  localStorage.setItem('sb_token', t);
+  document.getElementById('velo').classList.remove('aperto');
+  carica();
+}
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'SB_TOKEN' && e.data.token) conToken(e.data.token);
+});
+
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+  if (!e.data) return;
+  if (e.data.type === 'LOGOUT') { token = null; localStorage.removeItem('sb_token'); mostraVelo(); }
+  else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) { token = e.data.sbToken; localStorage.setItem('sb_token', token); }
+};
+
+window.addEventListener('load', () => conToken(localStorage.getItem('sb_token')));
+</script>
+</body>
+</html>

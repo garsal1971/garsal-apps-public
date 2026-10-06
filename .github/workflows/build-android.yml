@@ -1,0 +1,196 @@
+name: Build Android APK
+# v8 — genera keystore automaticamente se KEYSTORE_BASE64 non configurato
+
+on:
+  push:
+    branches:
+      - master
+      - 'claude/**'
+    paths:
+      - 'android-app/**'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        run: |
+          SDKMANAGER=$(find "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/cmdline-tools" \
+            -name "sdkmanager" -type f 2>/dev/null | sort | tail -1)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "WARNING: sdkmanager non trovato"
+          else
+            yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+            "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" 2>&1 || true
+          fi
+
+      - name: Prepara keystore
+        id: keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android-app/garsal.keystore
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"                  >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"            >> $GITHUB_ENV
+            echo "generated=false" >> $GITHUB_OUTPUT
+            echo "✅ Keystore dai secrets — build release con firma fissa"
+          else
+            KS_PASS="GarsalApps2026"
+            keytool -genkeypair -v \
+              -keystore android-app/garsal.keystore \
+              -alias garsal \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" \
+              -dname "CN=GarsalApps, O=Garsal, C=IT"
+            echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
+            echo "KEY_ALIAS=garsal"           >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KS_PASS"      >> $GITHUB_ENV
+            echo "generated=true" >> $GITHUB_OUTPUT
+
+            mkdir -p /tmp/keystore-setup
+            base64 -w 0 android-app/garsal.keystore > /tmp/keystore-setup/KEYSTORE_BASE64.txt
+            echo "$KS_PASS" > /tmp/keystore-setup/KEYSTORE_PASSWORD.txt
+            echo "garsal"   > /tmp/keystore-setup/KEY_ALIAS.txt
+            echo "$KS_PASS" > /tmp/keystore-setup/KEY_PASSWORD.txt
+            printf 'KEYSTORE GENERATO - AZIONE RICHIESTA (una volta sola)\n\nAggiungi questi 4 secrets su GitHub:\ngithub.com/garsal1971/garsal-apps/settings/secrets/actions\n\n1. KEYSTORE_BASE64   = contenuto di KEYSTORE_BASE64.txt\n2. KEYSTORE_PASSWORD = contenuto di KEYSTORE_PASSWORD.txt\n3. KEY_ALIAS         = contenuto di KEY_ALIAS.txt\n4. KEY_PASSWORD      = contenuto di KEY_PASSWORD.txt\n\nDopo aver aggiunto i secrets, ogni aggiornamento APK\nsi installera senza disinstallare la versione precedente.\n' > /tmp/keystore-setup/ISTRUZIONI.txt
+            echo "⚠️  Keystore generato — scarica artifact 'keystore-setup' e aggiungi i 4 secrets"
+          fi
+
+      - name: Make gradlew executable
+        run: chmod +x android-app/gradlew
+
+      - name: Build APK release
+        working-directory: android-app
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="${{ github.workspace }}/android-app/garsal.keystore" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Salva APK e versione
+        run: |
+          VERSION=$(grep versionName android-app/app/build.gradle | grep -o '"[^"]*"' | tr -d '"' | head -1)
+          VERSION_CODE=$(grep versionCode android-app/app/build.gradle | grep -o '[0-9]\+' | head -1)
+          cp android-app/app/build/outputs/apk/release/app-release.apk /tmp/GarsalApps-latest.apk
+          echo "VERSION=$VERSION"           >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
+      # Il nome del file è fisso (`-latest.apk`), quindi da fuori un APK vale
+      # l'altro: chi lo scarica non ha modo di sapere se sta prendendo la build
+      # di prima o quella appena pubblicata. Questa scheda dice cosa c'è dentro
+      # quello lì accanto — la legge `comandi.html` sul pulsante e il
+      # «📱 Versione app» dentro l'APK (Aggiornamento.kt).
+      - name: Scheda della build
+        run: |
+          BYTES=$(stat -c%s /tmp/GarsalApps-latest.apk)
+          MB=$(awk "BEGIN {printf \"%.1f\", $BYTES/1048576}")
+          SHA=$(sha256sum /tmp/GarsalApps-latest.apk | cut -d' ' -f1)
+          echo "📦 AppSfera Web v$VERSION — ${MB} MB (${BYTES} byte)"
+          echo "🔑 SHA-256: $SHA"
+          cat > /tmp/GarsalApps-latest.json <<EOF
+          {
+            "app": "AppSfera Web",
+            "version": "$VERSION",
+            "versionCode": $VERSION_CODE,
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "$GITHUB_SHA",
+            "bytes": $BYTES,
+            "sha256": "$SHA"
+          }
+          EOF
+          cat /tmp/GarsalApps-latest.json
+
+      # ⚠️ L'APK NON si carica più come artifact di Actions (20 settembre 2026).
+      # Era una TERZA copia — le due che contano sono R2 (da cui si scarica) e
+      # il commit su master (da cui si legge in archivio) — durava 30 giorni e
+      # non la scaricava nessuno. Da quando la repo è privata lo spazio degli
+      # artifact è contato, si è riempito, e `upload-artifact` ha cominciato a
+      # rispondere «Artifact storage quota has been hit» facendo morire il job:
+      # stando PRIMA del caricamento su R2 e del commit, si portava dietro
+      # tutt'e due — l'APK compilata restava non pubblicata e la scheda
+      # `-latest.json` continuava ad annunciare la versione di prima.
+
+      # ⚠️ QUESTO artifact resta, ed è l'eccezione: è l'unica via d'uscita per
+      # un keystore generato al volo — senza, l'APK sarebbe firmata con una
+      # chiave che nessuno può più recuperare, cioè un aggiornamento che non si
+      # installa più sopra al precedente. Ha un `if:` davanti e in pratica non
+      # gira mai: i quattro secrets ci sono da sempre.
+      - name: Upload keystore-setup artifact
+        if: steps.keystore.outputs.generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: keystore-setup
+          path: /tmp/keystore-setup/
+          retention-days: 7
+      # ⚠️ Prima su R2, poi il commit — è lo stesso ordine di «prima Drive,
+      # poi la riga» del Forziere: il commit pubblica la scheda
+      # `-latest.json`, che ANNUNCIA questa versione, e annunciarla prima che
+      # il pacchetto sia scaricabile vuol dire un aggiornamento che si offre
+      # e poi dà 404. Le APK non stanno più sul sito: Cloudflare Pages
+      # rifiuta i file oltre i 25 MiB (vedi `scripts/build-sito.sh`).
+      - name: Carica l'APK su R2 (apk.garsal.men)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash scripts/apk-su-r2.sh /tmp/GarsalApps-latest.apk
+
+      - name: Pubblica APK su master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # ⚠️ Il push su master va rifatto se master si muove sotto i piedi.
+          # Le build Android della repo scattano insieme (toccare settings.gradle o
+          # il build.gradle di root le sveglia tutte) e finiscono a pochi secondi
+          # l'una dall'altra: la prima che arriva sposta master e le altre si
+          # prendono un "cannot lock ref", con l'APK già compilato e buttato via.
+          # Si rilegge master e si riprova.
+          for i in 1 2 3 4 5; do
+            git fetch origin master
+            git checkout -B master origin/master
+            git reset --hard origin/master
+
+            mkdir -p releases
+            cp /tmp/GarsalApps-latest.apk releases/GarsalApps-latest.apk
+
+            git add releases/GarsalApps-latest.apk
+            # La scheda si aggiorna solo se si aggiorna l'APK: `builtAt` cambia a
+            # ogni run, e commetterla da sola vorrebbe dire annunciare una build
+            # nuova per un pacchetto identico a quello di prima.
+            if git diff --staged --quiet && [ -f releases/GarsalApps-latest.json ]; then
+              echo "APK non cambiato, skip commit"
+              exit 0
+            fi
+
+            cp /tmp/GarsalApps-latest.json releases/GarsalApps-latest.json
+            git add releases/GarsalApps-latest.json
+
+            git commit -m "chore: aggiorna APK GarsalApps v${{ env.VERSION }} [skip actions]"
+            if git push origin master; then
+              echo "✅ pubblicato al tentativo $i"
+              exit 0
+            fi
+
+            echo "⚠️  master si è mosso, riprovo ($i/5)"
+            sleep $((i * 5))
+          done
+
+          echo "❌ master continua a muoversi: APK non pubblicato"
+          exit 1

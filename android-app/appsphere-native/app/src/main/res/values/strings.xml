@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">AppSphere</string>
+
+    <!-- Scorciatoie dell'icona (res/xml/shortcuts.xml). La breve sta sotto
+         l'icona sulla home: coi caratteri di sistema grandi più di due parole
+         vanno a capo e si tagliano. -->
+    <string name="scorciatoia_pasto_breve">Segna pasto</string>
+    <string name="scorciatoia_pasto_lunga">🍽️ Segna un pasto</string>
+
+    <!-- Il nome della seconda icona nel cassetto (l'activity-alias SegnaPasto):
+         dice di chi è l'icona, perché accanto ad AppSphere porta lo stesso marchio. -->
+    <string name="alias_pasto">AppSphere pasto</string>
+</resources>

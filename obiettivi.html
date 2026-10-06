@@ -1,0 +1,3663 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obiettivi v1.11.3</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF3366;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --accent: #2563EB;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ⚠️ Coi caratteri di sistema molto grandi una parola sola può essere
+           più larga del riquadro che la contiene: `anywhere` la spezza invece
+           di lasciarla sbordare (e, a differenza di `break-word`, permette
+           anche a griglie e flex di stringersi davvero). Spezza solo quando
+           serve: a carattere normale non cambia niente. */
+        body {
+            overflow-wrap: anywhere;
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            padding-top: 56px;
+        }
+
+        /* ── TOP BAR ── */
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: #0081C8;
+            display: flex; align-items: center; padding: 0 20px; gap: 10px;
+            z-index: 3000;
+        }
+        #garsal-top-bar-text {
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px;
+        }
+
+        /* ── LAYOUT ── */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: calc(100vh - 56px);
+        }
+
+        .sidebar {
+            background: #F3F4F6;
+            padding: 1.0rem 0.75rem;
+            border-right: 1px solid var(--border);
+            position: sticky; top: 56px; height: calc(100vh - 56px);
+            overflow-y: auto;
+        }
+        .nav-menu { display: flex; flex-direction: column; }
+        .nav-item {
+            padding: 0.5rem 0.6rem; margin-bottom: 0.5rem;
+            cursor: pointer; transition: all 0.3s ease;
+            font-size: 1.1rem; font-weight: 500;
+        }
+        .nav-item:hover { background: rgba(37,99,235,0.08); transform: translateX(3px); }
+        .nav-item.active { background: var(--primary); color: white; }
+        @media (min-width: 769px) {
+            .sidebar { display: block !important; position: sticky !important; left: 0 !important; }
+            .nav-item::after { content: " " attr(data-text); }
+        }
+
+        /* il + galleggiante sta sopra l'ultima scheda: l'elenco finisce prima */
+        .page { padding-bottom: 5.5rem; }
+        .main-content { padding: 1.5rem; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+        }
+        .page-title {
+            font-size: 2.5rem; font-weight: 900;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; white-space: nowrap;
+        }
+        .page-hint { font-size: 1rem; color: var(--muted); margin-bottom: 1.25rem; max-width: 62ch; }
+
+        /* ── OBIETTIVO CARD ── */
+        .obj-card {
+            border: 2px solid var(--border);
+            background: var(--card-bg);
+            margin-bottom: 1.25rem;
+            transition: all 0.2s;
+        }
+        .obj-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        .obj-color-bar { height: 6px; }
+
+        .obj-body { padding: 1.1rem 1.25rem; }
+
+        .obj-head {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            margin-bottom: 0.35rem;
+        }
+        .obj-title {
+            flex: 1; font-size: 1.5rem; font-weight: 900; line-height: 1.2;
+            cursor: pointer;
+        }
+        .obj-title:hover { color: var(--accent); }
+        .obj-why {
+            font-size: 1rem; color: var(--muted); font-style: italic;
+            margin-bottom: 0.85rem; line-height: 1.4;
+        }
+        .obj-meta {
+            font-family: 'Space Mono', monospace; font-size: 0.7rem;
+            color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
+        }
+
+        .status-pill {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.5rem;
+            border-radius: 999px; color: white; text-transform: uppercase;
+            letter-spacing: 0.4px; white-space: nowrap; flex-shrink: 0;
+        }
+        .st-on_track  { background: var(--success); }
+        .st-at_risk   { background: var(--warning); }
+        .st-off_track { background: var(--danger); }
+        .st-unknown   { background: var(--muted); }
+        .st-achieved  { background: var(--success); }
+        .st-missed    { background: var(--danger); }
+        .st-paused    { background: var(--muted); }
+        .st-archived  { background: #9CA3AF; }
+
+        /* ── LE DUE BARRE ── */
+        .bars {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;
+            margin: 1rem 0 0.5rem;
+        }
+        .bar-block { min-width: 0; }
+        .bar-label {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 0.3rem;
+        }
+        .bar-label .bar-pct { font-family: 'Space Mono', monospace; font-size: 0.9rem; }
+        .bar-track { height: 12px; background: var(--input-bg); border: 1px solid var(--border); }
+        .bar-fill { height: 100%; transition: width 0.4s ease; }
+        .bar-fill.result    { background: linear-gradient(90deg, var(--accent), var(--secondary)); }
+        .bar-fill.execution { background: linear-gradient(90deg, #94A3B8, #64748B); }
+        .bar-sub {
+            font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem;
+            font-family: 'Space Mono', monospace;
+        }
+        .bar-expected {
+            position: relative; height: 0;
+        }
+        .bar-marker {
+            position: absolute; top: -13px; width: 2px; height: 14px;
+            background: var(--dark);
+        }
+        .bar-marker::after {
+            content: '▾'; position: absolute; top: -13px; left: -4px;
+            font-size: 0.6rem; color: var(--dark);
+        }
+
+        /* avviso divergenza risultato vs esecuzione */
+        .divergence {
+            margin-top: 0.85rem; padding: 0.6rem 0.75rem;
+            background: #FEF3C7; border-left: 4px solid var(--warning);
+            font-size: 0.95rem; line-height: 1.4;
+        }
+
+        /* ── FIGLI ── */
+        .children { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+        .children-title {
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--muted); margin-bottom: 0.6rem;
+        }
+        .child-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.4rem 0; cursor: pointer;
+        }
+        .child-row:hover .child-name { color: var(--accent); }
+        .child-name { flex: 1; font-size: 1.05rem; font-weight: 500; min-width: 0; }
+        .child-bar { width: 120px; height: 8px; background: var(--input-bg); border: 1px solid var(--border); flex-shrink: 0; }
+        .child-bar-fill { height: 100%; background: var(--secondary); }
+        .child-val { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--muted); width: 62px; text-align: right; flex-shrink: 0; }
+
+        /* ── MILESTONE TIMELINE ── */
+        .ms-strip { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.85rem; }
+        .ms-chip {
+            font-family: 'Space Mono', monospace; font-size: 0.7rem;
+            padding: 0.2rem 0.5rem; border: 1px solid var(--border);
+            cursor: pointer; background: var(--input-bg);
+        }
+        .ms-chip.hit    { background: var(--success); color: white; border-color: var(--success); }
+        .ms-chip.missed { background: var(--danger);  color: white; border-color: var(--danger); }
+
+        /* ── METRICHE ── */
+        .metric-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-main { flex: 1; min-width: 0; }
+        .metric-name { font-size: 1.1rem; font-weight: 700; }
+        .metric-sub {
+            font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted);
+            margin-top: 0.1rem;
+        }
+        .role-tag {
+            font-family: 'Space Mono', monospace; font-size: 0.62rem; font-weight: 700;
+            padding: 0.1rem 0.35rem; border-radius: 3px; text-transform: uppercase;
+            margin-right: 0.35rem;
+        }
+        .role-primary { background: var(--secondary); color: white; }
+        .role-control { background: #C7D2FE; color: #3730A3; }
+        .role-leading { background: #E0E7FF; color: #3730A3; }
+        .metric-value {
+            font-family: 'Space Mono', monospace; font-size: 1.15rem; font-weight: 700;
+            text-align: right; white-space: nowrap;
+        }
+        .metric-target { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+
+
+        /* ── DESCRIZIONE (riletta prima di ogni rilevazione) ── */
+        .desc-box {
+            background: #EFF6FF; border-left: 4px solid var(--accent);
+            padding: 0.75rem 0.9rem; margin-bottom: 1.25rem;
+            font-size: 1rem; line-height: 1.5;
+        }
+        .desc-box .desc-label {
+            font-family: 'Space Mono', monospace; font-size: 0.65rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent);
+            display: block; margin-bottom: 0.3rem;
+        }
+
+        /* ── VOTO (autovalutazione) ── */
+        .vote-row { margin-bottom: 0.9rem; }
+        .vote-row input[type=range] { width: 100%; accent-color: var(--secondary); }
+        .vote-scale {
+            display: flex; justify-content: space-between;
+            font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted);
+            margin-top: 0.2rem;
+        }
+        .vote-box {
+            display: flex; justify-content: space-between; align-items: baseline;
+            padding: 0.75rem 0.9rem; background: var(--input-bg);
+            border: 2px solid var(--secondary); margin-top: 0.5rem;
+        }
+        .vote-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .vote-val { font-family: 'Space Mono', monospace; font-size: 1.6rem; font-weight: 700; color: var(--secondary); }
+
+        /* ── AZIONI ── */
+        .filters {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+            gap: 0.75rem; margin-bottom: 1.25rem;
+            padding: 1rem; background: var(--card-bg); border: 2px solid var(--border);
+        }
+        .filter-group .form-label { margin-bottom: 0.25rem; }
+
+        .act-section { margin-bottom: 1.5rem; }
+        .act-section-head {
+            display: flex; align-items: baseline; gap: 0.5rem;
+            font-family: 'Space Mono', monospace; font-size: 0.78rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            padding-bottom: 0.35rem; margin-bottom: 0.6rem;
+            border-bottom: 2px solid var(--border);
+        }
+        .act-count { color: var(--muted); font-weight: 400; }
+
+        .act-card {
+            display: flex; gap: 0.75rem; align-items: flex-start;
+            background: var(--card-bg); border: 2px solid var(--border);
+            border-left-width: 6px; padding: 0.75rem 0.9rem; margin-bottom: 0.6rem;
+        }
+        .act-body { flex: 1; min-width: 0; }
+        .act-title { font-size: 1.1rem; font-weight: 700; cursor: pointer; }
+        .act-meta {
+            font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted);
+            margin-top: 0.15rem;
+        }
+        .act-desc { font-size: 0.95rem; color: var(--muted); margin-top: 0.3rem; }
+        .act-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+        .act-tag {
+            font-family: 'Space Mono', monospace; font-size: 0.62rem; font-weight: 700;
+            padding: 0.1rem 0.35rem; color: #fff; text-transform: uppercase;
+        }
+        .act-buttons { display: flex; flex-direction: column; gap: 0.35rem; flex-shrink: 0; }
+        /* la metrica non ha un colore suo: si distingue dalle categorie col bordo */
+        .act-tag-metric {
+            background: transparent !important; color: var(--secondary);
+            border: 1px solid var(--secondary);
+        }
+        .act-late { color: var(--danger); font-weight: 700; }
+
+        /* ── ZONA PERICOLOSA ── */
+        .zona-rossa {
+            border: 2px solid var(--danger); padding: 1rem;
+            background: #FEF2F2;
+        }
+
+        /* ── ANDAMENTO ── */
+        .kpi-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+            gap: 0.6rem; margin-bottom: 0.5rem;
+        }
+        .kpi {
+            background: var(--input-bg); border: 2px solid var(--border);
+            padding: 0.6rem 0.7rem;
+        }
+        .kpi-label {
+            font-family: 'Space Mono', monospace; font-size: 0.62rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
+        }
+        /* cifre proporzionali: tabular-nums su un numero grande lo fa sembrare slegato */
+        .kpi-value { font-size: 1.7rem; font-weight: 700; line-height: 1.1; color: var(--dark); }
+        .kpi-sub { font-size: 0.72rem; color: var(--muted); }
+
+        .trend-metric { margin-bottom: 1.25rem; }
+        .trend-metric-head { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; }
+        .trend-metric-name { font-size: 1.05rem; font-weight: 700; }
+        .trend-metric-meta {
+            font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted);
+        }
+        .trend-svg { width: 100%; max-width: 400px; height: auto; display: block; margin: 0.3rem 0; }
+        /* assi e riferimenti restano sottili e in secondo piano: il dato è la
+           sola cosa che ha il permesso di essere forte */
+        .trend-axis   { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+        .trend-target { stroke: var(--muted); stroke-width: 1; opacity: 0.5; vector-effect: non-scaling-stroke; }
+        .trend-tick {
+            font-family: 'Space Mono', monospace; font-size: 9px; fill: var(--muted);
+        }
+        .trend-endlabel {
+            font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; fill: var(--dark);
+        }
+        .trend-single { font-size: 1.6rem; font-weight: 700; }
+        .trend-single-date { font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 0.4rem; }
+
+        .trend-values summary {
+            font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted);
+            cursor: pointer; padding: 0.2rem 0;
+        }
+        /* ⚠️ Quel che è davvero largo scorre dentro il proprio riquadro: la
+           finestra non deve mai scorrere di lato per colpa di una tabella. */
+        .trend-scroll { overflow-x: auto; }
+        .trend-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .trend-table th, .trend-table td {
+            text-align: left; padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--border);
+        }
+        .trend-table th {
+            font-family: 'Space Mono', monospace; font-size: 0.65rem; font-weight: 700;
+            text-transform: uppercase; color: var(--muted);
+        }
+        /* cifre in colonna: qui tabular-nums serve, devono incolonnarsi */
+        .trend-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .trend-tot td { font-weight: 700; }
+
+        .barra-wrap { margin-top: 0.5rem; }
+        .barra { display: flex; height: 22px; background: transparent; }
+        /* 2px di bianco a separare i segmenti: il vuoto separa, non un bordo */
+        .barra-seg + .barra-seg { margin-left: 2px; }
+        .barra-track { background: var(--input-bg); border: 1px solid var(--border); }
+        .legenda { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.45rem; }
+        .leg {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            font-size: 0.8rem; color: var(--dark);
+        }
+        .leg i {
+            width: 11px; height: 11px; flex-shrink: 0; display: inline-block; border-radius: 2px;
+        }
+        .leg i.leg-track { background: var(--input-bg); border: 1px solid var(--border); }
+
+        .form-static {
+            font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700;
+            padding: 0.55rem 0.7rem; background: var(--input-bg); border: 2px solid var(--border);
+        }
+
+        /* ── RILEVAZIONI DOPO IL COMPLETAMENTO ── */
+        .meas-multi {
+            padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+        }
+        .meas-multi:last-child { border-bottom: none; }
+        .meas-multi-head {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 0.5rem; margin-bottom: 0.3rem; flex-wrap: wrap;
+        }
+        .meas-multi-name { min-width: 0; overflow-wrap: anywhere; }
+        .meas-multi-name { font-size: 1.05rem; font-weight: 700; }
+        .meas-multi-val {
+            font-family: 'Space Mono', monospace; font-weight: 700;
+            font-size: 1.15rem; color: var(--secondary);
+        }
+        .meas-multi input[type=range] { width: 100%; accent-color: var(--secondary); }
+        /* una misura saltata resta leggibile ma spenta: si vede che c'era */
+        .meas-multi.saltata { opacity: 0.45; }
+        .meas-skip { font-size: 0.7rem; padding: 0.15rem 0.45rem; }
+
+        /* ── CHIP (giorni, categorie, date) ── */
+        .chip-row { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .chip {
+            font-family: 'Space Mono', monospace; font-size: 0.8rem;
+            padding: 0.35rem 0.6rem; border: 2px solid var(--border);
+            background: var(--input-bg); cursor: pointer; user-select: none;
+        }
+        .chip.on { background: var(--secondary); border-color: var(--secondary); color: #fff; }
+        .chip .chip-x { margin-left: 0.4rem; opacity: 0.7; }
+        .date-adder {
+            display: grid; grid-template-columns: 1fr auto; gap: 0.5rem;
+            align-items: center; margin-bottom: 0.5rem;
+        }
+
+        /* ── STEP DI UN WORKFLOW ── */
+        .wf-step {
+            display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+            padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+        }
+        .wf-step:last-child { border-bottom: none; }
+        .wf-state { font-size: 1.1rem; flex-shrink: 0; }
+        .wf-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+        .wf-dep { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); }
+        .wf-editor-row {
+            display: grid; grid-template-columns: 1fr 36px; gap: 0.5rem;
+            align-items: center; margin-bottom: 0.4rem;
+        }
+        .wf-editor-deps { grid-column: 1 / -1; margin: 0.1rem 0 0.6rem 0; }
+
+        /* ── TASK LINK ── */
+        .link-row {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.45rem 0; border-bottom: 1px solid var(--border);
+        }
+        .link-kind {
+            font-family: 'Space Mono', monospace; font-size: 0.62rem; font-weight: 700;
+            padding: 0.1rem 0.35rem; background: var(--input-bg); border: 1px solid var(--border);
+            text-transform: uppercase;
+        }
+        .link-name { flex: 1; font-size: 1rem; }
+
+        /* ── HISTORY ── */
+        .hist-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.4rem 0; border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+        .hist-date { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--muted); width: 82px; flex-shrink: 0; }
+        .hist-val { font-family: 'Space Mono', monospace; font-weight: 700; width: 62px; text-align: right; flex-shrink: 0; }
+        .hist-note { flex: 1; color: var(--muted); font-size: 0.9rem; min-width: 0; }
+
+        /* ── ESECUZIONI DI UN'AZIONE ──
+           ⚠️ Il 🗑 sta a SINISTRA del record, non in coda: su un telefono la riga
+           scorre di lato e la coda finisce oltre il bordo — la prima colonna è
+           l'unica che si vede comunque sia largo lo schermo.
+
+           ⚠️ Le due date NON sono due colonne affiancate a larghezza fissa: coi
+           caratteri di sistema grandi «programmata 07/08/2026» e «eseguita
+           31/08/2026 · 09:12» non ci stanno su una riga, e due colonne si
+           taglierebbero a vicenda. Vanno a capo da sé (`flex-wrap`) e ciascuna
+           porta la sua etichetta, così una sopra l'altra si leggono lo stesso. */
+        .exec-row {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+        }
+        .exec-del { flex-shrink: 0; padding: 0.3rem 0.5rem; }
+        .exec-body { flex: 1; min-width: 0; }
+        .exec-head {
+            display: flex; flex-wrap: wrap; gap: 0.15rem 0.6rem;
+            align-items: baseline; justify-content: space-between;
+        }
+        .exec-what { font-size: 0.95rem; overflow-wrap: anywhere; }
+        .exec-pts { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 0.85rem; }
+        .exec-pts.neg { color: var(--danger); }
+        .exec-pts.pos { color: var(--success); }
+        .exec-dates {
+            display: flex; flex-wrap: wrap; gap: 0.1rem 0.9rem;
+            font-family: 'Space Mono', monospace; font-size: 0.72rem;
+            color: var(--muted); margin-top: 0.2rem;
+        }
+        .exec-lab { text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+        .exec-gap { color: var(--danger); font-weight: 700; }
+
+        /* ── SECTION ── */
+        .section-title {
+            font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.6px; color: var(--muted);
+            margin: 1.5rem 0 0.6rem; padding-bottom: 0.3rem;
+            border-bottom: 2px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            /* ⚠️ Una riga sola è un'ipotesi, non un dato: coi caratteri di
+               sistema grandi l'etichetta e il suo pulsante non ci stanno, e il
+               pulsante sbordava. Va a capo invece di sfondare il riquadro. */
+            flex-wrap: wrap; gap: 0.4rem;
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--dark); }
+        .empty-desc { font-size: 1rem; }
+
+        /* ── FAB ── */
+        .fab {
+            position: fixed; bottom: 2rem; right: 2rem;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--primary); color: white;
+            font-size: 1.8rem; border: none; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(255,51,102,0.4);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; z-index: 100;
+        }
+        .fab:hover { transform: scale(1.1); }
+
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 0.45rem 0.9rem; border: none; cursor: pointer;
+            font-family: 'Darker Grotesque', sans-serif; font-size: 1rem; font-weight: 700;
+            transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--border); color: var(--dark); }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-small { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+        .btn-ghost { background: transparent; border: 2px solid var(--border); color: var(--dark); }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ── MODAL ── */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+            z-index: 2000; align-items: center; justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white; padding: 1.5rem;
+            max-width: 780px; width: 96%; max-height: 92vh;
+            overflow-y: auto; position: relative;
+            /* ⚠️ Esplicito, e non lasciato al valore calcolato: con
+               `overflow-y: auto` e `overflow-x: visible`, il CSS trasforma il
+               secondo in `auto` — e un solo pulsante troppo largo faceva
+               scorrere di lato l'intera finestra, che si apriva tagliata a
+               sinistra. Quel che è davvero largo (tabelle, grafici) ha già il
+               suo riquadro che scorre per conto proprio. */
+            overflow-x: hidden;
+        }
+        .modal-content.narrow { max-width: 520px; }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.25rem; gap: 1rem;
+        }
+        /* min-width:0 o il titolo, come ogni elemento flex, non scende sotto la
+           propria larghezza minima e spinge la ✕ fuori dal riquadro */
+        .modal-title {
+            font-size: 1.7rem; font-weight: 900; color: var(--accent); line-height: 1.15;
+            min-width: 0; overflow-wrap: anywhere;
+        }
+        .modal-close {
+            font-size: 1.8rem; cursor: pointer; color: var(--muted); flex-shrink: 0;
+            transition: all 0.2s; line-height: 1; background: none; border: none;
+        }
+        .modal-close:hover { color: var(--danger); transform: rotate(90deg); }
+        .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
+
+        /* ── FORM ── */
+        .form-group { margin-bottom: 1.1rem; min-width: 0; }
+        /* ⚠️ La soglia è in rem, non in px: così cresce insieme ai caratteri di
+           sistema e le due colonne diventano una sola quando il testo non ci
+           sta più — senza che serva una media query, che guarda lo schermo e
+           non la dimensione del testo. */
+        .form-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1rem;
+        }
+        .form-label {
+            display: block; margin-bottom: 0.4rem; font-weight: 700;
+            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-hint { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; line-height: 1.35; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 0.5rem 0.65rem;
+            border: 2px solid var(--border); background: var(--input-bg);
+            color: var(--dark); font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.05rem; transition: border-color 0.2s;
+        }
+        .form-textarea { min-height: 78px; resize: vertical; line-height: 1.45; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none; border-color: var(--accent); background: white;
+        }
+
+        /* ── CONFIRM ── */
+        #confirmDialog {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: 4000; align-items: center; justify-content: center;
+        }
+        #confirmDialog.active { display: flex; }
+        .confirm-box { background: white; padding: 2rem; max-width: 380px; width: 90%; }
+        .confirm-msg { font-size: 1.1rem; margin-bottom: 1.5rem; line-height: 1.4; white-space: pre-line; }
+        .confirm-btns { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+        /* ── AUTH ── */
+        #authOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85); z-index: 5000;
+            align-items: center; justify-content: center; text-align: center; color: white;
+        }
+        .auth-box { max-width: 340px; }
+        .auth-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .auth-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .auth-desc { font-size: 0.95rem; opacity: 0.7; }
+
+        /* ── TOAST ── */
+        #toast {
+            position: fixed; bottom: 5.5rem; right: 2rem;
+            background: var(--dark); color: white;
+            padding: 0.6rem 1.2rem; font-size: 0.95rem; font-weight: 700;
+            z-index: 9999; display: none; pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* ── MOBILE ── */
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+            .bars { grid-template-columns: 1fr; gap: 0.85rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .sidebar {
+                display: flex !important; position: fixed !important;
+                top: 56px !important; left: 0 !important; right: 0 !important;
+                width: 100% !important; height: auto !important;
+                background: #F3F4F6 !important;
+                border-bottom: 2px solid var(--border) !important;
+                border-right: none !important;
+                padding: 0.1rem 0 !important; z-index: 1000;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .nav-menu {
+                display: flex !important; flex-direction: row !important;
+                width: 100% !important; justify-content: space-around !important;
+                align-items: center !important; gap: 0 !important; margin: 0 !important;
+            }
+            .nav-item {
+                display: flex !important; flex-direction: column !important;
+                align-items: center !important; justify-content: center !important;
+                padding: 0.15rem 0.1rem !important; margin: 0 !important;
+                font-size: 2.2rem !important; flex: 1 !important; text-align: center !important;
+            }
+            .nav-item.active { background: var(--primary) !important; border-radius: 0; }
+            .nav-item::after { content: none !important; display: none !important; }
+            .main-content { padding-top: 4.5rem !important; }
+            .page-title { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+</div>
+
+<!-- AUTH OVERLAY -->
+<div id="authOverlay" style="display:flex;">
+    <div class="auth-box">
+        <div class="auth-icon">🎯</div>
+        <div class="auth-title">Obiettivi</div>
+        <div class="auth-desc">Apri questa app da AppSphere per accedere.</div>
+    </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirmDialog">
+    <div class="confirm-box">
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-btns">
+            <button class="btn btn-secondary" id="confirmNo">Annulla</button>
+            <button class="btn btn-danger" id="confirmYes">Elimina</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MAIN APP -->
+<div class="app-container">
+
+    <aside class="sidebar" id="sidebar">
+        <nav class="nav-menu">
+            <div class="nav-item active" data-text="Piano" data-section="piano"
+                 onclick="showPage('piano'); setNavActive(this)">📆</div>
+            <div class="nav-item" data-text="Obiettivi" data-section="obiettivi"
+                 onclick="showPage('obiettivi'); setNavActive(this)">🎯</div>
+            <div class="nav-item" data-text="Azioni" data-section="azioni"
+                 onclick="showPage('azioni'); setNavActive(this)">✅</div>
+            <div class="nav-item" data-text="Archivio" data-section="archivio"
+                 onclick="showPage('archivio'); setNavActive(this)">📦</div>
+            <div class="nav-item" data-text="Impostazioni" data-section="impostazioni"
+                 onclick="showPage('impostazioni'); setNavActive(this)">⚙️</div>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <!-- PAGE: OBIETTIVI -->
+        <!-- PAGE: PIANO QUOTIDIANO -->
+        <section class="page active" id="page-piano">
+            <div class="page-header">
+                <div class="page-title">Piano quotidiano</div>
+                <button class="btn btn-accent" onclick="openActionEditor(null,null)">+ Azione</button>
+            </div>
+            <div class="page-hint">
+                Tutte le azioni da svolgere, giorno per giorno: quelle rimaste indietro in cima,
+                poi oggi, poi i giorni che vengono. Da qui si chiudono.
+            </div>
+            <div id="pianoList"></div>
+        </section>
+
+        <section class="page" id="page-obiettivi">
+            <div class="page-header">
+                <div class="page-title">Obiettivi</div>
+                <button class="btn btn-accent" onclick="openObjectiveEditor(null, null)">+ Obiettivo annuale</button>
+            </div>
+            <div id="objectivesList"></div>
+        </section>
+
+        <!-- PAGE: AZIONI -->
+        <section class="page" id="page-azioni">
+            <div class="page-header">
+                <div class="page-title">Azioni</div>
+                <button class="btn btn-accent" onclick="openActionEditor(null,null)">+ Azione</button>
+            </div>
+            <div class="page-hint">
+                Le cose da fare per arrivare all'obiettivo. Sono di quest'app — non task
+                collegati altrove — e ogni azione conclusa muove la barra «esecuzione»
+                del suo obiettivo.
+            </div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="form-label">Cerca</label>
+                    <input type="text" class="form-input" id="fltText" placeholder="titolo o descrizione"
+                           oninput="renderActionsPage()">
+                </div>
+                <div class="filter-group">
+                    <label class="form-label">Obiettivo</label>
+                    <select class="form-select" id="fltObj" onchange="renderActionsPage()"></select>
+                </div>
+                <div class="filter-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="fltType" onchange="renderActionsPage()">
+                        <option value="">tutti</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="form-label">Priorità</label>
+                    <select class="form-select" id="fltPriority" onchange="renderActionsPage()"></select>
+                </div>
+                <div class="filter-group">
+                    <label class="form-label">Categoria</label>
+                    <select class="form-select" id="fltCategory" onchange="renderActionsPage()"></select>
+                </div>
+                <div class="filter-group">
+                    <label class="form-label">Metrica</label>
+                    <select class="form-select" id="fltMetric" onchange="renderActionsPage()"></select>
+                </div>
+                <div class="filter-group">
+                    <label class="form-label">Stato</label>
+                    <select class="form-select" id="fltStatus" onchange="renderActionsPage()">
+                        <option value="vive">in corso</option>
+                        <option value="terminated">concluse</option>
+                        <option value="">tutte</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="actionsList"></div>
+        </section>
+
+        <!-- PAGE: ARCHIVIO -->
+        <section class="page" id="page-archivio">
+            <div class="page-header">
+                <div class="page-title">Archivio</div>
+            </div>
+            <div class="page-hint">Obiettivi conclusi, mancati o archiviati.</div>
+            <div id="archiveList"></div>
+        </section>
+
+        <!-- PAGE: IMPOSTAZIONI -->
+        <section class="page" id="page-impostazioni">
+            <div class="page-header">
+                <div class="page-title">Impostazioni</div>
+            </div>
+            <div class="section-title">Informazioni</div>
+            <div class="metric-row">
+                <div class="metric-main"><div class="metric-name">Versione</div></div>
+                <div class="metric-value" id="infoVersion" style="font-size:0.95rem;"></div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-main"><div class="metric-name">Build</div></div>
+                <div class="metric-value" id="infoBuild" style="font-size:0.95rem;"></div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-main"><div class="metric-name">Ambiente</div></div>
+                <div class="metric-value" id="infoEnv" style="font-size:0.95rem;"></div>
+            </div>
+            <div class="section-title">Manutenzione</div>
+            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                <button class="btn btn-ghost" onclick="loadAll()">🔄 Ricarica dati</button>
+                <button class="btn btn-ghost" onclick="exportBackup()">⬇️ Esporta JSON</button>
+            </div>
+
+            <div class="section-title" style="color:var(--danger);border-color:var(--danger);">Zona pericolosa</div>
+            <div class="zona-rossa">
+                <div class="page-hint" style="margin:0 0 0.75rem;">
+                    Svuota <strong>tutti i dati di Obiettivi</strong>: obiettivi, metriche,
+                    rilevazioni, milestone, azioni, storico e collegamenti. Non tocca task,
+                    abitudini né nessun'altra app della suite — nemmeno le categorie e le
+                    priorità, che sono condivise con Tasks.
+                    <br>Di qui non si torna indietro: se ti serve, esporta prima il JSON.
+                </div>
+                <button class="btn btn-danger" onclick="openCancellaTutto()">🗑️ Cancella tutti i dati di Obiettivi</button>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<button class="fab" onclick="openObjectiveEditor(null, null)" title="Nuovo obiettivo">+</button>
+
+<!-- ══════════════ MODAL: DETTAGLIO OBIETTIVO ══════════════ -->
+<div class="modal" id="detailModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="detailTitle"></div>
+            <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+        </div>
+        <div id="detailBody"></div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: EDITOR OBIETTIVO ══════════════ -->
+<div class="modal" id="objModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="objModalTitle">Nuovo obiettivo</div>
+            <button class="modal-close" onclick="closeModal('objModal')">&times;</button>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Titolo</label>
+            <input type="text" class="form-input" id="objTitle"
+                   placeholder="es. Sostenere una call di lavoro di 30 minuti in inglese">
+            <div class="form-hint">Scrivi il risultato osservabile, non l'attività. «Parlare inglese» non è un obiettivo, è un argomento.</div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Perché</label>
+            <textarea class="form-textarea" id="objWhy"
+                      placeholder="es. così smetto di evitare le riunioni con i fornitori esteri"></textarea>
+            <div class="form-hint">È quello che rileggerai a novembre quando non avrai voglia.</div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Inizio</label>
+                <input type="date" class="form-input" id="objStart">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Scadenza</label>
+                <input type="date" class="form-input" id="objDue">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Stato</label>
+                <select class="form-select" id="objStatus">
+                    <option value="active">Attivo</option>
+                    <option value="achieved">Raggiunto</option>
+                    <option value="missed">Mancato</option>
+                    <option value="paused">In pausa</option>
+                    <option value="archived">Archiviato</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Colore</label>
+                <input type="color" class="form-input" id="objColor" value="#6C5CE7" style="height:42px;padding:0.2rem;">
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-danger"    id="objDeleteBtn" onclick="deleteObjective()" style="margin-right:auto;">Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('objModal')">Annulla</button>
+            <button class="btn btn-success"   onclick="saveObjective()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: EDITOR METRICA ══════════════ -->
+<div class="modal" id="metricModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="metricModalTitle">Nuova metrica</div>
+            <button class="modal-close" onclick="closeModal('metricModal')">&times;</button>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Nome</label>
+            <input type="text" class="form-input" id="mName" placeholder="es. Quanto parlo inglese senza cercare le parole">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Ruolo</label>
+                <select class="form-select" id="mRole" onchange="renderMetricFormHints()">
+                    <option value="primary">Primaria — il risultato (lagging)</option>
+                    <option value="control">Controllo — secondo riscontro (lagging)</option>
+                    <option value="leading">Leading — lo sforzo</option>
+                </select>
+                <div class="form-hint" id="roleHint"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" id="mKind" onchange="onKindChange()">
+                    <option value="autovalutazione">Autovalutazione — ti dai un voto</option>
+                    <option value="automisurazione">Automisurazione — misuri un numero</option>
+                </select>
+                <div class="form-hint" id="kindHint"></div>
+            </div>
+        </div>
+
+        <!-- la scala: solo per l'autovalutazione -->
+        <div class="form-row" id="mScaleRow">
+            <div class="form-group">
+                <label class="form-label">Minimo</label>
+                <input type="number" step="any" class="form-input" id="mMin" value="1">
+                <div class="form-hint">Il voto più basso della scala.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Massimo</label>
+                <input type="number" step="any" class="form-input" id="mMax" value="10">
+                <div class="form-hint">Il voto più alto: è il traguardo, il 100%.</div>
+            </div>
+        </div>
+
+        <!-- da dove a dove: solo per l'automisurazione -->
+        <div class="form-row" id="mBaseTargetRow">
+            <div class="form-group">
+                <label class="form-label">Punto di partenza</label>
+                <input type="number" step="any" class="form-input" id="mBaseline" value="0">
+                <div class="form-hint">Da dove parti oggi.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Valore obiettivo</label>
+                <input type="number" step="any" class="form-input" id="mTarget">
+                <div class="form-hint">Dove vuoi arrivare. Deve essere diverso dalla partenza.</div>
+            </div>
+        </div>
+
+        <div class="form-group" id="mUnitGroup">
+            <label class="form-label">Unità</label>
+            <input type="text" class="form-input" id="mUnit" placeholder="es. kg, minuti/settimana, pause">
+            <div class="form-hint">Facoltativa, ma un numero senza unità fra tre mesi non si legge più.</div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" id="mDescLabel">Come votare</label>
+            <textarea class="form-textarea" id="mDesc"></textarea>
+            <div class="form-hint" id="mDescHint"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-danger"    id="mDeleteBtn" onclick="deleteMetric()" style="margin-right:auto;">Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('metricModal')">Annulla</button>
+            <button class="btn btn-success"   onclick="saveMetric()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: MILESTONE ══════════════ -->
+<div class="modal" id="msModal">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="msModalTitle">Nuova milestone</div>
+            <button class="modal-close" onclick="closeModal('msModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Etichetta</label>
+            <input type="text" class="form-input" id="msLabel" placeholder="es. Fine Q1">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Data</label>
+                <input type="date" class="form-input" id="msDue">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Valore atteso</label>
+                <input type="number" step="any" class="form-input" id="msExpected">
+                <div class="form-hint">Della metrica primaria. È la curva contro cui si calcola il semaforo.</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Stato</label>
+            <select class="form-select" id="msStatus">
+                <option value="pending">Da verificare</option>
+                <option value="hit">Centrata</option>
+                <option value="missed">Mancata</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-danger"    id="msDeleteBtn" onclick="deleteMilestone()" style="margin-right:auto;">Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('msModal')">Annulla</button>
+            <button class="btn btn-success"   onclick="saveMilestone()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: EDITOR AZIONE ══════════════ -->
+<div class="modal" id="actionModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="actionModalTitle">Nuova azione</div>
+            <button class="modal-close" onclick="closeModal('actionModal')">&times;</button>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Titolo</label>
+            <input type="text" class="form-input" id="aTitle" placeholder="es. Lezione di conversazione">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Descrizione</label>
+            <textarea class="form-textarea" id="aDesc" placeholder="facoltativa"></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Obiettivo</label>
+                <select class="form-select" id="aObjective" onchange="onActionObjectiveChange()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" id="aType" onchange="onActionTypeChange()"></select>
+                <div class="form-hint" id="aTypeHint"></div>
+            </div>
+        </div>
+
+        <div class="form-row" id="aWhenRow">
+            <div class="form-group">
+                <label class="form-label">Data di inizio</label>
+                <input type="date" class="form-input" id="aStartDate">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ora</label>
+                <input type="time" class="form-input" id="aStartTime" value="09:00">
+                <div class="form-hint">L'orario resta lo stesso a ogni occorrenza.</div>
+            </div>
+        </div>
+
+        <!-- single -->
+        <div class="form-group" id="aDeadlineGroup">
+            <label class="form-label">Scadenza</label>
+            <input type="date" class="form-input" id="aDeadline">
+            <div class="form-hint">Facoltativa. Completandola dopo, l'azione vale i punti «in ritardo».</div>
+        </div>
+
+        <!-- simple_recurring -->
+        <div class="form-group" id="aRepeatGroup">
+            <label class="form-label">Si ripete ogni</label>
+            <input type="number" class="form-input" id="aRepeatDays" min="1" value="7">
+            <div class="form-hint">Giorni dopo l'ultima volta che l'hai chiusa.</div>
+        </div>
+
+        <!-- recurring -->
+        <div id="aRecurringGroup">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Frequenza</label>
+                    <select class="form-select" id="aFreq" onchange="onActionFreqChange()">
+                        <option value="daily">Giornaliera</option>
+                        <option value="weekly">Settimanale</option>
+                        <option value="monthly">Mensile</option>
+                        <option value="yearly">Annuale</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ogni</label>
+                    <input type="number" class="form-input" id="aInterval" min="1" value="1">
+                    <div class="form-hint" id="aIntervalHint">giorni</div>
+                </div>
+            </div>
+            <div class="form-group" id="aDowGroup">
+                <label class="form-label">Giorni della settimana</label>
+                <div class="chip-row" id="aDow"></div>
+            </div>
+            <div class="form-group" id="aDomGroup">
+                <label class="form-label">Giorni del mese</label>
+                <div class="chip-row" id="aDom"></div>
+            </div>
+            <div class="form-group" id="aDatesGroup">
+                <label class="form-label">Ricorrenze annuali</label>
+                <div class="date-adder">
+                    <input type="date" class="form-input" id="aYearDate">
+                    <button class="btn btn-ghost btn-small" onclick="addYearlyDate()">+ Aggiungi</button>
+                </div>
+                <div class="chip-row" id="aDatesList"></div>
+                <div class="form-hint">Conta il giorno e il mese: l'anno lo mette la ricorrenza.</div>
+            </div>
+        </div>
+
+        <!-- multiple -->
+        <div class="form-group" id="aMultiGroup">
+            <label class="form-label">Le date</label>
+            <div class="date-adder">
+                <input type="date" class="form-input" id="aMultiDate">
+                <button class="btn btn-ghost btn-small" onclick="addMultipleDate()">+ Aggiungi</button>
+            </div>
+            <div class="chip-row" id="aMultiList"></div>
+            <div class="form-hint">Ogni volta che la chiudi, l'azione passa alla data successiva.</div>
+        </div>
+
+        <!-- workflow -->
+        <div id="aWorkflowGroup">
+            <div class="section-title">
+                Step del workflow
+                <button class="btn btn-ghost btn-small" onclick="wfAddStepRow()">+ Step</button>
+            </div>
+            <div class="form-hint" style="margin-bottom:0.75rem;">
+                Ogni step può dipendere da quelli sopra: finché le sue dipendenze non sono
+                chiuse resta bloccato. Servono almeno due step — con uno solo è una singola
+                scritta in modo complicato.
+            </div>
+            <div id="wfStepList"></div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Priorità</label>
+                <select class="form-select" id="aPriority"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Stato</label>
+                <select class="form-select" id="aStatus">
+                    <option value="started">In corso</option>
+                    <option value="completed">Completata</option>
+                    <option value="skipped">Saltata</option>
+                    <option value="failed">Fallita</option>
+                    <option value="terminated">Conclusa</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Categorie</label>
+            <div class="chip-row" id="aCategories"></div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Metriche che questa azione dovrebbe muovere</label>
+            <div class="chip-row" id="aMetrics"></div>
+            <div class="form-hint">
+                Anche più d'una: una lezione di conversazione muove insieme la scioltezza e il
+                numero di pause. Si scelgono fra le metriche di questo obiettivo — cambiando
+                obiettivo i collegamenti di prima non varrebbero più, e vengono tolti.
+            </div>
+        </div>
+
+        <div class="section-title">Punti</div>
+        <div class="form-row" id="aPointsRow">
+            <div class="form-group">
+                <label class="form-label">Successo</label>
+                <input type="number" class="form-input" id="aPtSuccess" value="10">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Salto</label>
+                <input type="number" class="form-input" id="aPtSkip" value="-2">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" id="aPtLateGroup">
+                <label class="form-label">In ritardo</label>
+                <input type="number" class="form-input" id="aPtLate" value="-2">
+                <div class="form-hint">Quanto vale chiuderla dopo la scadenza.</div>
+            </div>
+        </div>
+        <div class="form-row" id="aWfPointsRow">
+            <div class="form-group">
+                <label class="form-label">Step riuscito</label>
+                <input type="number" class="form-input" id="aPtStepOk" value="5">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Step fallito</label>
+                <input type="number" class="form-input" id="aPtStepKo" value="-3">
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-danger"    id="aDeleteBtn" onclick="deleteAction()" style="margin-right:auto;">Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('actionModal')">Annulla</button>
+            <button class="btn btn-success"   onclick="saveAction()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: STEP DI UN WORKFLOW ══════════════ -->
+<div class="modal" id="wfModal">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="wfModalTitle">Workflow</div>
+            <button class="modal-close" onclick="closeModal('wfModal')">&times;</button>
+        </div>
+        <div id="wfBody"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('wfModal')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: CANCELLA TUTTO ══════════════ -->
+<div class="modal" id="wipeModal">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" style="color:var(--danger);">Cancella tutti i dati di Obiettivi</div>
+            <button class="modal-close" onclick="closeModal('wipeModal')">&times;</button>
+        </div>
+        <div id="wipeBody"></div>
+        <div class="form-group">
+            <label class="form-label">Scrivi CANCELLA per confermare</label>
+            <input type="text" class="form-input" id="wipeWord" autocomplete="off"
+                   placeholder="CANCELLA" oninput="onWipeWord()">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost"     onclick="exportBackup()">⬇️ Esporta prima</button>
+            <button class="btn btn-secondary" onclick="closeModal('wipeModal')">Annulla</button>
+            <button class="btn btn-danger"    id="wipeGo" disabled onclick="eseguiCancellaTutto()">🗑️ Cancella</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: ANDAMENTO ══════════════ -->
+<div class="modal" id="trendModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="trendTitle">Andamento</div>
+            <button class="modal-close" onclick="closeModal('trendModal')">&times;</button>
+        </div>
+        <div id="trendBody"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('trendModal')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: RILEVA DOPO AVER COMPLETATO ══════════════ -->
+<div class="modal" id="measMultiModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="measMultiTitle">Come è andata?</div>
+            <button class="modal-close" onclick="closeModal('measMultiModal')">&times;</button>
+        </div>
+        <div class="page-hint" style="margin-bottom:1rem;">
+            Hai appena chiuso l'azione: è il momento in cui il numero lo sai.
+            Quello che lasci indietro non viene registrato — «non l'ho misurata»
+            e «vale zero» sono due cose diverse.
+        </div>
+        <div class="form-group">
+            <label class="form-label">Data di occorrenza</label>
+            <div class="form-static" id="measMultiDate"></div>
+            <div class="form-hint">È la volta che stai chiudendo, non il giorno in cui la chiudi:
+                la rilevazione appartiene a quella.</div>
+        </div>
+        <div id="measMultiBody"></div>
+        <div class="form-group">
+            <label class="form-label">Nota</label>
+            <input type="text" class="form-input" id="measMultiNote" placeholder="facoltativa, vale per tutte">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('measMultiModal')">Non adesso</button>
+            <button class="btn btn-success"   onclick="salvaRilevazioniAzione()">Registra</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: ESECUZIONI DI UN'AZIONE ══════════════ -->
+<div class="modal" id="execModal">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="execTitle">Esecuzioni</div>
+            <button class="modal-close" onclick="closeModal('execModal')">&times;</button>
+        </div>
+        <div class="page-hint" style="margin-bottom:1rem;">
+            Ogni volta che l'azione è stata chiusa: il giorno per cui era
+            <strong>programmata</strong>, quello in cui è stata <strong>eseguita</strong>
+            e i punti che ha fatto. Le righe più vecchie di questa colonna, e le azioni
+            a libera ripetizione, un giorno programmato non ce l'hanno.<br>
+            Cancellare una riga toglie i suoi punti e rifà la barra dell'esecuzione
+            senza di essa: <strong>l'azione però resta dov'è</strong> — la prossima
+            occorrenza non torna indietro.
+        </div>
+        <div id="execBody"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('execModal')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: SALTA DI N GIORNI ══════════════ -->
+<div class="modal" id="skipModal">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title">Sposta l'azione</div>
+            <button class="modal-close" onclick="closeModal('skipModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Di quanti giorni</label>
+            <input type="number" class="form-input" id="skipDays" min="1" value="1">
+            <div class="form-hint" id="skipHint"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('skipModal')">Annulla</button>
+            <button class="btn btn-success"   onclick="confirmSkip()">Sposta</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// OBIETTIVI — versione
+// ════════════════════════════════════════════════════════════
+var APP_VERSION = 'v1.11.3';
+var BUILD_TIME  = '2026-09-14T10:30:00Z';
+console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+             || (window.location.hostname.endsWith('.netlify.app')
+                && window.location.hostname.startsWith('dev--'));
+
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+let sb            = null;
+let sbAccessToken = null;
+let currentUserId = null;
+
+// ════════════════════════════════════════════════════════════
+// DATA STORE
+// ════════════════════════════════════════════════════════════
+let objectives   = [];   // ob_objectives
+let metrics      = [];   // ob_metrics
+let milestones   = [];   // ob_milestones
+let measurements = [];   // ob_measurements
+let actions      = [];   // ob_actions
+let actionHistory = [];  // ob_action_history
+let actionMetrics = [];  // ob_action_metrics — quali metriche muove un'azione
+let categories   = [];   // cm_categories (condivise con Tasks)
+let priorities   = [];   // cm_priorities (condivise con Tasks)
+let progress     = {};   // { objective_id: risultato RPC }
+
+// stato editor
+let editingObjId    = null;
+let editingParentId = null;
+let editingMetricId = null;
+let editingMetricObjId = null;
+let editingMsId     = null;
+let editingMsObjId  = null;
+let measuringMetricId = null;
+let editingActionId   = null;
+let editingActionObjId = null;
+let skippingActionId  = null;
+let misurandoAzione   = null;   // azione appena chiusa, di cui si rilevano le metriche
+let misurandoGiorno   = null;   // il giorno in cui è stata chiusa: la data della rilevazione
+let wfActionId        = null;
+let wfSteps           = [];   // step in modifica dentro l'editor
+let actCategories     = [];   // categorie scelte nell'editor
+let actMetrics        = [];   // metriche collegate scelte nell'editor
+let yearlyDates       = [];   // 'DD-MM' del tipo annuale
+let multiDates        = [];   // 'YYYY-MM-DD' del tipo multiplo
+let toastTimer        = null;
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+function initWithToken(token) {
+    if (sb) return;
+    sbAccessToken = token;
+    localStorage.setItem('sb_token', token);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+    const payload = decodeJWT(token);
+    currentUserId = payload?.sub || null;
+    console.log('✅ Supabase autenticato (Obiettivi ' + APP_VERSION + ')');
+    document.getElementById('authOverlay').style.display = 'none';
+    startApp();
+}
+
+function handleAuthError(error) {
+    if (!error) return false;
+    const msg = (error.message || '').toLowerCase();
+    const isAuth = error.status === 401
+        || msg.includes('jwt expired') || msg.includes('invalid jwt')
+        || msg.includes('not authenticated') || msg.includes('pgjwt');
+    if (!isAuth) return false;
+    sb = null; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return true;
+}
+
+function decodeJWT(token) {
+    try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
+    catch(e) { return null; }
+}
+
+window.addEventListener('message', (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'SB_TOKEN' && e.data.token) {
+        console.log('✅ SB_TOKEN ricevuto dal launcher (Obiettivi)');
+        initWithToken(e.data.token);
+    }
+});
+
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null; sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        const t = e.data.sbToken;
+        localStorage.setItem('sb_token', t); sbAccessToken = t;
+        if (sb) {
+            sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                auth:   { persistSession: false, autoRefreshToken: false },
+                global: { headers: { Authorization: 'Bearer ' + t } }
+            });
+        }
+    }
+};
+
+window.addEventListener('load', () => {
+    const stored = localStorage.getItem('sb_token');
+    if (stored) initWithToken(stored);
+    else document.getElementById('authOverlay').style.display = 'flex';
+});
+
+// ════════════════════════════════════════════════════════════
+// AVVIO
+// ════════════════════════════════════════════════════════════
+async function startApp() {
+    document.getElementById('infoVersion').textContent = APP_VERSION;
+    document.getElementById('infoBuild').textContent   = BUILD_TIME;
+    document.getElementById('infoEnv').textContent     = _IS_DEV ? '🧪 Development' : '🚀 Production';
+    await loadAll();
+}
+
+async function loadAll() {
+    const [o, m, ms, meas, act, hist, amet, cat, pri] = await Promise.all([
+        sb.from('ob_objectives').select('*').order('sort_order').order('due_date'),
+        sb.from('ob_metrics').select('*').order('sort_order'),
+        sb.from('ob_milestones').select('*').order('due_date'),
+        sb.from('ob_measurements').select('*').order('measured_on'),
+        sb.from('ob_actions').select('*').order('sort_order'),
+        sb.from('ob_action_history').select('*').order('timestamp', { ascending: false }),
+        sb.from('ob_action_metrics').select('*'),
+        sb.from('cm_categories').select('*'),
+        sb.from('cm_priorities').select('*').order('value', { ascending: false })
+    ]);
+
+    for (const r of [o, m, ms, meas, act, hist, amet]) {
+        if (r.error) { if (handleAuthError(r.error)) return; console.error(r.error); showToast('❌ ' + r.error.message); return; }
+    }
+    // Categorie e priorità sono condivise e non stanno in nessuna migration: se
+    // mancano l'app resta usabile senza, invece di non aprirsi affatto.
+    if (cat.error) console.warn('cm_categories non leggibile:', cat.error.message);
+    if (pri.error) console.warn('cm_priorities non leggibile:', pri.error.message);
+
+    objectives    = o.data    || [];
+    metrics       = m.data    || [];
+    milestones    = ms.data   || [];
+    measurements  = meas.data || [];
+    actions       = act.data  || [];
+    actionHistory = hist.data || [];
+    actionMetrics = amet.data || [];
+    categories    = cat.data  || [];
+    priorities    = pri.data  || [];
+
+    await loadProgress();
+    fillActionFilters();
+    renderObjectives();
+    renderActionsPage();
+    renderPianoPage();
+    renderArchive();
+}
+
+// Il calcolo del progresso vive nella RPC: qui non si ricalcola nulla.
+async function loadProgress() {
+    progress = {};
+    const results = await Promise.all(objectives.map(o =>
+        sb.rpc('ob_objective_progress', { p_objective_id: o.id })
+    ));
+    results.forEach((r, i) => {
+        if (r.error) { console.error('progress', objectives[i].id, r.error); return; }
+        if (r.data && r.data.ok) progress[objectives[i].id] = r.data;
+    });
+}
+
+// ════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, ch =>
+        ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+}
+
+// dd/mm/yyyy senza passare da Date: niente scarti di fuso
+function fmtDate(iso) {
+    if (!iso) return '—';
+    const p = String(iso).slice(0, 10).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+}
+
+function todayISO() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function daysBetween(fromISO, toISO) {
+    const a = new Date(fromISO + 'T00:00:00');
+    const b = new Date(toISO   + 'T00:00:00');
+    return Math.round((b - a) / 86400000);
+}
+
+function fmtNum(v) {
+    if (v === null || v === undefined || v === '') return '—';
+    const n = Number(v);
+    if (!isFinite(n)) return '—';
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+}
+
+const STATUS_LABEL = {
+    on_track: 'in linea', at_risk: 'a rischio', off_track: 'fuori rotta', unknown: 'senza metrica',
+    achieved: 'raggiunto', missed: 'mancato', paused: 'in pausa', archived: 'archiviato'
+};
+
+const ROLE_LABEL = { primary: 'risultato', control: 'controllo', leading: 'sforzo' };
+const KIND_LABEL = { autovalutazione: 'autovalutazione', automisurazione: 'automisurazione' };
+
+function metricsOf(objId)    { return metrics.filter(m => m.objective_id === objId); }
+function measuresOf(metId)   { return measurements.filter(m => m.metric_id === metId); }
+function milestonesOf(objId) { return milestones.filter(m => m.objective_id === objId); }
+function actionsOf(objId)    { return actions.filter(a => a.objective_id === objId); }
+function historyOf(objId)    { return actionHistory.filter(h => h.objective_id === objId); }
+
+// Le metriche che un'azione dovrebbe muovere, e le azioni che dovrebbero
+// muovere una metrica: le due letture della stessa tabella di collegamento.
+function metricsOfAction(actionId) {
+    const ids = actionMetrics.filter(l => l.action_id === actionId).map(l => l.metric_id);
+    return metrics.filter(m => ids.includes(m.id));
+}
+function actionsOfMetric(metricId) {
+    const ids = actionMetrics.filter(l => l.metric_id === metricId).map(l => l.action_id);
+    return actions.filter(a => ids.includes(a.id));
+}
+function childrenOf(objId)   { return objectives.filter(o => o.parent_id === objId); }
+function primaryOf(objId)    { return metricsOf(objId).find(m => m.role === 'primary') || null; }
+
+// Da dove a dove va una metrica. I due tipi lo dicono in colonne diverse —
+// l'autovalutazione con la scala, l'automisurazione con partenza e obiettivo —
+// e questa è l'unica funzione che lo sa: è la copia della RPC ob_metric_scale.
+function scaleOf(metric) {
+    return metric.kind === 'autovalutazione'
+        ? { da: Number(metric.min_value), a: Number(metric.max_value) }
+        : { da: Number(metric.baseline),  a: Number(metric.target)    };
+}
+
+// valore corrente di una metrica, con la stessa semantica della RPC ob_metric_current
+function currentValue(metric) {
+    const rows = measuresOf(metric.id);
+    if (!rows.length) return scaleOf(metric).da;   // mai rilevata: sei alla partenza
+    return Number(rows[rows.length - 1].value);
+}
+
+function metricProgress(metric) {
+    const { da, a } = scaleOf(metric);
+    const cur = currentValue(metric);
+    if (a === da) return 0;
+    return Math.max(0, Math.min(1, (cur - da) / (a - da)));
+}
+
+// ════════════════════════════════════════════════════════════
+// RENDER — pagina obiettivi
+// ════════════════════════════════════════════════════════════
+function renderObjectives() {
+    const host = document.getElementById('objectivesList');
+    const roots = objectives.filter(o => !o.parent_id && ['active','paused'].includes(o.status));
+
+    if (!roots.length) {
+        host.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🎯</div>
+                <div class="empty-title">Nessun obiettivo attivo</div>
+                <div class="empty-desc">Comincia da un obiettivo annuale: un risultato osservabile, con una data.</div>
+            </div>`;
+        return;
+    }
+
+    host.innerHTML = roots.map(renderObjectiveCard).join('');
+}
+
+function renderObjectiveCard(obj) {
+    const p        = progress[obj.id] || {};
+    const primary  = primaryOf(obj.id);
+    const kids     = childrenOf(obj.id);
+    const ms       = milestonesOf(obj.id);
+    const semaforo = obj.status === 'active' ? (p.status || 'unknown') : obj.status;
+
+    const result    = p.has_result    ? p.result    : null;
+    const execution = p.has_execution ? p.execution : null;
+
+    // posizione del marcatore "dove dovrei essere" sulla barra risultato
+    let marker = '';
+    if (primary && p.expected_value !== null && p.expected_value !== undefined) {
+        const { da, a } = scaleOf(primary);
+        if (a !== da) {
+            const exp = Math.max(0, Math.min(1, (Number(p.expected_value) - da) / (a - da))) * 100;
+            marker = `<div class="bar-expected"><div class="bar-marker" style="left:${exp}%" title="atteso: ${fmtNum(p.expected_value)}"></div></div>`;
+        }
+    }
+
+    // la divergenza fra le due barre è l'informazione più preziosa: non va nascosta
+    let divergence = '';
+    if (result !== null && execution !== null && execution - result >= 25) {
+        divergence = `<div class="divergence">
+            ⚠️ Stai eseguendo il piano (${execution}%) ma il risultato non si muove (${result}%).
+            Non è un bug del conteggio: è il segnale che stai lavorando sulla cosa sbagliata. Rivedi il metodo.
+        </div>`;
+    }
+
+    const daysLeft = daysBetween(todayISO(), String(obj.due_date).slice(0,10));
+
+    return `
+    <div class="obj-card">
+        <div class="obj-color-bar" style="background:${esc(obj.color || '#6C5CE7')}"></div>
+        <div class="obj-body">
+            <div class="obj-head">
+                <div class="obj-title" onclick="openDetail('${obj.id}')">${esc(obj.title)}</div>
+                <span class="status-pill st-${semaforo}">${STATUS_LABEL[semaforo] || semaforo}</span>
+            </div>
+            <div class="obj-meta">
+                scadenza ${fmtDate(obj.due_date)}
+                ${daysLeft >= 0 ? '· ' + daysLeft + ' giorni' : '· scaduto da ' + Math.abs(daysLeft) + ' giorni'}
+            </div>
+            ${obj.why ? `<div class="obj-why" style="margin-top:0.5rem;">«${esc(obj.why)}»</div>` : '<div style="height:0.6rem;"></div>'}
+
+            <div class="bars">
+                <div class="bar-block">
+                    <div class="bar-label">
+                        <span>Risultato</span>
+                        <span class="bar-pct">${result !== null ? result + '%' : '—'}</span>
+                    </div>
+                    ${marker}
+                    <div class="bar-track"><div class="bar-fill result" style="width:${result || 0}%"></div></div>
+                    <div class="bar-sub">${primary
+                        ? esc(primary.name) + ': ' + fmtNum(p.current_value) + (primary.unit ? ' ' + esc(primary.unit) : '') + ' → ' + fmtNum(scaleOf(primary).a)
+                        : 'nessuna metrica primaria'}</div>
+                </div>
+                <div class="bar-block">
+                    <div class="bar-label">
+                        <span>Esecuzione</span>
+                        <span class="bar-pct">${execution !== null ? execution + '%' : '—'}</span>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill execution" style="width:${execution || 0}%"></div></div>
+                    <div class="bar-sub">${execution !== null
+                        ? [
+                            p.children_total ? p.children_done + '/' + p.children_total + ' sotto-obiettivi' : '',
+                            p.milestones_total ? p.milestones_hit + '/' + p.milestones_total + ' milestone' : '',
+                            p.actions_total ? p.actions_done + '/' + p.actions_total + ' azioni' : ''
+                          ].filter(Boolean).join(' · ')
+                        : 'niente da eseguire: né sotto-obiettivi, né milestone, né azioni'}</div>
+                </div>
+            </div>
+
+            ${divergence}
+
+            ${ms.length ? `<div class="ms-strip">${ms.map(m => `
+                <div class="ms-chip ${m.status}" onclick="openMilestoneEditor('${obj.id}','${m.id}')">
+                    ${fmtDate(m.due_date)}${m.expected_value !== null ? ' → ' + fmtNum(m.expected_value) : ''}
+                </div>`).join('')}</div>` : ''}
+
+            ${kids.length ? `
+            <div class="children">
+                <div class="children-title">Sotto-obiettivi trimestrali — il «come»</div>
+                ${kids.map(k => {
+                    const kp = progress[k.id] || {};
+                    const kv = kp.has_result ? kp.result : 0;
+                    return `<div class="child-row" onclick="openDetail('${k.id}')">
+                        <div class="child-name">${esc(k.title)}</div>
+                        <div class="child-bar"><div class="child-bar-fill" style="width:${kv}%"></div></div>
+                        <div class="child-val">${kp.has_result ? kv + '%' : '—'}</div>
+                    </div>`;
+                }).join('')}
+            </div>` : ''}
+
+            <div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+                <button class="btn btn-ghost btn-small" onclick="openDetail('${obj.id}')">Dettaglio</button>
+                <button class="btn btn-ghost btn-small" onclick="openTrend('${obj.id}')">📊 Andamento</button>
+                <button class="btn btn-ghost btn-small" onclick="openObjectiveEditor(null,'${obj.id}')">+ Sotto-obiettivo</button>
+                <button class="btn btn-ghost btn-small" onclick="openMilestoneEditor('${obj.id}',null)">+ Milestone</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderArchive() {
+    const host = document.getElementById('archiveList');
+    const rows = objectives.filter(o => ['achieved','missed','archived'].includes(o.status));
+    if (!rows.length) {
+        host.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div>
+            <div class="empty-title">Archivio vuoto</div>
+            <div class="empty-desc">Qui finiranno gli obiettivi conclusi.</div></div>`;
+        return;
+    }
+    host.innerHTML = rows.map(o => `
+        <div class="metric-row">
+            <div class="metric-main">
+                <div class="metric-name" style="cursor:pointer;" onclick="openDetail('${o.id}')">${esc(o.title)}</div>
+                <div class="metric-sub">${o.horizon === 'annual' ? 'annuale' : 'trimestrale'} · scadenza ${fmtDate(o.due_date)}</div>
+            </div>
+            <span class="status-pill st-${o.status}">${STATUS_LABEL[o.status] || o.status}</span>
+        </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// DETTAGLIO OBIETTIVO
+// ════════════════════════════════════════════════════════════
+async function openDetail(objId) {
+    const obj = objectives.find(o => o.id === objId);
+    if (!obj) return;
+    // i nomi di task e abitudini servono già al primo render dei collegamenti
+    const p    = progress[objId] || {};
+    const mets = metricsOf(objId);
+    const ms   = milestonesOf(objId);
+    const acts = actionsOf(objId);
+    const kids = childrenOf(objId);
+
+    document.getElementById('detailTitle').textContent = obj.title;
+
+    let html = '';
+
+    html += `<div class="obj-meta">
+        ${obj.horizon === 'annual' ? 'obiettivo annuale' : 'sotto-obiettivo trimestrale'}
+        · ${fmtDate(obj.start_date)} → ${fmtDate(obj.due_date)}
+        · <span class="status-pill st-${obj.status === 'active' ? (p.status || 'unknown') : obj.status}">
+            ${STATUS_LABEL[obj.status === 'active' ? (p.status || 'unknown') : obj.status]}</span>
+    </div>`;
+
+    if (obj.why) html += `<div class="obj-why" style="margin-top:0.75rem;">«${esc(obj.why)}»</div>`;
+
+    // METRICHE
+    html += `<div class="section-title">Metriche
+        <button class="btn btn-ghost btn-small" onclick="openMetricEditor('${objId}',null)">+ Metrica</button></div>`;
+    if (!mets.length) {
+        html += `<div class="form-hint">Nessuna metrica. Senza un numero l'obiettivo non è verificabile:
+                 servono una metrica primaria (il risultato) e possibilmente una leading (lo sforzo).</div>`;
+    } else {
+        html += mets.map(m => {
+            const cur = currentValue(m);
+            const pct = Math.round(metricProgress(m) * 100);
+            const { da, a } = scaleOf(m);
+            return `<div class="metric-row">
+                <div class="metric-main">
+                    <div class="metric-name" style="cursor:pointer;" onclick="openMetricEditor('${objId}','${m.id}')">
+                        <span class="role-tag role-${m.role}">${ROLE_LABEL[m.role]}</span>
+                        ${esc(m.name)}
+                    </div>
+                    <div class="metric-sub">
+                        ${KIND_LABEL[m.kind]}
+                        · ${fmtNum(da)} → ${fmtNum(a)} ${a >= da ? '↑' : '↓'}
+                        ${m.unit ? ' ' + esc(m.unit) : ''}
+                    </div>
+                    ${(() => {
+                        const az = actionsOfMetric(m.id);
+                        return az.length
+                            ? `<div class="metric-sub">✅ ${az.map(x => esc(x.title)).join(' · ')}</div>`
+                            : '';
+                    })()}
+                </div>
+                <div class="metric-value">${fmtNum(cur)}<div class="metric-target">${pct}%</div></div>
+            </div>`;
+        }).join('');
+    }
+
+    // SOTTO-OBIETTIVI
+    html += `<div class="section-title">Sotto-obiettivi
+        <button class="btn btn-ghost btn-small" onclick="closeModal('detailModal');openObjectiveEditor(null,'${objId}')">+ Sotto-obiettivo</button></div>`;
+    html += kids.length
+        ? kids.map(k => {
+            const kp = progress[k.id] || {};
+            return `<div class="child-row" onclick="closeModal('detailModal');openDetail('${k.id}')">
+                <div class="child-name">${esc(k.title)}
+                    <span class="metric-sub">· ${fmtDate(k.due_date)}</span></div>
+                <div class="child-bar"><div class="child-bar-fill" style="width:${kp.has_result ? kp.result : 0}%"></div></div>
+                <div class="child-val">${kp.has_result ? kp.result + '%' : '—'}</div>
+            </div>`;
+          }).join('')
+        : `<div class="form-hint">Nessuno. Il progresso di questo obiettivo resta quello della sua metrica.</div>`;
+
+    // MILESTONE
+    html += `<div class="section-title">Milestone
+        <button class="btn btn-ghost btn-small" onclick="openMilestoneEditor('${objId}',null)">+ Milestone</button></div>`;
+    html += ms.length
+        ? ms.map(m => `<div class="hist-row" style="cursor:pointer;" onclick="openMilestoneEditor('${objId}','${m.id}')">
+                <div class="hist-date">${fmtDate(m.due_date)}</div>
+                <div class="hist-val">${fmtNum(m.expected_value)}</div>
+                <div class="hist-note">${esc(m.label || '')}</div>
+                <span class="status-pill st-${m.status === 'hit' ? 'achieved' : m.status === 'missed' ? 'missed' : 'unknown'}">
+                    ${m.status === 'hit' ? 'centrata' : m.status === 'missed' ? 'mancata' : 'attesa'}</span>
+            </div>`).join('')
+        : `<div class="form-hint">Nessuna. Le milestone sono la curva attesa: senza, il semaforo non ha riferimento.</div>`;
+
+    // AZIONI — si aggiungono da qui, ma non si chiudono: definire il piano è
+    // parte della definizione dell'obiettivo, eseguirlo no. Le si completa da
+    // ✅ Azioni e le si guarda in 📊 Andamento.
+    html += `<div class="section-title">Azioni
+        <button class="btn btn-ghost btn-small" onclick="closeModal('detailModal');openActionEditor('${objId}',null)">+ Azione</button></div>`;
+    html += acts.length
+        ? acts.map(a => renderActionCard(a, { showObjective: false, soloDefinizione: true })).join('')
+        : `<div class="form-hint">Nessuna. Le azioni sono il «cosa faccio» dell'obiettivo.</div>`;
+
+    html += `<div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('detailModal');openObjectiveEditor('${objId}',null)">Modifica obiettivo</button>
+        <button class="btn btn-secondary" onclick="closeModal('detailModal')">Chiudi</button>
+    </div>`;
+
+    document.getElementById('detailBody').innerHTML = html;
+    openModal('detailModal');
+}
+
+// ════════════════════════════════════════════════════════════
+// EDITOR OBIETTIVO
+// ════════════════════════════════════════════════════════════
+function openObjectiveEditor(objId, parentId) {
+    editingObjId    = objId;
+    editingParentId = parentId;
+    const obj = objId ? objectives.find(o => o.id === objId) : null;
+
+    document.getElementById('objModalTitle').textContent =
+        obj ? 'Modifica obiettivo' : (parentId ? 'Nuovo sotto-obiettivo trimestrale' : 'Nuovo obiettivo annuale');
+    document.getElementById('objDeleteBtn').style.display = obj ? '' : 'none';
+
+    document.getElementById('objTitle').value  = obj?.title  || '';
+    document.getElementById('objWhy').value    = obj?.why    || '';
+    document.getElementById('objStart').value  = obj ? String(obj.start_date).slice(0,10) : todayISO();
+    document.getElementById('objStatus').value = obj?.status || 'active';
+    document.getElementById('objColor').value  = obj?.color  || (parentId
+        ? (objectives.find(o => o.id === parentId)?.color || '#6C5CE7')
+        : '#6C5CE7');
+
+    if (obj) {
+        document.getElementById('objDue').value = String(obj.due_date).slice(0,10);
+    } else {
+        const d = new Date();
+        if (parentId) d.setMonth(d.getMonth() + 3); else d.setFullYear(d.getFullYear() + 1);
+        document.getElementById('objDue').value =
+            d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    openModal('objModal');
+}
+
+async function saveObjective() {
+    const title = document.getElementById('objTitle').value.trim();
+    const due   = document.getElementById('objDue').value;
+    if (!title) { showToast('Serve un titolo'); return; }
+    if (!due)   { showToast('Serve una scadenza'); return; }
+
+    const obj = editingObjId ? objectives.find(o => o.id === editingObjId) : null;
+    const parentId = obj ? obj.parent_id : editingParentId;
+
+    const payload = {
+        title,
+        why:        document.getElementById('objWhy').value.trim(),
+        start_date: document.getElementById('objStart').value || todayISO(),
+        due_date:   due,
+        status:     document.getElementById('objStatus').value,
+        color:      document.getElementById('objColor').value,
+        horizon:    parentId ? 'quarterly' : 'annual',
+        parent_id:  parentId || null
+    };
+
+    let res;
+    if (editingObjId) res = await sb.from('ob_objectives').update(payload).eq('id', editingObjId);
+    else              res = await sb.from('ob_objectives').insert(payload);
+
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    closeModal('objModal');
+    showToast('✅ Obiettivo salvato');
+    await loadAll();
+}
+
+async function deleteObjective() {
+    if (!editingObjId) return;
+    const kids = childrenOf(editingObjId).length;
+    const ok = await customConfirm(kids
+        ? `Elimino l'obiettivo, i suoi ${kids} sotto-obiettivi, le metriche e tutte le rilevazioni?`
+        : `Elimino l'obiettivo con le sue metriche e rilevazioni?`);
+    if (!ok) return;
+
+    const res = await sb.from('ob_objectives').delete().eq('id', editingObjId);
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    closeModal('objModal');
+    showToast('🗑 Obiettivo eliminato');
+    await loadAll();
+}
+
+// ════════════════════════════════════════════════════════════
+// EDITOR METRICA
+// ════════════════════════════════════════════════════════════
+function openMetricEditor(objId, metricId) {
+    editingMetricObjId = objId;
+    editingMetricId    = metricId;
+    const m = metricId ? metrics.find(x => x.id === metricId) : null;
+
+    document.getElementById('metricModalTitle').textContent = m ? 'Modifica metrica' : 'Nuova metrica';
+    document.getElementById('mDeleteBtn').style.display = m ? '' : 'none';
+
+    document.getElementById('mName').value      = m?.name      || '';
+    document.getElementById('mRole').value      = m?.role      || (primaryOf(objId) ? 'leading' : 'primary');
+    document.getElementById('mKind').value      = m?.kind      || 'autovalutazione';
+    document.getElementById('mUnit').value      = m?.unit      || '';
+    document.getElementById('mMin').value       = m?.min_value ?? 1;
+    document.getElementById('mMax').value       = m?.max_value ?? 10;
+    document.getElementById('mBaseline').value  = m?.baseline  ?? 0;
+    document.getElementById('mTarget').value    = m?.target    ?? '';
+    document.getElementById('mDesc').value      = m?.descrizione || '';
+
+    onKindChange();
+    closeModal('detailModal');
+    openModal('metricModal');
+}
+
+// I due tipi chiedono cose diverse, e chiedere tutto sempre era il motivo per
+// cui il form spaventava: si vede la scala oppure partenza/obiettivo, mai
+// entrambe — è anche il vincolo ob_metrics_scala_per_tipo, un livello sotto.
+function onKindChange() {
+    const kind = document.getElementById('mKind').value;
+    const voto = kind === 'autovalutazione';
+
+    document.getElementById('mScaleRow').style.display      = voto ? '' : 'none';
+    document.getElementById('mBaseTargetRow').style.display = voto ? 'none' : '';
+    document.getElementById('mUnitGroup').style.display     = voto ? 'none' : '';
+
+    document.getElementById('mDescLabel').textContent = voto ? 'Come votare' : 'Cosa si misura';
+    document.getElementById('mDesc').placeholder = voto
+        ? 'es. 1 = non ho aperto bocca in tutto il giorno · 10 = ho sostenuto una conversazione senza cercare le parole'
+        : 'es. Mi registro mentre descrivo a voce per 3 minuti la mia giornata di ieri. Conto le pause sopra i 3 secondi.';
+    document.getElementById('mDescHint').textContent = voto
+        ? 'Che cosa vuol dire votare basso e che cosa votare alto. Ricompare a ogni voto: senza, fra un mese ti daresti un 7 con un metro diverso da oggi.'
+        : 'Come si misura, nel dettaglio. Ricompare a ogni rilevazione: se cambi metodo di misura la serie storica non vale più.';
+
+    renderMetricFormHints();
+}
+
+function renderMetricFormHints() {
+    const role = document.getElementById('mRole').value;
+    const kind = document.getElementById('mKind').value;
+
+    const roleHints = {
+        primary: 'Il vero obiettivo: alimenta la barra «risultato» e il semaforo. Una sola per obiettivo.',
+        control: 'Secondo riscontro sul risultato, tipicamente il test ripetibile. Si vede nel dettaglio ma non muove la barra.',
+        leading: 'Quanto ci lavori. La controlli tu, ti dà il riscontro settimanale — ma puoi lavorarci tanto e male.'
+    };
+    document.getElementById('roleHint').textContent = roleHints[role];
+
+    const kindHints = {
+        autovalutazione: 'Ti dai un voto dentro una scala che scegli tu. È ciò che rende misurabile un obiettivo senza numeri ovvi.',
+        automisurazione: 'Misuri un numero vero: kg, minuti, pause, lezioni fatte. Il traguardo è il valore obiettivo.'
+    };
+    document.getElementById('kindHint').textContent = kindHints[kind];
+}
+
+async function saveMetric() {
+    const name = document.getElementById('mName').value.trim();
+    const kind = document.getElementById('mKind').value;
+    if (!name) { showToast('Serve un nome'); return; }
+
+    const payload = {
+        objective_id: editingMetricObjId,
+        name,
+        role:        document.getElementById('mRole').value,
+        kind,
+        descrizione: document.getElementById('mDesc').value.trim()
+    };
+
+    // Ogni tipo compila le sue colonne e azzera quelle dell'altro: lasciarci
+    // dentro i valori del tipo di prima farebbe rifiutare il salvataggio dal
+    // vincolo, e a schermo sembrerebbe un errore senza causa.
+    if (kind === 'autovalutazione') {
+        const min = document.getElementById('mMin').value;
+        const max = document.getElementById('mMax').value;
+        if (min === '' || max === '')       { showToast('Servono minimo e massimo'); return; }
+        if (Number(max) <= Number(min))     { showToast('Il massimo deve essere maggiore del minimo'); return; }
+        Object.assign(payload, {
+            min_value: Number(min), max_value: Number(max),
+            baseline: null, target: null, unit: null
+        });
+    } else {
+        const base   = document.getElementById('mBaseline').value;
+        const target = document.getElementById('mTarget').value;
+        if (target === '')  { showToast('Serve un valore obiettivo'); return; }
+        if (Number(target) === Number(base)) { showToast('Il valore obiettivo deve essere diverso dalla partenza'); return; }
+        Object.assign(payload, {
+            baseline: Number(base || 0), target: Number(target),
+            min_value: null, max_value: null,
+            unit: document.getElementById('mUnit').value.trim()
+        });
+    }
+
+    // una sola primaria per obiettivo: intercettata qui per dare un messaggio
+    // comprensibile invece dell'errore del vincolo unico
+    if (payload.role === 'primary') {
+        const other = metricsOf(editingMetricObjId).find(x => x.role === 'primary' && x.id !== editingMetricId);
+        if (other) {
+            showToast('«' + other.name + '» è già la metrica primaria — usa Controllo o Leading');
+            return;
+        }
+    }
+
+    const res = editingMetricId
+        ? await sb.from('ob_metrics').update(payload).eq('id', editingMetricId)
+        : await sb.from('ob_metrics').insert(payload);
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    closeModal('metricModal');
+    showToast('✅ Metrica salvata');
+    await loadAll();
+    openDetail(editingMetricObjId);
+}
+
+async function deleteMetric() {
+    if (!editingMetricId) return;
+    const n = measuresOf(editingMetricId).length;
+    const ok = await customConfirm(n
+        ? `Elimino la metrica e le sue ${n} rilevazioni? La serie storica va persa.`
+        : 'Elimino la metrica?');
+    if (!ok) return;
+
+    const res = await sb.from('ob_metrics').delete().eq('id', editingMetricId);
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    closeModal('metricModal');
+    showToast('🗑 Metrica eliminata');
+    const objId = editingMetricObjId;
+    await loadAll();
+    openDetail(objId);
+}
+
+// ════════════════════════════════════════════════════════════
+// MILESTONE
+// ════════════════════════════════════════════════════════════
+function openMilestoneEditor(objId, msId) {
+    editingMsObjId = objId;
+    editingMsId    = msId;
+    const ms = msId ? milestones.find(m => m.id === msId) : null;
+
+    document.getElementById('msModalTitle').textContent = ms ? 'Modifica milestone' : 'Nuova milestone';
+    document.getElementById('msDeleteBtn').style.display = ms ? '' : 'none';
+    document.getElementById('msLabel').value    = ms?.label || '';
+    document.getElementById('msDue').value      = ms ? String(ms.due_date).slice(0,10) : todayISO();
+    document.getElementById('msExpected').value = ms?.expected_value ?? '';
+    document.getElementById('msStatus').value   = ms?.status || 'pending';
+
+    closeModal('detailModal');
+    openModal('msModal');
+}
+
+async function saveMilestone() {
+    const due = document.getElementById('msDue').value;
+    if (!due) { showToast('Serve una data'); return; }
+
+    const exp = document.getElementById('msExpected').value;
+    const payload = {
+        objective_id:   editingMsObjId,
+        label:          document.getElementById('msLabel').value.trim(),
+        due_date:       due,
+        expected_value: exp === '' ? null : Number(exp),
+        status:         document.getElementById('msStatus').value
+    };
+
+    const res = editingMsId
+        ? await sb.from('ob_milestones').update(payload).eq('id', editingMsId)
+        : await sb.from('ob_milestones').insert(payload);
+
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    closeModal('msModal');
+    showToast('✅ Milestone salvata');
+    await loadAll();
+}
+
+async function deleteMilestone() {
+    if (!editingMsId) return;
+    if (!await customConfirm('Elimino la milestone?')) return;
+    const res = await sb.from('ob_milestones').delete().eq('id', editingMsId);
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+    closeModal('msModal');
+    showToast('🗑 Milestone eliminata');
+    await loadAll();
+}
+
+// ════════════════════════════════════════════════════════════
+// ANDAMENTO — la statistica di un obiettivo
+//
+// Il Dettaglio dice **com'è definito** l'obiettivo; qui si vede **come sta
+// andando**: i numeri di testa, la curva di ogni metrica nel tempo e cosa ne è
+// stato delle azioni.
+//
+// I grafici sono SVG scritti a mano: questa pagina non carica nessuna libreria
+// di grafici, e per due spezzate e una barra non vale mezzo megabyte dal CDN.
+// È la stessa scelta delle miniature di Memo.
+// ════════════════════════════════════════════════════════════
+
+// I tre stati di un'azione conclusa. ⚠️ Sono colori di **stato**, non di
+// categoria: non si riusano per «la serie 4», e vanno sempre con l'etichetta
+// accanto — mai il colore da solo. Il verde è un passo più scuro di --success
+// perché a 2,5:1 sul bianco la barra non si distingueva; il giallo invece resta
+// quello della pagina: scurendolo collassa sul rosso (ΔE 12 contro 18).
+const C_OK   = '#00967A';
+const C_KO   = '#E74C3C';
+const C_SKIP = '#F39C12';
+const C_LINE = '#6C5CE7';   // la serie unica di una metrica
+
+function openTrend(objId) {
+    const obj = objectives.find(o => o.id === objId);
+    if (!obj) return;
+    document.getElementById('trendTitle').textContent = obj.title;
+    document.getElementById('trendBody').innerHTML = renderTrend(obj);
+    closeModal('detailModal');
+    openModal('trendModal');
+}
+
+function renderTrend(obj) {
+    const p     = progress[obj.id] || {};
+    const mets  = metricsOf(obj.id);
+    const acts  = actionsOf(obj.id);
+    const hist  = historyOf(obj.id);
+    const oggi  = todayISO();
+    const gg    = daysBetween(oggi, String(obj.due_date).slice(0, 10));
+
+    // ── i numeri di testa ────────────────────────────────────────────────
+    const punti   = hist.reduce((s, h) => s + (Number(h.points) || 0), 0);
+    const rilev   = mets.reduce((s, m) => s + measuresOf(m.id).length, 0);
+    const riuscite = acts.filter(a => azioneRiuscita(a.id)).length;
+
+    let html = `
+    <div class="kpi-row">
+        ${statTile('Risultato', p.has_result ? p.result + '%' : '—',
+                   mets.length ? (primaryOf(obj.id)?.name || '') : 'nessuna metrica')}
+        ${statTile('Esecuzione', p.has_execution ? p.execution + '%' : '—',
+                   (p.actions_done ?? 0) + '/' + (p.actions_total ?? 0) + ' azioni che finiscono')}
+        ${statTile('Punti', (punti > 0 ? '+' : '') + punti, 'dalle azioni chiuse')}
+        ${statTile('Giorni', gg >= 0 ? String(gg) : String(Math.abs(gg)),
+                   gg >= 0 ? 'alla scadenza' : 'oltre la scadenza')}
+    </div>`;
+
+    // ── una curva per metrica ────────────────────────────────────────────
+    html += `<div class="section-title">Le metriche nel tempo</div>`;
+    html += mets.length
+        ? mets.map(m => graficoMetrica(m)).join('')
+        : `<div class="form-hint">Nessuna metrica: non c'è niente da diagrammare.
+             Si aggiungono da Dettaglio → Metriche.</div>`;
+
+    // ── le azioni ────────────────────────────────────────────────────────
+    html += `<div class="section-title">Le azioni</div>`;
+    html += acts.length ? barraAzioni(acts, hist)
+        : `<div class="form-hint">Nessuna azione. Si aggiungono dalla pagina ✅ Azioni.</div>`;
+
+    if (rilev === 0 && mets.length) {
+        html += `<div class="form-hint" style="margin-top:1rem;">
+            Nessuna rilevazione ancora registrata: le curve compariranno da sé
+            man mano che chiudi le azioni collegate alle metriche.</div>`;
+    }
+    return html;
+}
+
+// Un'azione è riuscita se lo dice lo storico: `terminated` lo si diventa anche
+// fallendo, e contare le chiuse direbbe il contrario di quel che è successo.
+// È la stessa lettura che fa ob_objective_progress per la barra dell'esecuzione.
+function azioneRiuscita(actionId) {
+    return actionHistory.some(h => h.action_id === actionId
+        && (h.action === 'completed' || h.action === 'completed_late'));
+}
+
+function statTile(etichetta, valore, sotto) {
+    return `<div class="kpi">
+        <div class="kpi-label">${esc(etichetta)}</div>
+        <div class="kpi-value">${esc(String(valore))}</div>
+        <div class="kpi-sub">${esc(sotto || '')}</div>
+    </div>`;
+}
+
+// ── la curva di una metrica ───────────────────────────────────────────────
+//
+// Serie unica, quindi nessuna legenda: il titolo dice già cosa si sta guardando.
+// L'asse verticale è la **scala della metrica** (da → a), non il minimo e il
+// massimo osservati: così l'altezza della curva si legge come «quanto manca»,
+// e due rilevazioni vicine non sembrano un terremoto. Se un valore esce dalla
+// scala, l'asse si allarga per contenerlo invece di tagliarlo.
+function graficoMetrica(m) {
+    const righe = measuresOf(m.id).slice().sort((x, y) =>
+        String(x.measured_on).localeCompare(String(y.measured_on)));
+    const { da, a } = scaleOf(m);
+    const testa = `<div class="trend-metric-head">
+            <span class="trend-metric-name">${esc(m.name)}</span>
+            <span class="trend-metric-meta">${KIND_LABEL[m.kind]} · ${fmtNum(da)} → ${fmtNum(a)}${m.unit ? ' ' + esc(m.unit) : ''}</span>
+        </div>`;
+
+    if (!righe.length) {
+        return `<div class="trend-metric">${testa}
+            <div class="form-hint">Nessuna rilevazione.</div></div>`;
+    }
+    if (righe.length === 1) {
+        const r = righe[0];
+        return `<div class="trend-metric">${testa}
+            <div class="trend-single">${fmtNum(r.value)}
+                <span class="trend-single-date">il ${fmtDate(r.measured_on)}</span></div>
+            <div class="form-hint">Una sola rilevazione: per una curva ne servono almeno due.</div></div>`;
+    }
+
+    // geometria in unità di viewBox; gli spessori restano in pixel veri
+    // (vector-effect), così la linea è 2px sia sul telefono sia sul PC.
+    const W = 400, H = 160, ML = 38, MR = 14, MT = 12, MB = 26;
+    const x0 = ML, x1 = W - MR, y0 = MT, y1 = H - MB;
+
+    const val  = righe.map(r => Number(r.value));
+    const lo   = Math.min(da, a, ...val);
+    const hi   = Math.max(da, a, ...val);
+    const span = (hi - lo) || 1;
+
+    const t    = righe.map(r => new Date(r.measured_on + 'T00:00:00').getTime());
+    const tMin = t[0], tSpan = (t[t.length - 1] - tMin) || 1;
+
+    const px = i => x0 + ((t[i] - tMin) / tSpan) * (x1 - x0);
+    const py = v => y1 - ((v - lo) / span) * (y1 - y0);
+
+    const punti = val.map((v, i) => px(i).toFixed(1) + ',' + py(v).toFixed(1)).join(' ');
+    const area  = `${x0.toFixed(1)},${y1} ${punti} ${px(val.length - 1).toFixed(1)},${y1}`;
+
+    // ⚠️ La riga del traguardo si disegna SOLO se cade dentro il grafico.
+    // L'asse verticale è già la scala della metrica, quindi di norma il
+    // traguardo coincide col bordo: quella riga ripeterebbe l'etichetta
+    // dell'asse, sovrapponendocisi. Compare quando serve davvero — un valore
+    // che sfonda l'obiettivo o resta sotto la partenza.
+    const dentro  = a > lo && a < hi;
+    const yTarget = py(a);
+    const ultimo  = val[val.length - 1];
+
+    return `<div class="trend-metric">${testa}
+    <svg class="trend-svg" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="Andamento di ${esc(m.name)}: da ${fmtNum(val[0])} a ${fmtNum(ultimo)}">
+        <line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" class="trend-axis"/>
+        ${dentro ? `<line x1="${x0}" y1="${yTarget.toFixed(1)}" x2="${x1}" y2="${yTarget.toFixed(1)}" class="trend-target"/>
+        <text x="${x1}" y="${(yTarget - 4).toFixed(1)}" class="trend-tick" text-anchor="end">obiettivo ${fmtNum(a)}</text>` : ''}
+
+        <polygon points="${area}" fill="${C_LINE}" opacity="0.10"/>
+        <polyline points="${punti}" fill="none" stroke="${C_LINE}" stroke-width="2"
+                  stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+
+        ${val.map((v, i) => `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="4"
+             fill="${C_LINE}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke">
+             <title>${fmtDate(righe[i].measured_on)}: ${fmtNum(v)}${m.unit ? ' ' + esc(m.unit) : ''}</title>
+           </circle>`).join('')}
+
+        <text x="${x0 - 6}" y="${y0 + 4}" class="trend-tick" text-anchor="end">${fmtNum(hi)}</text>
+        <text x="${x0 - 6}" y="${y1}" class="trend-tick" text-anchor="end">${fmtNum(lo)}</text>
+        ${!dentro ? `<text x="${x1}" y="${(a === hi ? y0 + 4 : y1 - 5).toFixed(1)}"
+              class="trend-tick" text-anchor="end">obiettivo</text>` : ''}
+        <text x="${x0}" y="${H - 8}" class="trend-tick">${fmtDate(righe[0].measured_on)}</text>
+        <text x="${x1}" y="${H - 8}" class="trend-tick" text-anchor="end">${fmtDate(righe[righe.length - 1].measured_on)}</text>
+        <text x="${px(val.length - 1).toFixed(1)}" y="${(py(ultimo) - 9).toFixed(1)}"
+              class="trend-endlabel" text-anchor="end">${fmtNum(ultimo)}</text>
+    </svg>
+    <details class="trend-values">
+        <summary>i ${righe.length} valori</summary>
+        <div class="trend-scroll">
+        <table class="trend-table">
+            <thead><tr><th>Giorno</th><th>Valore</th><th>Nota</th></tr></thead>
+            <tbody>${righe.slice().reverse().map(r => `<tr>
+                <td>${fmtDate(r.measured_on)}</td>
+                <td class="num">${fmtNum(r.value)}</td>
+                <td>${esc(r.note || '')}</td></tr>`).join('')}</tbody>
+        </table>
+        </div>
+    </details>
+    </div>`;
+}
+
+// ── le azioni: quanto del piano è stato eseguito ─────────────────────────
+//
+// Una barra sola, parte-su-tutto: riuscite / non riuscite / ancora aperte.
+//
+// ⚠️ «Non riuscite» e non «fallite»: un'azione non si fallisce più — o la si fa,
+// o la si sposta — e quel che resta è chiusa senza esserci riusciti, che è
+// un'altra cosa. Il segmento compare solo se ce ne sono davvero: sulle azioni
+// nate dopo il ritiro del pulsante ci finisce solo una multipla arrivata in
+// fondo alle sue date senza essere mai completata. Le aperte
+// non sono una categoria ma il **fondo** della barra — quello che resta da fare
+// — e quindi non prendono un colore: sarebbero un grigio che il controllo della
+// palette scarta perché «legge come grigio», ed è giusto così.
+//
+// I segmenti sono separati da 2px di bianco, non da un bordo: il vuoto separa
+// senza aggiungere inchiostro che non è dato.
+function barraAzioni(acts, hist) {
+    const riuscite = acts.filter(a => azioneRiuscita(a.id));
+    const chiuse   = acts.filter(a => !actionIsAlive(a));
+    const fallite  = chiuse.filter(a => !azioneRiuscita(a.id));
+    const aperte   = acts.filter(a => actionIsAlive(a) && !azioneRiuscita(a.id));
+    const salti    = hist.filter(h => h.action === 'skipped').length;
+    const tot      = acts.length;
+
+    const seg = (n, colore) => n
+        ? `<div class="barra-seg" style="flex:${n};background:${colore}"></div>` : '';
+
+    const perTipo = Object.keys(TYPE_LABEL)
+        .map(t => ({ t, righe: acts.filter(a => a.type === t) }))
+        .filter(x => x.righe.length);
+
+    return `
+    <div class="barra-wrap">
+        <div class="barra">
+            ${seg(riuscite.length, C_OK)}
+            ${seg(fallite.length, C_KO)}
+            ${aperte.length ? `<div class="barra-seg barra-track" style="flex:${aperte.length}"></div>` : ''}
+        </div>
+        <div class="legenda">
+            <span class="leg"><i style="background:${C_OK}"></i>${riuscite.length} riuscite</span>
+            ${fallite.length ? `<span class="leg"><i style="background:${C_KO}"></i>${fallite.length} non riuscite</span>` : ''}
+            <span class="leg"><i class="leg-track"></i>${aperte.length} ancora aperte</span>
+            ${salti ? `<span class="leg"><i style="background:${C_SKIP}"></i>${salti} ${salti === 1 ? 'volta saltata' : 'volte saltate'}</span>` : ''}
+        </div>
+    </div>
+
+    <div class="trend-scroll" style="margin-top:0.75rem;">
+    <table class="trend-table">
+        <thead><tr><th>Tipo</th><th class="num">Totali</th><th class="num">Riuscite</th><th class="num">Aperte</th></tr></thead>
+        <tbody>
+            ${perTipo.map(({ t, righe }) => `<tr>
+                <td>${TYPE_LABEL[t]}</td>
+                <td class="num">${righe.length}</td>
+                <td class="num">${righe.filter(a => azioneRiuscita(a.id)).length}</td>
+                <td class="num">${righe.filter(a => actionIsAlive(a)).length}</td>
+            </tr>`).join('')}
+            <tr class="trend-tot">
+                <td>tutte</td><td class="num">${tot}</td>
+                <td class="num">${riuscite.length}</td>
+                <td class="num">${acts.filter(a => actionIsAlive(a)).length}</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// AZIONI — il «cosa faccio» dell'obiettivo
+//
+// Sono di quest'app, su tabelle proprie (ob_actions / ob_action_history), e non
+// un collegamento a un task che vive altrove: da qui si creano, si chiudono e
+// si vede come sono andate.
+//
+// ⚠️ Il ciclo di vita passa SOLO dalle RPC ob_action_complete / _skip / _fail,
+// esattamente come i task passano da task_complete / task_skip / task_fail. Qui
+// non si calcola nessuna prossima occorrenza: due implementazioni della stessa
+// ricorrenza sono due date diverse il giorno che una delle due cambia.
+// ════════════════════════════════════════════════════════════
+const TYPE_LABEL = {
+    single:           'singola',
+    recurring:        'ricorrente',
+    simple_recurring: 'ogni N giorni',
+    multiple:         'date multiple',
+    free_repeat:      'libera ripetizione',
+    workflow:         'workflow'
+};
+const TYPE_HINT = {
+    single:           'Si fa una volta e finisce. Con una scadenza, completandola dopo vale i punti «in ritardo».',
+    recurring:        'Torna secondo un calendario: ogni giorno, certi giorni della settimana o del mese, certe date dell\'anno.',
+    simple_recurring: 'Torna N giorni dopo l\'ultima volta che l\'hai chiusa, non a calendario fisso.',
+    multiple:         'Un elenco di date decise a mano. Ogni volta che la chiudi passa alla successiva.',
+    free_repeat:      'Si può rifare quando vuoi: non ha una prossima volta, quindi non si salta e non si fallisce.',
+    workflow:         'Più step con dipendenze: uno resta bloccato finché quelli da cui dipende non sono chiusi.'
+};
+const ACTION_LABEL = {
+    completed:      '✅ completata',
+    completed_late: '🐌 completata in ritardo',
+    skipped:        '⏭ saltata',
+    failed:         '❌ fallita',
+    terminated:     '🏁 conclusa'
+};
+const DOW_LABEL = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+
+// Quali pulsanti ha un tipo: si salta solo ciò che ha una prossima volta a cui
+// rimandare. ⚠️ Un'azione **non si fallisce**: o la si fa, o la si sposta. Il
+// fallimento chiudeva una singola per sempre con un malus, e l'unica cosa che
+// serviva davvero — «oggi no» — la fa già il salto.
+const PUO_SALTARE  = ['recurring', 'simple_recurring', 'multiple', 'single'];
+
+// Il giorno di un'istante, letto in ora locale: slice(0,10) darebbe il giorno
+// UTC, e un'azione della mezzanotte finirebbe nel giorno prima.
+function localDay(ts) {
+    if (!ts) return null;
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return String(ts).slice(0, 10);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+                           + '-' + String(d.getDate()).padStart(2, '0');
+}
+function localTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+// Data + ora locali → ISO con fuso: andata e ritorno restituiscono l'ora scritta.
+function localToISO(dateStr, timeStr) {
+    const [y, m, d] = String(dateStr).split('-').map(Number);
+    const [hh, mm]  = String(timeStr || '09:00').split(':').map(Number);
+    return new Date(y, m - 1, d, hh || 0, mm || 0, 0).toISOString();
+}
+
+// Quando cade un'azione: la prossima occorrenza, o la partenza se non ce l'ha.
+function actionDay(a) { return localDay(a.next_occurrence_date || a.start_date); }
+
+function actionIsAlive(a) { return a.status !== 'terminated'; }
+
+function categoryById(id) { return categories.find(c => c.id === id) || null; }
+function priorityById(id) { return priorities.find(p => p.id === id) || null; }
+
+// ── filtri ────────────────────────────────────────────────────────────────
+function fillActionFilters() {
+    const keep = (sel, html) => {
+        const el = document.getElementById(sel);
+        if (!el) return;
+        const cur = el.value;
+        el.innerHTML = html;
+        el.value = cur;
+    };
+    keep('fltObj', '<option value="">tutti</option>' +
+        objectives.map(o => `<option value="${o.id}">${esc(o.title)}</option>`).join(''));
+    keep('fltType', '<option value="">tutti</option>' +
+        Object.keys(TYPE_LABEL).map(t => `<option value="${t}">${TYPE_LABEL[t]}</option>`).join(''));
+    keep('fltPriority', '<option value="">tutte</option>' +
+        priorities.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join(''));
+    keep('fltCategory', '<option value="">tutte</option>' +
+        categories.map(c => `<option value="${c.id}">${esc((c.icon || '') + ' ' + c.name)}</option>`).join(''));
+    keep('fltMetric', '<option value="">tutte</option>' +
+        metrics.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join(''));
+}
+
+function filteredActions() {
+    const txt  = (document.getElementById('fltText')?.value || '').trim().toLowerCase();
+    const obj  = document.getElementById('fltObj')?.value || '';
+    const typ  = document.getElementById('fltType')?.value || '';
+    const pri  = document.getElementById('fltPriority')?.value || '';
+    const cat  = document.getElementById('fltCategory')?.value || '';
+    const met  = document.getElementById('fltMetric')?.value || '';
+    const stat = document.getElementById('fltStatus')?.value ?? 'vive';
+
+    return actions.filter(a => {
+        if (obj && a.objective_id !== obj) return false;
+        if (typ && a.type !== typ) return false;
+        if (pri && a.priority_id !== pri) return false;
+        if (cat && !(a.categories || []).includes(cat)) return false;
+        if (met && !actionMetrics.some(l => l.action_id === a.id && l.metric_id === met)) return false;
+        if (stat === 'vive' && !actionIsAlive(a)) return false;
+        if (stat === 'terminated' && actionIsAlive(a)) return false;
+        if (txt) {
+            const hay = ((a.title || '') + ' ' + (a.description || '')).toLowerCase();
+            if (!hay.includes(txt)) return false;
+        }
+        return true;
+    });
+}
+
+// ── PIANO QUOTIDIANO ──────────────────────────────────────────────────────
+//
+// La stessa materia della pagina ✅ Azioni, letta in un altro modo: lì si cerca
+// e si filtra, qui si scorre il calendario. Un giorno per riquadro, in ordine,
+// con quel che è rimasto indietro in cima — perché è quello che si fa per primo.
+//
+// ⚠️ Le azioni **concluse non ci sono**: un piano dice cosa resta da fare, e una
+// riga che non si può più toccare è memoria, non piano. Si guardano in
+// 📊 Andamento.
+function renderPianoPage() {
+    const host = document.getElementById('pianoList');
+    if (!host) return;
+
+    const vive = actions.filter(actionIsAlive);
+    if (!vive.length) {
+        host.innerHTML = `<div class="empty-state"><div class="empty-icon">📆</div>
+            <div class="empty-title">Niente in programma</div>
+            <div class="empty-desc">Un obiettivo senza azioni è un desiderio: aggiungi la prima cosa da fare.</div></div>`;
+        return;
+    }
+
+    const oggi   = todayISO();
+    const libere = vive.filter(a => a.type === 'free_repeat');
+    const datate = vive.filter(a => a.type !== 'free_repeat');
+
+    // un mucchietto per giorno, in ordine di data
+    const perGiorno = new Map();
+    datate.forEach(a => {
+        const g = actionDay(a) || oggi;
+        if (!perGiorno.has(g)) perGiorno.set(g, []);
+        perGiorno.get(g).push(a);
+    });
+    const giorni = [...perGiorno.keys()].sort();
+
+    const scadute = giorni.filter(g => g < oggi);
+    const futuri  = giorni.filter(g => g > oggi);
+    const diOggi  = perGiorno.get(oggi) || [];
+
+    // Le arretrate stanno insieme in un riquadro solo: sono «da recuperare»,
+    // non un'agenda di giorni passati da sfogliare.
+    const arretrate = scadute.flatMap(g => perGiorno.get(g))
+        .sort((x, y) => (actionDay(x) || '').localeCompare(actionDay(y) || ''));
+
+    let html = '';
+
+    if (arretrate.length) {
+        html += sezionePiano('⚠️ Rimaste indietro', arretrate, {
+            nota: 'la più vecchia è di ' + giorniFa(actionDay(arretrate[0]))
+        });
+    }
+    html += sezionePiano('🎯 Oggi · ' + fmtDate(oggi), diOggi, {
+        vuoto: 'Niente in programma per oggi.'
+    });
+    futuri.forEach(g => {
+        html += sezionePiano(etichettaGiorno(g), perGiorno.get(g), {});
+    });
+    if (libere.length) {
+        html += sezionePiano('🔄 Quando capita', libere, {
+            nota: 'senza data: si fanno quando si può'
+        });
+    }
+
+    host.innerHTML = html;
+}
+
+function sezionePiano(titolo, righe, opts) {
+    if (!righe.length && !opts.vuoto) return '';
+    return `
+    <div class="act-section">
+        <div class="act-section-head">
+            <span>${titolo}</span>
+            <span class="act-count">${righe.length}${opts.nota ? ' · ' + esc(opts.nota) : ''}</span>
+        </div>
+        ${righe.length
+            ? righe.map(a => renderActionCard(a, { showObjective: true })).join('')
+            : `<div class="form-hint">${esc(opts.vuoto)}</div>`}
+    </div>`;
+}
+
+// «domani» e «dopodomani» si leggono meglio di una data, ma solo per due giorni:
+// oltre, «fra 9 giorni» costringe a fare il conto e la data no.
+function etichettaGiorno(g) {
+    const d = daysBetween(todayISO(), g);
+    if (d === 1) return '📅 Domani · ' + fmtDate(g);
+    if (d === 2) return '📅 Dopodomani · ' + fmtDate(g);
+    return '📅 ' + fmtDate(g);
+}
+
+function giorniFa(g) {
+    const d = daysBetween(g, todayISO());
+    return d === 1 ? 'ieri' : d + ' giorni fa';
+}
+
+// ── elenco ────────────────────────────────────────────────────────────────
+function renderActionsPage() {
+    const host = document.getElementById('actionsList');
+    if (!host) return;
+    const rows = filteredActions();
+
+    if (!rows.length) {
+        host.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>
+            <div class="empty-title">Nessuna azione</div>
+            <div class="empty-desc">Un obiettivo senza azioni è un desiderio: aggiungi la prima cosa da fare.</div></div>`;
+        return;
+    }
+
+    const oggi = todayISO();
+    const gruppi = [
+        { key: 'scadute',  titolo: '⚠️ Scadute',            righe: [] },
+        { key: 'oggi',     titolo: '🎯 Oggi',                righe: [] },
+        { key: 'prossime', titolo: '📅 Prossime',            righe: [] },
+        { key: 'libere',   titolo: '🔄 A libera ripetizione', righe: [] },
+        { key: 'concluse', titolo: '🏁 Concluse',            righe: [] }
+    ];
+    const g = k => gruppi.find(x => x.key === k).righe;
+
+    rows.forEach(a => {
+        if (!actionIsAlive(a))          { g('concluse').push(a); return; }
+        if (a.type === 'free_repeat')   { g('libere').push(a);   return; }
+        const d = actionDay(a);
+        if (!d)         g('prossime').push(a);
+        else if (d < oggi) g('scadute').push(a);
+        else if (d === oggi) g('oggi').push(a);
+        else g('prossime').push(a);
+    });
+
+    // dentro ogni gruppo: prima quelle che cadono prima, senza data in fondo
+    gruppi.forEach(gr => gr.righe.sort((x, y) => {
+        const dx = actionDay(x) || '9999', dy = actionDay(y) || '9999';
+        return dx === dy ? (x.title || '').localeCompare(y.title || '') : dx.localeCompare(dy);
+    }));
+
+    host.innerHTML = gruppi.filter(gr => gr.righe.length).map(gr => `
+        <div class="act-section">
+            <div class="act-section-head">
+                <span>${gr.titolo}</span>
+                <span class="act-count">${gr.righe.length}</span>
+            </div>
+            ${gr.righe.map(a => renderActionCard(a, { showObjective: true, esecuzioni: true })).join('')}
+        </div>`).join('');
+}
+
+function renderActionCard(a, opts) {
+    const obj  = objectives.find(o => o.id === a.objective_id);
+    const pri  = priorityById(a.priority_id);
+    const cats = (a.categories || []).map(categoryById).filter(Boolean);
+    const mets = metricsOfAction(a.id);
+    const libera = a.type === 'free_repeat';
+    const day  = libera ? null : actionDay(a);
+    const ora  = libera ? '' : localTime(a.next_occurrence_date || a.start_date);
+    const late = day && day < todayISO() && actionIsAlive(a);
+    const colore = pri ? pri.color : (obj?.color || '#6C5CE7');
+
+    // Il workflow si chiude dai suoi step, non da un pulsante «Completa»:
+    // completandolo di forza si salterebbero gli step ancora aperti.
+    const isWf  = a.type === 'workflow';
+    const vivo  = actionIsAlive(a);
+    // ⚠️ «Esecuzioni» non segue `vivo` come gli altri due pulsanti: le volte già
+    // chiuse si guardano soprattutto su un'azione conclusa, che è proprio quella
+    // che di pulsanti non ne ha nessun altro.
+    const nEsec = opts.esecuzioni ? esecuzioniDi(a.id).length : 0;
+    const bottoni = opts.soloDefinizione ? '' : `
+        ${!vivo ? '' : (isWf
+            ? `<button class="btn btn-accent btn-small" onclick="openWorkflow('${a.id}')">Step</button>`
+            : `<button class="btn btn-success btn-small" onclick="completeAction('${a.id}')">Completa</button>`)}
+        ${vivo && PUO_SALTARE.includes(a.type) ? `<button class="btn btn-ghost btn-small" onclick="openSkip('${a.id}')">Salta</button>` : ''}
+        ${opts.esecuzioni ? `<button class="btn btn-ghost btn-small" onclick="openEsecuzioni('${a.id}')">Esecuzioni${nEsec ? ' · ' + nEsec : ''}</button>` : ''}`;
+
+    const stepInfo = isWf && Array.isArray(a.workflow_steps)
+        ? ` · ${a.workflow_steps.filter(x => x.status === 'completed' || x.status === 'failed').length}/${a.workflow_steps.length} step`
+        : '';
+
+    return `
+    <div class="act-card" style="border-left-color:${esc(colore)}">
+        <div class="act-body">
+            <div class="act-title" onclick="openActionEditor('${a.objective_id}','${a.id}')">${esc(a.title)}</div>
+            <div class="act-meta">
+                ${TYPE_LABEL[a.type] || esc(a.type)}${stepInfo}
+                ${day ? ' · <span class="' + (late ? 'act-late' : '') + '">' + fmtDate(day) + (ora ? ' ' + ora : '') + '</span>' : ''}
+                ${libera ? (a.last_completed_date ? ' · ultima: ' + fmtDate(localDay(a.last_completed_date)) : ' · mai fatta') : ''}
+                ${opts.showObjective && obj ? ' · ' + esc(obj.title) : ''}
+                ${vivo ? '' : ' · ' + (esitoDi(a.id) || 'conclusa')}
+            </div>
+            ${a.description ? `<div class="act-desc">${esc(a.description)}</div>` : ''}
+            ${(pri || cats.length || mets.length) ? `<div class="act-tags">
+                ${pri ? `<span class="act-tag" style="background:${esc(pri.color || '#6C5CE7')}">🎯 ${esc(pri.name)}</span>` : ''}
+                ${cats.map(c => `<span class="act-tag" style="background:${esc(c.color || '#6B7280')}">${esc((c.icon || '') + ' ' + c.name)}</span>`).join('')}
+                ${mets.map(m => `<span class="act-tag act-tag-metric">📈 ${esc(m.name)}</span>`).join('')}
+            </div>` : ''}
+        </div>
+        <div class="act-buttons">${bottoni}</div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// ESECUZIONI DI UN'AZIONE
+//
+// Le volte che l'azione è stata chiusa, con i punti che ciascuna ha fatto: sono
+// le righe di `ob_action_history` di quell'azione, che è l'unico posto dove è
+// scritto com'è andata.
+//
+// ⚠️ Cancellarne una **non riporta indietro l'azione**: la prossima occorrenza
+// l'ha spostata la RPC quando la riga è nata, e rifarne il conto all'indietro
+// vorrebbe dire riapplicare in ordine tutta la storia. La riga se ne va con i
+// suoi punti — e con essi la barra dell'esecuzione, che li rilegge — l'azione
+// resta dov'è. È la stessa scelta della cancellazione di un giro in SOS.
+// ════════════════════════════════════════════════════════════
+let esecAzione = null;
+
+// ⚠️ Le righe `terminated` NON sono esecuzioni e restano fuori, come in
+// `esitoDi()`: chiudendo una singola la RPC ne scrive due nello stesso istante
+// — l'esito («completata», con i suoi punti) e la chiusura («conclusa», sempre a
+// zero punti, che nessun conto guarda) — e mostrarle tutt'e due farebbe sembrare
+// chiusa due volte un'azione chiusa una volta sola.
+//
+// Già in ordine dal più recente: `loadAll` legge lo storico con
+// `.order('timestamp', { ascending: false })`.
+function esecuzioniDi(actionId) {
+    return actionHistory.filter(h => h.action_id === actionId && h.action !== 'terminated');
+}
+
+// La riga di chiusura scritta insieme a questa esecuzione: stessa azione, stesso
+// istante (nella RPC i due INSERT stanno nella stessa transazione, quindi `now()`
+// è identico). Va via con lei, o resterebbe una riga che non si vede da nessuna
+// parte e che nessuno può più togliere.
+function chiusuraGemella(h) {
+    return actionHistory.filter(x => x.action === 'terminated'
+                                  && x.action_id === h.action_id
+                                  && x.timestamp === h.timestamp);
+}
+
+function openEsecuzioni(actionId) {
+    esecAzione = actionId;
+    const a = actions.find(x => x.id === actionId);
+    document.getElementById('execTitle').textContent = a ? a.title : 'Esecuzioni';
+    renderEsecuzioni();
+    openModal('execModal');
+}
+
+// Quanto l'esecuzione si scosta dal giorno programmato. È la ragione per cui le
+// due date stanno una accanto all'altra: l'etichetta dice «in ritardo» soltanto
+// per una `single` con scadenza (`completed_late`), quindi su una ricorrente
+// chiusa tre settimane dopo il ritardo non si vedeva da nessuna parte.
+// Torna stringa vuota quando le due date coincidono o quando il giorno
+// programmato non c'è: un trattino l'ha già detto.
+function scartoEsecuzione(prog, fatt) {
+    if (!prog || !fatt) return '';
+    const gg = daysBetween(prog, fatt);
+    if (!gg) return '';
+    return gg > 0
+        ? ` <span class="exec-gap">· ${gg} gg dopo</span>`
+        : ` · ${-gg} gg prima`;
+}
+
+function renderEsecuzioni() {
+    const host = document.getElementById('execBody');
+    if (!host) return;
+    const righe = esecuzioniDi(esecAzione);
+
+    if (!righe.length) {
+        host.innerHTML = `<div class="form-hint">Nessuna esecuzione: questa azione
+            non è ancora stata chiusa nemmeno una volta.</div>`;
+        return;
+    }
+
+    const tot = righe.reduce((s, h) => s + (h.points || 0), 0);
+    host.innerHTML = righe.map(h => {
+        const pt   = h.points || 0;
+        const prog = h.occurrence_date ? String(h.occurrence_date).slice(0, 10) : null;
+        const fatt = localDay(h.timestamp);
+        return `
+        <div class="exec-row">
+            <button class="btn btn-danger btn-small exec-del" title="Cancella questa esecuzione"
+                    onclick="cancellaEsecuzione('${h.id}')">🗑</button>
+            <div class="exec-body">
+                <div class="exec-head">
+                    <span class="exec-what">${esc(ACTION_LABEL[h.action] || h.action)}</span>
+                    <span class="exec-pts ${pt > 0 ? 'pos' : pt < 0 ? 'neg' : ''}">${pt > 0 ? '+' : ''}${pt} pt</span>
+                </div>
+                <div class="exec-dates">
+                    <span><span class="exec-lab">programmata</span> ${prog ? fmtDate(prog) : '—'}</span>
+                    <span><span class="exec-lab">eseguita</span> ${fmtDate(fatt)} · ${localTime(h.timestamp)}${scartoEsecuzione(prog, fatt)}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('')
+    + `<div class="form-hint" style="margin-top:0.7rem;">
+         ${righe.length} ${righe.length === 1 ? 'esecuzione' : 'esecuzioni'} ·
+         ${tot > 0 ? '+' : ''}${tot} pt in tutto</div>`;
+}
+
+async function cancellaEsecuzione(histId) {
+    const h = actionHistory.find(x => x.id === histId);
+    if (!h) return;
+    const pt = h.points || 0;
+
+    const ok = await customConfirm(
+        'Cancello «' + (ACTION_LABEL[h.action] || h.action) + '» del '
+        + fmtDate(localDay(h.timestamp)) + '?\n\n'
+        + (pt ? 'Se ne vanno anche i suoi ' + (pt > 0 ? '+' : '') + pt
+                + ' pt, e la barra dell\'esecuzione si rifà senza questa volta.\n\n'
+              : 'La barra dell\'esecuzione si rifà senza questa volta.\n\n')
+        + 'L\'azione resta dov\'è: la prossima occorrenza non torna indietro.');
+    if (!ok) return;
+
+    // Il filtro su user_id è ridondante rispetto alla RLS ed è voluto, come in
+    // ogni DELETE di questa pagina.
+    const ids = [histId, ...chiusuraGemella(h).map(x => x.id)];
+    const { error } = await sb.from('ob_action_history')
+        .delete().in('id', ids).eq('user_id', h.user_id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+
+    showToast('🗑 Esecuzione cancellata');
+    await loadAll();
+    // Il popup resta aperto sull'elenco rifatto: chi ne cancella una spesso ne
+    // cancella due, e richiuderlo ogni volta vorrebbe dire riaprirlo ogni volta.
+    if (document.getElementById('execModal').classList.contains('active')) renderEsecuzioni();
+}
+
+// Com'è finita: lo dice lo storico, che è il posto dove è scritto. Lo status
+// dice solo che è chiusa — `terminated` lo diventa anche fallendo.
+function esitoDi(actionId) {
+    const righe = actionHistory.filter(h => h.action_id === actionId
+                                         && h.action !== 'terminated');
+    if (!righe.length) return null;
+    return ACTION_LABEL[righe[0].action] || righe[0].action;
+}
+
+// ── ciclo di vita: tutto delegato alle RPC ────────────────────────────────
+async function runActionRpc(fn, args, verbo) {
+    const { data, error } = await sb.rpc(fn, args);
+    if (error)     { if (handleAuthError(error)) return null; showToast('❌ ' + error.message); return null; }
+    if (!data?.ok) { showToast('❌ ' + (data?.error || 'errore sconosciuto')); return null; }
+    const pt = data.points;
+    showToast(verbo + (pt !== undefined && pt !== null ? ' · ' + (pt > 0 ? '+' : '') + pt + ' pt' : ''));
+    await loadAll();
+    return data;
+}
+
+async function completeAction(id) {
+    // ⚠️ L'occorrenza si legge PRIMA di chiamare la RPC: subito dopo, la riga è
+    // già stata spostata sulla volta successiva e `next_occurrence_date` non è
+    // più quella che si sta chiudendo.
+    const occorrenza = occorrenzaDi(actions.find(x => x.id === id));
+
+    const esito = await runActionRpc('ob_action_complete',
+        { p_action_id: id, p_today: todayISO() }, '✅ Completata');
+    // Solo se è andata bene davvero: un'azione fallita o saltata non è il
+    // momento di chiedere un numero.
+    if (esito && (esito.action === 'completed' || esito.action === 'completed_late')) {
+        chiediRilevazioni(id, occorrenza);
+    }
+}
+
+// Il giorno a cui l'occorrenza che si sta chiudendo appartiene. Un'azione a
+// libera ripetizione non ne ha una — si fa quando capita — e allora vale oggi.
+function occorrenzaDi(a) {
+    return a && a.next_occurrence_date ? localDay(a.next_occurrence_date) : todayISO();
+}
+
+// ⚠️ Il popup si apre **dopo** che la RPC ha chiuso l'azione, non prima: il
+// ciclo di vita non deve dipendere dal fatto che uno si ricordi il numero. Se
+// lo si chiude senza registrare niente, l'azione resta completata lo stesso.
+function chiediRilevazioni(actionId, occorrenza) {
+    const a    = actions.find(x => x.id === actionId);
+    const mets = metricsOfAction(actionId);
+    if (!a || !mets.length) return;          // niente metriche, niente da chiedere
+
+    misurandoAzione = actionId;
+    // ⚠️ La data non si sceglie ed è la **data di occorrenza**, non il giorno
+    // del clic: la rilevazione appartiene alla volta che si sta chiudendo. Su
+    // un'azione scaduta le due cose sono diverse, e datarle tutte a oggi
+    // vorrebbe dire che due occorrenze arretrate chiuse nello stesso pomeriggio
+    // si sovrascrivono a vicenda — l'unicità è (metric_id, measured_on).
+    misurandoGiorno = occorrenza || occorrenzaDi(a) || todayISO();
+    document.getElementById('measMultiTitle').textContent = a.title;
+    document.getElementById('measMultiDate').textContent = fmtDate(misurandoGiorno);
+    document.getElementById('measMultiNote').value = '';
+
+    document.getElementById('measMultiBody').innerHTML = mets.map(m => {
+        const { da, a: fine } = scaleOf(m);
+        const ultima = measuresOf(m.id).slice(-1)[0];
+        const voto   = m.kind === 'autovalutazione';
+        const val    = ultima ? Number(ultima.value)
+                              : (voto ? Math.round((da + fine) / 2) : '');
+        return `
+        <div class="meas-multi" data-metric="${m.id}">
+            <div class="meas-multi-head">
+                <span class="meas-multi-name">${esc(m.name)}</span>
+                <span class="chip meas-skip" onclick="toggleSaltaMetrica(this)">non adesso</span>
+            </div>
+            ${m.descrizione ? `<div class="desc-box" style="margin:0.3rem 0 0.5rem;">
+                <span class="desc-label">${voto ? 'Come votare' : 'Cosa si misura'}</span>${esc(m.descrizione)}</div>` : ''}
+            ${voto
+                ? `<input type="range" min="${da}" max="${fine}" step="1" value="${val}"
+                          class="meas-input" oninput="this.closest('.meas-multi').querySelector('.meas-multi-val').textContent = this.value;">
+                   <div class="vote-scale"><span>${fmtNum(da)}</span>
+                        <span class="meas-multi-val">${val}</span><span>${fmtNum(fine)}</span></div>`
+                : `<input type="number" step="any" class="form-input meas-input" value="${val}"
+                          placeholder="${fmtNum(da)} → ${fmtNum(fine)}${m.unit ? ' ' + esc(m.unit) : ''}">
+                   <div class="form-hint">Da ${fmtNum(da)} a ${fmtNum(fine)}${m.unit ? ' ' + esc(m.unit) : ''}.</div>`}
+        </div>`;
+    }).join('');
+
+    openModal('measMultiModal');
+}
+
+function toggleSaltaMetrica(el) {
+    const riga = el.closest('.meas-multi');
+    riga.classList.toggle('saltata');
+    el.classList.toggle('on');
+    riga.querySelector('.meas-input').disabled = riga.classList.contains('saltata');
+}
+
+// Ogni metrica passa da ob_record_measurement, una chiamata per metrica: è
+// l'unico punto di scrittura di una rilevazione, ed è lei a rifiutare un voto
+// fuori scala. Le righe lasciate su «non adesso» non si toccano affatto.
+async function salvaRilevazioniAzione() {
+    const giorno = misurandoGiorno || todayISO();
+    const nota   = document.getElementById('measMultiNote').value.trim();
+    const righe  = [...document.querySelectorAll('#measMultiBody .meas-multi:not(.saltata)')];
+
+    if (!righe.length) { closeModal('measMultiModal'); return; }
+
+    const errori = [];
+    let fatte = 0;
+    for (const riga of righe) {
+        const valore = riga.querySelector('.meas-input').value;
+        const nome   = riga.querySelector('.meas-multi-name').textContent;
+        if (valore === '') { errori.push(nome + ': valore mancante'); continue; }
+        const { data, error } = await sb.rpc('ob_record_measurement', {
+            p_metric_id:   riga.dataset.metric,
+            p_value:       Number(valore),
+            p_measured_on: giorno,
+            p_note:        nota
+        });
+        if (error)     { if (handleAuthError(error)) return; errori.push(nome + ': ' + error.message); }
+        else if (!data?.ok) errori.push(nome + ': ' + (data?.error || 'errore'));
+        else fatte++;
+    }
+
+    // Un errore su una metrica non deve buttare via le altre già registrate:
+    // la finestra resta aperta e dice quali non sono passate.
+    if (errori.length) { showToast('❌ ' + errori.join(' · '), 5000); }
+    else { closeModal('measMultiModal'); showToast('📈 ' + fatte + (fatte === 1 ? ' rilevazione registrata' : ' rilevazioni registrate')); }
+    await loadAll();
+}
+
+// Il salto: p_days conta solo per le singole. Per gli altri tipi la prossima
+// occorrenza è quella che il tipo stesso prevede — spostarla di N giorni
+// sfaserebbe la ricorrenza per sempre — e la finestra lo dice.
+function openSkip(id) {
+    const a = actions.find(x => x.id === id);
+    if (!a) return;
+    skippingActionId = id;
+    document.getElementById('skipDays').value = 1;
+    document.getElementById('skipDays').disabled = a.type !== 'single';
+    document.getElementById('skipHint').textContent = a.type === 'single'
+        ? 'La sposto in avanti di questi giorni.'
+        : 'Questo tipo va alla sua prossima occorrenza: il numero di giorni non si applica.';
+    openModal('skipModal');
+}
+
+async function confirmSkip() {
+    const days = parseInt(document.getElementById('skipDays').value) || 1;
+    const id = skippingActionId;
+    closeModal('skipModal');
+    await runActionRpc('ob_action_skip', { p_action_id: id, p_days: days }, '⏭ Saltata');
+}
+
+// ── workflow: gli step ────────────────────────────────────────────────────
+function openWorkflow(id) {
+    const a = actions.find(x => x.id === id);
+    if (!a) return;
+    wfActionId = id;
+    document.getElementById('wfModalTitle').textContent = a.title;
+
+    const steps = Array.isArray(a.workflow_steps) ? a.workflow_steps : [];
+    const segno = { completed: '✅', failed: '❌', active: '▶️', locked: '🔒' };
+
+    document.getElementById('wfBody').innerHTML = steps.length
+        ? steps.map(st => {
+            const deps = (st.depends_on || []).map(d => steps.find(x => x.id === d)?.title).filter(Boolean);
+            return `<div class="wf-step">
+                <span class="wf-state">${segno[st.status] || '•'}</span>
+                <span class="wf-name">${esc(st.title)}
+                    ${deps.length ? `<div class="wf-dep">dopo: ${esc(deps.join(', '))}</div>` : ''}</span>
+                ${st.status === 'active' ? `
+                    <button class="btn btn-success btn-small" onclick="completeStep(${st.id})">Fatto</button>
+                    <button class="btn btn-ghost btn-small" onclick="failStep(${st.id})">Fallito</button>` : ''}
+            </div>`;
+          }).join('')
+        : `<div class="form-hint">Questo workflow non ha step.</div>`;
+
+    closeModal('detailModal');
+    openModal('wfModal');
+}
+
+// Uno step chiuso sblocca chi dipendeva da lui — anche se è fallito: un
+// fallimento è un esito, non un'attesa, e il workflow deve poter proseguire.
+function wfUnlockSuccessors(steps, quando) {
+    steps.forEach(st => {
+        if (st.status === 'locked' && (st.depends_on || []).length) {
+            const pronti = st.depends_on.every(id => {
+                const dep = steps.find(d => d.id === id);
+                return dep && (dep.status === 'completed' || dep.status === 'failed');
+            });
+            if (pronti) { st.status = 'active'; st.start_date = quando; }
+        }
+    });
+}
+
+async function chiudiStep(stepId, esito) {
+    const a = actions.find(x => x.id === wfActionId);
+    if (!a || !Array.isArray(a.workflow_steps)) return;
+
+    const steps = JSON.parse(JSON.stringify(a.workflow_steps));
+    const st = steps.find(x => x.id === stepId);
+    if (!st || st.status !== 'active') return;
+
+    const ora = new Date().toISOString();
+    const pts = a.workflow_points || {};
+    const punti = esito === 'completed'
+        ? (pts.step_success ?? 5)
+        : (pts.step_failure ?? -3);
+
+    st.status = esito;
+    st.completed_at = ora;
+    wfUnlockSuccessors(steps, ora);
+
+    // Lo storico dello step si scrive da qui: le RPC governano il ciclo di vita
+    // dell'azione, non il dentro di un workflow.
+    const h = await sb.from('ob_action_history').insert({
+        action_id: a.id, objective_id: a.objective_id, action_title: a.title + ' › ' + st.title,
+        from_status: 'active', to_status: esito, action: esito, points: punti
+    });
+    if (h.error) { showToast('❌ ' + h.error.message); return; }
+
+    const up = await sb.from('ob_actions').update({ workflow_steps: steps }).eq('id', a.id);
+    if (up.error) { showToast('❌ ' + up.error.message); return; }
+
+    // Poi si chiede alla RPC se il workflow è finito: la decisione resta sua.
+    const occorrenza = occorrenzaDi(a);   // prima che la RPC la sposti
+    const { data } = await sb.rpc('ob_action_complete', { p_action_id: a.id, p_today: todayISO() });
+    await loadAll();
+
+    if (data?.action === 'completed') {
+        closeModal('wfModal');
+        showToast('🎉 Workflow concluso · ' + (data.points > 0 ? '+' : '') + data.points + ' pt');
+        chiediRilevazioni(a.id, occorrenza);
+    } else {
+        showToast((esito === 'completed' ? '✅ ' : '❌ ') + st.title + ' · ' + (punti > 0 ? '+' : '') + punti + ' pt');
+        openWorkflow(a.id);
+    }
+}
+
+function completeStep(stepId) { chiudiStep(stepId, 'completed'); }
+function failStep(stepId)     { chiudiStep(stepId, 'failed'); }
+
+// ── editor ────────────────────────────────────────────────────────────────
+function openActionEditor(objId, actionId) {
+    const a = actionId ? actions.find(x => x.id === actionId) : null;
+    editingActionId    = actionId;
+    editingActionObjId = objId || a?.objective_id || (objectives[0]?.id ?? null);
+
+    if (!objectives.length) { showToast('Prima serve un obiettivo'); return; }
+
+    document.getElementById('actionModalTitle').textContent = a ? 'Modifica azione' : 'Nuova azione';
+    document.getElementById('aDeleteBtn').style.display = a ? '' : 'none';
+
+    document.getElementById('aObjective').innerHTML =
+        objectives.map(o => `<option value="${o.id}">${esc(o.title)}</option>`).join('');
+    document.getElementById('aObjective').value = editingActionObjId;
+
+    // Il tipo di un'azione che esiste già non si cambia: decide quali colonne
+    // quell'azione ha, e cambiandolo resterebbero dietro quelle del tipo di
+    // prima — le date multiple su una ricorrente — che nessuno ripulisce.
+    const tipoSel = document.getElementById('aType');
+    tipoSel.innerHTML = Object.keys(TYPE_LABEL)
+        .map(t => `<option value="${t}">${TYPE_LABEL[t]}</option>`).join('');
+    tipoSel.value = a?.type || 'single';
+    tipoSel.disabled = !!a;
+
+    document.getElementById('aPriority').innerHTML = '<option value="">nessuna</option>' +
+        priorities.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+
+    document.getElementById('aTitle').value  = a?.title || '';
+    document.getElementById('aDesc').value   = a?.description || '';
+    document.getElementById('aStatus').value = a?.status || 'started';
+    document.getElementById('aPriority').value = a?.priority_id || '';
+
+    const quando = a?.start_date || null;
+    document.getElementById('aStartDate').value = quando ? localDay(quando) : todayISO();
+    document.getElementById('aStartTime').value = quando ? localTime(quando) : '09:00';
+    document.getElementById('aDeadline').value  = a?.deadline ? String(a.deadline).slice(0, 10) : '';
+
+    document.getElementById('aRepeatDays').value = a?.repeat_after_days ?? 7;
+    document.getElementById('aFreq').value       = a?.recurring_frequency || 'daily';
+    document.getElementById('aInterval').value   = a?.recurring_interval ?? 1;
+
+    document.getElementById('aPtSuccess').value = a?.success_points ?? 10;
+    document.getElementById('aPtSkip').value    = a?.skip_points ?? -2;
+    document.getElementById('aPtLate').value    = a?.late_points ?? -2;
+    const wfp = a?.workflow_points || {};
+    document.getElementById('aPtStepOk').value = wfp.step_success ?? 5;
+    document.getElementById('aPtStepKo').value = wfp.step_failure ?? -3;
+
+    actCategories = [...(a?.categories || [])];
+    actMetrics    = a ? metricsOfAction(a.id).map(m => m.id) : [];
+    yearlyDates   = [...(a?.recurring_dates || [])];
+    multiDates    = [...(a?.multiple_dates || [])];
+    wfSteps       = a?.workflow_steps ? JSON.parse(JSON.stringify(a.workflow_steps)) : [];
+
+    renderCategoryChips();
+    renderMetricChips();
+    renderDowChips(a?.recurring_days_of_week || []);
+    renderDomChips(a?.recurring_day_of_month || []);
+    renderYearlyDates();
+    renderMultiDates();
+    renderStepEditor();
+
+    onActionTypeChange();
+    closeModal('detailModal');
+    openModal('actionModal');
+}
+
+function onActionTypeChange() {
+    const t = document.getElementById('aType').value;
+    const mostra = (id, si) => { const el = document.getElementById(id); if (el) el.style.display = si ? '' : 'none'; };
+
+    mostra('aWhenRow',       t !== 'free_repeat');
+    mostra('aDeadlineGroup', t === 'single');
+    mostra('aRepeatGroup',   t === 'simple_recurring');
+    mostra('aRecurringGroup', t === 'recurring');
+    mostra('aMultiGroup',    t === 'multiple');
+    mostra('aWorkflowGroup', t === 'workflow');
+    mostra('aPtLateGroup',   t === 'single');
+    mostra('aWfPointsRow',   t === 'workflow');
+    // Una libera ripetizione non si salta: quei punti non verrebbero assegnati
+    // mai, e un campo che non fa niente è peggio che assente.
+    mostra('aPointsRow',     true);
+    document.getElementById('aPtSkip').parentElement.style.display    = PUO_SALTARE.includes(t) ? '' : 'none';
+
+    document.getElementById('aTypeHint').textContent = TYPE_HINT[t] || '';
+    if (t === 'recurring') onActionFreqChange();
+}
+
+function onActionFreqChange() {
+    const f = document.getElementById('aFreq').value;
+    const mostra = (id, si) => { document.getElementById(id).style.display = si ? '' : 'none'; };
+    mostra('aDowGroup',   f === 'weekly');
+    mostra('aDomGroup',   f === 'monthly');
+    mostra('aDatesGroup', f === 'yearly');
+    document.getElementById('aIntervalHint').textContent =
+        { daily: 'giorni', weekly: 'settimane', monthly: 'mesi', yearly: 'anni' }[f];
+}
+
+// ⚠️ I giorni della settimana si mostrano da lunedì ma si salvano con la
+// numerazione di extract(dow) di Postgres (0 = domenica), che è quella che
+// ob_action_next_recurring_date confronta. Toccando una delle due parti senza
+// l'altra le ricorrenze scatterebbero il giorno sbagliato, senza nessun errore.
+function renderDowChips(scelti) {
+    const ordine = [1, 2, 3, 4, 5, 6, 0];   // lun → dom, valori dow
+    document.getElementById('aDow').innerHTML = ordine.map(d =>
+        `<span class="chip ${scelti.map(Number).includes(d) ? 'on' : ''}" data-dow="${d}"
+               onclick="this.classList.toggle('on')">${DOW_LABEL[d]}</span>`).join('');
+}
+function renderDomChips(scelti) {
+    let html = '';
+    for (let d = 1; d <= 31; d++) {
+        html += `<span class="chip ${scelti.map(Number).includes(d) ? 'on' : ''}" data-dom="${d}"
+                       onclick="this.classList.toggle('on')">${d}</span>`;
+    }
+    document.getElementById('aDom').innerHTML = html;
+}
+function renderCategoryChips() {
+    document.getElementById('aCategories').innerHTML = categories.length
+        ? categories.map(c => `<span class="chip ${actCategories.includes(c.id) ? 'on' : ''}"
+              onclick="toggleActCategory('${c.id}', this)">${esc((c.icon || '') + ' ' + c.name)}</span>`).join('')
+        : '<div class="form-hint">Nessuna categoria: si creano da AppSphere → Dati Comuni.</div>';
+}
+function toggleActCategory(id, el) {
+    const i = actCategories.indexOf(id);
+    if (i >= 0) actCategories.splice(i, 1); else actCategories.push(id);
+    el.classList.toggle('on');
+}
+
+// Si offrono le metriche del **solo** obiettivo scelto: una metrica di un altro
+// obiettivo non direbbe niente di questo, e il trigger a livello di database la
+// toglierebbe comunque.
+function renderMetricChips() {
+    const objId = document.getElementById('aObjective').value;
+    const mets  = metricsOf(objId);
+    document.getElementById('aMetrics').innerHTML = mets.length
+        ? mets.map(m => `<span class="chip ${actMetrics.includes(m.id) ? 'on' : ''}"
+              onclick="toggleActMetric('${m.id}', this)">${esc(m.name)}</span>`).join('')
+        : '<div class="form-hint">Questo obiettivo non ha ancora metriche.</div>';
+}
+function toggleActMetric(id, el) {
+    const i = actMetrics.indexOf(id);
+    if (i >= 0) actMetrics.splice(i, 1); else actMetrics.push(id);
+    el.classList.toggle('on');
+}
+
+// Cambiando obiettivo i collegamenti di prima parlano di metriche che con
+// l'obiettivo nuovo non c'entrano: si buttano qui, come li butterebbe il
+// trigger `trg_ob_action_metrics_pulisci` un livello sotto.
+function onActionObjectiveChange() {
+    const validi = metricsOf(document.getElementById('aObjective').value).map(m => m.id);
+    actMetrics = actMetrics.filter(id => validi.includes(id));
+    renderMetricChips();
+}
+
+function addYearlyDate() {
+    const v = document.getElementById('aYearDate').value;
+    if (!v) return;
+    const [, m, d] = v.split('-');
+    const chiave = d + '-' + m;                 // 'DD-MM', come vuole la RPC
+    if (!yearlyDates.includes(chiave)) yearlyDates.push(chiave);
+    yearlyDates.sort((x, y) => x.split('-').reverse().join().localeCompare(y.split('-').reverse().join()));
+    document.getElementById('aYearDate').value = '';
+    renderYearlyDates();
+}
+function renderYearlyDates() {
+    document.getElementById('aDatesList').innerHTML = yearlyDates.length
+        ? yearlyDates.map((v, i) => `<span class="chip on" onclick="removeYearlyDate(${i})">${esc(v.replace('-', '/'))}<span class="chip-x">✕</span></span>`).join('')
+        : '<div class="form-hint">Nessuna data.</div>';
+}
+function removeYearlyDate(i) { yearlyDates.splice(i, 1); renderYearlyDates(); }
+
+function addMultipleDate() {
+    const v = document.getElementById('aMultiDate').value;
+    if (!v) return;
+    if (!multiDates.includes(v)) multiDates.push(v);
+    multiDates.sort();
+    document.getElementById('aMultiDate').value = '';
+    renderMultiDates();
+}
+function renderMultiDates() {
+    document.getElementById('aMultiList').innerHTML = multiDates.length
+        ? multiDates.map((v, i) => `<span class="chip on" onclick="removeMultiDate(${i})">${fmtDate(v)}<span class="chip-x">✕</span></span>`).join('')
+        : '<div class="form-hint">Nessuna data.</div>';
+}
+function removeMultiDate(i) { multiDates.splice(i, 1); renderMultiDates(); }
+
+// ── step del workflow, nell'editor ────────────────────────────────────────
+function wfAddStepRow() {
+    // L'id è progressivo e non si riusa: le dipendenze lo citano, e riciclarlo
+    // farebbe puntare uno step a un altro che non è quello di prima.
+    const nuovo = wfSteps.reduce((m, s) => Math.max(m, s.id), 0) + 1;
+    wfSteps.push({ id: nuovo, title: '', depends_on: [], status: 'active' });
+    renderStepEditor();
+}
+function wfRemoveStep(id) {
+    wfSteps = wfSteps.filter(s => s.id !== id);
+    wfSteps.forEach(s => { s.depends_on = (s.depends_on || []).filter(d => d !== id); });
+    renderStepEditor();
+}
+// ⚠️ Scrivendo il nome di uno step si aggiornano le pillole che lo citano come
+// dipendenza, ma **senza ridisegnare l'elenco**: il ridisegno sostituisce i
+// campi di testo, e chi sta scrivendo si vede sparire il cursore da sotto le
+// dita — quel che si stava battendo finisce in un campo che non esiste più.
+function wfSetStepTitle(id, val) {
+    const s = wfSteps.find(x => x.id === id);
+    if (!s) return;
+    s.title = val;
+    document.querySelectorAll(`#wfStepList .chip[data-dep="${id}"]`)
+            .forEach(c => { c.textContent = val.trim() || ('step ' + id); });
+}
+function wfToggleDep(id, depId, el) {
+    const s = wfSteps.find(x => x.id === id);
+    if (!s) return;
+    s.depends_on = s.depends_on || [];
+    const i = s.depends_on.indexOf(depId);
+    if (i >= 0) s.depends_on.splice(i, 1); else s.depends_on.push(depId);
+    // Senza dipendenze parte subito; con dipendenze aspetta.
+    s.status = s.depends_on.length ? 'locked' : 'active';
+    el.classList.toggle('on');
+}
+function renderStepEditor() {
+    const host = document.getElementById('wfStepList');
+    if (!host) return;
+    host.innerHTML = wfSteps.map((s, idx) => {
+        const prima = wfSteps.filter(x => x.id !== s.id);
+        return `
+        <div class="wf-editor-row">
+            <input type="text" class="form-input" placeholder="es. Studiare la grammatica"
+                   value="${esc(s.title)}" oninput="wfSetStepTitle(${s.id}, this.value)">
+            <button class="btn btn-ghost btn-small" onclick="wfRemoveStep(${s.id})">✕</button>
+        </div>
+        ${prima.length ? `<div class="wf-editor-deps">
+            <div class="form-hint" style="margin-bottom:0.25rem;">${idx === 0 ? 'Il primo step di solito non dipende da nessuno.' : 'Parte dopo:'}</div>
+            <div class="chip-row">${prima.map(pz => `
+                <span class="chip ${(s.depends_on || []).includes(pz.id) ? 'on' : ''}" data-dep="${pz.id}"
+                      onclick="wfToggleDep(${s.id}, ${pz.id}, this)">${esc(pz.title || 'step ' + pz.id)}</span>`).join('')}
+            </div></div>` : ''}`;
+    }).join('') || '<div class="form-hint">Nessuno step: servono almeno due.</div>';
+}
+
+// ── salvataggio ───────────────────────────────────────────────────────────
+// ⚠️ Scrivere un'azione è un insert/update diretto e NON una RPC, e non è
+// un'eccezione alla regola: le RPC governano il ciclo di vita — dove va la
+// prossima occorrenza — non com'è fatta l'azione. È la stessa divisione di
+// saveTask() nel web e di TaskForm nel nativo.
+async function saveAction() {
+    const title = document.getElementById('aTitle').value.trim();
+    if (!title) { showToast('Serve un titolo'); return; }
+
+    const type   = document.getElementById('aType').value;
+    const objId  = document.getElementById('aObjective').value;
+    const giorno = document.getElementById('aStartDate').value || todayISO();
+    const ora    = document.getElementById('aStartTime').value || '09:00';
+    const inizio = localToISO(giorno, ora);
+
+    const payload = {
+        objective_id: objId,
+        title,
+        description: document.getElementById('aDesc').value.trim() || null,
+        type,
+        status:      document.getElementById('aStatus').value,
+        priority_id: document.getElementById('aPriority').value || null,
+        categories:  actCategories,
+        start_date:  inizio,
+        success_points: parseInt(document.getElementById('aPtSuccess').value) || 0,
+        // ⚠️ La colonna resta (`ob_action_fail` esiste ancora nel database), ma
+        // niente nella pagina la chiama: senza il pulsante non c'è modo di
+        // assegnarli, e un valore che non si può prendere è meglio a zero che
+        // scritto e finto.
+        failure_points: 0,
+        skip_points:    parseInt(document.getElementById('aPtSkip').value) || 0,
+        late_points:    parseInt(document.getElementById('aPtLate').value) || 0,
+        // ogni tipo compila le sue colonne e azzera quelle degli altri: un
+        // residuo del tipo di prima resterebbe a far scattare la ricorrenza
+        // sbagliata senza che si veda da nessuna parte
+        deadline: null, next_occurrence_date: null,
+        recurring_frequency: null, recurring_interval: null,
+        recurring_days_of_week: null, recurring_day_of_month: null, recurring_dates: null,
+        repeat_after_days: null, multiple_dates: null, workflow_steps: null
+    };
+
+    if (type === 'single') {
+        payload.deadline = document.getElementById('aDeadline').value || null;
+        payload.next_occurrence_date = inizio;
+
+    } else if (type === 'simple_recurring') {
+        payload.repeat_after_days = parseInt(document.getElementById('aRepeatDays').value) || 7;
+        payload.next_occurrence_date = inizio;
+
+    } else if (type === 'recurring') {
+        const freq = document.getElementById('aFreq').value;
+        payload.recurring_frequency = freq;
+        payload.recurring_interval  = parseInt(document.getElementById('aInterval').value) || 1;
+        payload.next_occurrence_date = inizio;
+
+        if (freq === 'weekly') {
+            const gg = Array.from(document.querySelectorAll('#aDow .chip.on')).map(c => Number(c.dataset.dow));
+            if (!gg.length) { showToast('Scegli almeno un giorno della settimana'); return; }
+            payload.recurring_days_of_week = gg.sort((a, b) => a - b);
+        } else if (freq === 'monthly') {
+            const gg = Array.from(document.querySelectorAll('#aDom .chip.on')).map(c => Number(c.dataset.dom));
+            if (!gg.length) { showToast('Scegli almeno un giorno del mese'); return; }
+            payload.recurring_day_of_month = gg.sort((a, b) => a - b);
+        } else if (freq === 'yearly') {
+            if (!yearlyDates.length) { showToast('Aggiungi almeno una data'); return; }
+            payload.recurring_dates = yearlyDates;
+        }
+
+    } else if (type === 'multiple') {
+        if (!multiDates.length) { showToast('Aggiungi almeno una data'); return; }
+        payload.multiple_dates = [...multiDates].sort();
+        // la prossima occorrenza è la prima data, con l'orario scelto
+        payload.next_occurrence_date = localToISO(payload.multiple_dates[0], ora);
+
+    } else if (type === 'workflow') {
+        const steps = wfSteps.filter(s => (s.title || '').trim());
+        if (steps.length < 2) { showToast('Un workflow ha bisogno di almeno due step'); return; }
+        steps.forEach(s => {
+            s.title = s.title.trim();
+            s.depends_on = s.depends_on || [];
+            if (!s.status) s.status = s.depends_on.length ? 'locked' : 'active';
+        });
+        if (!steps.some(s => s.status === 'active')) {
+            showToast('Almeno uno step deve partire senza dipendenze');
+            return;
+        }
+        payload.workflow_steps  = steps;
+        payload.workflow_points = {
+            step_success: parseInt(document.getElementById('aPtStepOk').value) || 0,
+            step_failure: parseInt(document.getElementById('aPtStepKo').value) || 0,
+            task_success: parseInt(document.getElementById('aPtSuccess').value) || 0,
+            task_failure: 0
+        };
+        payload.next_occurrence_date = inizio;
+    }
+    // free_repeat: nessuna prossima occorrenza, per definizione
+
+    // Per un'azione nuova serve l'id che il database le assegna: i collegamenti
+    // alle metriche si scrivono subito dopo, e prima di salvarla non esiste.
+    const res = editingActionId
+        ? await sb.from('ob_actions').update(payload).eq('id', editingActionId).select('id').single()
+        : await sb.from('ob_actions').insert(payload).select('id').single();
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    const errMet = await salvaCollegamentiMetriche(res.data.id);
+    if (errMet) { showToast('❌ ' + errMet); return; }
+
+    closeModal('actionModal');
+    showToast('✅ Azione salvata');
+    await loadAll();
+}
+
+// ⚠️ I collegamenti si **riscrivono da capo** a ogni salvataggio — si cancellano
+// tutti e si reinseriscono quelli scelti — come le categorie di una scheda in
+// Memo: senza la cancellazione una metrica tolta resterebbe attaccata per
+// sempre, e l'azione continuerebbe a dire di muovere qualcosa che non muove.
+async function salvaCollegamentiMetriche(actionId) {
+    const del = await sb.from('ob_action_metrics').delete().eq('action_id', actionId);
+    if (del.error) return del.error.message;
+    if (!actMetrics.length) return null;
+    const ins = await sb.from('ob_action_metrics')
+        .insert(actMetrics.map(metric_id => ({ action_id: actionId, metric_id })));
+    return ins.error ? ins.error.message : null;
+}
+
+async function deleteAction() {
+    if (!editingActionId) return;
+    const a = actions.find(x => x.id === editingActionId);
+    if (!await customConfirm(`Elimino «${a ? a.title : 'l\'azione'}»? Lo storico e i punti già presi restano.`)) return;
+
+    const res = await sb.from('ob_actions').delete().eq('id', editingActionId);
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    closeModal('actionModal');
+    showToast('🗑 Azione eliminata');
+    await loadAll();
+}
+
+
+// ════════════════════════════════════════════════════════════
+// BACKUP
+// ════════════════════════════════════════════════════════════
+function exportBackup() {
+    const dump = { app: 'obiettivi', version: APP_VERSION, exported_at: new Date().toISOString(),
+                   objectives, metrics, milestones, measurements, actions, actionHistory, actionMetrics };
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'obiettivi-backup-' + todayISO() + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('⬇️ Backup esportato');
+}
+
+// ════════════════════════════════════════════════════════════
+// ZONA PERICOLOSA — svuotare Obiettivi
+//
+// ⚠️ Le tabelle sono le sole `ob_*`: categorie e priorità sono **condivise con
+// Tasks** (`cm_categories`, `cm_priorities`) e cancellarle da qui lascerebbe i
+// task senza, che è un danno in un'app che non si sta nemmeno guardando.
+//
+// Si fa scrivere CANCELLA invece di un confirm() con l'OK a portata di clic:
+// di qui non si torna indietro, ed è la stessa scelta della zona pericolosa di
+// spese-personali.html e spese-ada.html.
+// ════════════════════════════════════════════════════════════
+
+// L'ordine è dal figlio al padre. Le chiavi esterne cancellerebbero in cascata
+// da sé partendo dagli obiettivi, ma una riga rimasta orfana — per un
+// collegamento che una cascata non copre — resterebbe lì senza che nessuno la
+// veda più: cancellarle una per una è l'unico modo di sapere che sono andate.
+const TABELLE_DA_SVUOTARE = [
+    ['ob_action_metrics', 'collegamenti azione-metrica'],
+    ['ob_action_history',  'righe di storico'],
+    ['ob_actions',         'azioni'],
+    ['ob_measurements',    'rilevazioni'],
+    ['ob_milestones',      'milestone'],
+    ['ob_metrics',         'metriche'],
+    ['ob_objectives',      'obiettivi']
+];
+
+function openCancellaTutto() {
+    const conti = [
+        [objectives.length,    'obiettivi'],
+        [metrics.length,       'metriche'],
+        [measurements.length,  'rilevazioni'],
+        [milestones.length,    'milestone'],
+        [actions.length,       'azioni'],
+        [actionHistory.length, 'righe di storico'],
+        [actionMetrics.length, 'collegamenti']
+    ].filter(([n]) => n > 0);
+
+    document.getElementById('wipeBody').innerHTML = conti.length
+        ? `<div class="page-hint" style="margin-bottom:1rem;">
+             Stai per cancellare:
+             <ul style="margin:0.5rem 0 0 1.1rem;">
+               ${conti.map(([n, che]) => `<li><strong>${n}</strong> ${esc(che)}</li>`).join('')}
+             </ul>
+             <p style="margin-top:0.75rem;">Categorie e priorità restano: sono condivise con Tasks.
+             L'operazione non si può annullare.</p>
+           </div>`
+        : `<div class="page-hint" style="margin-bottom:1rem;">Non c'è niente da cancellare.</div>`;
+
+    document.getElementById('wipeWord').value = '';
+    document.getElementById('wipeGo').disabled = true;
+    openModal('wipeModal');
+    document.getElementById('wipeWord').focus();
+}
+
+function onWipeWord() {
+    const parola = document.getElementById('wipeWord').value.trim().toUpperCase();
+    document.getElementById('wipeGo').disabled = parola !== 'CANCELLA';
+}
+
+async function eseguiCancellaTutto() {
+    if (document.getElementById('wipeWord').value.trim().toUpperCase() !== 'CANCELLA') return;
+    if (!currentUserId) { showToast('❌ Utente non riconosciuto'); return; }
+
+    const bottone = document.getElementById('wipeGo');
+    bottone.disabled = true;
+    document.getElementById('wipeBody').innerHTML = '<div class="page-hint">Cancello…</div>';
+
+    // Il filtro su user_id è ridondante rispetto alla RLS, ed è voluto: una
+    // DELETE senza filtro è una riga che, il giorno che una policy cambia,
+    // cancella più di quel che dice.
+    for (const [tabella, che] of TABELLE_DA_SVUOTARE) {
+        const res = await sb.from(tabella).delete().eq('user_id', currentUserId);
+        if (res.error) {
+            if (handleAuthError(res.error)) return;
+            document.getElementById('wipeBody').innerHTML =
+                `<div class="page-hint" style="color:var(--danger);">
+                   Errore cancellando ${esc(che)}: ${esc(res.error.message)}.<br>
+                   Quel che era già stato cancellato resta cancellato.</div>`;
+            bottone.disabled = false;
+            return;
+        }
+    }
+
+    closeModal('wipeModal');
+    showToast('🗑 Obiettivi svuotato');
+    await loadAll();
+}
+
+// ════════════════════════════════════════════════════════════
+// UI
+// ════════════════════════════════════════════════════════════
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const el = document.getElementById('page-' + name);
+    if (el) el.classList.add('active');
+}
+
+function setNavActive(el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+document.querySelectorAll('.modal').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('active'); });
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+});
+
+function showToast(msg, ms) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.style.display = 'none'; }, ms || 2800);
+    return t;
+}
+
+function customConfirm(msg) {
+    return new Promise(resolve => {
+        document.getElementById('confirmMsg').textContent = msg;
+        document.getElementById('confirmDialog').classList.add('active');
+        const yes = document.getElementById('confirmYes');
+        const no  = document.getElementById('confirmNo');
+        const cleanup = () => {
+            document.getElementById('confirmDialog').classList.remove('active');
+            yes.onclick = null; no.onclick = null;
+        };
+        yes.onclick = () => { cleanup(); resolve(true);  };
+        no.onclick  = () => { cleanup(); resolve(false); };
+    });
+}
+
+/* ── Il tasto «indietro» di Android e i popup ──────────────────────────────
+   ⚠️ Dentro un popup l'indietro usciva dalla PAGINA: la WebView non ha niente in cronologia,
+   quindi tornava ad AppSphere buttando via quel che si stava scrivendo. Un popup non è una
+   pagina, ma su Android deve comportarsi come tale — l'indietro è il gesto con cui si chiude
+   qualunque cosa si sia aperta.
+
+   Aprendo un popup si spinge una voce di cronologia; l'indietro la consuma e qui sotto si chiude
+   il popup invece di lasciare la pagina. Chiudendolo col ✕ la voce si consuma da sé, o ogni
+   apri-e-chiudi ne lascerebbe una dietro e dopo cinque popup servirebbero cinque indietro per
+   uscire.
+
+   ⚠️ L'apertura NON si intercetta avvolgendo le funzioni che aprono i popup: in queste pagine
+   sono decine, alcune sono `onclick` scritti nell'HTML e altre non hanno nemmeno un nome. Si
+   guarda invece quando l'overlay diventa visibile — l'unica cosa che tutti i popup hanno in
+   comune, comunque siano stati aperti — e si riconosce dallo stile calcolato, non dal nome della
+   classe, che in queste pagine è ora `hidden`, ora `active`, ora `open`.
+
+   ⚠️ La voce si spinge UNA SOLA VOLTA anche con più popup aperti uno sopra l'altro: sono
+   contenuti nella stessa finestra, non schermate, e due voci vorrebbero dire due indietro per
+   chiudere una cosa sola. L'indietro chiude l'ultimo aperto.
+
+   ⚠️ Il consumo controlla `history.state`: se nel frattempo la pagina ha spinto una voce sua (un
+   cambio di vista) la nostra non è più in cima, e un `history.back()` cieco tornerebbe indietro
+   di una schermata invece di togliere la voce del popup.
+
+   ⚠️ Questo blocco è UGUALE in tutte le app della suite: se lo correggi qui, portalo anche
+   nelle altre (l'elenco dei popup è l'unica cosa che cambia). */
+(function guardiaIndietroPopup(elenco) {
+  const visibile = el => el && getComputedStyle(el).display !== 'none';
+  const aperti = () => elenco.flatMap(p =>
+    [...document.querySelectorAll(p.sel)].filter(visibile).map(el => ({ el, chiudi: p.chiudi })));
+
+  let spinta = false;
+
+  function controlla() {
+    const n = aperti().length;
+    if (n && !spinta) { spinta = true; history.pushState({ __popup: true }, ''); }
+    else if (!n && spinta) {
+      spinta = false;
+      if (history.state && history.state.__popup) history.back();
+    }
+  }
+
+  function avvia() {
+    const osservatore = new MutationObserver(controlla);
+    elenco.forEach(p => document.querySelectorAll(p.sel).forEach(el =>
+      osservatore.observe(el, { attributes: true, attributeFilter: ['class', 'style'] })));
+    controlla();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.addEventListener('popstate', () => {
+    const a = aperti();
+    if (!a.length) return;          // nessun popup: l'indietro fa quel che ha sempre fatto
+    spinta = false;
+    const ultimo = a[a.length - 1];
+    try { ultimo.chiudi(ultimo.el); } catch (err) { console.warn('indietro:', err); }
+  });
+})([
+  { sel: '.modal', chiudi: el => closeModal(el.id) },
+]);
+</script>
+</body>
+</html>

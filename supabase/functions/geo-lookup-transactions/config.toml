@@ -1,0 +1,2 @@
+[functions.geo-lookup-transactions]
+verify_jwt = false

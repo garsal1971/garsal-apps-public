@@ -1,0 +1,176 @@
+name: Build SmartBlocker APK
+
+on:
+  push:
+    branches:
+      - master
+      - 'claude/**'
+    paths:
+      - 'android-app/smartblocker/**'
+      - 'android-app/settings.gradle'
+      - 'android-app/build.gradle'
+      - '.github/workflows/build-smartblocker.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        run: |
+          SDKMANAGER=$(find "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/cmdline-tools" \
+            -name "sdkmanager" -type f 2>/dev/null | sort | tail -1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+            "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" 2>&1 || true
+          fi
+
+      - name: Prepara keystore
+        id: keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android-app/garsal.keystore
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"                  >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"            >> $GITHUB_ENV
+            echo "✅ Keystore dai secrets — build release con firma fissa"
+          else
+            echo "⚠️  KEYSTORE_BASE64 non configurato — impossibile firmare in modo stabile"
+            exit 1
+          fi
+
+      - name: Make gradlew executable
+        run: chmod +x android-app/gradlew
+
+      # Due product flavor, due APK (vedi android-app/smartblocker/build.gradle):
+      #  · salvatore → SmartBlocker-latest.apk       (applicationId invariato: aggiorna sul posto)
+      #  · teresa    → SmartBlockerTeresa-latest.apk  (suffisso .teresa: app distinta, installabile a fianco)
+      - name: Build SmartBlocker release APK (entrambi i profili)
+        working-directory: android-app
+        run: |
+          ./gradlew :smartblocker:assembleSalvatoreRelease :smartblocker:assembleTeresaRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="${{ github.workspace }}/android-app/garsal.keystore" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      # ⚠️ L'APK NON si carica più come artifact di Actions (20 settembre 2026).
+      # Era una TERZA copia — le due che contano sono R2 (da cui si scarica) e
+      # il commit su master (da cui si legge in archivio) — durava 30 giorni e
+      # non la scaricava nessuno. Da quando la repo è privata lo spazio degli
+      # artifact è contato, si è riempito, e `upload-artifact` ha cominciato a
+      # rispondere «Artifact storage quota has been hit» facendo morire il job:
+      # stando PRIMA del caricamento su R2 e del commit, si portava dietro
+      # tutt'e due — l'APK compilata restava non pubblicata e la scheda
+      # `-latest.json` continuava ad annunciare la versione di prima.
+      # ⚠️ La copia in /tmp stava dentro il passo di pubblicazione: da qui
+      # la legge anche il caricamento su R2, che viene prima di lui.
+      - name: Salva l'APK in /tmp
+        run: |
+          cp android-app/smartblocker/build/outputs/apk/salvatore/release/smartblocker-salvatore-release.apk /tmp/SmartBlocker-latest.apk
+          cp android-app/smartblocker/build/outputs/apk/teresa/release/smartblocker-teresa-release.apk     /tmp/SmartBlockerTeresa-latest.apk
+
+      # ⚠️ Prima su R2, poi il commit — è lo stesso ordine di «prima Drive,
+      # poi la riga» del Forziere: il commit pubblica la scheda
+      # `-latest.json`, che ANNUNCIA questa versione, e annunciarla prima che
+      # il pacchetto sia scaricabile vuol dire un aggiornamento che si offre
+      # e poi dà 404. Le APK non stanno più sul sito: Cloudflare Pages
+      # rifiuta i file oltre i 25 MiB (vedi `scripts/build-sito.sh`).
+      - name: Carica l'APK su R2 (apk.garsal.men)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash scripts/apk-su-r2.sh /tmp/SmartBlocker-latest.apk /tmp/SmartBlockerTeresa-latest.apk
+
+      - name: Pubblica APK su master (scaricabile via Netlify)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          VERSION=$(grep versionName android-app/smartblocker/build.gradle | grep -o '"[^"]*"' | tr -d '"' | head -1)
+          VERSION_CODE=$(grep versionCode android-app/smartblocker/build.gradle | grep -o '[0-9]\+' | head -1)
+
+          # ── La scheda della build, una per APK ─────────────────────────────
+          # Il nome del pacchetto è fisso (`-latest.apk`), quindi da fuori una
+          # build vale l'altra: senza questa scheda né il ☰ → 📱 Versione app
+          # dentro l'APK né il pannello di comandi.html possono dire *quale*
+          # versione si sta per scaricare. Due flavor, due APK con
+          # applicationId diversi, quindi due schede — una sola offrirebbe al
+          # telefono di Teresa un pacchetto che non si installa sopra al suo.
+          # ⚠️ Stesse sette chiavi delle schede di AppSphere: le leggono
+          # `Aggiornamento.kt` e `mostraVersione()` in comandi.html.
+          for prof in "SmartBlocker-latest:Smart Blocker" "SmartBlockerTeresa-latest:Revolut Teresa"; do
+            BASE="${prof%%:*}"; APPNAME="${prof#*:}"
+            BYTES=$(stat -c%s "/tmp/$BASE.apk")
+            SHA=$(sha256sum "/tmp/$BASE.apk" | cut -d' ' -f1)
+            cat > "/tmp/$BASE.json" <<EOF
+          {
+            "app": "$APPNAME",
+            "version": "$VERSION",
+            "versionCode": $VERSION_CODE,
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "$GITHUB_SHA",
+            "bytes": $BYTES,
+            "sha256": "$SHA"
+          }
+          EOF
+            cat "/tmp/$BASE.json"
+          done
+
+          # ⚠️ Il push su master va rifatto se master si muove sotto i piedi.
+          # Le build Android della repo scattano insieme (toccare settings.gradle o
+          # il build.gradle di root le sveglia tutte) e finiscono a pochi secondi
+          # l'una dall'altra: la prima che arriva sposta master e le altre si
+          # prendono un "cannot lock ref", con l'APK già compilato e buttato via.
+          # Si rilegge master e si riprova.
+          for i in 1 2 3 4 5; do
+            git fetch origin master
+            git checkout -B master origin/master
+            git reset --hard origin/master
+
+            mkdir -p releases
+            cp /tmp/SmartBlocker-latest.apk       releases/SmartBlocker-latest.apk
+            cp /tmp/SmartBlockerTeresa-latest.apk releases/SmartBlockerTeresa-latest.apk
+
+            # ⚠️ Le schede si aggiornano solo se si aggiornano gli APK:
+            # `builtAt` cambia a ogni run, e commetterle da sole vorrebbe dire
+            # annunciare una build nuova per pacchetti identici a quelli di
+            # prima — cioè far riscaricare per niente.
+            git add releases/SmartBlocker-latest.apk releases/SmartBlockerTeresa-latest.apk
+            if git diff --staged --quiet \
+               && [ -f releases/SmartBlocker-latest.json ] \
+               && [ -f releases/SmartBlockerTeresa-latest.json ]; then
+              echo "APK non cambiati, skip commit"
+              exit 0
+            fi
+
+            cp /tmp/SmartBlocker-latest.json       releases/SmartBlocker-latest.json
+            cp /tmp/SmartBlockerTeresa-latest.json releases/SmartBlockerTeresa-latest.json
+            git add releases/SmartBlocker-latest.json releases/SmartBlockerTeresa-latest.json
+
+            git commit -m "chore: aggiorna APK SmartBlocker v${VERSION} [skip actions]"
+            if git push origin master; then
+              echo "✅ pubblicati al tentativo $i"
+              exit 0
+            fi
+
+            echo "⚠️  master si è mosso, riprovo ($i/5)"
+            sleep $((i * 5))
+          done
+
+          echo "❌ master continua a muoversi: APK non pubblicati"
+          exit 1

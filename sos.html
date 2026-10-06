@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🆘 SOS v1.0.4</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#EE334E; --secondary:#6C5CE7; --success:#00B894; --warning:#F39C12;
+  --danger:#E74C3C; --dark:#1F2937; --light:#FFFFFF; --muted:#6B7280;
+  --border:#E5E7EB; --card-bg:#FFFFFF; --input-bg:#F9FAFB;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Darker Grotesque',sans-serif;
+  background:linear-gradient(140deg,#2b0d14 0%,#7a1226 45%,#1F2937 100%);
+  background-attachment:fixed;min-height:100vh;color:var(--dark);
+  padding-top:56px;overflow-x:hidden;
+}
+
+/* ── TOP BAR ── */
+#garsal-top-bar{position:fixed;top:0;left:0;right:0;height:56px;background:#0081C8;
+  display:flex;align-items:center;padding:0 20px;gap:10px;z-index:3000}
+#garsal-top-bar-text{font-size:15px;font-weight:700;color:#fff}
+.topbar-spacer{flex:1}
+.header-right{display:flex;align-items:center;gap:8px}
+.app-version{font-family:'Space Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.8);
+  background:rgba(0,0,0,.18);padding:4px 9px;border-radius:99px}
+.sync-badge{font-family:'Space Mono',monospace;font-size:.62rem;padding:4px 9px;border-radius:99px;
+  background:rgba(0,0,0,.2);color:rgba(255,255,255,.8);white-space:nowrap}
+.sync-badge.offline{background:rgba(231,76,60,.85);color:#fff}
+
+/* ── LAYOUT ── */
+.main{max-width:920px;margin:0 auto;padding:18px 16px 60px}
+.card{background:var(--card-bg);border-radius:20px;padding:20px;margin-bottom:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.card-title{font-size:1.15rem;font-weight:900;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.muted{color:var(--muted);font-weight:600}
+.small{font-size:.9rem}
+
+/* ── TAB ── */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:99px;
+  padding:10px 18px;font-family:inherit;font-size:1rem;font-weight:800;cursor:pointer}
+.tab.on{background:#fff;color:var(--primary)}
+.page{display:none}
+.page.on{display:block}
+
+/* ── PULSANTI ── */
+.btn{border:none;border-radius:12px;padding:11px 16px;font-family:inherit;font-size:1rem;
+  font-weight:800;cursor:pointer;background:var(--primary);color:#fff;min-height:44px}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:var(--input-bg);color:var(--dark);border:1px solid var(--border)}
+.btn.danger{background:var(--danger)}
+.btn.ok{background:var(--success)}
+.btn.small{padding:8px 12px;font-size:.92rem;min-height:38px}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* ── SOS CARD ── */
+.sos{border-left:8px solid var(--primary);border-radius:16px;background:var(--input-bg);
+  padding:16px;margin-bottom:12px}
+.sos-head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.sos-emoji{font-size:2rem;line-height:1}
+.sos-name{font-size:1.35rem;font-weight:900}
+.sos-desc{color:var(--muted);font-weight:700}
+.sos-off{opacity:.55}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{background:#fff;border:1px solid var(--border);border-radius:99px;padding:4px 11px;
+  font-size:.86rem;font-weight:800}
+.chip.pos{border-color:#00B894;color:#00785f}
+.chip.neg{border-color:#E74C3C;color:#a92f22}
+
+/* ── FORM ── */
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:800;margin-bottom:5px;font-size:.98rem}
+.field-hint{color:var(--muted);font-size:.88rem;font-weight:600;margin-top:4px}
+input[type=text],input[type=number],textarea,select{
+  width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;
+  padding:11px 13px;font-family:inherit;font-size:1.05rem;color:var(--dark);min-height:44px}
+textarea{min-height:120px;line-height:1.35}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:560px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* ── RIGHE RISPOSTA ── */
+.orow{display:grid;grid-template-columns:64px 1fr 96px 96px 44px;gap:8px;align-items:center;
+  margin-bottom:8px}
+@media(max-width:640px){.orow{grid-template-columns:64px 1fr;grid-auto-rows:auto}}
+.orow input{min-height:42px}
+.orow .del{background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--danger)}
+.ohead{display:grid;grid-template-columns:64px 1fr 96px 96px 44px;gap:8px;font-size:.82rem;
+  font-weight:800;color:var(--muted);margin-bottom:6px}
+@media(max-width:640px){.ohead{display:none}}
+
+/* ── OVERLAY / MODALE ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,12,18,.72);z-index:4000;
+  align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px;padding:22px;width:100%;max-width:640px}
+.modal-title{font-size:1.4rem;font-weight:900;margin-bottom:14px}
+
+/* ── TABELLE ── */
+.tbl{width:100%;border-collapse:collapse;font-size:.95rem}
+.tbl th,.tbl td{padding:9px 8px;border-bottom:1px solid var(--border);text-align:left}
+.tbl th{font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.scrollx{overflow-x:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.kpi{background:var(--input-bg);border-radius:14px;padding:14px}
+.kpi-v{font-size:1.7rem;font-weight:900}
+.kpi-l{color:var(--muted);font-weight:700;font-size:.9rem}
+
+/* ── CODICE ── */
+.code{font-family:'Space Mono',monospace;font-size:1.5rem;font-weight:700;letter-spacing:2px;
+  background:#111827;color:#fff;border-radius:12px;padding:14px;text-align:center;word-break:break-all}
+
+/* ── AUTH ── */
+#authOverlay{display:none;position:fixed;inset:0;background:rgba(15,20,28,.92);z-index:5000;
+  align-items:center;justify-content:center;text-align:center;color:#fff;padding:24px}
+.auth-box{max-width:340px}
+.auth-icon{font-size:3rem;margin-bottom:12px}
+.auth-title{font-size:1.7rem;font-weight:900;margin-bottom:6px}
+.auth-desc{font-size:1rem;opacity:.75;font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+  <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+    <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+    <div id="garsal-top-bar-text">Garsal Apps</div>
+  </a>
+  <div class="topbar-spacer"></div>
+  <div class="header-right">
+    <span class="sync-badge" id="syncBadge">···</span>
+    <span class="app-version" id="versionBadge">v1.0.0</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="tabs">
+    <button class="tab on" data-page="sos">🆘 I miei SOS</button>
+    <button class="tab" data-page="phones">📱 Telefoni</button>
+    <button class="tab" data-page="hist">📊 Storico</button>
+  </div>
+
+  <!-- ══════ I SOS ══════ -->
+  <div class="page on" id="page-sos">
+    <div class="card">
+      <div class="card-title">🆘 I miei SOS</div>
+      <div class="muted small">
+        Un SOS è un momento di crisi che torna. Sul telefono diventa una pagina con un bottone
+        rosso: si preme, parte il countdown, e alla fine si risponde «com'è andata?».
+        La risposta dà dei punti e sposta la durata del giro successivo.
+      </div>
+      <div class="row-btns"><button class="btn" id="btnNew">+ Nuovo SOS</button></div>
+    </div>
+    <div id="sosList"></div>
+  </div>
+
+  <!-- ══════ TELEFONI ══════ -->
+  <div class="page" id="page-phones">
+    <div class="card">
+      <div class="card-title">📱 Telefoni collegati</div>
+      <div class="muted small">
+        L'app Android non fa il login Google: si accoppia una volta con un codice generato qui.
+        Il codice <b>è</b> la credenziale — si vede per intero una volta sola, alla creazione,
+        e da lì in poi restano visibili solo le ultime quattro lettere. Se un telefono si perde,
+        si revoca il suo codice e smette di funzionare all'istante.
+      </div>
+      <div class="row-btns"><button class="btn" id="btnNewDev">+ Genera un codice</button></div>
+    </div>
+    <div class="card">
+      <div class="scrollx"><table class="tbl" id="devTable"></table></div>
+    </div>
+  </div>
+
+  <!-- ══════ STORICO ══════ -->
+  <div class="page" id="page-hist">
+    <div class="card">
+      <div class="card-title">📊 Come sta andando</div>
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🕑 Gli ultimi giri</div>
+      <div class="field" style="max-width:280px">
+        <label for="fltSos">Filtra per SOS</label>
+        <select id="fltSos"><option value="">tutti</option></select>
+      </div>
+      <div class="scrollx"><table class="tbl" id="histTable"></table></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════ MODALE SOS ══════ -->
+<div class="overlay" id="sosOverlay">
+  <div class="modal">
+    <div class="modal-title" id="sosModalTitle">Nuovo SOS</div>
+
+    <div class="grid2">
+      <div class="field">
+        <label for="inName">Nome</label>
+        <input type="text" id="inName" maxlength="60" placeholder="Binge serale">
+      </div>
+      <div class="field">
+        <label for="inDesc">Che cosa stai fronteggiando</label>
+        <input type="text" id="inDesc" maxlength="80" placeholder="Desiderio di cibo">
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="field">
+        <label for="inEmoji">Emoji</label>
+        <input type="text" id="inEmoji" maxlength="4" placeholder="🍫">
+      </div>
+      <div class="field">
+        <label for="inColor">Colore</label>
+        <input type="text" id="inColor" maxlength="7" placeholder="#EE334E">
+      </div>
+      <div class="field">
+        <label for="inActive">Attivo</label>
+        <select id="inActive">
+          <option value="1">sì — si vede sul telefono</option>
+          <option value="0">no — nascosto</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="field">
+        <label for="inBase">Durata di partenza (minuti)</label>
+        <input type="number" id="inBase" min="1" max="120" step="1" value="10">
+      </div>
+      <div class="field">
+        <label for="inMin">Mai meno di (minuti)</label>
+        <input type="number" id="inMin" min="1" max="120" step="1" value="5">
+      </div>
+      <div class="field">
+        <label for="inMax">Mai più di (minuti)</label>
+        <input type="number" id="inMax" min="1" max="180" step="1" value="30">
+      </div>
+    </div>
+    <div class="field-hint" style="margin:-6px 0 16px">
+      Gli estremi servono: senza, una serie di risposte «male» porterebbe il countdown a ore.
+    </div>
+
+    <div class="card-title" style="margin-top:8px">🙋 Com'è andata? — le risposte</div>
+    <div class="muted small" style="margin-bottom:10px">
+      Una riga per risposta. I punti possono essere negativi; la percentuale sposta la durata
+      del <b>giro successivo</b> — positiva allunga (è andata male, serve più tempo), negativa accorcia.
+    </div>
+    <div class="ohead">
+      <div>Emoji</div><div>Risposta</div><div>Punti</div><div>% tempo</div><div></div>
+    </div>
+    <div id="outRows"></div>
+    <button class="btn ghost small" id="btnAddOut" type="button">+ Aggiungi risposta</button>
+
+    <div class="card-title" style="margin-top:20px">💬 Le frasi che scorrono</div>
+    <div class="muted small" style="margin-bottom:8px">
+      Una per riga. Scorrono sotto il countdown, una dopo l'altra, in questo ordine.
+    </div>
+    <textarea id="inMsgs" placeholder="La voglia non è un ordine: è un'onda."></textarea>
+
+    <div class="row-btns" style="margin-top:18px">
+      <button class="btn ok" id="btnSave">Salva</button>
+      <button class="btn ghost" id="btnCancel">Annulla</button>
+      <span style="flex:1"></span>
+      <button class="btn danger" id="btnDelete" style="display:none">Elimina</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ MODALE CODICE ══════ -->
+<div class="overlay" id="codeOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">📱 Codice per il telefono</div>
+    <div class="muted small" style="margin-bottom:12px">
+      Scrivilo nell'app SOS del telefono, alla prima apertura. <b>Non verrà più mostrato:</b>
+      se lo perdi, ne generi un altro e revochi questo.
+    </div>
+    <div class="code" id="codeValue">—</div>
+    <div class="row-btns">
+      <button class="btn ok" id="btnCodeDone">Fatto, l'ho scritto</button>
+    </div>
+  </div>
+</div>
+
+<div id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-icon">🆘</div>
+    <div class="auth-title">SOS</div>
+    <div class="auth-desc">Apri questa app da AppSphere per accedere.</div>
+  </div>
+</div>
+
+<script>
+var APP_VERSION = 'v1.0.4';
+var BUILD_TIME  = '2026-09-14T10:30:00Z';
+console.log('%c 🆘 SOS ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+  'background:#EE334E;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+  'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+document.getElementById('versionBadge').textContent = APP_VERSION;
+
+// ============================================================
+// SUPABASE
+// ============================================================
+var _DEV_HOSTS = ['localhost','127.0.0.1','0.0.0.0'];
+var _IS_DEV = _DEV_HOSTS.indexOf(window.location.hostname) !== -1
+           || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+           || (window.location.hostname.endsWith('.netlify.app')
+              && window.location.hostname.startsWith('dev--'));
+
+var SUPABASE_URL = _IS_DEV
+  ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+  : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+var SUPABASE_KEY = _IS_DEV
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+var sb = null, sbAccessToken = null, currentUserId = null;
+
+function decodeJWT(t){ try{ return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }catch(e){ return null; } }
+
+function initWithToken(token){
+  if (sb) return;
+  sbAccessToken = token;
+  localStorage.setItem('sb_token', token);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:'Bearer '+token}}
+  });
+  var p = decodeJWT(token);
+  currentUserId = p && p.sub ? p.sub : null;
+  document.getElementById('authOverlay').style.display = 'none';
+  startApp();
+}
+
+function handleAuthError(error){
+  if (!error) return false;
+  var m = (error.message||'').toLowerCase();
+  var isAuth = error.status === 401 || m.indexOf('jwt expired') !== -1
+            || m.indexOf('invalid jwt') !== -1 || m.indexOf('not authenticated') !== -1;
+  if (!isAuth) return false;
+  sb = null; sbAccessToken = null;
+  localStorage.removeItem('sb_token');
+  document.getElementById('authOverlay').style.display = 'flex';
+  return true;
+}
+
+window.addEventListener('message', function(e){
+  if (e.data && e.data.type === 'SB_TOKEN' && e.data.token) initWithToken(e.data.token);
+});
+
+var _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = function(e){
+  if (!e.data) return;
+  if (e.data.type === 'LOGOUT'){
+    sb = null; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+  } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken){
+    var t = e.data.sbToken;
+    localStorage.setItem('sb_token', t);
+    sbAccessToken = t;
+    if (sb) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth:{persistSession:false,autoRefreshToken:false},
+      global:{headers:{Authorization:'Bearer '+t}}
+    });
+  }
+};
+
+function setSync(stato, testo){
+  var el = document.getElementById('syncBadge');
+  el.textContent = testo;
+  el.classList.toggle('offline', stato === 'offline');
+}
+
+// ============================================================
+// STATO
+// ============================================================
+var S = { tipi:[], risposte:[], frasi:[], giri:[], device:[], editId:null, righeOut:[] };
+
+function mmss(sec){
+  sec = Math.max(0, sec|0);
+  var m = Math.floor(sec/60), s = sec%60;
+  return m + ':' + (s<10?'0':'') + s;
+}
+function minutiDa(sec){ return Math.round(sec/60); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function pctTxt(v){
+  var n = Number(v)||0;
+  if (n === 0) return 'tempo invariato';
+  return (n>0?'+':'−') + Math.abs(n).toString().replace(/\.0+$/,'') + '% tempo';
+}
+function puntiTxt(p){
+  p = Number(p)||0;
+  if (p > 0) return '+' + p + ' punti';
+  if (p < 0) return '−' + (-p) + ' punti';
+  return 'nessun punto';
+}
+function dataIt(iso){
+  if (!iso) return '—';
+  var d = new Date(iso);
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+// ============================================================
+// CARICAMENTO
+// ============================================================
+async function dbLoad(){
+  if (!sb) return;
+  setSync('sync','↻ sync…');
+  try{
+    var t = await sb.from('sos_types').select('*').order('position').order('name');
+    if (t.error) throw t.error;
+    S.tipi = t.data || [];
+
+    var o = await sb.from('sos_outcomes').select('*').order('position');
+    if (o.error) throw o.error;
+    S.risposte = o.data || [];
+
+    var m = await sb.from('sos_messages').select('*').order('position');
+    if (m.error) throw m.error;
+    S.frasi = m.data || [];
+
+    var g = await sb.from('sos_sessions').select('*').order('started_at',{ascending:false}).limit(200);
+    if (g.error) throw g.error;
+    S.giri = g.data || [];
+
+    var d = await sb.from('sos_devices').select('*').order('created_at',{ascending:false});
+    if (d.error) throw d.error;
+    S.device = d.data || [];
+
+    setSync('ok','✓ ok');
+    render();
+  }catch(e){
+    if (handleAuthError(e)) return;
+    console.error(e);
+    setSync('offline','offline');
+  }
+}
+
+function risposteDi(id){ return S.risposte.filter(function(r){ return r.sos_type_id === id; }); }
+function frasiDi(id){ return S.frasi.filter(function(f){ return f.sos_type_id === id; }); }
+function nomeSos(id){
+  var t = S.tipi.filter(function(x){ return x.id === id; })[0];
+  return t ? (t.emoji + ' ' + t.name) : '—';
+}
+
+// ============================================================
+// RENDER — I SOS
+// ============================================================
+function render(){
+  renderSos();
+  renderDevices();
+  renderStorico();
+}
+
+function renderSos(){
+  var box = document.getElementById('sosList');
+  if (!S.tipi.length){
+    box.innerHTML = '<div class="card"><div class="muted">Nessun SOS. Creane uno col pulsante qui sopra.</div></div>';
+    return;
+  }
+  box.innerHTML = S.tipi.map(function(t){
+    var out = risposteDi(t.id), fr = frasiDi(t.id);
+    var giri = S.giri.filter(function(g){ return g.sos_type_id === t.id && g.ended_at; });
+    var punti = giri.reduce(function(a,g){ return a + (Number(g.points)||0); }, 0);
+    var chips = out.map(function(r){
+      var cls = (Number(r.points)||0) >= 0 ? 'pos' : 'neg';
+      return '<span class="chip '+cls+'">'+esc(r.emoji||'')+' '+esc(r.label)+' · '
+           + esc(puntiTxt(r.points))+' · '+esc(pctTxt(r.time_delta_pct))+'</span>';
+    }).join('');
+    return ''
+    + '<div class="card sos'+(t.active?'':' sos-off')+'" style="border-left-color:'+esc(t.color)+'">'
+    +   '<div class="sos-head">'
+    +     '<div class="sos-emoji">'+esc(t.emoji)+'</div>'
+    +     '<div style="flex:1;min-width:180px">'
+    +       '<div class="sos-name">'+esc(t.name)+(t.active?'':' <span class="muted small">(nascosto)</span>')+'</div>'
+    +       '<div class="sos-desc">'+esc(t.description||'—')+'</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="chips">'
+    +     '<span class="chip">⏱️ prossimo giro '+mmss(t.current_seconds)+'</span>'
+    +     '<span class="chip">partenza '+minutiDa(t.base_seconds)+' min</span>'
+    +     '<span class="chip">fra '+minutiDa(t.min_seconds)+' e '+minutiDa(t.max_seconds)+' min</span>'
+    +     '<span class="chip">💬 '+fr.length+' frasi</span>'
+    +     '<span class="chip">'+giri.length+' giri · '+punti+' punti</span>'
+    +   '</div>'
+    +   (chips ? '<div class="chips">'+chips+'</div>'
+             : '<div class="chips"><span class="chip neg">⚠️ nessuna risposta configurata</span></div>')
+    +   '<div class="row-btns">'
+    +     '<button class="btn small" onclick="apriSos(\''+t.id+'\')">✏️ Modifica</button>'
+    +     '<button class="btn ghost small" onclick="azzeraDurata(\''+t.id+'\')">↺ Riporta a '+minutiDa(t.base_seconds)+' min</button>'
+    +   '</div>'
+    + '</div>';
+  }).join('');
+}
+
+// ============================================================
+// MODALE SOS
+// ============================================================
+function nuovaRigaOut(r){
+  S.righeOut.push({
+    id: r ? r.id : null,
+    emoji: r ? (r.emoji||'') : '',
+    label: r ? r.label : '',
+    points: r ? r.points : 0,
+    pct: r ? r.time_delta_pct : 0
+  });
+  disegnaRigheOut();
+}
+
+function disegnaRigheOut(){
+  var box = document.getElementById('outRows');
+  box.innerHTML = S.righeOut.map(function(r,i){
+    return '<div class="orow">'
+      + '<input type="text" maxlength="4" value="'+esc(r.emoji)+'" placeholder="😞" oninput="setOut('+i+',\'emoji\',this.value)">'
+      + '<input type="text" maxlength="60" value="'+esc(r.label)+'" placeholder="Male — ho ceduto" oninput="setOut('+i+',\'label\',this.value)">'
+      + '<input type="number" step="1" value="'+esc(r.points)+'" oninput="setOut('+i+',\'points\',this.value)">'
+      + '<input type="number" step="0.5" min="-90" max="500" value="'+esc(r.pct)+'" oninput="setOut('+i+',\'pct\',this.value)">'
+      + '<button class="del" type="button" onclick="togliOut('+i+')" title="Togli">✕</button>'
+      + '</div>';
+  }).join('');
+}
+function setOut(i,campo,val){ S.righeOut[i][campo] = val; }
+function togliOut(i){ S.righeOut.splice(i,1); disegnaRigheOut(); }
+
+function apriSos(id){
+  S.editId = id || null;
+  var t = id ? S.tipi.filter(function(x){ return x.id === id; })[0] : null;
+  document.getElementById('sosModalTitle').textContent = t ? ('✏️ ' + t.name) : 'Nuovo SOS';
+  document.getElementById('inName').value   = t ? t.name : '';
+  document.getElementById('inDesc').value   = t ? (t.description||'') : '';
+  document.getElementById('inEmoji').value  = t ? t.emoji : '🆘';
+  document.getElementById('inColor').value  = t ? t.color : '#EE334E';
+  document.getElementById('inActive').value = t ? (t.active ? '1' : '0') : '1';
+  document.getElementById('inBase').value   = t ? minutiDa(t.base_seconds) : 10;
+  document.getElementById('inMin').value    = t ? minutiDa(t.min_seconds)  : 5;
+  document.getElementById('inMax').value    = t ? minutiDa(t.max_seconds)  : 30;
+  document.getElementById('inMsgs').value   = t ? frasiDi(t.id).map(function(f){ return f.text; }).join('\n') : '';
+  document.getElementById('btnDelete').style.display = t ? '' : 'none';
+
+  S.righeOut = [];
+  if (t){
+    risposteDi(t.id).forEach(function(r){ nuovaRigaOut(r); });
+  } else {
+    // Le quattro di partenza sono la scala che serve perché la percentuale possa
+    // anche scendere: con le sole «male» e «bene» il countdown si allunga e basta.
+    [['😞','Male — ho ceduto',-500,10],
+     ['😐','Così così',-50,5],
+     ['🙂','Bene — è passata',100,0],
+     ['💪','Benissimo',250,-10]].forEach(function(x){
+      nuovaRigaOut({id:null,emoji:x[0],label:x[1],points:x[2],time_delta_pct:x[3]});
+    });
+  }
+  disegnaRigheOut();
+  document.getElementById('sosOverlay').classList.add('show');
+}
+
+async function salvaSos(){
+  if (!sb) return;
+  var nome  = document.getElementById('inName').value.trim();
+  var base  = parseInt(document.getElementById('inBase').value,10);
+  var mn    = parseInt(document.getElementById('inMin').value,10);
+  var mx    = parseInt(document.getElementById('inMax').value,10);
+
+  if (!nome){ alert('Il nome serve: è quello che si legge sul bottone.'); return; }
+  if (!(base>0 && mn>0 && mx>0)){ alert('Le durate vanno espresse in minuti interi maggiori di zero.'); return; }
+  if (mn > mx){ alert('Il minimo non può superare il massimo.'); return; }
+  if (base < mn || base > mx){ alert('La durata di partenza deve stare fra il minimo e il massimo.'); return; }
+
+  var righe = S.righeOut.filter(function(r){ return String(r.label||'').trim() !== ''; });
+  if (!righe.length){
+    alert('Serve almeno una risposta: senza, alla fine del countdown non ci sarebbe niente da rispondere.');
+    return;
+  }
+
+  var payload = {
+    name: nome,
+    description: document.getElementById('inDesc').value.trim(),
+    emoji: document.getElementById('inEmoji').value.trim() || '🆘',
+    color: document.getElementById('inColor').value.trim() || '#EE334E',
+    base_seconds: base*60,
+    min_seconds: mn*60,
+    max_seconds: mx*60,
+    active: document.getElementById('inActive').value === '1'
+  };
+
+  setSync('sync','↻ salvo…');
+  try{
+    var id = S.editId;
+    if (id){
+      // current_seconds non si tocca modificando il SOS: è dove l'ha portato la
+      // storia degli esiti, e riscriverlo qui butterebbe via tutti i giri fatti.
+      // Si riporta alla partenza col pulsante ↺, che lo dice.
+      var vecchio = S.tipi.filter(function(x){ return x.id === id; })[0];
+      var cur = Math.min(Math.max(vecchio.current_seconds, payload.min_seconds), payload.max_seconds);
+      payload.current_seconds = cur;
+      var u = await sb.from('sos_types').update(payload).eq('id', id);
+      if (u.error) throw u.error;
+    } else {
+      payload.current_seconds = payload.base_seconds;
+      payload.position = S.tipi.length;
+      payload.user_id = currentUserId;
+      var i = await sb.from('sos_types').insert(payload).select('id').single();
+      if (i.error) throw i.error;
+      id = i.data.id;
+    }
+
+    // ⚠️ Le risposte si aggiornano riga per riga e non si cancellano per ricrearle:
+    // sos_sessions.outcome_id le cita, e ricreandole ogni giro passato resterebbe
+    // agganciato a una riga che non esiste più. È la stessa scelta delle misure di
+    // un diario in Memo, e per la stessa ragione.
+    var esistenti = risposteDi(id).map(function(r){ return r.id; });
+    var tenute = [];
+    for (var k = 0; k < righe.length; k++){
+      var r = righe[k];
+      var row = {
+        sos_type_id: id,
+        label: String(r.label).trim(),
+        emoji: String(r.emoji||'').trim(),
+        points: parseInt(r.points,10) || 0,
+        time_delta_pct: Number(r.pct) || 0,
+        position: k
+      };
+      if (r.id){
+        tenute.push(r.id);
+        var ur = await sb.from('sos_outcomes').update(row).eq('id', r.id);
+        if (ur.error) throw ur.error;
+      } else {
+        row.user_id = currentUserId;
+        var ir = await sb.from('sos_outcomes').insert(row).select('id').single();
+        if (ir.error) throw ir.error;
+        tenute.push(ir.data.id);
+      }
+    }
+    var daTogliere = esistenti.filter(function(x){ return tenute.indexOf(x) === -1; });
+    if (daTogliere.length){
+      var dr = await sb.from('sos_outcomes').delete().in('id', daTogliere);
+      if (dr.error) throw dr.error;
+    }
+
+    // Le frasi invece si riscrivono da capo: nessuno le cita, sono solo testo
+    // in un ordine, e riconciliarle riga per riga sarebbe lavoro senza scopo.
+    var dm = await sb.from('sos_messages').delete().eq('sos_type_id', id);
+    if (dm.error) throw dm.error;
+    var testi = document.getElementById('inMsgs').value.split('\n')
+      .map(function(x){ return x.trim(); }).filter(function(x){ return x !== ''; });
+    if (testi.length){
+      var im = await sb.from('sos_messages').insert(testi.map(function(x,ix){
+        return { user_id: currentUserId, sos_type_id: id, text: x, position: ix };
+      }));
+      if (im.error) throw im.error;
+    }
+
+    chiudiSos();
+    await dbLoad();
+  }catch(e){
+    if (handleAuthError(e)) return;
+    console.error(e);
+    setSync('offline','offline');
+    alert('Errore nel salvataggio: ' + (e.message || e));
+  }
+}
+
+async function eliminaSos(){
+  if (!sb || !S.editId) return;
+  var t = S.tipi.filter(function(x){ return x.id === S.editId; })[0];
+  var giri = S.giri.filter(function(g){ return g.sos_type_id === S.editId; }).length;
+  var msg = 'Elimino «' + t.name + '»?';
+  if (giri) msg += '\n\nSpariscono anche i ' + giri + ' giri già fatti, con i loro punti.';
+  if (!confirm(msg)) return;
+  try{
+    var d = await sb.from('sos_types').delete().eq('id', S.editId);
+    if (d.error) throw d.error;
+    chiudiSos();
+    await dbLoad();
+  }catch(e){
+    if (handleAuthError(e)) return;
+    alert('Errore: ' + (e.message||e));
+  }
+}
+
+async function azzeraDurata(id){
+  var t = S.tipi.filter(function(x){ return x.id === id; })[0];
+  if (!t) return;
+  if (!confirm('Riporto il countdown di «'+t.name+'» a '+minutiDa(t.base_seconds)+' minuti?\n\n'
+             + 'Adesso è di '+mmss(t.current_seconds)+'. I giri già fatti e i loro punti restano.')) return;
+  try{
+    var u = await sb.from('sos_types').update({current_seconds: t.base_seconds}).eq('id', id);
+    if (u.error) throw u.error;
+    await dbLoad();
+  }catch(e){
+    if (handleAuthError(e)) return;
+    alert('Errore: ' + (e.message||e));
+  }
+}
+
+function chiudiSos(){ document.getElementById('sosOverlay').classList.remove('show'); }
+
+// ============================================================
+// TELEFONI
+// ============================================================
+function renderDevices(){
+  var t = document.getElementById('devTable');
+  if (!S.device.length){
+    t.innerHTML = '<tr><td class="muted">Nessun telefono collegato.</td></tr>';
+    return;
+  }
+  t.innerHTML = '<tr><th>Nome</th><th>Codice</th><th>Creato</th><th>Ultimo contatto</th><th></th></tr>'
+    + S.device.map(function(d){
+      var coda = d.revoked ? '<span class="chip neg">revocato</span>' : '<span class="chip pos">attivo</span>';
+      return '<tr>'
+        + '<td>'+esc(d.name)+'</td>'
+        + '<td><span class="chip">····-····-'+esc(String(d.token).slice(-4))+'</span> '+coda+'</td>'
+        + '<td class="muted">'+dataIt(d.created_at)+'</td>'
+        + '<td class="muted">'+(d.last_seen_at ? dataIt(d.last_seen_at) : 'mai')+'</td>'
+        + '<td>' + (d.revoked
+            ? '<button class="btn ghost small" onclick="riattivaDev(\''+d.id+'\')">Riattiva</button>'
+            : '<button class="btn danger small" onclick="revocaDev(\''+d.id+'\')">Revoca</button>')
+        + ' <button class="btn ghost small" onclick="eliminaDev(\''+d.id+'\')">🗑</button></td>'
+        + '</tr>';
+    }).join('');
+}
+
+async function nuovoDevice(){
+  var nome = prompt('Che telefono è?', 'Telefono di Salvatore');
+  if (nome === null) return;
+  try{
+    var r = await sb.rpc('sos_device_create', { p_name: nome });
+    if (r.error) throw r.error;
+    if (!r.data || !r.data.ok) throw new Error(r.data ? r.data.error : 'risposta vuota');
+    document.getElementById('codeValue').textContent = r.data.token;
+    document.getElementById('codeOverlay').classList.add('show');
+    await dbLoad();
+  }catch(e){
+    if (handleAuthError(e)) return;
+    alert('Errore: ' + (e.message||e));
+  }
+}
+
+async function revocaDev(id){
+  if (!confirm('Revoco questo codice? Il telefono smette di funzionare subito.')) return;
+  var u = await sb.from('sos_devices').update({revoked:true}).eq('id', id);
+  if (u.error){ alert('Errore: '+u.error.message); return; }
+  await dbLoad();
+}
+async function riattivaDev(id){
+  var u = await sb.from('sos_devices').update({revoked:false}).eq('id', id);
+  if (u.error){ alert('Errore: '+u.error.message); return; }
+  await dbLoad();
+}
+async function eliminaDev(id){
+  if (!confirm('Elimino questo codice? Se il telefono lo sta ancora usando, smetterà di funzionare.')) return;
+  var d = await sb.from('sos_devices').delete().eq('id', id);
+  if (d.error){ alert('Errore: '+d.error.message); return; }
+  await dbLoad();
+}
+
+// ============================================================
+// STORICO
+// ============================================================
+function renderStorico(){
+  var chiusi = S.giri.filter(function(g){ return g.ended_at; });
+  var punti = chiusi.reduce(function(a,g){ return a + (Number(g.points)||0); }, 0);
+  var finiti = chiusi.filter(function(g){ return g.completed; }).length;
+  var limite = Date.now() - 30*24*3600*1000;
+  var recenti = chiusi.filter(function(g){ return new Date(g.started_at).getTime() >= limite; });
+  var punti30 = recenti.reduce(function(a,g){ return a + (Number(g.points)||0); }, 0);
+
+  document.getElementById('kpis').innerHTML = ''
+    + kpi(punti, 'punti totali')
+    + kpi(chiusi.length, 'giri chiusi')
+    + kpi(chiusi.length ? Math.round(100*finiti/chiusi.length)+'%' : '—', 'arrivati in fondo')
+    + kpi(punti30, 'punti negli ultimi 30 giorni');
+
+  var sel = document.getElementById('fltSos');
+  var scelto = sel.value;
+  sel.innerHTML = '<option value="">tutti</option>' + S.tipi.map(function(t){
+    return '<option value="'+t.id+'"'+(scelto===t.id?' selected':'')+'>'+esc(t.emoji+' '+t.name)+'</option>';
+  }).join('');
+
+  var righe = chiusi.filter(function(g){ return !scelto || g.sos_type_id === scelto; });
+  var tbl = document.getElementById('histTable');
+  if (!righe.length){
+    tbl.innerHTML = '<tr><td class="muted">Nessun giro ancora.</td></tr>';
+    return;
+  }
+  tbl.innerHTML = '<tr><th>Quando</th><th>SOS</th><th>Risposta</th><th>Punti</th>'
+                + '<th>Durata</th><th>Poi</th><th></th></tr>'
+    + righe.map(function(g){
+      return '<tr>'
+        + '<td class="muted">'+dataIt(g.started_at)+'</td>'
+        + '<td>'+esc(nomeSos(g.sos_type_id))+'</td>'
+        + '<td>'+esc(g.outcome_label||'—')
+            + (g.completed === false ? ' <span class="chip neg">interrotto</span>' : '')+'</td>'
+        + '<td>'+puntiTxt(g.points)+'</td>'
+        + '<td>'+mmss(g.planned_seconds)+'</td>'
+        + '<td class="muted">'+(g.seconds_after!=null ? mmss(g.seconds_after) : '—')+'</td>'
+        + '<td><button class="btn ghost small" onclick="eliminaGiro(\''+g.id+'\')">🗑</button></td>'
+        + '</tr>';
+    }).join('');
+}
+function kpi(v,l){ return '<div class="kpi"><div class="kpi-v">'+esc(v)+'</div><div class="kpi-l">'+esc(l)+'</div></div>'; }
+
+// Cancellare un giro non è un dettaglio di pulizia: `cm_apps.score_query` di
+// SOS somma i punti dei giri chiusi, quindi la riga che sparisce si porta via
+// i suoi punti dalla bolla in home e dal totale che paga i premi. La conferma
+// lo dice, con la cifra davanti.
+//
+// ⚠️ **La durata del prossimo giro non torna indietro.** La percentuale della
+// risposta è stata applicata a `sos_types.current_seconds` il giorno che il
+// giro si è chiuso, e quel valore è dove l'hanno portato tutti i giri fatti,
+// non solo questo: rifarne il conto all'indietro vorrebbe dire riapplicare in
+// ordine tutta la storia. Il tempo si riporta alla partenza col pulsante
+// *↺ Riporta a N min* della scheda del SOS, che è il comando che esiste
+// apposta.
+async function eliminaGiro(id){
+  var g = S.giri.filter(function(x){ return x.id === id; })[0];
+  if (!g) return;
+  var p = Number(g.points)||0;
+  var testo = 'Elimino il giro di ' + nomeSos(g.sos_type_id) + ' del ' + dataIt(g.started_at) + '?\n\n';
+  if (p) testo += 'I suoi ' + puntiTxt(p) + ' escono dal totale in home.\n';
+  testo += 'La durata del prossimo giro resta dov\'è: si riporta alla partenza dalla scheda del SOS.\n\n';
+  testo += 'Di qui non si torna indietro.';
+  if (!confirm(testo)) return;
+  var d = await sb.from('sos_sessions').delete().eq('id', id);
+  if (d.error){
+    if (handleAuthError(d.error)) return;
+    alert('Errore: '+d.error.message);
+    return;
+  }
+  await dbLoad();
+}
+
+// ============================================================
+// EVENTI
+// ============================================================
+document.querySelectorAll('.tab').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
+    document.querySelectorAll('.page').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    document.getElementById('page-'+b.dataset.page).classList.add('on');
+  });
+});
+document.getElementById('btnNew').addEventListener('click', function(){ apriSos(null); });
+document.getElementById('btnAddOut').addEventListener('click', function(){ nuovaRigaOut(null); });
+document.getElementById('btnSave').addEventListener('click', salvaSos);
+document.getElementById('btnCancel').addEventListener('click', chiudiSos);
+document.getElementById('btnDelete').addEventListener('click', eliminaSos);
+document.getElementById('btnNewDev').addEventListener('click', nuovoDevice);
+document.getElementById('btnCodeDone').addEventListener('click', function(){
+  document.getElementById('codeOverlay').classList.remove('show');
+});
+document.getElementById('fltSos').addEventListener('change', renderStorico);
+document.getElementById('sosOverlay').addEventListener('click', function(e){
+  if (e.target === this) chiudiSos();
+});
+
+// ============================================================
+// AVVIO
+// ============================================================
+console.log('%c🆘 SOS ' + APP_VERSION, 'color:#EE334E;font-size:16px;font-weight:bold;');
+console.log('%cbuild: ' + BUILD_TIME, 'color:#888;font-size:11px;');
+console.log('%cambiente: ' + (_IS_DEV ? '🧪 Development' : '🚀 Production'), 'color:#888;font-size:11px;');
+
+async function startApp(){ await dbLoad(); }
+
+window.addEventListener('load', function(){
+  var stored = localStorage.getItem('sb_token');
+  if (stored) initWithToken(stored);
+  else document.getElementById('authOverlay').style.display = 'flex';
+});
+</script>
+
+</body>
+</html>

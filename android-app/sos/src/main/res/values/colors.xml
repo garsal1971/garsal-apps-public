@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="sos_red">#EE334E</color>
+    <color name="sos_red_dark">#B3122A</color>
+    <color name="bg_dark">#12121A</color>
+    <color name="white">#FFFFFF</color>
+</resources>

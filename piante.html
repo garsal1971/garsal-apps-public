@@ -1,0 +1,2412 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piante v1.4.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2E7D32;
+            --primary-soft: #E8F5E9;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --accent: #2563EB;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* Coi caratteri di sistema grandi una parola può essere più larga del
+           riquadro: `anywhere` la spezza invece di farla sbordare. */
+        body {
+            overflow-wrap: anywhere;
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            padding-top: 56px;
+            font-size: 1.05rem;
+        }
+
+        /* ── TOP BAR ── */
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; min-height: 56px;
+            background: #0081C8;
+            display: flex; align-items: center; padding: 0 20px; gap: 10px;
+            z-index: 3000;
+        }
+        #garsal-top-bar-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+
+        /* ── LAYOUT ── */
+        .app-container { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 56px); }
+        .sidebar {
+            background: #F3F4F6; padding: 1rem 0.75rem;
+            border-right: 1px solid var(--border);
+            position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+        }
+        .nav-menu { display: flex; flex-direction: column; }
+        .nav-item {
+            padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; cursor: pointer;
+            font-size: 1.1rem; font-weight: 500; transition: background 0.2s;
+        }
+        .nav-item:hover { background: rgba(46,125,50,0.1); }
+        .nav-item.active { background: var(--primary); color: white; }
+        @media (min-width: 769px) { .nav-item::after { content: " " attr(data-text); } }
+
+        .main-content { padding: 1.5rem; overflow-y: auto; min-width: 0; }
+        .page { display: none; padding-bottom: 5.5rem; }
+        .page.active { display: block; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap;
+        }
+        .page-title { font-size: 2.3rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
+        .page-hint { font-size: 1rem; color: var(--muted); margin-bottom: 1.1rem; max-width: 62ch; }
+        .punti-pill {
+            font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700;
+            padding: 0.25rem 0.6rem; background: var(--primary-soft); color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        /* ── ELENCO PIANTE ── */
+        .toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+        .toolbar .form-input { max-width: 22rem; }
+        .plant-grid {
+            display: grid; gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+        }
+        .plant-card {
+            border: 2px solid var(--border); background: var(--card-bg); cursor: pointer;
+            display: flex; flex-direction: column; transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .plant-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .plant-card.archiviata { opacity: 0.55; }
+        .plant-cover {
+            aspect-ratio: 4 / 3; background: var(--primary-soft) center / cover no-repeat;
+            display: flex; align-items: center; justify-content: center; font-size: 3.5rem;
+        }
+        .plant-info { padding: 0.7rem 0.85rem 0.85rem; }
+        .plant-name { font-size: 1.35rem; font-weight: 900; line-height: 1.15; }
+        .plant-species { font-style: italic; color: var(--muted); font-size: 1rem; }
+        .plant-next { margin-top: 0.4rem; font-size: 0.95rem; }
+        .plant-next.late { color: var(--danger); font-weight: 700; }
+
+        /* ── DETTAGLIO ── */
+        .back-link { cursor: pointer; color: var(--accent); font-weight: 700; margin-bottom: 0.6rem; display: inline-block; }
+        .detail-head { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
+        .detail-cover {
+            width: 7rem; height: 7rem; flex-shrink: 0; background: var(--primary-soft) center / cover no-repeat;
+            display: flex; align-items: center; justify-content: center; font-size: 3rem; cursor: pointer;
+        }
+        .detail-titles { flex: 1; min-width: 12rem; }
+        .detail-titles .page-title { font-size: 2rem; }
+        /* ⚠️ La barra delle Tab scorre di lato e non va a capo: coi caratteri di
+           sistema grandi quattro voci su 360 px non ci stanno, e schiacciarle le
+           renderebbe non toccabili. */
+        .tabs {
+            display: flex; gap: 0.4rem; overflow-x: auto; border-bottom: 3px solid var(--border);
+            margin-bottom: 1.1rem; scrollbar-width: thin;
+        }
+        .tab {
+            padding: 0.5rem 0.9rem; cursor: pointer; font-weight: 700; white-space: nowrap;
+            border-bottom: 3px solid transparent; margin-bottom: -3px; flex-shrink: 0;
+        }
+        .tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .info-grid {
+            display: grid; gap: 0.75rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+            margin-bottom: 1rem;
+        }
+        .info-box { border: 2px solid var(--border); padding: 0.6rem 0.8rem; background: var(--input-bg); }
+        .info-label {
+            font-family: 'Space Mono', monospace; font-size: 0.7rem; text-transform: uppercase;
+            color: var(--muted); letter-spacing: 0.4px; margin-bottom: 0.2rem;
+        }
+        .info-value { white-space: pre-wrap; }
+        .info-value.vuoto { color: var(--muted); font-style: italic; }
+
+        .gallery { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); margin: 0.5rem 0 1rem; }
+        .gallery .thumb {
+            aspect-ratio: 1; background: #eee center / cover no-repeat; cursor: pointer; position: relative;
+            border: 2px solid var(--border);
+        }
+        .thumb .cover-badge {
+            position: absolute; left: 0; bottom: 0; background: var(--primary); color: white;
+            font-size: 0.7rem; padding: 0 0.3rem; font-family: 'Space Mono', monospace;
+        }
+        .thumb .rm {
+            position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.65); color: white;
+            border: none; width: 1.8rem; height: 1.8rem; cursor: pointer; font-size: 1rem;
+        }
+
+        /* ── DIARIO ── */
+        .timeline { border-left: 3px solid var(--primary-soft); margin-left: 0.5rem; padding-left: 1rem; }
+        .entry { position: relative; margin-bottom: 1.2rem; }
+        .entry::before {
+            content: ''; position: absolute; left: -1.45rem; top: 0.45rem;
+            width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--primary);
+        }
+        .entry-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .entry-date { font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700; color: var(--primary); }
+        .entry-comment { white-space: pre-wrap; margin: 0.25rem 0; }
+
+        /* ── AZIONI ── */
+        .grp { margin-bottom: 1.25rem; border-left: 5px solid var(--border); padding-left: 0.75rem; }
+        .grp.late { border-left-color: var(--danger); }
+        .grp.today { border-left-color: var(--warning); }
+        .grp.next { border-left-color: var(--accent); }
+        .grp.free { border-left-color: var(--secondary); }
+        .grp.done { border-left-color: var(--muted); }
+        .grp-title { font-weight: 900; font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .act {
+            border: 2px solid var(--border); padding: 0.6rem 0.75rem; margin-bottom: 0.6rem; background: var(--card-bg);
+        }
+        .act-top { display: flex; gap: 0.5rem; align-items: flex-start; }
+        .act-main { flex: 1; min-width: 0; }
+        .act-title { font-weight: 900; font-size: 1.15rem; line-height: 1.2; }
+        .act-meta { font-size: 0.95rem; color: var(--muted); }
+        .act-meta .late { color: var(--danger); font-weight: 700; }
+        .act-plant { font-size: 0.95rem; color: var(--primary); font-weight: 700; cursor: pointer; }
+        .act-group { font-size: 0.95rem; color: var(--accent); font-weight: 700; cursor: pointer; }
+        .plant-groups { margin-top: 0.3rem; font-size: 0.9rem; color: var(--accent); }
+        .group-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0.8rem; }
+        .group-card { background: var(--card-bg); border: 2px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; cursor: pointer; }
+        .group-card .plant-name { display: block; }
+        /* ✏️ e 🗑 in testa alla riga (convenzione della suite): l'ultima colonna
+           di una riga stretta finisce oltre il bordo. */
+        .act-edit { display: flex; gap: 0.2rem; flex-shrink: 0; }
+        .icon-btn {
+            background: none; border: 2px solid var(--border); cursor: pointer;
+            min-width: 2.2rem; min-height: 2.2rem; font-size: 1rem;
+        }
+        .icon-btn:hover { border-color: var(--primary); }
+        .act-btns { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .bell { font-size: 0.9rem; }
+
+        /* ── DESIDERI ── */
+        .filtri { display: flex; gap: 0.4rem; overflow-x: auto; margin-bottom: 1rem; }
+        .chip {
+            padding: 0.3rem 0.75rem; border: 2px solid var(--border); background: white; cursor: pointer;
+            font-weight: 700; white-space: nowrap; font-family: inherit; font-size: 1rem;
+        }
+        .chip.on { background: var(--primary); border-color: var(--primary); color: white; }
+        .wish {
+            border: 2px solid var(--border); padding: 0.7rem 0.85rem; margin-bottom: 0.7rem;
+            display: flex; gap: 0.6rem; align-items: flex-start;
+        }
+        .wish.scartata { opacity: 0.55; }
+        .wish.scartata .wish-name { text-decoration: line-through; }
+        .wish-name { font-weight: 900; font-size: 1.2rem; }
+        .prio { font-family: 'Space Mono', monospace; font-size: 0.7rem; padding: 0.1rem 0.4rem; color: white; }
+        .prio-1 { background: var(--danger); }
+        .prio-2 { background: var(--warning); }
+        .prio-3 { background: var(--muted); }
+
+        /* ── IA ── */
+        .ia-box { border: 2px solid var(--secondary); padding: 0.85rem; margin-bottom: 1rem; background: #F5F3FF; }
+        .ia-sugg { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0.5rem 0; }
+        .ia-sugg .chip { font-size: 0.9rem; white-space: normal; text-align: left; }
+        .ia-answer { border: 2px solid var(--border); padding: 0.8rem 0.9rem; margin-bottom: 0.9rem; }
+        .ia-q { font-weight: 900; margin-bottom: 0.35rem; }
+        .ia-q small { font-family: 'Space Mono', monospace; font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+        .ia-a p { margin: 0.35rem 0; line-height: 1.45; }
+        .ia-a ul, .ia-a ol { margin: 0.35rem 0 0.35rem 1.4rem; }
+        .ia-a li { margin: 0.15rem 0; line-height: 1.4; }
+        .ia-a h4 { margin: 0.6rem 0 0.2rem; }
+        .ia-wait { color: var(--secondary); font-weight: 700; }
+        .ia-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .ia-row .form-select { width: auto; min-width: 9rem; }
+        .ia-chi { display: inline-block; font-family: 'Space Mono', monospace; font-size: 0.7rem; border: 1px solid var(--border); padding: 0 0.3rem; margin-left: 0.3rem; color: var(--muted); }
+
+        /* ── VARIE ── */
+        .empty-state { text-align: center; padding: 3rem 1.5rem; color: var(--muted); }
+        .empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+        .empty-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--dark); }
+
+        .fab {
+            position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; border-radius: 50%;
+            background: var(--primary); color: white; font-size: 1.8rem; border: none; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(46,125,50,0.4); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .btn {
+            padding: 0.45rem 0.9rem; border: none; cursor: pointer; min-height: 2.4rem;
+            font-family: 'Darker Grotesque', sans-serif; font-size: 1rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--border); color: var(--dark); }
+        .btn-ia { background: var(--secondary); color: white; }
+        .btn-small { padding: 0.25rem 0.6rem; font-size: 0.9rem; min-height: 2.2rem; }
+        .btn-ghost { background: transparent; border: 2px solid var(--border); color: var(--dark); }
+
+        .modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            z-index: 2000; align-items: center; justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white; padding: 1.3rem; max-width: 720px; width: 96%; max-height: 92vh;
+            overflow-y: auto; overflow-x: hidden; position: relative;
+        }
+        .modal-content.narrow { max-width: 480px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; }
+        .modal-title { font-size: 1.6rem; font-weight: 900; color: var(--primary); line-height: 1.15; min-width: 0; }
+        .modal-close { font-size: 1.8rem; cursor: pointer; color: var(--muted); flex-shrink: 0; background: none; border: none; }
+        .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.3rem; flex-wrap: wrap; }
+        .form-error { color: var(--danger); font-weight: 700; margin-top: 0.6rem; white-space: pre-wrap; }
+
+        .form-group { margin-bottom: 1rem; min-width: 0; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.9rem; }
+        .form-label {
+            display: block; margin-bottom: 0.35rem; font-weight: 700;
+            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-hint { font-size: 0.9rem; color: var(--muted); margin-top: 0.25rem; line-height: 1.35; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 0.5rem 0.65rem; border: 2px solid var(--border); background: var(--input-bg);
+            color: var(--dark); font-family: 'Darker Grotesque', sans-serif; font-size: 1.05rem;
+        }
+        .form-textarea { min-height: 80px; resize: vertical; line-height: 1.45; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); background: white; }
+        fieldset.box { border: 2px solid var(--border); padding: 0.7rem 0.8rem; margin-bottom: 1rem; }
+        fieldset.box legend { font-weight: 900; padding: 0 0.3rem; }
+        .check { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; cursor: pointer; margin: 0.3rem 0; }
+        .check input { width: 1.2rem; height: 1.2rem; accent-color: var(--primary); }
+        .pill-row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem; }
+        .pill-row .chip { font-size: 0.95rem; padding: 0.2rem 0.6rem; }
+
+        #confirmDialog {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            z-index: 4000; align-items: center; justify-content: center;
+        }
+        #confirmDialog.active { display: flex; }
+        .confirm-box { background: white; padding: 1.6rem; max-width: 400px; width: 90%; }
+        .confirm-msg { font-size: 1.1rem; margin-bottom: 1.3rem; line-height: 1.4; white-space: pre-line; }
+        .confirm-btns { display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap; }
+
+        #authOverlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 5000;
+            align-items: center; justify-content: center; text-align: center; color: white;
+        }
+        .auth-box { max-width: 340px; }
+        .auth-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .auth-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+
+        #toast {
+            position: fixed; bottom: 5.5rem; right: 1rem; left: auto; max-width: calc(100% - 2rem);
+            background: var(--dark); color: white; padding: 0.6rem 1.1rem; font-weight: 700;
+            z-index: 9999; display: none; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        #fotoViewer img { max-width: 100%; max-height: 75vh; display: block; margin: 0 auto; }
+
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+            .sidebar {
+                display: flex !important; position: fixed !important; top: 56px !important; left: 0; right: 0;
+                width: 100%; height: auto !important; border-right: none; border-bottom: 2px solid var(--border);
+                padding: 0.1rem 0 !important; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .nav-menu { flex-direction: row; width: 100%; justify-content: space-around; }
+            .nav-item { flex: 1; text-align: center; font-size: 2rem; margin: 0; padding: 0.15rem 0.1rem; }
+            .main-content { padding: 4.7rem 0.9rem 1rem; }
+            .page-title { font-size: 1.9rem; }
+            .fab { right: 1rem; bottom: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+</div>
+
+<div id="authOverlay">
+    <div class="auth-box">
+        <div class="auth-icon">🌱</div>
+        <div class="auth-title">Piante</div>
+        <div>Apri questa app da AppSphere per accedere.</div>
+    </div>
+</div>
+
+<div id="confirmDialog">
+    <div class="confirm-box">
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-btns">
+            <button class="btn btn-secondary" id="confirmNo">Annulla</button>
+            <button class="btn btn-danger" id="confirmYes">Elimina</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<div class="app-container">
+    <aside class="sidebar">
+        <nav class="nav-menu">
+            <div class="nav-item active" data-text="Piante"      data-page="piante"      onclick="vaiA('piante')">🌱</div>
+            <div class="nav-item"        data-text="Gruppi"      data-page="gruppi"      onclick="vaiA('gruppi')">👥</div>
+            <div class="nav-item"        data-text="Da fare"     data-page="dafare"      onclick="vaiA('dafare')">📆</div>
+            <div class="nav-item"        data-text="Desideri"    data-page="desideri"    onclick="vaiA('desideri')">💚</div>
+            <div class="nav-item"        data-text="Impostazioni" data-page="impostazioni" onclick="vaiA('impostazioni')">⚙️</div>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <!-- ELENCO DELLE PIANTE -->
+        <section class="page active" id="page-piante">
+            <div class="page-header">
+                <div class="page-title">🌱 Le mie piante</div>
+                <span class="punti-pill" id="puntiTot">0 punti</span>
+            </div>
+            <div class="toolbar">
+                <input class="form-input" id="cercaPianta" placeholder="🔎 Cerca per nome, specie, posizione…" oninput="renderPiante()">
+                <label class="check"><input type="checkbox" id="mostraArchiviate" onchange="renderPiante()"> Anche le archiviate</label>
+            </div>
+            <div class="plant-grid" id="plantGrid"></div>
+        </section>
+
+        <!-- DETTAGLIO DI UNA PIANTA -->
+        <section class="page" id="page-pianta">
+            <span class="back-link" onclick="vaiA('piante')">‹ Tutte le piante</span>
+            <div class="detail-head">
+                <div class="detail-cover" id="detCover" onclick="apriCopertina()">🪴</div>
+                <div class="detail-titles">
+                    <div class="page-title" id="detName"></div>
+                    <div class="plant-species" id="detSpecies"></div>
+                    <div class="act-meta" id="detSub"></div>
+                </div>
+            </div>
+            <div class="tabs" id="detTabs">
+                <div class="tab active" data-tab="scheda" onclick="tabDettaglio('scheda')">📋 Scheda</div>
+                <div class="tab" data-tab="diario" onclick="tabDettaglio('diario')">📔 Diario</div>
+                <div class="tab" data-tab="azioni" onclick="tabDettaglio('azioni')">✅ Azioni</div>
+                <div class="tab" data-tab="ia" onclick="tabDettaglio('ia')">🤖 Chiedi all'IA</div>
+            </div>
+            <div class="tab-panel active" id="tab-scheda"></div>
+            <div class="tab-panel" id="tab-diario"></div>
+            <div class="tab-panel" id="tab-azioni"></div>
+            <div class="tab-panel" id="tab-ia"></div>
+        </section>
+
+        <!-- I GRUPPI -->
+        <section class="page" id="page-gruppi">
+            <div class="page-header"><div class="page-title">👥 Gruppi di piante</div></div>
+            <div class="page-hint">Un'azione messa su un gruppo vale per tutte le sue piante: un promemoria e un ✅ Fatto per tutte, anche per quelle che entrano nel gruppo dopo.</div>
+            <div class="group-list" id="groupList"></div>
+        </section>
+
+        <!-- DETTAGLIO DI UN GRUPPO -->
+        <section class="page" id="page-gruppo">
+            <span class="back-link" onclick="vaiA('gruppi')">‹ Tutti i gruppi</span>
+            <div class="page-header"><div class="page-title" id="grpName"></div></div>
+            <div id="grpBody"></div>
+        </section>
+
+        <!-- DA FARE: le azioni di tutte le piante -->
+        <section class="page" id="page-dafare">
+            <div class="page-header"><div class="page-title">📆 Da fare</div></div>
+            <div class="page-hint">Le azioni di cura di tutte le piante, dalla più urgente. Si chiudono da qui.</div>
+            <div id="dafareList"></div>
+        </section>
+
+        <!-- LISTA DEI DESIDERI -->
+        <section class="page" id="page-desideri">
+            <div class="page-header"><div class="page-title">💚 Piante che vorrei</div></div>
+            <div class="page-hint">Le piante che ti piacerebbe curare. Quando ne prendi una, «🌱 L'ho presa» la trasforma in una scheda.</div>
+            <div class="ia-box">
+                <div style="font-weight:900;margin-bottom:0.3rem;">🤖 Chiedi all'IA</div>
+                <div class="form-hint" style="margin-bottom:0.4rem;">Le do l'elenco delle piante che hai e di quelle che vorresti.</div>
+                <textarea class="form-textarea" id="iaGenQ" placeholder="Es. quali di queste starebbero bene sul mio balcone a nord?"></textarea>
+                <div class="ia-sugg">
+                    <button class="chip" onclick="suggerisci('iaGenQ', this.textContent)">Quale mi consigli di prendere per prima?</button>
+                    <button class="chip" onclick="suggerisci('iaGenQ', this.textContent)">Quali sono le più facili da curare?</button>
+                    <button class="chip" onclick="suggerisci('iaGenQ', this.textContent)">Suggeriscimi altre piante simili a quelle che ho</button>
+                </div>
+                <div class="ia-row"><select class="form-select ia-scelta" id="iaGenIA" onchange="ricordaFornitore(this.value)"></select>
+                <button class="btn btn-ia" id="iaGenBtn" onclick="chiediIA(null)">🤖 Chiedi</button></div>
+                <div id="iaGenOut" style="margin-top:0.8rem;"></div>
+            </div>
+            <div class="filtri" id="wishFiltri"></div>
+            <div id="wishList"></div>
+        </section>
+
+        <!-- IMPOSTAZIONI -->
+        <section class="page" id="page-impostazioni">
+            <div class="page-header"><div class="page-title">⚙️ Impostazioni</div></div>
+            <div class="info-grid">
+                <div class="info-box"><div class="info-label">Versione</div><div id="infoVersion"></div></div>
+                <div class="info-box"><div class="info-label">Build</div><div id="infoBuild"></div></div>
+                <div class="info-box"><div class="info-label">Ambiente</div><div id="infoEnv"></div></div>
+            </div>
+            <div class="page-hint">
+                Punti: azione fatta <b>+10</b>, saltata <b>−2</b>, fatta dopo la scadenza <b>−2</b>
+                (si cambiano azione per azione). La somma è il numero della bolla in AppSphere.<br><br>
+                I promemoria arrivano su Telegram, sul telefono (AppSphere nativa) e su Smart Block, e
+                <b>✅ Fatto</b> dalla notifica chiude l'azione come il pulsante qui.<br><br>
+                «Chiedi all'IA» manda all'IA scelta nella tendina (Gemini, Qwen, Groq o Claude) la scheda, il diario, le azioni e fino a quattro foto
+                recenti; le risposte restano salvate nella pianta.
+            </div>
+        </section>
+    </main>
+</div>
+
+<button class="fab" id="fab" onclick="azioneFab()" title="Aggiungi">+</button>
+
+<!-- ═══ MODALE: PIANTA ═══ -->
+<div class="modal" id="mPianta">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="mPiantaTitle">Nuova pianta</div>
+            <button class="modal-close" onclick="closeModal('mPianta')">✕</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Nome *</label>
+            <input class="form-input" id="pName" placeholder="Es. Ficus del soggiorno">
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">Specie</label><input class="form-input" id="pSpecies" placeholder="Es. Ficus lyrata"></div>
+            <div class="form-group"><label class="form-label">Posizione</label><input class="form-input" id="pLocation" placeholder="Es. soggiorno, vicino alla finestra"></div>
+            <div class="form-group"><label class="form-label">Arrivata il</label><input class="form-input" type="date" id="pAcquired"></div>
+        </div>
+        <div class="form-group"><label class="form-label">👥 Gruppi</label>
+            <div class="pill-row" id="pGruppi"></div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.4rem;">
+                <input class="form-input" id="pNuovoGruppo" placeholder="Nuovo gruppo, es. Balcone" style="max-width:16rem;">
+                <button class="btn btn-ghost btn-small" onclick="nuovoGruppoDaPianta()">＋ Crea</button>
+            </div>
+            <div class="form-hint">Tocca un gruppo per metterla o toglierla. Le azioni del gruppo valgono anche per lei.</div></div>
+        <div class="form-group"><label class="form-label">🌿 Discende da</label><select class="form-input" id="pParent"></select>
+            <div class="form-hint">La pianta da cui è nata: una talea, un pollone, un seme.</div></div>
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">☀️ Luce</label><textarea class="form-textarea" id="pLight" placeholder="Luce indiretta, niente sole diretto"></textarea></div>
+            <div class="form-group"><label class="form-label">💧 Annaffiatura</label><textarea class="form-textarea" id="pWatering" placeholder="Quando i primi 2 cm di terra sono asciutti"></textarea></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">🪴 Terriccio e vaso</label><textarea class="form-textarea" id="pSoil"></textarea></div>
+            <div class="form-group"><label class="form-label">🧪 Concime</label><textarea class="form-textarea" id="pFertilizer"></textarea></div>
+        </div>
+        <div class="form-group"><label class="form-label">📝 Note</label><textarea class="form-textarea" id="pNotes"></textarea></div>
+        <div class="form-group">
+            <label class="form-label">📷 Foto della pianta</label>
+            <div class="form-hint">La prima è la copertina.</div>
+            <div class="gallery" id="pFotoList"></div>
+            <input type="file" id="pFotoInput" accept="image/*" multiple onchange="aggiungiFoto(event, 'pianta')">
+        </div>
+        <label class="check" id="pArchivedWrap"><input type="checkbox" id="pArchived"> 📦 Archiviata (non c'è più, ma il diario resta)</label>
+        <div class="form-error" id="pErr"></div>
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="pDeleteBtn" onclick="eliminaPianta()">🗑 Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('mPianta')">Annulla</button>
+            <button class="btn btn-primary" id="pSaveBtn" onclick="salvaPianta()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODALE: GRUPPO ═══ -->
+<div class="modal" id="mGruppo">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="mGruppoTitle">Nuovo gruppo</div>
+            <button class="modal-close" onclick="closeModal('mGruppo')">✕</button>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="max-width:6rem;"><label class="form-label">Emoji</label><input class="form-input" id="gEmoji" placeholder="🌞" maxlength="8"></div>
+            <div class="form-group"><label class="form-label">Nome *</label><input class="form-input" id="gName" placeholder="Es. Balcone"></div>
+        </div>
+        <div class="form-group"><label class="form-label">🪴 Piante del gruppo</label>
+            <div class="pill-row" id="gPiante"></div>
+            <div class="form-hint">Tocca una pianta per metterla o toglierla.</div></div>
+        <div class="form-error" id="gErr"></div>
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="gDeleteBtn" onclick="eliminaGruppo()">🗑 Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('mGruppo')">Annulla</button>
+            <button class="btn btn-primary" id="gSaveBtn" onclick="salvaGruppo()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODALE: VOCE DI DIARIO ═══ -->
+<div class="modal" id="mVoce">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="mVoceTitle">Nuova voce</div>
+            <button class="modal-close" onclick="closeModal('mVoce')">✕</button>
+        </div>
+        <div class="form-group"><label class="form-label">Data</label><input class="form-input" type="date" id="vDate"></div>
+        <div class="form-group"><label class="form-label">Commento</label><textarea class="form-textarea" id="vComment" style="min-height:120px" placeholder="Com'è oggi? Cos'hai fatto, cosa hai notato…"></textarea></div>
+        <div class="form-group">
+            <label class="form-label">📷 Foto</label>
+            <div class="gallery" id="vFotoList"></div>
+            <input type="file" id="vFotoInput" accept="image/*" multiple onchange="aggiungiFoto(event, 'voce')">
+        </div>
+        <div class="form-error" id="vErr"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('mVoce')">Annulla</button>
+            <button class="btn btn-primary" id="vSaveBtn" onclick="salvaVoce()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODALE: AZIONE ═══ -->
+<div class="modal" id="mAzione">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="mAzioneTitle">Nuova azione</div>
+            <button class="modal-close" onclick="closeModal('mAzione')">✕</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Cosa fare *</label>
+            <input class="form-input" id="aTitle" list="aTitleSugg" placeholder="Es. Annaffiare">
+            <!-- Le voci le scrive titoliProposti(): le fisse più i titoli delle azioni già create. -->
+            <datalist id="aTitleSugg"></datalist>
+        </div>
+        <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" id="aDesc" placeholder="Es. 300 ml, acqua a temperatura ambiente"></textarea></div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" id="aType" onchange="aggiornaCampiTipo()">
+                    <option value="single">Una volta</option>
+                    <option value="simple_recurring">Ogni N giorni</option>
+                    <option value="recurring">Ricorrente (settimana, mese, anno)</option>
+                    <option value="multiple">In date precise</option>
+                    <option value="free_repeat">Quando capita (senza data)</option>
+                </select>
+                <div class="form-hint" id="aTypeLock"></div>
+            </div>
+            <div class="form-group" id="aDateWrap"><label class="form-label" id="aDateLabel">Prossima volta</label><input class="form-input" type="date" id="aDate"></div>
+            <div class="form-group" id="aTimeWrap"><label class="form-label">Ora</label><input class="form-input" type="time" id="aTime" value="09:00"></div>
+        </div>
+        <div class="form-group" id="aDeadlineWrap"><label class="form-label">Scadenza (facoltativa)</label><input class="form-input" type="date" id="aDeadline"><div class="form-hint">Fatta dopo la scadenza vale i punti «in ritardo».</div></div>
+        <div class="form-group" id="aRepeatWrap"><label class="form-label">Ogni quanti giorni</label><input class="form-input" type="number" min="1" id="aRepeat" value="7"></div>
+        <div id="aRecWrap">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Frequenza</label>
+                    <select class="form-select" id="aFreq" onchange="aggiornaCampiTipo()">
+                        <option value="daily">Giornaliera</option>
+                        <option value="weekly">Settimanale</option>
+                        <option value="monthly">Mensile</option>
+                        <option value="yearly">Annuale</option>
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">Ogni</label><input class="form-input" type="number" min="1" id="aInterval" value="1"><div class="form-hint" id="aIntervalHint"></div></div>
+            </div>
+            <div class="form-group" id="aDowWrap"><label class="form-label">Giorni della settimana</label><div class="pill-row" id="aDow"></div></div>
+            <div class="form-group" id="aDomWrap"><label class="form-label">Giorni del mese</label><input class="form-input" id="aDom" placeholder="Es. 1, 15"></div>
+            <div class="form-group" id="aYearWrap"><label class="form-label">Date dell'anno (GG-MM)</label><input class="form-input" id="aYear" placeholder="Es. 15-03, 15-09"></div>
+        </div>
+        <div class="form-group" id="aMultiWrap">
+            <label class="form-label">Date</label>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <input class="form-input" type="date" id="aMultiInput" style="max-width:14rem;">
+                <button class="btn btn-ghost btn-small" onclick="aggiungiDataMultipla()">＋ Aggiungi</button>
+            </div>
+            <div class="pill-row" id="aMultiList"></div>
+        </div>
+        <fieldset class="box">
+            <legend>🏅 Punti</legend>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Fatta</label><input class="form-input" type="number" id="aPtsOk" value="10"></div>
+                <div class="form-group"><label class="form-label">Saltata</label><input class="form-input" type="number" id="aPtsSkip" value="-2"></div>
+                <div class="form-group"><label class="form-label">In ritardo</label><input class="form-input" type="number" id="aPtsLate" value="-2"></div>
+            </div>
+        </fieldset>
+        <fieldset class="box" id="aNotifBox">
+            <legend>🔔 Promemoria</legend>
+            <div class="form-hint" id="aNotifHint" style="margin-bottom:0.4rem;">Ogni canale si accende da sé, coi suoi anticipi.</div>
+            <label class="check"><input type="checkbox" id="nTg" onchange="aggiornaNotifiche()"> 📱 Telegram</label>
+            <div class="pill-row" id="nTgPresets"></div>
+            <label class="check" style="margin-top:0.6rem;"><input type="checkbox" id="nAn" onchange="aggiornaNotifiche()"> 📲 Telefono</label>
+            <div class="pill-row" id="nAnPresets"></div>
+            <label class="check" style="margin-top:0.6rem;"><input type="checkbox" id="nSb"> 🔐 Smart Block (blocca il telefono all'ora dell'azione)</label>
+        </fieldset>
+        <div class="form-error" id="aErr"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('mAzione')">Annulla</button>
+            <button class="btn btn-primary" id="aSaveBtn" onclick="salvaAzione()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODALE: SALTA ═══ -->
+<div class="modal" id="mSalta">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title">⏭ Rimanda</div>
+            <button class="modal-close" onclick="closeModal('mSalta')">✕</button>
+        </div>
+        <div class="form-group"><label class="form-label">Di quanti giorni</label><input class="form-input" type="number" min="1" id="sDays" value="1"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('mSalta')">Annulla</button>
+            <button class="btn btn-primary" onclick="confermaSalta()">Rimanda</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODALE: DESIDERIO ═══ -->
+<div class="modal" id="mDesiderio">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="mDesTitle">Pianta che vorrei</div>
+            <button class="modal-close" onclick="closeModal('mDesiderio')">✕</button>
+        </div>
+        <div class="form-group"><label class="form-label">Nome *</label><input class="form-input" id="dName"></div>
+        <div class="form-group"><label class="form-label">Specie</label><input class="form-input" id="dSpecies"></div>
+        <div class="form-group">
+            <label class="form-label">Priorità</label>
+            <select class="form-select" id="dPriority">
+                <option value="1">Alta</option><option value="2" selected>Media</option><option value="3">Bassa</option>
+            </select>
+        </div>
+        <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" id="dNotes" placeholder="Dove l'hai vista, perché ti piace, dove la metteresti…"></textarea></div>
+        <div class="form-error" id="dErr"></div>
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="dDeleteBtn" onclick="eliminaDesiderio()">🗑 Elimina</button>
+            <button class="btn btn-secondary" onclick="closeModal('mDesiderio')">Annulla</button>
+            <button class="btn btn-primary" onclick="salvaDesiderio()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODALE: FOTO ═══ -->
+<div class="modal" id="mFoto">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="mFotoTitle">📷</div>
+            <button class="modal-close" onclick="closeModal('mFoto')">✕</button>
+        </div>
+        <div id="fotoViewer"></div>
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// PIANTE — versione
+// ════════════════════════════════════════════════════════════
+var APP_VERSION = 'v1.4.0';
+var BUILD_TIME  = '2026-09-29T16:00:00Z';
+console.log('%c 🌱 PIANTE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#2E7D32;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+             || (window.location.hostname.endsWith('.netlify.app')
+                && window.location.hostname.startsWith('dev--'));
+
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+const BUCKET   = 'pv-images';
+const LATO_MAX = 1600;   // le foto si riducono prima di partire, come in Modifiche
+const QUALITA  = 0.82;
+const APP      = 'plants';   // cm_notification_rules.app
+
+let sb = null, sbAccessToken = null, currentUserId = null;
+
+// ════════════════════════════════════════════════════════════
+// STATO
+// ════════════════════════════════════════════════════════════
+const S = {
+    piante: [], immagini: [], diario: [], azioni: [], storia: [], desideri: [],
+    gruppi: [], legami: [],   // pv_groups e pv_plant_groups (pianta ↔ gruppo)
+    gruppoId: null,           // il gruppo aperto nella sua pagina
+    bozzaGruppo: null,        // form del gruppo in corso: { id, piante: Set }
+    risposte: [], presets: [], regole: [],   // regole = cm_notification_rules app='plants'
+    urls: {},                 // storage_path → indirizzo firmato
+    pagina: 'piante', piantaId: null, tab: 'scheda',
+    filtroDes: 'desiderata',
+    bozza: null,              // form in corso (pianta o voce): foto comprese
+    azioneId: null, azionePianta: null, azioneGruppo: null, multi: [], dow: [],
+    saltaId: null, desiderioId: null,
+    iaInCorso: false,
+    fornitori: null,   // le IA con la chiave nei Secrets, da pv-ai (action: 'fornitori')
+};
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+function initWithToken(token) {
+    if (sb) return;
+    sbAccessToken = token;
+    localStorage.setItem('sb_token', token);
+    sb = creaClient(token);
+    currentUserId = decodeJWT(token)?.sub || null;
+    document.getElementById('authOverlay').style.display = 'none';
+    startApp();
+}
+function creaClient(token) {
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+}
+function handleAuthError(error) {
+    if (!error) return false;
+    const msg = (error.message || '').toLowerCase();
+    const isAuth = error.status === 401 || msg.includes('jwt expired') || msg.includes('invalid jwt')
+        || msg.includes('not authenticated') || msg.includes('pgjwt');
+    if (!isAuth) return false;
+    sb = null; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return true;
+}
+function decodeJWT(token) {
+    try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
+    catch(e) { return null; }
+}
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SB_TOKEN' && e.data.token) initWithToken(e.data.token);
+});
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null; sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        const t = e.data.sbToken;
+        localStorage.setItem('sb_token', t); sbAccessToken = t;
+        if (sb) sb = creaClient(t); else initWithToken(t);
+    }
+};
+window.addEventListener('load', () => {
+    const stored = localStorage.getItem('sb_token');
+    if (stored) initWithToken(stored);
+    else document.getElementById('authOverlay').style.display = 'flex';
+});
+
+// ════════════════════════════════════════════════════════════
+// UTILITÀ
+// ════════════════════════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer = null;
+function showToast(msg, ms = 2600) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.style.display = 'none', ms);
+}
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+let _confermaRisolvi = null;
+function conferma(msg, testoSi = 'Elimina') {
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmYes').textContent = testoSi;
+    document.getElementById('confirmDialog').classList.add('active');
+    return new Promise(res => { _confermaRisolvi = res; });
+}
+function chiudiConferma(esito) {
+    document.getElementById('confirmDialog').classList.remove('active');
+    const r = _confermaRisolvi; _confermaRisolvi = null;
+    if (r) r(esito);
+}
+document.getElementById('confirmYes').onclick = () => chiudiConferma(true);
+document.getElementById('confirmNo').onclick  = () => chiudiConferma(false);
+
+// ⚠️ Le date si leggono e si scrivono in ora LOCALE: `toISOString().slice(0,10)`
+// darebbe il giorno UTC, e un'azione di mezzanotte finirebbe il giorno prima.
+function localDay(ts) {
+    if (!ts) return null;
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return String(ts).slice(0, 10);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function localTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function localToISO(dateStr, timeStr) {
+    const [y, m, d] = String(dateStr).split('-').map(Number);
+    const [hh, mm]  = String(timeStr || '09:00').split(':').map(Number);
+    return new Date(y, m - 1, d, hh || 0, mm || 0, 0).toISOString();
+}
+function oggi() { return localDay(new Date()); }
+function fmtData(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = String(iso).slice(0, 10).split('-');
+    return `${d}/${m}/${y}`;
+}
+function giorniFra(daIso, aIso) {
+    const a = new Date(daIso + 'T12:00:00'), b = new Date(aIso + 'T12:00:00');
+    return Math.round((b - a) / 86400000);
+}
+function quando(iso) {
+    const n = giorniFra(oggi(), iso);
+    if (n === 0) return 'oggi';
+    if (n === 1) return 'domani';
+    if (n === -1) return 'ieri';
+    if (n < 0) return `${-n} giorni fa`;
+    return fmtData(iso);
+}
+
+// ════════════════════════════════════════════════════════════
+// CARICAMENTO
+// ════════════════════════════════════════════════════════════
+async function startApp() {
+    document.getElementById('infoVersion').textContent = APP_VERSION;
+    document.getElementById('infoBuild').textContent   = BUILD_TIME;
+    document.getElementById('infoEnv').textContent     = _IS_DEV ? '🧪 Development' : '🚀 Production';
+    await caricaTutto();
+    caricaFornitori();
+}
+
+async function caricaTutto() {
+    const [p, im, d, a, h, w, r, pr, gr, lg] = await Promise.all([
+        sb.from('pv_plants').select('*').order('name'),
+        sb.from('pv_images').select('*').order('position'),
+        sb.from('pv_diary').select('*').order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
+        sb.from('pv_actions').select('*').order('created_at'),
+        sb.from('pv_action_history').select('*').order('timestamp', { ascending: false }).limit(1000),
+        sb.from('pv_wishlist').select('*').order('priority').order('created_at'),
+        sb.from('cm_notification_rules').select('id, entity_id, channel, reminder_presets').eq('app', APP),
+        sb.from('cm_reminder_presets').select('int_id, label, offset_minutes, sort_order').eq('active', true).order('sort_order'),
+        sb.from('pv_groups').select('*').order('name'),
+        sb.from('pv_plant_groups').select('plant_id, group_id'),
+    ]);
+    for (const res of [p, im, d, a, h, w]) {
+        if (res.error) {
+            if (handleAuthError(res.error)) return;
+            console.error(res.error);
+            showToast('❌ ' + res.error.message, 6000);
+            return;
+        }
+    }
+    S.piante = p.data || []; S.immagini = im.data || []; S.diario = d.data || [];
+    S.azioni = a.data || []; S.storia = h.data || []; S.desideri = w.data || [];
+    // Regole e preset non sono di questa app: se non si leggono, i promemoria
+    // si spengono ma la pagina resta usabile.
+    S.regole  = r.error ? [] : (r.data || []);
+    S.presets = pr.error ? [] : (pr.data || []);
+    // I gruppi: se le tabelle non si leggono (migration non ancora passata) la
+    // pagina resta usabile senza, e lo dice in console.
+    S.gruppi = gr.error ? [] : (gr.data || []);
+    S.legami = lg.error ? [] : (lg.data || []);
+    if (gr.error || lg.error) console.warn('gruppi:', gr.error || lg.error);
+    if (r.error) console.warn('regole promemoria:', r.error);
+    await firmaTutte(S.immagini.map(i => i.storage_path));
+    ridisegna();
+}
+
+// Indirizzi firmati del bucket privato, due ore, chiesti in blocco e tenuti in cache.
+async function firmaTutte(paths) {
+    const mancanti = [...new Set(paths)].filter(pa => pa && !S.urls[pa]);
+    for (let i = 0; i < mancanti.length; i += 100) {
+        const blocco = mancanti.slice(i, i + 100);
+        const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(blocco, 7200);
+        if (error) { console.warn('firma foto:', error); continue; }
+        for (const x of data || []) if (x.signedUrl) S.urls[x.path] = x.signedUrl;
+    }
+}
+
+function ridisegna() {
+    document.getElementById('puntiTot').textContent = puntiTotali() + ' punti';
+    renderPiante();
+    if (S.pagina === 'pianta') renderDettaglio();
+    renderDafare();
+    renderDesideri();
+    renderGruppi();
+    if (S.pagina === 'gruppo') renderGruppo();
+}
+
+function puntiTotali() { return S.storia.reduce((s, r) => s + (r.points || 0), 0); }
+
+// ════════════════════════════════════════════════════════════
+// NAVIGAZIONE
+// ════════════════════════════════════════════════════════════
+function vaiA(pagina) {
+    S.pagina = pagina;
+    document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === 'page-' + pagina));
+    const nav = pagina === 'pianta' ? 'piante' : pagina === 'gruppo' ? 'gruppi' : pagina;
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === nav));
+    document.getElementById('fab').style.display = pagina === 'impostazioni' ? 'none' : 'flex';
+    if (pagina === 'pianta') renderDettaglio();
+    if (pagina === 'gruppo') renderGruppo();
+    if (pagina === 'desideri' && sb) caricaRisposte(null);
+    window.scrollTo(0, 0);
+}
+
+// Il + fa la cosa più probabile nella pagina in cui si è.
+function azioneFab() {
+    if (S.pagina === 'piante') return apriPianta(null);
+    if (S.pagina === 'desideri') return apriDesiderio(null);
+    if (S.pagina === 'gruppi') return apriGruppo(null);
+    if (S.pagina === 'gruppo') return apriAzione(null, null, S.gruppoId);
+    if (S.pagina === 'dafare') {
+        const vive = S.piante.filter(p => !p.archived);
+        if (!vive.length) return showToast('Prima aggiungi una pianta');
+        return apriAzione(null, vive[0].id);
+    }
+    if (S.pagina === 'pianta') {
+        if (S.tab === 'diario') return apriVoce(null);
+        if (S.tab === 'azioni') return apriAzione(null, S.piantaId);
+        if (S.tab === 'ia') { document.getElementById('iaQ')?.focus(); return; }
+        return apriPianta(S.piantaId);
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// ELENCO DELLE PIANTE
+// ════════════════════════════════════════════════════════════
+function copertinaDi(plantId) {
+    const foto = S.immagini.filter(i => i.plant_id === plantId && !i.diary_id).sort((a, b) => a.position - b.position);
+    if (foto.length) return S.urls[foto[0].storage_path] || null;
+    // Senza foto nella scheda, la più recente del diario: una pianta con un
+    // diario pieno di foto e un riquadro vuoto sembrerebbe una pianta senza foto.
+    const diario = S.immagini.filter(i => i.plant_id === plantId && i.diary_id)
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return diario.length ? (S.urls[diario[0].storage_path] || null) : null;
+}
+
+// ── gruppi ──────────────────────────────────────────────────
+function gruppiDi(plantId) {
+    const ids = new Set(S.legami.filter(l => l.plant_id === plantId).map(l => l.group_id));
+    return S.gruppi.filter(g => ids.has(g.id));
+}
+function pianteDi(groupId) {
+    const ids = new Set(S.legami.filter(l => l.group_id === groupId).map(l => l.plant_id));
+    return S.piante.filter(p => ids.has(p.id));
+}
+function nomeGruppo(g) { return (g.emoji ? g.emoji + ' ' : '👥 ') + g.name; }
+
+// Le azioni che valgono per una pianta: le sue più quelle dei suoi gruppi.
+// ⚠️ Un'azione di gruppo è UNA riga: compare in ogni pianta del gruppo ma si
+// chiude una volta sola, per tutte.
+function azioniDellaPianta(plantId) {
+    const gids = new Set(gruppiDi(plantId).map(g => g.id));
+    return S.azioni.filter(a => a.plant_id === plantId || (a.group_id && gids.has(a.group_id)));
+}
+
+function azioniAperte(plantId) {
+    return (plantId ? azioniDellaPianta(plantId) : S.azioni).filter(a => a.status !== 'terminated');
+}
+function giornoAzione(a) { return a.type === 'free_repeat' ? null : localDay(a.next_occurrence_date || a.start_date); }
+
+function prossimaDi(plantId) {
+    const conData = azioniAperte(plantId).filter(a => giornoAzione(a)).sort((a, b) => giornoAzione(a).localeCompare(giornoAzione(b)));
+    return conData[0] || null;
+}
+
+function renderPiante() {
+    const q = (document.getElementById('cercaPianta').value || '').trim().toLowerCase();
+    const archiviate = document.getElementById('mostraArchiviate').checked;
+    const elenco = S.piante.filter(p => (archiviate || !p.archived)
+        && (!q || [p.name, p.species, p.location].some(x => (x || '').toLowerCase().includes(q))));
+    const box = document.getElementById('plantGrid');
+    if (!S.piante.length) {
+        box.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🪴</div>
+            <div class="empty-title">Nessuna pianta ancora</div><div>Tocca + per aggiungere la prima.</div></div>`;
+        return;
+    }
+    if (!elenco.length) { box.innerHTML = `<div class="empty-state" style="grid-column:1/-1">Nessuna pianta trovata.</div>`; return; }
+    box.innerHTML = elenco.map(p => {
+        const url = copertinaDi(p.id);
+        const pr = prossimaDi(p.id);
+        let next = '';
+        if (pr) {
+            const g = giornoAzione(pr);
+            next = `<div class="plant-next ${g < oggi() ? 'late' : ''}">${esc(pr.title)} · ${quando(g)}</div>`;
+        }
+        return `<div class="plant-card ${p.archived ? 'archiviata' : ''}" onclick="apriDettaglio('${p.id}')">
+            <div class="plant-cover" style="${url ? `background-image:url('${url}')` : ''}">${url ? '' : '🪴'}</div>
+            <div class="plant-info">
+                <div class="plant-name">${esc(p.name)}${p.archived ? ' 📦' : ''}</div>
+                ${p.species ? `<div class="plant-species">${esc(p.species)}</div>` : ''}
+                ${p.location ? `<div class="act-meta">📍 ${esc(p.location)}</div>` : ''}
+                ${gruppiDi(p.id).length ? `<div class="plant-groups">${gruppiDi(p.id).map(g => esc(nomeGruppo(g))).join(' · ')}</div>` : ''}
+                ${next}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// DETTAGLIO
+// ════════════════════════════════════════════════════════════
+function apriDettaglio(id) {
+    S.piantaId = id;
+    if (S.pagina !== 'pianta') S.tab = 'scheda';
+    vaiA('pianta');
+    tabDettaglio(S.tab);
+}
+function tabDettaglio(tab) {
+    S.tab = tab;
+    document.querySelectorAll('#detTabs .tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+    document.querySelectorAll('#page-pianta .tab-panel').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
+    if (tab === 'ia') caricaRisposte(S.piantaId);
+}
+function piantaCorrente() { return S.piante.find(p => p.id === S.piantaId); }
+
+function renderDettaglio() {
+    const p = piantaCorrente();
+    if (!p) { vaiA('piante'); return; }
+    const url = copertinaDi(p.id);
+    const cov = document.getElementById('detCover');
+    cov.style.backgroundImage = url ? `url('${url}')` : '';
+    cov.textContent = url ? '' : '🪴';
+    document.getElementById('detName').textContent = p.name + (p.archived ? ' 📦' : '');
+    document.getElementById('detSpecies').textContent = p.species || '';
+    const voci = S.diario.filter(v => v.plant_id === p.id).length;
+    const aperte = azioniAperte(p.id).length;
+    document.getElementById('detSub').textContent =
+        [p.location ? '📍 ' + p.location : '', p.acquired_on ? 'con te dal ' + fmtData(p.acquired_on) : '',
+         `${voci} ${voci === 1 ? 'voce' : 'voci'} di diario`, `${aperte} ${aperte === 1 ? 'azione' : 'azioni'}`]
+        .filter(Boolean).join(' · ');
+    renderScheda(p);
+    renderDiario(p);
+    renderAzioniPianta(p);
+    renderIA(p);
+}
+
+function apriCopertina() {
+    const p = piantaCorrente(); if (!p) return;
+    const url = copertinaDi(p.id);
+    if (url) apriFoto(url, p.name); else apriPianta(p.id);
+}
+
+function renderScheda(p) {
+    const campo = (et, v) => `<div class="info-box"><div class="info-label">${et}</div>
+        <div class="info-value ${v ? '' : 'vuoto'}">${v ? esc(v) : 'da scrivere'}</div></div>`;
+    const foto = S.immagini.filter(i => i.plant_id === p.id && !i.diary_id).sort((a, b) => a.position - b.position);
+    const madre = p.parent_id ? S.piante.find(x => x.id === p.parent_id) : null;
+    const figlie = S.piante.filter(x => x.parent_id === p.id);
+    document.getElementById('tab-scheda').innerHTML = `
+        <div class="info-grid">
+            ${campo('Specie', p.species)}
+            ${campo('📍 Posizione', p.location)}
+            ${campo('📅 Arrivata il', p.acquired_on ? fmtData(p.acquired_on) : '')}
+            ${gruppiDi(p.id).length ? `<div class="info-box"><div class="info-label">👥 Gruppi</div>
+                <div class="info-value">${gruppiDi(p.id).map(g => `<a href="#" onclick="apriPaginaGruppo('${g.id}');return false;">${esc(nomeGruppo(g))}</a>`).join(', ')}</div></div>` : ''}
+            ${p.parent_id ? `<div class="info-box"><div class="info-label">🌿 Discende da</div>
+                ${madre ? `<div class="info-value"><a href="#" onclick="apriDettaglio('${madre.id}');return false;">${esc(madre.name)}</a></div>` : '<div class="info-value vuoto">pianta non più in elenco</div>'}</div>` : ''}
+            ${figlie.length ? `<div class="info-box"><div class="info-label">🌱 Figlie</div>
+                <div class="info-value">${figlie.map(f => `<a href="#" onclick="apriDettaglio('${f.id}');return false;">${esc(f.name)}</a>`).join(', ')}</div></div>` : ''}
+            ${campo('☀️ Luce', p.light)}
+            ${campo('💧 Annaffiatura', p.watering)}
+            ${campo('🪴 Terriccio e vaso', p.soil)}
+            ${campo('🧪 Concime', p.fertilizer)}
+            ${campo('📝 Note', p.notes)}
+        </div>
+        <div class="form-label">📷 Foto della pianta</div>
+        ${foto.length ? `<div class="gallery">${foto.map((f, i) => `<div class="thumb" style="background-image:url('${S.urls[f.storage_path] || ''}')"
+            onclick="apriFoto('${S.urls[f.storage_path] || ''}', '${esc(p.name).replace(/'/g, '&#39;')}')">${i === 0 ? '<span class="cover-badge">copertina</span>' : ''}</div>`).join('')}</div>`
+          : '<div class="form-hint" style="margin-bottom:1rem;">Nessuna foto. Aggiungila da ✏️ Modifica.</div>'}
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="apriPianta('${p.id}')">✏️ Modifica la scheda</button>
+            <button class="btn" onclick="clonaPianta('${p.id}')">📋 Clona</button>
+        </div>`;
+}
+
+// «📋 Clona» copia la sola SCHEDA: niente foto, diario né azioni — sono di
+// quella pianta e non di questa. Apre il form già compilato invece di salvare
+// da sé: il nome va quasi sempre cambiato, e un tocco per sbaglio non deve
+// lasciare un doppione da andare a cancellare. Discende dalla stessa madre.
+function clonaPianta(id) {
+    const p = S.piante.find(x => x.id === id); if (!p) return;
+    apriPianta(null, {
+        titolo: '📋 Copia di ' + p.name, name: p.name + ' (copia)', species: p.species, location: p.location,
+        acquired_on: oggi(), light: p.light, watering: p.watering, soil: p.soil,
+        fertilizer: p.fertilizer, notes: p.notes, parent_id: p.parent_id,
+        gruppi: gruppiDi(p.id).map(g => g.id),
+    });
+}
+
+// Le discendenti di una pianta, a ogni livello: nella tendina «Discende da» non
+// si offrono, o una pianta potrebbe finire nonna di sé stessa.
+function discendentiDi(id) {
+    const fuori = new Set([id]);
+    let cresce = true;
+    while (cresce) {
+        cresce = false;
+        for (const x of S.piante) if (x.parent_id && fuori.has(x.parent_id) && !fuori.has(x.id)) { fuori.add(x.id); cresce = true; }
+    }
+    return fuori;
+}
+
+// ════════════════════════════════════════════════════════════
+// FOTO — scelta, riduzione, anteprima
+// ════════════════════════════════════════════════════════════
+// ⚠️ `imageOrientation: 'from-image'` o una foto del telefono arriva coricata.
+// Tre gradini (come in Modifiche): una WebView che non conosce la prima chiamata
+// altrimenti non caricherebbe niente senza dire perché.
+async function riduci(file) {
+    let bmp = null;
+    try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e1) {
+        try { bmp = await createImageBitmap(file); }
+        catch (e2) { return await riduciConImg(file); }
+    }
+    const scala = Math.min(1, LATO_MAX / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scala)), h = Math.max(1, Math.round(bmp.height * scala));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', QUALITA));
+    if (!blob) throw new Error('non convertita');
+    return blob;
+}
+function riduciConImg(file) {
+    return new Promise((res, rej) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const scala = Math.min(1, LATO_MAX / Math.max(img.naturalWidth, img.naturalHeight));
+                const w = Math.max(1, Math.round(img.naturalWidth * scala)), h = Math.max(1, Math.round(img.naturalHeight * scala));
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                c.getContext('2d').drawImage(img, 0, 0, w, h);
+                c.toBlob(b => b ? res(b) : rej(new Error('non convertita')), 'image/jpeg', QUALITA);
+            } catch (e) { rej(e); } finally { URL.revokeObjectURL(url); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('immagine illeggibile')); };
+        img.src = url;
+    });
+}
+
+async function aggiungiFoto(ev, dove) {
+    const files = [...(ev.target.files || [])];
+    ev.target.value = '';
+    // ⚠️ Zero file vuol dire che il selettore è tornato a mani vuote: annullando
+    // il `change` non scatta affatto, quindi qui non è un annullamento.
+    if (!files.length) { showToast('⚠️ Nessuna foto arrivata dal selettore'); return; }
+    for (const f of files) {
+        try {
+            const blob = await riduci(f);
+            S.bozza.foto.push({ nuova: true, blob, url: URL.createObjectURL(blob) });
+        } catch (e) { showToast('❌ Foto illeggibile: ' + e.message); }
+    }
+    renderFotoBozza(dove);
+}
+
+function renderFotoBozza(dove) {
+    const box = document.getElementById(dove === 'pianta' ? 'pFotoList' : 'vFotoList');
+    const vive = S.bozza.foto.filter(f => !f.tolta);
+    box.innerHTML = vive.map((f, i) => `<div class="thumb" style="background-image:url('${f.url}')">
+        ${dove === 'pianta' && i === 0 ? '<span class="cover-badge">copertina</span>' : ''}
+        <button class="rm" title="Togli" onclick="event.stopPropagation(); togliFotoBozza(${S.bozza.foto.indexOf(f)}, '${dove}')">✕</button></div>`).join('');
+}
+function togliFotoBozza(i, dove) {
+    const f = S.bozza.foto[i];
+    if (f.nuova) S.bozza.foto.splice(i, 1); else f.tolta = true;
+    renderFotoBozza(dove);
+}
+
+function apriFoto(url, titolo) {
+    if (!url) return;
+    document.getElementById('mFotoTitle').textContent = '📷 ' + (titolo || '');
+    document.getElementById('fotoViewer').innerHTML = `<img src="${url}" alt="">`;
+    openModal('mFoto');
+}
+
+// Carica le foto nuove e toglie quelle tolte. ⚠️ Prima il file, poi la riga
+// nel caricare; prima il file, poi la riga anche nel togliere: nell'ordine
+// inverso resterebbe nel bucket un file che nessuna riga nomina.
+async function sincronizzaFoto(plantId, diaryId) {
+    let pos = 0;
+    for (const f of S.bozza.foto) {
+        if (f.tolta) continue;
+        if (f.nuova) {
+            const percorso = `${currentUserId}/${plantId}/${crypto.randomUUID()}.jpg`;
+            const { error: e1 } = await sb.storage.from(BUCKET).upload(percorso, f.blob, { contentType: 'image/jpeg' });
+            if (e1) throw spiegaStorage(e1);
+            const { data, error: e2 } = await sb.from('pv_images')
+                .insert({ user_id: currentUserId, plant_id: plantId, diary_id: diaryId, storage_path: percorso, position: pos })
+                .select().single();
+            if (e2) throw e2;
+            f.nuova = false; f.id = data.id; f.storage_path = percorso;
+        } else if (f.id && f.position !== pos) {
+            await sb.from('pv_images').update({ position: pos }).eq('id', f.id);
+            f.position = pos;
+        }
+        pos++;
+    }
+    for (const f of S.bozza.foto.filter(x => x.tolta && x.id)) {
+        await sb.storage.from(BUCKET).remove([f.storage_path]);
+        const { error } = await sb.from('pv_images').delete().eq('id', f.id);
+        if (error) throw error;
+    }
+    S.bozza.foto = S.bozza.foto.filter(x => !x.tolta);
+}
+
+function spiegaStorage(e) {
+    const m = (e.message || String(e)).toLowerCase();
+    if (m.includes('bucket not found'))
+        return new Error('Il bucket «pv-images» non esiste: va creato a mano (privato) dalla dashboard di Supabase → Storage.');
+    if (m.includes('row-level security') || m.includes('unauthorized'))
+        return new Error('Le regole del bucket «pv-images» non permettono il caricamento: mancano le policy di storage della migration.');
+    return e;
+}
+
+// ════════════════════════════════════════════════════════════
+// FORM DELLA PIANTA
+// ════════════════════════════════════════════════════════════
+function apriPianta(id, precompila) {
+    const p = id ? S.piante.find(x => x.id === id) : null;
+    const v = p || precompila || {};
+    S.bozza = {
+        tipo: 'pianta', id: p?.id || null, daDesiderio: precompila?.daDesiderio || null,
+        foto: p ? S.immagini.filter(i => i.plant_id === p.id && !i.diary_id).sort((a, b) => a.position - b.position)
+                    .map(i => ({ id: i.id, storage_path: i.storage_path, position: i.position, url: S.urls[i.storage_path] || '' }))
+                : [],
+    };
+    document.getElementById('mPiantaTitle').textContent = p ? '✏️ ' + p.name : (precompila?.titolo || '🌱 Nuova pianta');
+    const fuori = p ? discendentiDi(p.id) : new Set();
+    document.getElementById('pParent').innerHTML = '<option value="">— nessuna —</option>' +
+        S.piante.filter(x => !fuori.has(x.id))
+            .map(x => `<option value="${x.id}">${esc(x.name)}${x.archived ? ' 📦' : ''}</option>`).join('');
+    document.getElementById('pParent').value = v.parent_id || '';
+    // I gruppi della bozza: in modifica quelli di adesso, in un clone quelli
+    // della pianta di partenza, altrimenti nessuno.
+    S.bozza.gruppi = new Set(p ? gruppiDi(p.id).map(g => g.id) : (precompila?.gruppi || []));
+    document.getElementById('pNuovoGruppo').value = '';
+    renderGruppiBozza();
+    document.getElementById('pName').value       = v.name || '';
+    document.getElementById('pSpecies').value    = v.species || '';
+    document.getElementById('pLocation').value   = v.location || '';
+    document.getElementById('pAcquired').value   = v.acquired_on || (p ? '' : oggi());
+    document.getElementById('pLight').value      = v.light || '';
+    document.getElementById('pWatering').value   = v.watering || '';
+    document.getElementById('pSoil').value       = v.soil || '';
+    document.getElementById('pFertilizer').value = v.fertilizer || '';
+    document.getElementById('pNotes').value      = v.notes || '';
+    document.getElementById('pArchived').checked = !!p?.archived;
+    document.getElementById('pArchivedWrap').style.display = p ? 'flex' : 'none';
+    document.getElementById('pDeleteBtn').style.display = p ? 'inline-block' : 'none';
+    document.getElementById('pErr').textContent = '';
+    renderFotoBozza('pianta');
+    openModal('mPianta');
+}
+
+async function salvaPianta() {
+    const err = document.getElementById('pErr');
+    const nome = document.getElementById('pName').value.trim();
+    if (!nome) { err.textContent = 'Serve un nome.'; return; }
+    const val = id => document.getElementById(id).value.trim() || null;
+    const payload = {
+        name: nome, species: val('pSpecies'), location: val('pLocation'),
+        acquired_on: document.getElementById('pAcquired').value || null,
+        light: val('pLight'), watering: val('pWatering'), soil: val('pSoil'),
+        fertilizer: val('pFertilizer'), notes: val('pNotes'),
+        archived: document.getElementById('pArchived').checked,
+        parent_id: document.getElementById('pParent').value || null,
+        updated_at: new Date().toISOString(),
+    };
+    const btn = document.getElementById('pSaveBtn');
+    btn.disabled = true; err.textContent = '';
+    try {
+        let id = S.bozza.id;
+        if (id) {
+            const { error } = await sb.from('pv_plants').update(payload).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await sb.from('pv_plants').insert({ ...payload, user_id: currentUserId }).select().single();
+            if (error) throw error;
+            // ⚠️ La bozza si tiene l'id appena nato: se una foto non passa, ripremendo
+            // Salva si riprende invece di creare una seconda pianta identica.
+            id = S.bozza.id = data.id;
+            if (S.bozza.daDesiderio) {
+                await sb.from('pv_wishlist').update({ status: 'presa', plant_id: id }).eq('id', S.bozza.daDesiderio);
+            }
+        }
+        await sincronizzaGruppiPianta(id, S.bozza.gruppi);
+        await sincronizzaFoto(id, null);
+        closeModal('mPianta');
+        showToast('✅ Pianta salvata');
+        await caricaTutto();
+        if (!S.piantaId || S.pagina !== 'pianta') apriDettaglio(id);
+    } catch (e) {
+        if (handleAuthError(e)) return;
+        err.textContent = '❌ ' + (e.message || e);
+    } finally { btn.disabled = false; }
+}
+
+function renderGruppiBozza() {
+    const box = document.getElementById('pGruppi');
+    box.innerHTML = S.gruppi.length
+        ? S.gruppi.map(g => `<button class="chip ${S.bozza.gruppi.has(g.id) ? 'on' : ''}" onclick="toggleGruppoBozza('${g.id}')">${esc(nomeGruppo(g))}</button>`).join('')
+        : '<span class="form-hint">Nessun gruppo ancora: scrivine uno qui sotto.</span>';
+}
+function toggleGruppoBozza(gid) {
+    const s = S.bozza.gruppi;
+    if (s.has(gid)) s.delete(gid); else s.add(gid);
+    renderGruppiBozza();
+}
+// Crea il gruppo subito (serve il suo id) e lo spunta nella bozza; il
+// collegamento alla pianta si scrive col Salva, come gli altri.
+async function nuovoGruppoDaPianta() {
+    const inp = document.getElementById('pNuovoGruppo');
+    const nome = inp.value.trim(); if (!nome) return;
+    const giaC = S.gruppi.find(g => g.name.trim().toLowerCase() === nome.toLowerCase());
+    if (giaC) { S.bozza.gruppi.add(giaC.id); inp.value = ''; renderGruppiBozza(); return; }
+    const { data, error } = await sb.from('pv_groups').insert({ name: nome, user_id: currentUserId }).select().single();
+    if (error) { if (handleAuthError(error)) return; document.getElementById('pErr').textContent = '❌ ' + error.message; return; }
+    S.gruppi.push(data); S.gruppi.sort((a, b) => a.name.localeCompare(b.name));
+    S.bozza.gruppi.add(data.id); inp.value = '';
+    renderGruppiBozza();
+}
+// Riscrive i collegamenti di una pianta: toglie quelli non più scelti e
+// aggiunge i nuovi, senza toccare quelli che restano.
+async function sincronizzaGruppiPianta(plantId, scelti) {
+    const prima = new Set(S.legami.filter(l => l.plant_id === plantId).map(l => l.group_id));
+    const via = [...prima].filter(g => !scelti.has(g));
+    const nuovi = [...scelti].filter(g => !prima.has(g));
+    if (via.length) {
+        const { error } = await sb.from('pv_plant_groups').delete().eq('plant_id', plantId).in('group_id', via);
+        if (error) throw error;
+    }
+    if (nuovi.length) {
+        const { error } = await sb.from('pv_plant_groups').insert(nuovi.map(g => ({ plant_id: plantId, group_id: g, user_id: currentUserId })));
+        if (error) throw error;
+    }
+}
+
+async function eliminaPianta() {
+    const p = S.piante.find(x => x.id === S.bozza.id); if (!p) return;
+    const nv = S.diario.filter(v => v.plant_id === p.id).length;
+    const nf = S.immagini.filter(i => i.plant_id === p.id).length;
+    const ok = await conferma(`Eliminare «${p.name}»?\n\nSe ne vanno anche ${nv} voci di diario, ${nf} foto e le sue azioni coi promemoria.\n` +
+        `Se la pianta non c'è più ma vuoi tenerne il diario, usa invece «📦 Archiviata».`);
+    if (!ok) return;
+    // ⚠️ Prima i file, poi la riga: la cascata porta via le righe di pv_images
+    // ma non i file del bucket.
+    const paths = S.immagini.filter(i => i.plant_id === p.id).map(i => i.storage_path);
+    for (let i = 0; i < paths.length; i += 100) await sb.storage.from(BUCKET).remove(paths.slice(i, i + 100));
+    const { error } = await sb.from('pv_plants').delete().eq('id', p.id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    closeModal('mPianta');
+    showToast('🗑 Pianta eliminata');
+    S.piantaId = null;
+    vaiA('piante');
+    await caricaTutto();
+}
+
+// ════════════════════════════════════════════════════════════
+// DIARIO
+// ════════════════════════════════════════════════════════════
+function renderDiario(p) {
+    const voci = S.diario.filter(v => v.plant_id === p.id);
+    const box = document.getElementById('tab-diario');
+    const bottone = `<button class="btn btn-primary" style="margin-bottom:1rem;" onclick="apriVoce(null)">＋ Nuova voce</button>`;
+    if (!voci.length) {
+        box.innerHTML = bottone + `<div class="empty-state"><div class="empty-icon">📔</div>
+            <div class="empty-title">Il diario è vuoto</div><div>Scrivi com'è oggi e aggiungi una foto: fra qualche mese sarà bello rileggerlo.</div></div>`;
+        return;
+    }
+    box.innerHTML = bottone + `<div class="timeline">${voci.map(v => {
+        const foto = S.immagini.filter(i => i.diary_id === v.id).sort((a, b) => a.position - b.position);
+        return `<div class="entry">
+            <div class="entry-head">
+                <button class="icon-btn" title="Modifica" onclick="apriVoce('${v.id}')">✏️</button>
+                <button class="icon-btn" title="Elimina" onclick="eliminaVoce('${v.id}')">🗑</button>
+                <span class="entry-date">${fmtData(v.entry_date)}</span>
+                <span class="act-meta">${quando(v.entry_date)}</span>
+            </div>
+            ${v.comment ? `<div class="entry-comment">${esc(v.comment)}</div>` : ''}
+            ${foto.length ? `<div class="gallery">${foto.map(f => `<div class="thumb" style="background-image:url('${S.urls[f.storage_path] || ''}')"
+                onclick="apriFoto('${S.urls[f.storage_path] || ''}', '${fmtData(v.entry_date)}')"></div>`).join('')}</div>` : ''}
+        </div>`;
+    }).join('')}</div>`;
+}
+
+function apriVoce(id) {
+    const v = id ? S.diario.find(x => x.id === id) : null;
+    S.bozza = {
+        tipo: 'voce', id: v?.id || null,
+        foto: v ? S.immagini.filter(i => i.diary_id === v.id).sort((a, b) => a.position - b.position)
+                    .map(i => ({ id: i.id, storage_path: i.storage_path, position: i.position, url: S.urls[i.storage_path] || '' }))
+                : [],
+    };
+    document.getElementById('mVoceTitle').textContent = v ? '✏️ Voce del ' + fmtData(v.entry_date) : '📔 Nuova voce';
+    document.getElementById('vDate').value = v?.entry_date || oggi();
+    document.getElementById('vComment').value = v?.comment || '';
+    document.getElementById('vErr').textContent = '';
+    renderFotoBozza('voce');
+    openModal('mVoce');
+}
+
+async function salvaVoce() {
+    const err = document.getElementById('vErr');
+    const comment = document.getElementById('vComment').value.trim() || null;
+    const fotoVive = S.bozza.foto.filter(f => !f.tolta).length;
+    // Una voce vale se ha il commento OPPURE una foto: una foto sola è già un ricordo.
+    if (!comment && !fotoVive) { err.textContent = 'Scrivi un commento o aggiungi una foto.'; return; }
+    const payload = { entry_date: document.getElementById('vDate').value || oggi(), comment };
+    const btn = document.getElementById('vSaveBtn');
+    btn.disabled = true; err.textContent = '';
+    try {
+        let id = S.bozza.id;
+        if (id) {
+            const { error } = await sb.from('pv_diary').update(payload).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await sb.from('pv_diary')
+                .insert({ ...payload, user_id: currentUserId, plant_id: S.piantaId }).select().single();
+            if (error) throw error;
+            id = S.bozza.id = data.id;
+        }
+        await sincronizzaFoto(S.piantaId, id);
+        closeModal('mVoce');
+        showToast('✅ Voce salvata');
+        await caricaTutto();
+    } catch (e) {
+        if (handleAuthError(e)) return;
+        err.textContent = '❌ ' + (e.message || e);
+    } finally { btn.disabled = false; }
+}
+
+async function eliminaVoce(id) {
+    const v = S.diario.find(x => x.id === id); if (!v) return;
+    const foto = S.immagini.filter(i => i.diary_id === id);
+    if (!await conferma(`Eliminare la voce del ${fmtData(v.entry_date)}${foto.length ? ` e le sue ${foto.length} foto` : ''}?`)) return;
+    if (foto.length) await sb.storage.from(BUCKET).remove(foto.map(f => f.storage_path));
+    const { error } = await sb.from('pv_diary').delete().eq('id', id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    showToast('🗑 Voce eliminata');
+    await caricaTutto();
+}
+
+// ════════════════════════════════════════════════════════════
+// AZIONI — elenco
+// ════════════════════════════════════════════════════════════
+const TIPI = {
+    single: 'una volta', simple_recurring: 'ogni N giorni', recurring: 'ricorrente',
+    multiple: 'date precise', free_repeat: 'quando capita', workflow: 'a passi',
+};
+const PUO_SALTARE = ['single', 'recurring', 'simple_recurring', 'multiple'];
+const GIORNI = [['L', 1], ['M', 2], ['M', 3], ['G', 4], ['V', 5], ['S', 6], ['D', 0]];   // numerazione extract(dow)
+
+function descriviRicorrenza(a) {
+    if (a.type === 'simple_recurring') return `ogni ${a.repeat_after_days || 7} giorni`;
+    if (a.type === 'recurring') {
+        const n = a.recurring_interval || 1;
+        if (a.recurring_frequency === 'daily') return n === 1 ? 'ogni giorno' : `ogni ${n} giorni`;
+        if (a.recurring_frequency === 'weekly') {
+            const nomi = { 0: 'dom', 1: 'lun', 2: 'mar', 3: 'mer', 4: 'gio', 5: 'ven', 6: 'sab' };
+            const gg = (a.recurring_days_of_week || []).map(d => nomi[d]).join(', ');
+            return (n === 1 ? 'ogni settimana' : `ogni ${n} settimane`) + (gg ? ` (${gg})` : '');
+        }
+        if (a.recurring_frequency === 'monthly') return (n === 1 ? 'ogni mese' : `ogni ${n} mesi`) + (a.recurring_day_of_month?.length ? ` il ${a.recurring_day_of_month.join(', ')}` : '');
+        if (a.recurring_frequency === 'yearly') return 'ogni anno' + (a.recurring_dates?.length ? ` il ${a.recurring_dates.join(', ')}` : '');
+    }
+    if (a.type === 'multiple') return `${(a.multiple_dates || []).length} date`;
+    return TIPI[a.type] || a.type;
+}
+
+function canaliDi(a) {
+    const c = S.regole.filter(r => String(r.entity_id) === String(a.id)).map(r => r.channel);
+    return [c.includes('telegram') ? '📱' : '', c.includes('android') ? '📲' : '', c.includes('smart_block') ? '🔐' : ''].join('');
+}
+
+function schedaAzione(a, conPianta) {
+    const p = S.piante.find(x => x.id === a.plant_id);
+    const gr = a.group_id ? S.gruppi.find(x => x.id === a.group_id) : null;
+    const g = giornoAzione(a);
+    const late = g && g < oggi();
+    const ora = a.type !== 'free_repeat' ? localTime(a.next_occurrence_date || a.start_date) : '';
+    let quandoTxt;
+    if (a.status === 'terminated') quandoTxt = 'conclusa' + (a.last_completed_date ? ' il ' + fmtData(localDay(a.last_completed_date)) : '');
+    else if (!g) quandoTxt = a.last_completed_date ? 'ultima volta ' + quando(localDay(a.last_completed_date)) : 'mai fatta';
+    else quandoTxt = `<span class="${late ? 'late' : ''}">${quando(g)}${ora && ora !== '00:00' ? ' · ' + ora : ''}</span>`;
+    const campanelle = canaliDi(a);
+    const viva = a.status !== 'terminated';
+    const puoFare = viva && a.type !== 'workflow';
+    return `<div class="act">
+        <div class="act-top">
+            <div class="act-edit">
+                <button class="icon-btn" title="Modifica" onclick="apriAzione('${a.id}')">✏️</button>
+                <button class="icon-btn" title="Elimina" onclick="eliminaAzione('${a.id}')">🗑</button>
+            </div>
+            <div class="act-main">
+                <div class="act-title">${esc(a.title)}</div>
+                ${conPianta && p ? `<div class="act-plant" onclick="apriDettaglio('${p.id}'); tabDettaglio('azioni')">🪴 ${esc(p.name)}</div>` : ''}
+                ${gr ? `<div class="act-group" onclick="apriPaginaGruppo('${gr.id}')">${esc(nomeGruppo(gr))} · vale per ${pianteDi(gr.id).length} piante</div>` : ''}
+                <div class="act-meta">${quandoTxt} · ${descriviRicorrenza(a)}${campanelle ? ` · <span class="bell">${campanelle}</span>` : ''}</div>
+                ${a.description ? `<div class="act-meta">${esc(a.description)}</div>` : ''}
+            </div>
+        </div>
+        ${viva ? `<div class="act-btns">
+            ${puoFare ? `<button class="btn btn-success btn-small" onclick="completaAzione('${a.id}')">✅ Fatto</button>` : ''}
+            ${PUO_SALTARE.includes(a.type) ? `<button class="btn btn-ghost btn-small" onclick="saltaAzione('${a.id}')">⏭ Salta</button>` : ''}
+        </div>` : ''}
+    </div>`;
+}
+
+// Raggruppa come la panoramica dei task: scadute, oggi, prossime, libere, concluse.
+function gruppi(elenco) {
+    const o = oggi();
+    const aperte = elenco.filter(a => a.status !== 'terminated');
+    const ord = (x, y) => (giornoAzione(x) || '').localeCompare(giornoAzione(y) || '') || String(x.next_occurrence_date).localeCompare(String(y.next_occurrence_date));
+    return {
+        late:  aperte.filter(a => giornoAzione(a) && giornoAzione(a) < o).sort(ord),
+        today: aperte.filter(a => giornoAzione(a) === o).sort(ord),
+        next:  aperte.filter(a => giornoAzione(a) && giornoAzione(a) > o).sort(ord),
+        free:  aperte.filter(a => !giornoAzione(a)),
+        done:  elenco.filter(a => a.status === 'terminated'),
+    };
+}
+
+function htmlGruppi(g, conPianta, conConcluse) {
+    const sez = [
+        ['late', '⚠️ In ritardo'], ['today', '🎯 Oggi'], ['next', '📅 Prossime'], ['free', '🔄 Quando capita'],
+    ];
+    if (conConcluse) sez.push(['done', '🏁 Concluse']);
+    return sez.filter(([k]) => g[k].length).map(([k, t]) =>
+        `<div class="grp ${k}"><div class="grp-title">${t} (${g[k].length})</div>${g[k].map(a => schedaAzione(a, conPianta)).join('')}</div>`).join('');
+}
+
+function renderAzioniPianta(p) {
+    const box = document.getElementById('tab-azioni');
+    const elenco = azioniDellaPianta(p.id);
+    const bottone = `<button class="btn btn-primary" style="margin-bottom:1rem;" onclick="apriAzione(null, '${p.id}')">＋ Nuova azione</button>`;
+    if (!elenco.length) {
+        box.innerHTML = bottone + `<div class="empty-state"><div class="empty-icon">✅</div>
+            <div class="empty-title">Nessuna azione</div><div>Annaffiare, concimare, rinvasare… con i promemoria che vuoi.</div></div>`;
+        return;
+    }
+    box.innerHTML = bottone + htmlGruppi(gruppi(elenco), false, true) + storicoPianta(p);
+}
+
+function storicoPianta(p) {
+    // Le righe di un'azione di gruppo hanno plant_id NULL: si ritrovano da action_id.
+    const diGruppo = new Set(azioniDellaPianta(p.id).filter(a => a.group_id).map(a => a.id));
+    const righe = S.storia.filter(h => (h.plant_id === p.id || diGruppo.has(h.action_id)) && h.action !== 'terminated').slice(0, 15);
+    if (!righe.length) return '';
+    const et = { completed: '✅ fatta', completed_late: '✅ in ritardo', skipped: '⏭ saltata', failed: '❌ non fatta' };
+    return `<div class="grp done"><div class="grp-title">📜 Ultime volte</div>${righe.map(h =>
+        `<div class="act-meta">${fmtData(localDay(h.timestamp))} · ${esc(h.action_title)} · ${et[h.action] || h.action} · ${h.points > 0 ? '+' : ''}${h.points} pt</div>`).join('')}</div>`;
+}
+
+function renderDafare() {
+    const vive = new Set(S.piante.filter(p => !p.archived).map(p => p.id));
+    // Un'azione di gruppo conta se nel gruppo c'è almeno una pianta viva.
+    const elenco = S.azioni.filter(a => vive.has(a.plant_id)
+        || (a.group_id && pianteDi(a.group_id).some(p => !p.archived)));
+    const box = document.getElementById('dafareList');
+    const g = gruppi(elenco);
+    if (!g.late.length && !g.today.length && !g.next.length && !g.free.length) {
+        box.innerHTML = `<div class="empty-state"><div class="empty-icon">🌿</div><div class="empty-title">Niente da fare</div>
+            <div>Le azioni si aggiungono dalla scheda di ogni pianta.</div></div>`;
+        return;
+    }
+    box.innerHTML = htmlGruppi(g, true, false);
+}
+
+// ════════════════════════════════════════════════════════════
+// AZIONI — ciclo di vita (solo RPC)
+// ════════════════════════════════════════════════════════════
+// ⚠️ La prossima occorrenza la calcola il database (pv_action_complete /
+// pv_action_skip), che sposta anche i promemoria su tutti i canali. Qui si
+// chiama e si rilegge: nessuna data si calcola in JavaScript.
+async function completaAzione(id) {
+    const { data, error } = await sb.rpc('pv_action_complete', { p_action_id: id, p_today: oggi() });
+    if (error || !data?.ok) {
+        if (handleAuthError(error)) return;
+        showToast('❌ ' + (error?.message || data?.error || 'errore'), 5000); return;
+    }
+    const pt = data.points || 0;
+    showToast(`✅ Fatto! ${pt > 0 ? '+' : ''}${pt} punti` + (data.next ? ` · prossima ${quando(localDay(data.next))}` : ''));
+    await caricaTutto();
+    triggerFillQueue();
+}
+
+function saltaAzione(id) {
+    const a = S.azioni.find(x => x.id === id); if (!a) return;
+    // I giorni si chiedono solo per una «una volta»: per gli altri tipi la RPC
+    // li ignora, e chiedere un numero che il server butta via sarebbe una bugia.
+    if (a.type === 'single') {
+        S.saltaId = id;
+        document.getElementById('sDays').value = 1;
+        openModal('mSalta');
+    } else eseguiSalta(id, 1);
+}
+function confermaSalta() {
+    const n = Math.max(1, parseInt(document.getElementById('sDays').value) || 1);
+    closeModal('mSalta');
+    eseguiSalta(S.saltaId, n);
+}
+async function eseguiSalta(id, giorni) {
+    const { data, error } = await sb.rpc('pv_action_skip', { p_action_id: id, p_days: giorni });
+    if (error || !data?.ok) {
+        if (handleAuthError(error)) return;
+        showToast('❌ ' + (error?.message || data?.error || 'errore'), 5000); return;
+    }
+    showToast(`⏭ Saltata (${data.points} pt)` + (data.next ? ` · prossima ${quando(localDay(data.next))}` : ''));
+    await caricaTutto();
+    triggerFillQueue();
+}
+
+async function eliminaAzione(id) {
+    const a = S.azioni.find(x => x.id === id); if (!a) return;
+    const gr = a.group_id ? S.gruppi.find(x => x.id === a.group_id) : null;
+    if (!await conferma(`Eliminare l'azione «${a.title}»?` + (gr ? `\n\nÈ del gruppo «${gr.name}»: sparisce da tutte le sue piante.` : '') +
+        `\n\nI suoi promemoria si spengono; i punti già presi restano.`)) return;
+    // I promemoria li toglie il trigger del database, qualunque app cancelli.
+    const { error } = await sb.from('pv_actions').delete().eq('id', id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    showToast('🗑 Azione eliminata');
+    await caricaTutto();
+}
+
+// ════════════════════════════════════════════════════════════
+// AZIONI — form
+// ════════════════════════════════════════════════════════════
+// Le voci fisse di «Cosa fare», più i titoli delle azioni già create: un titolo
+// scritto una volta a mano si ritrova in elenco senza archiviarlo da nessuna
+// parte — la verità è pv_actions. Doppioni tolti senza badare a maiuscole e
+// spazi. Gemella di `PianteState.titoliProposti` nel nativo.
+const TITOLI_FISSI = ['💧 Annaffiare', '🧪 Concimare', '🪴 Rinvasare', '✂️ Potare',
+    '🐛 Controllare parassiti', '💦 Nebulizzare le foglie', '🧽 Pulire le foglie', '🔄 Girare il vaso'];
+function titoliProposti() {
+    const visti = new Set(), out = [];
+    for (const t of [...TITOLI_FISSI, ...S.azioni.map(a => (a.title || '').trim())]) {
+        const k = t.toLowerCase().replace(/\s+/g, ' ');
+        if (!t || visti.has(k)) continue;
+        visti.add(k); out.push(t);
+    }
+    return out;
+}
+
+function apriAzione(id, plantId, groupId) {
+    document.getElementById('aTitleSugg').innerHTML =
+        titoliProposti().map(t => `<option value="${esc(t)}">`).join('');
+    const a = id ? S.azioni.find(x => x.id === id) : null;
+    S.azioneId = a?.id || null;
+    S.azioneGruppo = a ? (a.group_id || null) : (groupId || null);
+    S.azionePianta = S.azioneGruppo ? null : (a?.plant_id || plantId);
+    const p = S.piante.find(x => x.id === S.azionePianta);
+    const gr = S.gruppi.find(x => x.id === S.azioneGruppo);
+    document.getElementById('mAzioneTitle').textContent = (a ? '✏️ ' : '✅ Nuova azione · ') +
+        (a ? a.title + (gr ? ' · ' + nomeGruppo(gr) : '') : (gr ? nomeGruppo(gr) : (p?.name || '')));
+    document.getElementById('aTitle').value = a?.title || '';
+    document.getElementById('aDesc').value  = a?.description || '';
+    const tipo = document.getElementById('aType');
+    tipo.value = a?.type === 'workflow' ? 'single' : (a?.type || 'simple_recurring');
+    // ⚠️ Il tipo di un'azione che esiste già non si cambia: decide quali colonne
+    // ha, e cambiandolo resterebbero dietro quelle del tipo di prima.
+    tipo.disabled = !!a;
+    document.getElementById('aTypeLock').textContent = a ? 'Il tipo non si cambia: per un tipo diverso crea un\'azione nuova.' : '';
+    const quandoTs = a ? (a.next_occurrence_date || a.start_date) : null;
+    document.getElementById('aDate').value = quandoTs ? localDay(quandoTs) : oggi();
+    document.getElementById('aTime').value = quandoTs ? localTime(quandoTs) : '09:00';
+    document.getElementById('aDeadline').value = a?.deadline || '';
+    document.getElementById('aRepeat').value = a?.repeat_after_days || 7;
+    document.getElementById('aFreq').value = a?.recurring_frequency || 'weekly';
+    document.getElementById('aInterval').value = a?.recurring_interval || 1;
+    S.dow = [...(a?.recurring_days_of_week || [])].map(Number);
+    document.getElementById('aDom').value = (a?.recurring_day_of_month || []).join(', ');
+    document.getElementById('aYear').value = (a?.recurring_dates || []).join(', ');
+    S.multi = [...(a?.multiple_dates || [])];
+    document.getElementById('aPtsOk').value   = a ? a.success_points : 10;
+    document.getElementById('aPtsSkip').value = a ? a.skip_points : -2;
+    document.getElementById('aPtsLate').value = a ? a.late_points : -2;
+
+    // I promemoria: la riga di cm_notification_rules BASTA a dire che il canale
+    // è acceso (come in Tasks), e i suoi preset dicono gli anticipi.
+    const regola = ch => a ? S.regole.find(r => String(r.entity_id) === String(a.id) && r.channel === ch) : null;
+    const presetsDi = r => {
+        if (!r) return [];
+        const rp = typeof r.reminder_presets === 'string' ? JSON.parse(r.reminder_presets) : (r.reminder_presets || {});
+        return (rp.reminders || []).map(Number);
+    };
+    const tg = regola('telegram'), an = regola('android'), sbk = regola('smart_block');
+    document.getElementById('nTg').checked = !!tg;
+    document.getElementById('nAn').checked = !!an;
+    document.getElementById('nSb').checked = !!sbk;
+    S.presetTg = new Set(tg ? presetsDi(tg) : [primoPreset()].filter(x => x != null));
+    S.presetAn = new Set(an ? presetsDi(an) : [primoPreset()].filter(x => x != null));
+    document.getElementById('aErr').textContent = '';
+    aggiornaCampiTipo();
+    aggiornaNotifiche();
+    openModal('mAzione');
+}
+
+// L'anticipo proposto di partenza è quello più vicino all'ora (0 minuti, se c'è).
+function primoPreset() {
+    if (!S.presets.length) return null;
+    return [...S.presets].sort((a, b) => Math.abs(a.offset_minutes) - Math.abs(b.offset_minutes))[0].int_id;
+}
+
+function aggiornaCampiTipo() {
+    const t = document.getElementById('aType').value;
+    const f = document.getElementById('aFreq').value;
+    const mostra = (id, si) => document.getElementById(id).style.display = si ? '' : 'none';
+    mostra('aDateWrap', t !== 'free_repeat' && t !== 'multiple');
+    mostra('aTimeWrap', t !== 'free_repeat');
+    mostra('aDeadlineWrap', t === 'single');
+    mostra('aRepeatWrap', t === 'simple_recurring');
+    mostra('aRecWrap', t === 'recurring');
+    mostra('aMultiWrap', t === 'multiple');
+    mostra('aDowWrap', f === 'weekly');
+    mostra('aDomWrap', f === 'monthly');
+    mostra('aYearWrap', f === 'yearly');
+    document.getElementById('aDateLabel').textContent = S.azioneId ? 'Prossima volta' : (t === 'single' ? 'Quando' : 'Prima volta');
+    document.getElementById('aIntervalHint').textContent =
+        { daily: 'giorni', weekly: 'settimane', monthly: 'mesi', yearly: 'anni' }[f];
+    document.getElementById('aDow').innerHTML = GIORNI.map(([l, d]) =>
+        `<button class="chip ${S.dow.includes(d) ? 'on' : ''}" onclick="toggleDow(${d})">${l}</button>`).join('');
+    document.getElementById('aMultiList').innerHTML = [...S.multi].sort().map(d =>
+        `<button class="chip on" title="Togli" onclick="togliDataMultipla('${d}')">${fmtData(d)} ✕</button>`).join('');
+    // Senza una data non c'è nessun istante a cui suonare.
+    const box = document.getElementById('aNotifBox');
+    box.style.opacity = t === 'free_repeat' ? 0.45 : 1;
+    box.querySelectorAll('input').forEach(i => i.disabled = t === 'free_repeat');
+    document.getElementById('aNotifHint').textContent = t === 'free_repeat'
+        ? 'Un\'azione «quando capita» non ha una data: non c\'è niente a cui far suonare un promemoria.'
+        : 'Ogni canale si accende da sé, coi suoi anticipi.';
+}
+function toggleDow(d) {
+    S.dow = S.dow.includes(d) ? S.dow.filter(x => x !== d) : [...S.dow, d];
+    aggiornaCampiTipo();
+}
+function aggiungiDataMultipla() {
+    const v = document.getElementById('aMultiInput').value;
+    if (!v) return;
+    if (!S.multi.includes(v)) S.multi.push(v);
+    document.getElementById('aMultiInput').value = '';
+    aggiornaCampiTipo();
+}
+function togliDataMultipla(d) { S.multi = S.multi.filter(x => x !== d); aggiornaCampiTipo(); }
+
+function aggiornaNotifiche() {
+    const chips = (setName, boxId, acceso) => {
+        const box = document.getElementById(boxId);
+        box.style.display = acceso ? 'flex' : 'none';
+        if (!S.presets.length) { box.innerHTML = '<span class="form-hint">Preset dei promemoria non disponibili.</span>'; return; }
+        box.innerHTML = S.presets.map(p =>
+            `<button class="chip ${S[setName].has(p.int_id) ? 'on' : ''}" onclick="togglePreset('${setName}', ${p.int_id})">${esc(p.label)}</button>`).join('');
+    };
+    chips('presetTg', 'nTgPresets', document.getElementById('nTg').checked);
+    chips('presetAn', 'nAnPresets', document.getElementById('nAn').checked);
+}
+function togglePreset(setName, id) {
+    const s = S[setName];
+    if (s.has(id)) s.delete(id); else s.add(id);
+    aggiornaNotifiche();
+}
+
+function numeriDa(testo, min, max) {
+    return String(testo || '').split(/[,;\s]+/).map(x => parseInt(x)).filter(n => !isNaN(n) && n >= min && n <= max);
+}
+
+async function salvaAzione() {
+    const err = document.getElementById('aErr');
+    const title = document.getElementById('aTitle').value.trim();
+    if (!title) { err.textContent = 'Scrivi cosa fare.'; return; }
+    const tipo = document.getElementById('aType').value;
+    const ora  = document.getElementById('aTime').value || '09:00';
+    const data = document.getElementById('aDate').value || oggi();
+    const inizio = localToISO(data, ora);
+    const intero = (id, dflt) => { const n = parseInt(document.getElementById(id).value); return isNaN(n) ? dflt : n; };
+    const payload = {
+        title, description: document.getElementById('aDesc').value.trim() || null,
+        success_points: intero('aPtsOk', 10), skip_points: intero('aPtsSkip', -2), late_points: intero('aPtsLate', -2),
+        deadline: null, recurring_frequency: null, recurring_interval: null, recurring_days_of_week: null,
+        recurring_day_of_month: null, recurring_dates: null, repeat_after_days: null, multiple_dates: null,
+    };
+    // ⚠️ Anche in modifica partenza e prossima volta si riscrivono dalla data del
+    // form: è la risposta a «da quando riparte», e l'ora di `start_date` è quella
+    // che le RPC conservano a ogni occorrenza successiva.
+    if (tipo === 'single') {
+        payload.deadline = document.getElementById('aDeadline').value || null;
+        payload.start_date = inizio; payload.next_occurrence_date = inizio;
+    } else if (tipo === 'simple_recurring') {
+        payload.repeat_after_days = Math.max(1, intero('aRepeat', 7));
+        payload.start_date = inizio; payload.next_occurrence_date = inizio;
+    } else if (tipo === 'recurring') {
+        const freq = document.getElementById('aFreq').value;
+        payload.recurring_frequency = freq;
+        payload.recurring_interval = Math.max(1, intero('aInterval', 1));
+        if (freq === 'weekly') {
+            if (!S.dow.length) { err.textContent = 'Scegli almeno un giorno della settimana.'; return; }
+            payload.recurring_days_of_week = [...S.dow].sort((a, b) => a - b);
+        }
+        if (freq === 'monthly') {
+            const gg = numeriDa(document.getElementById('aDom').value, 1, 31);
+            payload.recurring_day_of_month = gg.length ? [...new Set(gg)].sort((a, b) => a - b) : null;
+        }
+        if (freq === 'yearly') {
+            const dd = String(document.getElementById('aYear').value || '').split(/[,;\s]+/).map(x => x.trim())
+                .filter(x => /^\d{1,2}-\d{1,2}$/.test(x)).map(x => x.split('-').map(n => n.padStart(2, '0')).join('-'));
+            if (!dd.length) { err.textContent = 'Scrivi almeno una data dell\'anno nel formato GG-MM.'; return; }
+            payload.recurring_dates = dd;
+        }
+        payload.start_date = inizio; payload.next_occurrence_date = inizio;
+    } else if (tipo === 'multiple') {
+        if (!S.multi.length) { err.textContent = 'Aggiungi almeno una data.'; return; }
+        payload.multiple_dates = [...S.multi].sort();
+        // In modifica si riparte dalla prima data non ancora passata.
+        const prossima = payload.multiple_dates.find(d => d >= oggi()) || payload.multiple_dates[payload.multiple_dates.length - 1];
+        payload.start_date = localToISO(payload.multiple_dates[0], ora);
+        payload.next_occurrence_date = localToISO(prossima, ora);
+    } else {   // free_repeat
+        payload.next_occurrence_date = null;
+        if (!S.azioneId) payload.start_date = new Date().toISOString();
+    }
+
+    const btn = document.getElementById('aSaveBtn');
+    btn.disabled = true; err.textContent = '';
+    try {
+        let id = S.azioneId;
+        if (id) {
+            // Riaprendo un'azione conclusa la si rimette in calendario.
+            const vecchia = S.azioni.find(x => x.id === id);
+            if (vecchia?.status === 'terminated' && tipo !== 'free_repeat') payload.status = 'started';
+            const { error } = await sb.from('pv_actions').update(payload).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { data: nuova, error } = await sb.from('pv_actions')
+                .insert({ ...payload, type: tipo, user_id: currentUserId,
+                          plant_id: S.azioneGruppo ? null : S.azionePianta,
+                          group_id: S.azioneGruppo || null }).select().single();
+            if (error) throw error;
+            id = S.azioneId = nuova.id;
+        }
+        const avvisi = await sincronizzaRegole(id, tipo, title, payload.next_occurrence_date);
+        closeModal('mAzione');
+        showToast('✅ Azione salvata' + (avvisi ? ' · ' + avvisi : ''), 4000);
+        await caricaTutto();
+    } catch (e) {
+        if (handleAuthError(e)) return;
+        err.textContent = '❌ ' + (e.message || e);
+    } finally { btn.disabled = false; }
+}
+
+// ════════════════════════════════════════════════════════════
+// GRUPPI
+// ════════════════════════════════════════════════════════════
+function renderGruppi() {
+    const box = document.getElementById('groupList');
+    if (!S.gruppi.length) {
+        box.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">👥</div>
+            <div class="empty-title">Nessun gruppo ancora</div><div>Tocca + per crearne uno, o scrivilo nella scheda di una pianta.</div></div>`;
+        return;
+    }
+    box.innerHTML = S.gruppi.map(g => {
+        const piante = pianteDi(g.id);
+        const az = S.azioni.filter(a => a.group_id === g.id && a.status !== 'terminated').length;
+        return `<div class="group-card" onclick="apriPaginaGruppo('${g.id}')">
+            <span class="plant-name">${esc(nomeGruppo(g))}</span>
+            <div class="act-meta">${piante.length} ${piante.length === 1 ? 'pianta' : 'piante'} · ${az} ${az === 1 ? 'azione' : 'azioni'}</div>
+            ${piante.length ? `<div class="act-meta">${piante.map(p => esc(p.name)).join(', ')}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function apriPaginaGruppo(id) { S.gruppoId = id; vaiA('gruppo'); }
+
+function renderGruppo() {
+    const g = S.gruppi.find(x => x.id === S.gruppoId);
+    if (!g) { vaiA('gruppi'); return; }
+    document.getElementById('grpName').textContent = nomeGruppo(g);
+    const piante = pianteDi(g.id);
+    const elenco = S.azioni.filter(a => a.group_id === g.id);
+    document.getElementById('grpBody').innerHTML = `
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <button class="btn btn-primary" onclick="apriAzione(null, null, '${g.id}')">＋ Nuova azione per il gruppo</button>
+            <button class="btn" onclick="apriGruppo('${g.id}')">✏️ Modifica il gruppo</button>
+        </div>
+        <div class="form-label">🪴 Piante (${piante.length})</div>
+        ${piante.length ? `<div class="pill-row" style="margin-bottom:1rem;">${piante.map(p =>
+            `<button class="chip" onclick="apriDettaglio('${p.id}')">${esc(p.name)}${p.archived ? ' 📦' : ''}</button>`).join('')}</div>`
+          : '<div class="form-hint" style="margin-bottom:1rem;">Nessuna pianta: aggiungile da ✏️ Modifica il gruppo.</div>'}
+        <div class="form-label">✅ Azioni del gruppo</div>
+        ${elenco.length ? htmlGruppi(gruppi(elenco), false, true)
+          : '<div class="form-hint">Nessuna azione: quelle che aggiungi qui valgono per tutte le piante del gruppo.</div>'}`;
+}
+
+function apriGruppo(id) {
+    const g = id ? S.gruppi.find(x => x.id === id) : null;
+    S.bozzaGruppo = { id: g?.id || null, piante: new Set(g ? pianteDi(g.id).map(p => p.id) : []) };
+    document.getElementById('mGruppoTitle').textContent = g ? '✏️ ' + nomeGruppo(g) : '👥 Nuovo gruppo';
+    document.getElementById('gName').value = g?.name || '';
+    document.getElementById('gEmoji').value = g?.emoji || '';
+    document.getElementById('gDeleteBtn').style.display = g ? 'inline-block' : 'none';
+    document.getElementById('gErr').textContent = '';
+    renderPianteBozzaGruppo();
+    openModal('mGruppo');
+}
+function renderPianteBozzaGruppo() {
+    const b = S.bozzaGruppo;
+    // Le archiviate si offrono solo se sono già dentro: toglierle deve restare possibile.
+    const offerte = S.piante.filter(p => !p.archived || b.piante.has(p.id));
+    document.getElementById('gPiante').innerHTML = offerte.length
+        ? offerte.map(p => `<button class="chip ${b.piante.has(p.id) ? 'on' : ''}" onclick="togglePiantaGruppo('${p.id}')">${esc(p.name)}${p.archived ? ' 📦' : ''}</button>`).join('')
+        : '<span class="form-hint">Nessuna pianta ancora.</span>';
+}
+function togglePiantaGruppo(pid) {
+    const s = S.bozzaGruppo.piante;
+    if (s.has(pid)) s.delete(pid); else s.add(pid);
+    renderPianteBozzaGruppo();
+}
+
+async function salvaGruppo() {
+    const err = document.getElementById('gErr');
+    const nome = document.getElementById('gName').value.trim();
+    if (!nome) { err.textContent = 'Serve un nome.'; return; }
+    const payload = { name: nome, emoji: document.getElementById('gEmoji').value.trim() || null };
+    const btn = document.getElementById('gSaveBtn');
+    btn.disabled = true; err.textContent = '';
+    try {
+        let id = S.bozzaGruppo.id;
+        if (id) {
+            const { error } = await sb.from('pv_groups').update(payload).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await sb.from('pv_groups').insert({ ...payload, user_id: currentUserId }).select().single();
+            if (error) throw error;
+            // Come per la pianta: se i collegamenti non passano, ripremendo si riprende.
+            id = S.bozzaGruppo.id = data.id;
+        }
+        const prima = new Set(S.legami.filter(l => l.group_id === id).map(l => l.plant_id));
+        const scelte = S.bozzaGruppo.piante;
+        const via = [...prima].filter(p => !scelte.has(p));
+        const nuove = [...scelte].filter(p => !prima.has(p));
+        if (via.length) {
+            const { error } = await sb.from('pv_plant_groups').delete().eq('group_id', id).in('plant_id', via);
+            if (error) throw error;
+        }
+        if (nuove.length) {
+            const { error } = await sb.from('pv_plant_groups').insert(nuove.map(p => ({ plant_id: p, group_id: id, user_id: currentUserId })));
+            if (error) throw error;
+        }
+        closeModal('mGruppo');
+        showToast('✅ Gruppo salvato');
+        await caricaTutto();
+        apriPaginaGruppo(id);
+    } catch (e) {
+        if (handleAuthError(e)) return;
+        err.textContent = '❌ ' + (e.message || e);
+    } finally { btn.disabled = false; }
+}
+
+async function eliminaGruppo() {
+    const g = S.gruppi.find(x => x.id === S.bozzaGruppo?.id); if (!g) return;
+    const na = S.azioni.filter(a => a.group_id === g.id).length;
+    const np = pianteDi(g.id).length;
+    const ok = await conferma(`Eliminare il gruppo «${g.name}»?\n\nSe ne vanno anche le sue ${na} azioni coi promemoria.\n` +
+        `Le ${np} piante restano, solo fuori dal gruppo; i punti già presi restano.`);
+    if (!ok) return;
+    const { error } = await sb.from('pv_groups').delete().eq('id', g.id);
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    closeModal('mGruppo');
+    showToast('🗑 Gruppo eliminato');
+    S.gruppoId = null;
+    vaiA('gruppi');
+    await caricaTutto();
+}
+
+// ════════════════════════════════════════════════════════════
+// PROMEMORIA — una riga di cm_notification_rules per canale
+// ════════════════════════════════════════════════════════════
+// Stessa forma dei task (reminders + due_at), con app = 'plants':
+// fill-notification-queue la tratta da task e mette nella coda il completamento
+// { app: 'plants' }, che notification-action traduce in pv_action_complete.
+// ⚠️ Dopo ogni ✅ o ⏭ la nuova scadenza la scrive la RPC su tutti i canali:
+// da qui le regole si toccano solo salvando il form.
+async function sincronizzaRegole(actionId, tipo, titolo, dueAt) {
+    const p = S.piante.find(x => x.id === S.azionePianta);
+    const gr = S.gruppi.find(x => x.id === S.azioneGruppo);
+    const entityTitle = gr ? `${titolo} — ${gr.name}` : p ? `${titolo} — ${p.name}` : titolo;
+    const senzaData = tipo === 'free_repeat' || !dueAt;
+    const avvisi = [];
+
+    const togli = async (canale) => {
+        await sb.from('cm_notification_rules').delete()
+            .eq('app', APP).eq('entity_id', actionId).eq('user_id', currentUserId).eq('channel', canale);
+    };
+    const scrivi = async (canale, presets) => {
+        const { data: esistente } = await sb.from('cm_notification_rules').select('id')
+            .eq('app', APP).eq('entity_id', actionId).eq('user_id', currentUserId).eq('channel', canale).maybeSingle();
+        const rule = {
+            user_id: currentUserId, app: APP, entity_id: actionId, entity_type: 'task',
+            entity_title: entityTitle, reminder_presets: presets, notification_spec: {}, channel: canale, enabled: true,
+        };
+        const { error } = esistente?.id
+            ? await sb.from('cm_notification_rules').update(rule).eq('id', esistente.id)
+            : await sb.from('cm_notification_rules').insert(rule);
+        if (error) avvisi.push(`❌ ${canale}: ${error.message}`);
+    };
+
+    const tg = !senzaData && document.getElementById('nTg').checked ? [...S.presetTg] : [];
+    const an = !senzaData && document.getElementById('nAn').checked ? [...S.presetAn] : [];
+    const sbk = !senzaData && document.getElementById('nSb').checked;
+
+    // ⚠️ `telegram_complete_button` anche sul canale del telefono: è il segnale
+    // da cui fill-notification-queue scrive il completamento nella coda, e senza
+    // la notifica sul telefono non avrebbe il ✅ Fatto.
+    if (tg.length) await scrivi('telegram', { reminders: tg, due_at: dueAt, telegram_complete_button: true });
+    else await togli('telegram');
+    if (an.length) await scrivi('android', { reminders: an, due_at: dueAt, telegram_complete_button: true });
+    else await togli('android');
+    if (sbk) await scrivi('smart_block', { reminders: [], due_at: dueAt });
+    else await togli('smart_block');
+
+    if ((document.getElementById('nTg').checked && !tg.length && !senzaData) ||
+        (document.getElementById('nAn').checked && !an.length && !senzaData))
+        avvisi.push('⚠️ canale acceso senza anticipi: spento');
+    if (tg.length || an.length || sbk) {
+        avvisi.push('🔔 ' + [tg.length ? '📱' : '', an.length ? '📲' : '', sbk ? '🔐' : ''].join(''));
+        triggerFillQueue();
+    }
+    return avvisi.join(' · ');
+}
+
+// Il cron gira ogni sei ore: un promemoria per stasera non può aspettarlo.
+async function triggerFillQueue() {
+    try {
+        await fetch(`${SUPABASE_URL}/functions/v1/fill-notification-queue`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${sbAccessToken}`, 'apikey': SUPABASE_KEY }
+        });
+    } catch (e) { console.warn('fill-notification-queue:', e.message); }
+}
+
+// ════════════════════════════════════════════════════════════
+// CHIEDI ALL'IA
+// ════════════════════════════════════════════════════════════
+const SUGGERIMENTI = [
+    'Come sta la mia pianta, dalle ultime foto?',
+    'Sto annaffiando nel modo giusto?',
+    'Quando conviene rinvasarla?',
+    'Perché le foglie cambiano colore?',
+    'Che azioni di cura mi consigli di programmare?',
+];
+
+function renderIA(p) {
+    const box = document.getElementById('tab-ia');
+    if (!box.dataset.pianta || box.dataset.pianta !== p.id) {
+        box.dataset.pianta = p.id;
+        box.innerHTML = `<div class="ia-box">
+            <div class="form-hint" style="margin-bottom:0.4rem;">Le mando la scheda, il diario, le azioni e fino a quattro foto recenti di «${esc(p.name)}».</div>
+            <textarea class="form-textarea" id="iaQ" placeholder="Cosa vuoi sapere?"></textarea>
+            <div class="ia-sugg">${SUGGERIMENTI.map(s => `<button class="chip" onclick="suggerisci('iaQ', this.textContent)">${esc(s)}</button>`).join('')}</div>
+            <div class="ia-row"><select class="form-select ia-scelta" id="iaIA" onchange="ricordaFornitore(this.value)">${opzioniFornitori()}</select>
+            <button class="btn btn-ia" id="iaBtn" onclick="chiediIA('${p.id}')">🤖 Chiedi</button></div>
+            <div id="iaOut" style="margin-top:0.8rem;"></div>
+        </div>
+        <div id="iaStorico"></div>`;
+    }
+    renderStoricoIA(p.id);
+}
+// ── quale IA ────────────────────────────────────────────────
+// La tendina offre le sole IA che hanno la chiave nei Secrets: lo chiede a
+// pv-ai. Finché la risposta non arriva (o se non arriva) le offre tutte e tre,
+// e sarà la funzione a dire quale chiave manca.
+const FORNITORI_TUTTI = [{ id: 'gemini', nome: 'Gemini' }, { id: 'qwen', nome: 'Qwen' }, { id: 'groq', nome: 'Groq' }, { id: 'claude', nome: 'Claude' }];
+const NOME_IA = { gemini: 'Gemini', qwen: 'Qwen', groq: 'Groq', claude: 'Claude' };
+// ⚠️ Le IA che si pagano chiedono conferma a OGNI domanda: la tendina ricorda
+// l'ultima scelta, e senza la domanda si pagherebbe senza accorgersene. Il
+// gemello nativo è AVVISO_COSTO in PianteViewModel.kt: vanno cambiati insieme.
+const AVVISO_COSTO = {
+    claude: 'Claude si paga a consumo: questa domanda viene addebitata sulla chiave Anthropic.',
+    qwen: 'Qwen è gratuito solo finché dura il credito iniziale di Alibaba: dopo, questa domanda si paga.',
+};
+// L'ultima scelta è una comodità di questo browser, non un dato: localStorage.
+function fornitoreRicordato() { try { return localStorage.getItem('pv_ia_fornitore') || ''; } catch { return ''; } }
+function ricordaFornitore(v) {
+    try { localStorage.setItem('pv_ia_fornitore', v); } catch {}
+    document.querySelectorAll('.ia-scelta').forEach(el => { el.value = v; });
+}
+function fornitoreScelto() {
+    const elenco = S.fornitori?.length ? S.fornitori : FORNITORI_TUTTI, r = fornitoreRicordato();
+    return elenco.some(f => f.id === r) ? r : (elenco[0]?.id || 'gemini');
+}
+function opzioniFornitori() {
+    const elenco = S.fornitori?.length ? S.fornitori : FORNITORI_TUTTI, scelto = fornitoreScelto();
+    return elenco.map(f => `<option value="${f.id}" ${f.id === scelto ? 'selected' : ''}>🤖 ${esc(f.nome)}</option>`).join('');
+}
+function aggiornaTendineIA() { document.querySelectorAll('.ia-scelta').forEach(el => { el.innerHTML = opzioniFornitori(); }); }
+async function caricaFornitori() {
+    aggiornaTendineIA();
+    try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/pv-ai`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${sbAccessToken}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'fornitori' }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.ok && Array.isArray(j.fornitori)) S.fornitori = j.fornitori;
+    } catch (e) { console.warn('fornitori IA:', e.message); }
+    aggiornaTendineIA();
+}
+
+function suggerisci(id, testo) { const t = document.getElementById(id); t.value = testo; t.focus(); }
+
+async function caricaRisposte(plantId) {
+    let q = sb.from('pv_ai_answers').select('*').order('created_at', { ascending: false }).limit(50);
+    q = plantId ? q.eq('plant_id', plantId) : q.is('plant_id', null);
+    const { data, error } = await q;
+    if (error) { console.warn('risposte IA:', error); return; }
+    S.risposte = S.risposte.filter(r => (plantId ? r.plant_id !== plantId : r.plant_id !== null)).concat(data || []);
+    if (plantId) renderStoricoIA(plantId); else renderStoricoGenerale();
+}
+
+function renderStoricoIA(plantId) {
+    const box = document.getElementById('iaStorico'); if (!box) return;
+    const elenco = S.risposte.filter(r => r.plant_id === plantId).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    box.innerHTML = elenco.length ? `<div class="form-label">🗂 Domande precedenti</div>` + elenco.map(htmlRisposta).join('') : '';
+}
+function renderStoricoGenerale() {
+    const box = document.getElementById('iaGenOut'); if (!box || S.iaInCorso) return;
+    const elenco = S.risposte.filter(r => !r.plant_id).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    box.innerHTML = elenco.map(htmlRisposta).join('');
+}
+function htmlRisposta(r) {
+    return `<div class="ia-answer">
+        <div class="ia-q">❓ ${esc(r.question)} <small>${fmtData(localDay(r.created_at))}</small><span class="ia-chi" title="${esc(r.model || '')}">${esc(NOME_IA[r.provider || 'claude'] || r.provider)}</span>
+            <button class="icon-btn" style="float:right" title="Elimina" onclick="eliminaRisposta('${r.id}')">🗑</button>
+            <button class="icon-btn" style="float:right" title="Risposta nel prompt" onclick="rispostaNelPrompt('${r.id}')">⤴️</button></div>
+        <div class="ia-a">${markdownSemplice(r.answer)}</div>
+    </div>`;
+}
+
+// Quel poco di Markdown che una risposta usa: titoli, grassetto, elenchi.
+// Si parte dal testo già ESCAPATO, quindi l'HTML della risposta non passa mai.
+function markdownSemplice(md) {
+    const righe = esc(md).split('\n');
+    let html = '', lista = null;
+    const inline = s => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<i>$2</i>');
+    const chiudi = () => { if (lista) { html += `</${lista}>`; lista = null; } };
+    for (const r of righe) {
+        const t = r.trim();
+        let m;
+        if (!t) { chiudi(); continue; }
+        if ((m = t.match(/^#{1,6}\s+(.*)$/))) { chiudi(); html += `<h4>${inline(m[1])}</h4>`; continue; }
+        if ((m = t.match(/^[-*•]\s+(.*)$/))) { if (lista !== 'ul') { chiudi(); html += '<ul>'; lista = 'ul'; } html += `<li>${inline(m[1])}</li>`; continue; }
+        if ((m = t.match(/^\d+[.)]\s+(.*)$/))) { if (lista !== 'ol') { chiudi(); html += '<ol>'; lista = 'ol'; } html += `<li>${inline(m[1])}</li>`; continue; }
+        chiudi(); html += `<p>${inline(t)}</p>`;
+    }
+    chiudi();
+    return html;
+}
+
+async function chiediIA(plantId) {
+    const qId = plantId ? 'iaQ' : 'iaGenQ', selId = plantId ? 'iaIA' : 'iaGenIA', btnId = plantId ? 'iaBtn' : 'iaGenBtn', outId = plantId ? 'iaOut' : 'iaGenOut';
+    const domanda = document.getElementById(qId).value.trim();
+    if (!domanda) { showToast('Scrivi una domanda'); return; }
+    if (S.iaInCorso) return;
+    const scelta = document.getElementById(selId)?.value || fornitoreScelto();
+    if (AVVISO_COSTO[scelta] && !confirm('💶 ' + AVVISO_COSTO[scelta] + '\n\nGemini e Groq sono gratuiti.\n\nMando lo stesso la domanda?')) return;
+    S.iaInCorso = true;
+    const btn = document.getElementById(btnId), out = document.getElementById(outId);
+    btn.disabled = true;
+    const prima = out.innerHTML;
+    out.innerHTML = `<div class="ia-wait">🤖 ${esc(NOME_IA[scelta] || scelta)} ci sta pensando… (può volerci anche un minuto, soprattutto con le foto)</div>` + (plantId ? '' : prima);
+    try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/pv-ai`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${sbAccessToken}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plant_id: plantId, question: domanda, provider: scelta }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 401) { handleAuthError({ status: 401, message: 'jwt' }); return; }
+        if (!r.ok || !j.ok) throw new Error(j.error || j.message || ('HTTP ' + r.status));
+        document.getElementById(qId).value = '';
+        const nuova = { id: j.id || ('tmp-' + Date.now()), plant_id: plantId, question: domanda, answer: j.answer, provider: j.provider || scelta, model: j.model || null, created_at: j.created_at || new Date().toISOString() };
+        S.risposte.unshift(nuova);
+        out.innerHTML = '';
+        if (!j.saved) showToast('⚠️ Risposta arrivata ma non salvata', 5000);
+        S.iaInCorso = false;
+        if (plantId) renderStoricoIA(plantId); else renderStoricoGenerale();
+        if (j.photos) showToast(`🤖 Risposta pronta (ha guardato ${j.photos} foto)`);
+    } catch (e) {
+        out.innerHTML = `<div class="form-error">❌ ${esc(e.message || e)}</div>` + (plantId ? '' : prima);
+    } finally {
+        S.iaInCorso = false;
+        btn.disabled = false;
+    }
+}
+
+// ⤴️ La risposta prende il posto del prompt, per correggerla e rilanciarla.
+// Gemello di onNelPrompt in PianteScreen.kt: se lo cambi qui, cambialo anche là.
+function rispostaNelPrompt(id) {
+    const r = S.risposte.find(x => x.id === id); if (!r) return;
+    const t = document.getElementById(r.plant_id ? 'iaQ' : 'iaGenQ'); if (!t) return;
+    t.value = r.answer || '';
+    t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    t.focus();
+    showToast('⤴️ Risposta nel prompt');
+}
+
+async function eliminaRisposta(id) {
+    if (!await conferma('Eliminare questa risposta?')) return;
+    const r = S.risposte.find(x => x.id === id);
+    if (!String(id).startsWith('tmp-')) {
+        const { error } = await sb.from('pv_ai_answers').delete().eq('id', id);
+        if (error) { showToast('❌ ' + error.message); return; }
+    }
+    S.risposte = S.risposte.filter(x => x.id !== id);
+    if (r?.plant_id) renderStoricoIA(r.plant_id); else renderStoricoGenerale();
+}
+
+// ════════════════════════════════════════════════════════════
+// LISTA DEI DESIDERI
+// ════════════════════════════════════════════════════════════
+const STATI_DES = [['desiderata', '💚 Da prendere'], ['presa', '🌱 Prese'], ['scartata', '🚫 Scartate'], ['tutte', 'Tutte']];
+
+function renderDesideri() {
+    const conta = s => s === 'tutte' ? S.desideri.length : S.desideri.filter(d => d.status === s).length;
+    document.getElementById('wishFiltri').innerHTML = STATI_DES.map(([k, t]) =>
+        `<button class="chip ${S.filtroDes === k ? 'on' : ''}" onclick="S.filtroDes='${k}'; renderDesideri()">${t} (${conta(k)})</button>`).join('');
+    const elenco = S.desideri.filter(d => S.filtroDes === 'tutte' || d.status === S.filtroDes);
+    const box = document.getElementById('wishList');
+    if (!elenco.length) {
+        box.innerHTML = `<div class="empty-state"><div class="empty-icon">💚</div><div class="empty-title">Niente qui</div>
+            <div>Tocca + per aggiungere una pianta che ti piacerebbe curare.</div></div>`;
+        return;
+    }
+    const prioTxt = { 1: 'ALTA', 2: 'MEDIA', 3: 'BASSA' };
+    box.innerHTML = elenco.map(d => {
+        const pianta = d.plant_id ? S.piante.find(p => p.id === d.plant_id) : null;
+        return `<div class="wish ${d.status}">
+            <div class="act-edit">
+                <button class="icon-btn" title="Modifica" onclick="apriDesiderio('${d.id}')">✏️</button>
+            </div>
+            <div class="act-main">
+                <div class="wish-name">${esc(d.name)} <span class="prio prio-${d.priority}">${prioTxt[d.priority]}</span></div>
+                ${d.species ? `<div class="plant-species">${esc(d.species)}</div>` : ''}
+                ${d.notes ? `<div class="act-meta" style="white-space:pre-wrap">${esc(d.notes)}</div>` : ''}
+                ${pianta ? `<div class="act-plant" onclick="apriDettaglio('${pianta.id}')">🪴 È diventata «${esc(pianta.name)}»</div>` : ''}
+                <div class="act-btns">
+                    ${d.status === 'desiderata' ? `<button class="btn btn-success btn-small" onclick="presaDesiderio('${d.id}')">🌱 L'ho presa</button>
+                        <button class="btn btn-ghost btn-small" onclick="statoDesiderio('${d.id}', 'scartata')">🚫 Scarta</button>`
+                      : `<button class="btn btn-ghost btn-small" onclick="statoDesiderio('${d.id}', 'desiderata')">↺ Rimetti fra i desideri</button>`}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    renderStoricoGenerale();
+}
+
+function apriDesiderio(id) {
+    const d = id ? S.desideri.find(x => x.id === id) : null;
+    S.desiderioId = d?.id || null;
+    document.getElementById('mDesTitle').textContent = d ? '✏️ ' + d.name : '💚 Pianta che vorrei';
+    document.getElementById('dName').value = d?.name || '';
+    document.getElementById('dSpecies').value = d?.species || '';
+    document.getElementById('dPriority').value = String(d?.priority || 2);
+    document.getElementById('dNotes').value = d?.notes || '';
+    document.getElementById('dDeleteBtn').style.display = d ? 'inline-block' : 'none';
+    document.getElementById('dErr').textContent = '';
+    openModal('mDesiderio');
+}
+
+async function salvaDesiderio() {
+    const name = document.getElementById('dName').value.trim();
+    if (!name) { document.getElementById('dErr').textContent = 'Serve un nome.'; return; }
+    const payload = {
+        name, species: document.getElementById('dSpecies').value.trim() || null,
+        priority: parseInt(document.getElementById('dPriority').value) || 2,
+        notes: document.getElementById('dNotes').value.trim() || null,
+    };
+    const { error } = S.desiderioId
+        ? await sb.from('pv_wishlist').update(payload).eq('id', S.desiderioId)
+        : await sb.from('pv_wishlist').insert({ ...payload, user_id: currentUserId });
+    if (error) { if (handleAuthError(error)) return; document.getElementById('dErr').textContent = '❌ ' + error.message; return; }
+    closeModal('mDesiderio');
+    showToast('💚 Salvata');
+    await caricaTutto();
+}
+
+async function statoDesiderio(id, stato) {
+    const { error } = await sb.from('pv_wishlist').update({ status: stato }).eq('id', id);
+    if (error) { showToast('❌ ' + error.message); return; }
+    await caricaTutto();
+}
+
+async function eliminaDesiderio() {
+    const d = S.desideri.find(x => x.id === S.desiderioId); if (!d) return;
+    if (!await conferma(`Togliere «${d.name}» dalla lista?\n\nSe hai deciso di non prenderla, «🚫 Scarta» la lascia visibile fra le scartate.`)) return;
+    const { error } = await sb.from('pv_wishlist').delete().eq('id', d.id);
+    if (error) { showToast('❌ ' + error.message); return; }
+    closeModal('mDesiderio');
+    await caricaTutto();
+}
+
+// «L'ho presa»: si apre la scheda di una pianta nuova già compilata, e il
+// desiderio passa a «presa» solo quando la pianta è davvero salvata.
+function presaDesiderio(id) {
+    const d = S.desideri.find(x => x.id === id); if (!d) return;
+    apriPianta(null, { name: d.name, species: d.species, notes: d.notes, daDesiderio: d.id });
+}
+
+/* ════════════════════════════════════════════════════════════
+   ⚠️ Il tasto «indietro» di Android dentro un popup.
+   Blocco UGUALE in tutte le app della suite (vedi CLAUDE.md): cambia solo
+   l'elenco dei popup. Se lo correggi qui, portalo anche nelle altre.
+   ════════════════════════════════════════════════════════════ */
+(function guardiaIndietroPopup(elenco) {
+  const visibile = el => el && getComputedStyle(el).display !== 'none';
+  const aperti = () => elenco.flatMap(p =>
+    [...document.querySelectorAll(p.sel)].filter(visibile).map(el => ({ el, chiudi: p.chiudi })));
+
+  let spinta = false;
+
+  function controlla() {
+    const n = aperti().length;
+    if (n && !spinta) { spinta = true; history.pushState({ __popup: true }, ''); }
+    else if (!n && spinta) {
+      spinta = false;
+      if (history.state && history.state.__popup) history.back();
+    }
+  }
+
+  function avvia() {
+    const osservatore = new MutationObserver(controlla);
+    elenco.forEach(p => document.querySelectorAll(p.sel).forEach(el =>
+      osservatore.observe(el, { attributes: true, attributeFilter: ['class', 'style'] })));
+    controlla();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.addEventListener('popstate', () => {
+    const a = aperti();
+    if (!a.length) return;
+    spinta = false;
+    const ultimo = a[a.length - 1];
+    try { ultimo.chiudi(ultimo.el); } catch (err) { console.warn('indietro:', err); }
+  });
+})([
+  { sel: '.modal',         chiudi: el => closeModal(el.id) },
+  { sel: '#confirmDialog', chiudi: () => chiudiConferma(false) },
+]);
+</script>
+</body>
+</html>

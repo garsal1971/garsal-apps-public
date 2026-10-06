@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- minSdk è 26, quindi l'icona adattiva vale su ogni telefono su cui l'app
+     si installa e i PNG di `main/res/mipmap-*` restano un fondo di sicurezza
+     che nessuno legge. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/sb_icon_bg" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

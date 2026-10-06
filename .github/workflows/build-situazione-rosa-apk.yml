@@ -1,0 +1,145 @@
+name: Build Situazione Rosa APK
+
+on:
+  push:
+    branches:
+      - master
+      - 'claude/**'
+    paths:
+      - 'android-app/situazione-rosa/**'
+      - '.github/workflows/build-situazione-rosa-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        run: |
+          SDKMANAGER=$(find "${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/cmdline-tools" \
+            -name "sdkmanager" -type f 2>/dev/null | sort | tail -1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+            "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" 2>&1 || true
+          fi
+
+      - name: Prepara keystore
+        id: keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
+              > android-app/situazione-rosa/sr.keystore
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"                  >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"            >> $GITHUB_ENV
+            echo "generated=false" >> $GITHUB_OUTPUT
+            echo "✅ Keystore dai secrets — build release con firma fissa"
+          else
+            KS_PASS="SituazioneRosa2026"
+            keytool -genkeypair -v \
+              -keystore android-app/situazione-rosa/sr.keystore \
+              -alias situazionerosa \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" \
+              -dname "CN=SituazioneRosa, O=Garsal, C=IT"
+            echo "KEYSTORE_PASSWORD=$KS_PASS"    >> $GITHUB_ENV
+            echo "KEY_ALIAS=situazionerosa"      >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KS_PASS"         >> $GITHUB_ENV
+            echo "generated=true" >> $GITHUB_OUTPUT
+            echo "⚠️  KEYSTORE_BASE64 non configurato: keystore usa-e-getta, i futuri aggiornamenti richiederanno disinstallare l'APK precedente. Configura i 4 secrets condivisi (già usati da GarsalApps/SmartBlocker) per una firma stabile."
+          fi
+
+      - name: Make gradlew executable
+        run: chmod +x android-app/situazione-rosa/gradlew
+
+      - name: Build APK release
+        working-directory: android-app/situazione-rosa
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="${{ github.workspace }}/android-app/situazione-rosa/sr.keystore" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Salva APK e versione
+        run: |
+          VERSION=$(grep versionName android-app/situazione-rosa/app/build.gradle \
+            | grep -o '"[^"]*"' | tr -d '"' | head -1)
+          cp android-app/situazione-rosa/app/build/outputs/apk/release/app-release.apk \
+            /tmp/SituazioneRosa-latest.apk
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      # ⚠️ L'APK NON si carica più come artifact di Actions (20 settembre 2026).
+      # Era una TERZA copia — le due che contano sono R2 (da cui si scarica) e
+      # il commit su master (da cui si legge in archivio) — durava 30 giorni e
+      # non la scaricava nessuno. Da quando la repo è privata lo spazio degli
+      # artifact è contato, si è riempito, e `upload-artifact` ha cominciato a
+      # rispondere «Artifact storage quota has been hit» facendo morire il job:
+      # stando PRIMA del caricamento su R2 e del commit, si portava dietro
+      # tutt'e due — l'APK compilata restava non pubblicata e la scheda
+      # `-latest.json` continuava ad annunciare la versione di prima.
+      # ⚠️ Prima su R2, poi il commit — è lo stesso ordine di «prima Drive,
+      # poi la riga» del Forziere: il commit pubblica la scheda
+      # `-latest.json`, che ANNUNCIA questa versione, e annunciarla prima che
+      # il pacchetto sia scaricabile vuol dire un aggiornamento che si offre
+      # e poi dà 404. Le APK non stanno più sul sito: Cloudflare Pages
+      # rifiuta i file oltre i 25 MiB (vedi `scripts/build-sito.sh`).
+      - name: Carica l'APK su R2 (apk.garsal.men)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash scripts/apk-su-r2.sh /tmp/SituazioneRosa-latest.apk
+
+      # ⚠️ Il push su master va rifatto se master si muove sotto i piedi.
+      # Le build Android della repo scattano insieme (toccare un workflow o
+      # settings.gradle le sveglia tutte) e finiscono a pochi secondi l'una
+      # dall'altra: la prima che arriva sposta master e le altre si prendono un
+      # "cannot lock ref", con l'APK già compilato e buttato via. Si rilegge
+      # master e si riprova — è lo stesso giro di build-sos e delle altre
+      # quattro, ed è successo davvero il 10 settembre 2026 su Situazione Rosa.
+      - name: Pubblica APK su master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          for i in 1 2 3 4 5; do
+            git fetch origin master
+            git checkout -B master origin/master
+            git reset --hard origin/master
+
+            mkdir -p releases
+            cp /tmp/SituazioneRosa-latest.apk releases/SituazioneRosa-latest.apk
+
+            git add releases/SituazioneRosa-latest.apk
+            if git diff --staged --quiet; then
+              echo "APK non cambiato, skip commit"
+              exit 0
+            fi
+
+            git commit -m "build: aggiorna SituazioneRosa APK v${{ env.VERSION }} [skip actions]"
+            if git push origin master; then
+              echo "✅ pubblicato al tentativo $i"
+              exit 0
+            fi
+
+            echo "⚠️  master si è mosso, riprovo ($i/5)"
+            sleep $((i * 5))
+          done
+
+          echo "❌ master continua a muoversi: APK non pubblicato"
+          exit 1

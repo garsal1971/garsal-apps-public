@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forziere — apri i file .gpg</title>
+<!--
+  ⚠️ QUESTO FILE NON PARLA CON NESSUNO. Non c'è nessuna `fetch`, nessuna immagine
+  esterna, nessun collegamento a un CDN: la crittografia sta già dentro il browser e
+  OpenPGP.js è incorporato qui dentro. Puoi staccare la rete e controllare.
+
+  Sta accanto ai file cifrati apposta: se un giorno hai perso tutto — l'account
+  Google, il database, questa applicazione — bastano questo file e le 24 parole.
+
+  Generato da scripts/build-apri-questo.py a partire da vendor/openpgp.min.js.
+  Se aggiorni la libreria, rigeneralo.
+-->
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;
+  min-height:100vh;padding:24px 16px 60px;overflow-wrap:anywhere;line-height:1.5}
+.box{max-width:680px;margin:0 auto}
+h1{font-size:1.5rem;margin-bottom:4px}
+.sub{color:#94a3b8;font-size:.95rem;margin-bottom:20px}
+.card{background:#1e293b;border-radius:16px;padding:18px;margin-bottom:14px}
+label{display:block;font-weight:700;margin-bottom:6px}
+textarea{width:100%;padding:11px;border-radius:10px;border:1px solid #334155;background:#0f172a;
+  color:#e2e8f0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.95rem;min-height:88px}
+.drop{border:2px dashed #475569;border-radius:14px;padding:30px 16px;text-align:center;
+  color:#94a3b8;cursor:pointer;margin-top:12px}
+.drop.on{border-color:#22c55e;background:#14532d33;color:#dcfce7}
+button{border:none;border-radius:10px;padding:11px 16px;font:inherit;font-weight:700;
+  cursor:pointer;background:#2563eb;color:#fff;min-height:44px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.riga{display:flex;justify-content:space-between;gap:10px;align-items:center;
+  padding:9px 0;border-bottom:1px solid #334155;flex-wrap:wrap}
+.riga:last-child{border-bottom:none}
+.ok{color:#4ade80;font-weight:700}
+.ko{color:#f87171;font-weight:700}
+.nota{background:#422006;border-left:4px solid #f59e0b;border-radius:10px;padding:12px 14px;
+  margin-top:14px;font-size:.92rem}
+code{background:#0f172a;padding:2px 6px;border-radius:5px;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🔐 Forziere</h1>
+  <div class="sub">Apri qui i tuoi file <code>.gpg</code>. Non serve internet, non serve nient'altro.</div>
+
+  <div class="card">
+    <label for="parole">Le tue 24 parole</label>
+    <textarea id="parole" spellcheck="false" autocomplete="off"
+      placeholder="tutto minuscolo, separate da uno spazio"></textarea>
+
+    <div class="drop" id="drop">📄 Trascina qui i file <b>.gpg</b><br>oppure tocca per sceglierli</div>
+    <input type="file" id="picker" multiple style="display:none">
+  </div>
+
+  <div class="card" id="esiti" style="display:none"></div>
+
+  <div class="nota">
+    <b>Se questo file un giorno non ci fosse più</b>, gli stessi file si aprono con GnuPG,
+    che è un programma standard e li legge da sé:<br><br>
+    <code>gpg -d --use-embedded-filename documento.gpg</code><br><br>
+    e poi le 24 parole. Non c'è nessun'altra ricetta da ricordare: sale, algoritmo e
+    numero di giri stanno scritti dentro il file, e il programma li legge da solo.
+  </div>
+</div>
+
+<script>/*__OPENPGP__*/</script>
+<script>
+// ⚠️ La normalizzazione è la stessa di forziere.html e dev'essere quella che si può
+// rifare a mente davanti a un terminale: minuscolo, spazi ridotti a uno, niente altro.
+function normParole(s){
+  return String(s == null ? '' : s).normalize('NFC').replace(/\s+/g,' ').trim().toLowerCase();
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+var drop = document.getElementById('drop'), picker = document.getElementById('picker');
+drop.addEventListener('click', function(){ picker.click(); });
+drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('on'); });
+drop.addEventListener('dragleave', function(){ drop.classList.remove('on'); });
+drop.addEventListener('drop', function(e){
+  e.preventDefault(); drop.classList.remove('on');
+  apri([].slice.call(e.dataTransfer.files || []));
+});
+picker.addEventListener('change', function(){ apri([].slice.call(this.files||[])); this.value=''; });
+
+async function apri(files){
+  var parole = normParole(document.getElementById('parole').value);
+  var box = document.getElementById('esiti');
+  if (!parole){ alert('Scrivi prima le 24 parole.'); return; }
+  if (!files.length) return;
+  box.style.display = 'block';
+
+  for (var i = 0; i < files.length; i++){
+    var f = files[i];
+    var riga = document.createElement('div');
+    riga.className = 'riga';
+    riga.innerHTML = '<span>' + esc(f.name) + '</span><span>decifro…</span>';
+    box.appendChild(riga);
+    try {
+      var msg = await openpgp.readMessage({ binaryMessage: new Uint8Array(await f.arrayBuffer()) });
+      var r = await openpgp.decrypt({ message: msg, passwords: [parole], format: 'binary' });
+      var nome = r.filename || f.name.replace(/\.gpg$/i, '') || 'documento';
+      salva(r.data, nome);
+      riga.innerHTML = '<span>' + esc(nome) + '</span><span class="ok">✓ aperto</span>';
+    } catch(e){
+      // ⚠️ Non si può dire QUALE parola è sbagliata: o apre o non apre. Ma dirlo è tutta
+      // la differenza fra un errore di battitura e credere di aver perso tutto.
+      riga.innerHTML = '<span>' + esc(f.name) + '</span><span class="ko">✗ non si apre — parole sbagliate?</span>';
+    }
+  }
+}
+
+function salva(bytes, nome){
+  var url = URL.createObjectURL(new Blob([bytes]));
+  var a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 30000);
+}
+</script>
+</body>
+</html>

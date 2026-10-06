@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AppSphere nativa — Ritorno login</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'DM Sans',Segoe UI,sans-serif; background:#0081C8; color:#fff;
+         min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card { text-align:center; max-width:360px; width:100%; }
+  .logo { font-size:2rem; font-weight:700; margin-bottom:10px; letter-spacing:.5px; }
+  .sub { opacity:.9; font-size:.98rem; margin-bottom:28px; line-height:1.5; }
+  .btn { display:inline-block; background:#fff; color:#0081C8; font-weight:700; font-size:1.08rem;
+         border:none; border-radius:12px; padding:16px 28px; cursor:pointer; text-decoration:none;
+         box-shadow:0 6px 20px rgba(0,0,0,.25); width:100%; }
+  .btn:active { transform:translateY(1px); }
+  .err { margin-top:18px; font-size:.86rem; opacity:.9; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">⬢ AppSphere nativa</div>
+    <div class="sub" id="sub">Accesso completato.<br>Tocca per tornare nell'app.</div>
+    <a class="btn" id="openBtn" href="#">Apri AppSphere nativa</a>
+    <div class="err" id="err"></div>
+  </div>
+  <script>
+    // ⚠️ Gemella di oauth-callback.html, a meno dello schema: quella rimanda
+    // all'APK WebView (garsalapps://), questa a quello nativo (garsalnative://).
+    // Sono due pagine e non una con un parametro perché ciascuna va messa
+    // esattamente com'è fra i Redirect URLs di Supabase, e una query string
+    // nella whitelist è un modo in più di sbagliare. Se modifichi una delle
+    // due, guarda anche l'altra.
+    (function () {
+      // I token OAuth arrivano nel fragment: #access_token=...&refresh_token=...
+      var hash = window.location.hash || '';
+      var deepLink = 'garsalnative://oauth' + hash;
+      var btn = document.getElementById('openBtn');
+      btn.setAttribute('href', deepLink);
+
+      if (!hash || hash.indexOf('access_token') === -1) {
+        document.getElementById('sub').innerHTML =
+          'Nessun token ricevuto.<br>Riprova il login da AppSphere nativa.';
+        btn.style.display = 'none';
+        return;
+      }
+
+      // NESSUN auto-redirect: l'auto-navigazione verso lo schema custom viene
+      // bloccata/rimbalzata da Chrome — il login resta nel browser e non torna
+      // mai nell'app. Il rientro avviene SOLO col tap sul pulsante (gesto
+      // utente, sempre permesso → apre l'app via garsalnative://oauth).
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.location.href = deepLink;
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.garsalapps">
+
+    <!-- Permessi necessari -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Health Connect — lettura peso -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <!-- Grasso corporeo: la massa grassa di «Ti pisasti?» -->
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
+    <!-- Senza questo, HC lascia leggere solo i dati scritti nei 30 giorni
+         prima della concessione: la finestra di 90 giorni tornerebbe tagliata
+         e senza errori. Vedi HC_PERMISSIONS in MainActivity. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+
+    <!-- Necessario per rilevare se Health Connect è installato (Android 11+) -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />       <!-- HC da Play Store (Android 9-13) -->
+        <package android:name="com.android.healthconnect.controller" />     <!-- HC integrato Android 14+ -->
+        <package android:name="com.renpho.health" />                        <!-- Renpho — aperto da weight-quest -->
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GarsalApps"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Callback OAuth da Chrome Custom Tabs -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="garsalapps" android:host="oauth" />
+            </intent-filter>
+            <!-- Necessario per apparire nella lista app di Health Connect -->
+            <intent-filter>
+                <action android:name="androidx.health.connect.client.SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <!-- Riceve screenshot/immagini condivise da altre app (es. WhatsApp) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <!--
+                ⚠️ Qui NON c'è l'intent-filter dei link condivisi (ACTION_SEND +
+                text/plain): la voce "Salva in Memo" del menù "Condividi" sta
+                nell'APK nativa (com.garsal.appsphere), dove l'interfaccia della
+                scheda è quella dell'app e non una pagina dentro un WebView.
+
+                Dichiarandolo anche qui, nel menù "Condividi" comparirebbero due
+                voci indistinguibili — i due APK hanno lo stesso logo, distinto
+                solo dal fondo bianco/nero — e toccherebbe indovinare ogni volta.
+                La voce si SPOSTA, non si aggiunge.
+
+                Le immagini restano di qua: l'OCR passa da AndroidBridge e la
+                scheda con la foto la fa memo.html.
+            -->
+        </activity>
+
+        <!--
+            activity-alias richiesto da Android 14+ per apparire in Health Connect.
+            HC usa VIEW_PERMISSION_USAGE + HEALTH_PERMISSIONS per trovare le app compatibili.
+            Senza questo, AppSfera Web non compare mai nella lista "Le tue app per la salute".
+        -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- URL privacy policy richiesto da Health Connect -->
+        <meta-data
+            android:name="health_privacy_policy_url"
+            android:value="https://garsal.men/" />
+
+        <!-- FileProvider per URI camera (TakePicture) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+
+        <!-- WorkManager per notifiche schedulate -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge"
+            xmlns:tools="http://schemas.android.com/tools">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
+    </application>
+
+</manifest>

@@ -1,0 +1,4021 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memorandum v1.2.1</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF3366;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --accent: #2563EB;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+            --memo-title-size: 1.2rem;
+            --memo-excerpt-size: 0.95rem;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            padding-top: 56px;
+        }
+
+        /* ── TOP BAR ── */
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: #0081C8;
+            display: flex; align-items: center; padding: 0 20px; gap: 10px;
+            z-index: 3000;
+        }
+        #garsal-top-bar-icon {
+            width: 22px; height: 22px;
+            background: rgba(255,255,255,0.25); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: #fff;
+            font-family: 'Space Mono', monospace; flex-shrink: 0;
+        }
+        #garsal-top-bar-text {
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px;
+        }
+
+        /* ── LAYOUT ── */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: calc(100vh - 56px);
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            background: #F3F4F6;
+            padding: 1.0rem 0.75rem;
+            border-right: 1px solid var(--border);
+            position: sticky; top: 56px; height: calc(100vh - 56px);
+            overflow-y: auto;
+        }
+
+        .nav-menu { display: flex; flex-direction: column; }
+
+        .nav-item {
+            padding: 0.5rem 0.6rem; margin-bottom: 0.5rem;
+            cursor: pointer; transition: all 0.3s ease;
+            font-size: 1.1rem; font-weight: 500;
+        }
+        .nav-item:hover { background: rgba(37,99,235,0.08); transform: translateX(3px); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        @media (min-width: 769px) {
+            .sidebar { display: block !important; position: sticky !important; left: 0 !important; }
+            .nav-item::after { content: " " attr(data-text); }
+        }
+
+
+        /* ── MAIN ── */
+        .main-content { padding: 1.5rem; overflow-y: auto; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.5rem; gap: 1rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem; font-weight: 900;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; white-space: nowrap;
+        }
+
+        /* ── SEARCH BAR ── */
+        .search-bar {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .search-input-wrap {
+            flex: 1; position: relative;
+        }
+        .search-input-wrap input {
+            width: 100%; padding: 0.55rem 0.75rem 0.55rem 2.2rem;
+            border: 2px solid var(--border); background: var(--input-bg);
+            font-family: 'Darker Grotesque', sans-serif; font-size: 1.05rem;
+            transition: border-color 0.2s; color: var(--dark);
+        }
+        .search-input-wrap input:focus { outline: none; border-color: var(--accent); background: white; }
+        .search-icon {
+            position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%);
+            font-size: 1rem; color: var(--muted); pointer-events: none;
+        }
+        .search-clear {
+            position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+            font-size: 1.1rem; color: var(--muted); cursor: pointer; display: none;
+        }
+        .search-clear:hover { color: var(--danger); }
+
+        /* ── STATS STRIP ── */
+
+        /* ── CARDS GRID ── */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .memo-card {
+            border: 2px solid var(--border);
+            background: #E6F4FE; /* azzurina: sfondo di default della scheda */
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .memo-card.kind-diario { background: #FEF9E0; } /* giallino: solo i diari */
+        .memo-card.kind-link   { background: #FDECEF; } /* rosino: solo i link */
+        .memo-card.kind-premiato { background: #FFF3E0; } /* arancino: solo i premiati */
+        .memo-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-color: #d1d5db; }
+        .memo-card.pinned { border-color: var(--warning); }
+
+        .memo-card-color-bar { height: 5px; flex-shrink: 0; }
+
+        .memo-card-body { padding: 1rem; flex: 1; }
+
+        .memo-card-header {
+            display: flex; align-items: flex-start; gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .memo-card-title {
+            flex: 1; font-size: var(--memo-title-size); font-weight: 700; line-height: 1.3;
+            word-break: break-word;
+        }
+        .pin-badge {
+            font-size: 0.9rem; flex-shrink: 0; opacity: 0.6;
+        }
+
+        .memo-card-excerpt {
+            font-size: var(--memo-excerpt-size); color: var(--muted); line-height: 1.5;
+            overflow: hidden; display: -webkit-box;
+            -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
+        .memo-card-excerpt img { display: none; } /* nasconde img nell'excerpt */
+
+        .memo-card-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.6rem 1rem; border-top: 1px solid var(--border);
+            background: rgba(0,0,0,0.01);
+        }
+        .memo-card-date {
+            font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted);
+        }
+        .memo-card-meta { display: flex; align-items: center; gap: 0.4rem; }
+        .memo-card-img-count { font-size: 0.75rem; color: var(--muted); }
+
+        .cat-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.6rem; }
+        .cat-chip {
+            font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.4rem;
+            border-radius: 999px; color: white; text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .empty-state {
+            text-align: center; padding: 4rem 2rem; color: var(--muted);
+        }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--dark); }
+        .empty-desc { font-size: 1rem; }
+
+        /* ── FAB ── */
+        .fab {
+            position: fixed; bottom: 2rem; right: 2rem;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--primary); color: white;
+            font-size: 1.8rem; border: none; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(255,51,102,0.4);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; z-index: 100;
+        }
+        .fab:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(255,51,102,0.5); }
+
+        /* ── MODALITÀ NASCOSTA ── */
+        /* sta a sinistra del +, non sotto: due cerchi sovrapposti
+           nell'angolo si toccano l'uno per l'altro */
+        .hidden-mode-fab {
+            display: none; position: fixed; bottom: 2rem; right: 5.5rem;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: var(--muted); color: white; border: none;
+            font-size: 1.3rem; cursor: pointer; z-index: 100;
+            align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25); transition: all 0.2s;
+        }
+        .hidden-mode-fab:hover  { transform: scale(1.1); }
+        .hidden-mode-fab:active { transform: scale(0.95); }
+        .hidden-mode-fab.active { background: var(--secondary); }
+
+        .riservato-row {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.7rem; border: 2px solid var(--border);
+            background: var(--input-bg); margin-bottom: 1rem;
+        }
+        .riservato-row input { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+        .riservato-desc { font-size: 0.88rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+
+        .kind-badge.riservato { background: var(--secondary); }
+
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 0.45rem 0.9rem; border: none; cursor: pointer;
+            font-family: 'Darker Grotesque', sans-serif; font-size: 1rem; font-weight: 700;
+            transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--border); color: var(--dark); }
+        .btn-secondary:hover { background: #d1d5db; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-small { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+        .btn-ghost { background: transparent; border: 2px solid var(--border); color: var(--dark); }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ── MODAL ── */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+            z-index: 2000; align-items: center; justify-content: center;
+        }
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white; padding: 1.5rem;
+            max-width: 780px; width: 96%; max-height: 92vh;
+            overflow-y: auto; position: relative;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        .modal-title { font-size: 1.7rem; font-weight: 900; color: var(--accent); }
+        .modal-close {
+            font-size: 1.8rem; cursor: pointer; color: var(--muted);
+            transition: all 0.2s; line-height: 1; background: none; border: none;
+        }
+        .modal-close:hover { color: var(--danger); transform: rotate(90deg); }
+
+        /* ── EDITOR ── */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label {
+            display: block; margin-bottom: 0.4rem; font-weight: 700;
+            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-input, .form-select {
+            width: 100%; padding: 0.5rem 0.65rem;
+            border: 2px solid var(--border); background: var(--input-bg);
+            color: var(--dark); font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.05rem; transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-select:focus {
+            outline: none; border-color: var(--accent); background: white;
+        }
+
+        .editor-toolbar {
+            display: flex; flex-wrap: wrap; gap: 0.25rem;
+            padding: 0.4rem; background: var(--input-bg);
+            border: 2px solid var(--border); border-bottom: none;
+        }
+        .toolbar-btn {
+            width: 32px; height: 32px; border: 1px solid var(--border);
+            background: white; cursor: pointer; font-size: 0.9rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; color: var(--dark); font-family: serif;
+        }
+        .toolbar-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+        .toolbar-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .toolbar-separator { width: 1px; background: var(--border); margin: 0 0.2rem; align-self: stretch; }
+
+        .editor-area {
+            min-height: 220px; max-height: 400px; overflow-y: auto;
+            padding: 0.75rem; border: 2px solid var(--border);
+            background: white; font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.05rem; line-height: 1.65; color: var(--dark);
+            outline: none;
+        }
+        .editor-area:focus { border-color: var(--accent); }
+        .editor-area[data-placeholder]:empty::before {
+            content: attr(data-placeholder); color: #9CA3AF; pointer-events: none;
+        }
+        .editor-area h1 { font-size: 1.6rem; font-weight: 900; margin: 0.5rem 0; }
+        .editor-area h2 { font-size: 1.3rem; font-weight: 700; margin: 0.4rem 0; }
+        .editor-area ul, .editor-area ol { padding-left: 1.5rem; margin: 0.4rem 0; }
+        .editor-area li { margin-bottom: 0.2rem; }
+        .editor-area hr { border: none; border-top: 2px solid var(--border); margin: 0.75rem 0; }
+        .editor-area img {
+            max-width: 100%; height: auto; display: block; margin: 0.5rem 0;
+            border: 1px solid var(--border);
+        }
+        .editor-area a { color: var(--accent); text-decoration: underline; }
+
+        /* ── CATEGORY MULTI-SELECT ── */
+        .cat-multi {
+            display: flex; flex-wrap: wrap; gap: 0.4rem;
+            padding: 0.4rem; border: 2px solid var(--border);
+            background: var(--input-bg); min-height: 44px; cursor: pointer;
+        }
+        .cat-multi-chip {
+            display: flex; align-items: center; gap: 0.3rem;
+            padding: 0.2rem 0.5rem; color: white;
+            font-size: 0.8rem; font-weight: 700; border-radius: 2px;
+        }
+        .cat-multi-chip .remove { cursor: pointer; opacity: 0.7; font-size: 0.9rem; }
+        .cat-multi-chip .remove:hover { opacity: 1; }
+        .cat-multi-placeholder { color: #9CA3AF; font-size: 0.95rem; }
+
+        .cat-dropdown {
+            border: 2px solid var(--border); border-top: none;
+            background: white; max-height: 200px; overflow-y: auto; display: none;
+        }
+        .cat-dropdown.open { display: block; }
+        .cat-dropdown-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.95rem;
+            transition: background 0.15s;
+        }
+        .cat-dropdown-item:hover { background: var(--input-bg); }
+        .cat-dropdown-item.selected { background: rgba(37,99,235,0.07); font-weight: 700; }
+        .cat-dropdown-item .check { font-size: 0.8rem; color: var(--success); opacity: 0; width: 14px; }
+        .cat-dropdown-item.selected .check { opacity: 1; }
+
+        /* ── IMAGE UPLOAD ── */
+        .images-section { margin-top: 0.25rem; }
+
+        /* ── IMG POPUP ── */
+        .img-popup-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 3500;
+            align-items: flex-end; justify-content: center;
+        }
+        .img-popup-overlay.active { display: flex; }
+        .img-popup {
+            background: white; width: 100%; max-width: 480px;
+            padding: 1.5rem; border-radius: 12px 12px 0 0;
+            animation: slideUp 0.2s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .img-popup-title {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem;
+            text-align: center; color: var(--dark);
+        }
+        .ocr-switch-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem; background: var(--input-bg);
+            border: 2px solid var(--border); margin-bottom: 1rem;
+        }
+        .ocr-switch-label { font-weight: 700; font-size: 1rem; }
+        .ocr-switch-desc { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+        .toggle-switch { position: relative; width: 48px; height: 26px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0; background: #ccc;
+            border-radius: 26px; cursor: pointer; transition: 0.3s;
+        }
+        .toggle-slider:before {
+            content: ''; position: absolute;
+            width: 20px; height: 20px; left: 3px; bottom: 3px;
+            background: white; border-radius: 50%; transition: 0.3s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--success); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+        .img-popup-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .img-popup-btn {
+            padding: 1rem; border: 2px solid var(--border); background: white;
+            cursor: pointer; font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1rem; font-weight: 700; text-align: center;
+            transition: all 0.15s; display: flex; flex-direction: column;
+            align-items: center; gap: 0.4rem;
+        }
+        .img-popup-btn:hover { border-color: var(--accent); background: rgba(37,99,235,0.04); }
+        .img-popup-btn .btn-icon { font-size: 1.8rem; }
+        .img-popup-cancel {
+            width: 100%; margin-top: 0.75rem; padding: 0.65rem;
+            background: none; border: none; font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1rem; color: var(--muted); cursor: pointer; font-weight: 700;
+        }
+        .img-popup-cancel:hover { color: var(--danger); }
+
+        .img-upload-zone-desktop {
+            display: none;
+            border: 2px dashed var(--border); padding: 0.5rem 1rem;
+            text-align: center; cursor: default; transition: all 0.2s;
+            background: var(--input-bg); align-items: center; justify-content: center;
+        }
+        .img-upload-zone-desktop.drag-over {
+            border-color: var(--accent); background: rgba(37,99,235,0.08);
+        }
+        @media (pointer: fine) {
+            .img-upload-zone-desktop { display: flex; }
+        }
+
+        .images-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 0.5rem; margin-top: 0.75rem;
+        }
+        .img-thumb {
+            position: relative; aspect-ratio: 1;
+            overflow: hidden; border: 1px solid var(--border); background: var(--input-bg);
+        }
+        .img-thumb img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .img-thumb-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.45);
+            display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .img-thumb:hover .img-thumb-overlay { opacity: 1; }
+        .img-action-btn {
+            width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 700; transition: all 0.15s;
+        }
+        .img-del-btn { background: var(--danger); color: white; }
+        .img-del-btn:hover { background: #c0392b; }
+        .img-ins-btn { background: var(--accent); color: white; }
+        .img-ins-btn:hover { background: #1d4ed8; }
+        .img-loading { display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+        /* ── COLOR PICKER ROW ── */
+        .color-row {
+            display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+        }
+        .color-swatch {
+            width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+            border: 3px solid transparent; transition: all 0.15s;
+        }
+        .color-swatch:hover { transform: scale(1.2); }
+        .color-swatch.selected { border-color: var(--dark); transform: scale(1.15); }
+        .color-custom { width: 28px; height: 28px; cursor: pointer; border: none; padding: 0; }
+
+        /* ── CONFIRM DIALOG ── */
+        #confirmDialog {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: 4000; align-items: center; justify-content: center;
+        }
+        #confirmDialog.active { display: flex; }
+        .confirm-box {
+            background: white; padding: 2rem; max-width: 380px; width: 90%;
+        }
+        .confirm-msg { font-size: 1.1rem; margin-bottom: 1.5rem; }
+        .confirm-btns { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+        /* ── AUTH OVERLAY ── */
+        #authOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85); z-index: 5000;
+            align-items: center; justify-content: center; text-align: center; color: white;
+        }
+        .auth-box { max-width: 340px; }
+        .auth-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .auth-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .auth-desc { font-size: 0.95rem; opacity: 0.7; }
+
+        /* ── TOAST ── */
+        #toast {
+            position: fixed; bottom: 5.5rem; right: 2rem;
+            background: var(--dark); color: white;
+            padding: 0.6rem 1.2rem; font-size: 0.95rem; font-weight: 700;
+            z-index: 9999; display: none; pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* ── TIPO SCHEDA (nota / lista / diario / link / premiato) ── */
+        .kind-badge {
+            font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem;
+            border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px;
+            flex-shrink: 0; color: white;
+        }
+        .kind-badge.nota   { background: var(--accent); }
+        .kind-badge.lista  { background: var(--success); }
+        .kind-badge.diario { background: var(--secondary); }
+        .kind-badge.link   { background: var(--primary); }
+        .kind-badge.premiato { background: var(--warning); }
+
+        /* ── I PUNTI DI UN PREMIATO ──
+           Il punteggio sta sulla scheda e non dietro un tocco: è la sola
+           cosa che distingue un premiato da una nota, ed è quello che
+           finisce nella bolla di AppSphere. */
+        .punti-badge {
+            display: inline-block; font-size: 0.95rem; font-weight: 800;
+            padding: 0.15rem 0.5rem; border-radius: 6px;
+            background: var(--warning); color: white; flex-shrink: 0;
+        }
+        .punti-badge.zero { background: var(--muted); font-weight: 700; }
+        .punti-totale {
+            font-size: 0.95rem; font-weight: 700; color: var(--warning);
+            margin-left: 0.5rem; white-space: nowrap;
+        }
+
+        /* ── MINIATURA DI UNA SCHEDA LINK ──
+           Per YouTube la copertina arriva da img.youtube.com e non costa
+           niente: né una chiamata ad API, né un byte nel bucket. Per tutto
+           il resto non c'è nessuna immagine da mostrare, e al suo posto va
+           il nome del sito — inventare un'anteprima che non si ha sarebbe
+           peggio che non averla. */
+        .link-thumb {
+            position: relative; width: 100%; aspect-ratio: 16 / 9;
+            background: #111; overflow: hidden; flex-shrink: 0;
+        }
+        .link-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .link-thumb .play {
+            position: absolute; inset: 0; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 2.4rem; text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+        }
+        .link-host {
+            display: inline-block; max-width: 100%; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+            font-family: 'Space Mono', monospace; font-size: 0.75rem;
+            color: var(--muted); margin-top: 0.35rem;
+        }
+        /* il fondo per i link che una copertina non ce l'hanno */
+        .link-thumb.generic {
+            background: var(--dark); display: flex;
+            align-items: center; justify-content: center;
+            color: white; font-size: 2rem;
+        }
+
+        /* riga del tipo, sotto il titolo della scheda */
+        /* la riga porta il tipo e, sui premiati, i punti: va a capo da sé
+           invece di uscire dal bordo coi caratteri di sistema grandi */
+        .memo-card-kind-row {
+            margin-bottom: 0.5rem;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;
+        }
+
+        /* barra di avanzamento della lista, in fondo alla scheda */
+        .list-progress {
+            height: 6px; background: var(--border); overflow: hidden; margin-top: 0.6rem;
+        }
+        .list-progress > i { display: block; height: 100%; background: var(--success); }
+
+        /* ── VOCI DI LISTA ── */
+        .li-row {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border);
+        }
+        .li-row:last-child { border-bottom: none; }
+        .li-check {
+            width: 22px; height: 22px; flex-shrink: 0; cursor: pointer;
+            accent-color: var(--success); margin-top: 2px;
+        }
+        .li-text {
+            flex: 1; font-size: 1.05rem; line-height: 1.4; word-break: break-word;
+            cursor: pointer;
+        }
+        .li-row.done .li-text { text-decoration: line-through; color: var(--muted); }
+        .li-del {
+            background: none; border: none; cursor: pointer; color: var(--muted);
+            font-size: 1rem; padding: 0 0.3rem; flex-shrink: 0;
+        }
+        .li-del:hover { color: var(--danger); }
+        .li-add { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+        .li-add input { flex: 1; }
+
+        /* ── MISURE DEL DIARIO ── */
+        .metric-row {
+            border: 2px solid var(--border); background: var(--input-bg);
+            padding: 0.6rem; margin-bottom: 0.6rem;
+        }
+        .metric-row-top { display: flex; gap: 0.5rem; align-items: center; }
+        .metric-row-top input[type=text] { flex: 1; }
+        .metric-row-opts {
+            display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+            margin-top: 0.5rem; font-size: 0.9rem; color: var(--muted);
+        }
+        .metric-row-opts input { width: 5.5rem; }
+        /* con le opzioni in colonna la riga della misura non basta più */
+        .metric-row-opts.colonna { display: block; }
+        .metric-options { margin-top: 0.2rem; }
+        .opt-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem; }
+        .opt-row input { flex: 1; border-width: 1px; background: white; }
+        .opt-n {
+            font-family: 'Space Mono', monospace; font-size: 0.75rem;
+            color: var(--muted); width: 1.4rem; flex-shrink: 0;
+        }
+        .opt-vuoto { font-size: 0.9rem; color: var(--muted); padding: 0.3rem 0; }
+
+        /* distribuzione delle scelte: quante volte è uscita ciascuna */
+        .dist { margin-top: 0.5rem; }
+        .dist-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+        .dist-label {
+            flex: 0 0 40%; font-size: 0.92rem; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .dist-label.tolta { color: var(--muted); }
+        .dist-bar { flex: 1; height: 12px; background: var(--border); overflow: hidden; }
+        .dist-bar > i { display: block; height: 100%; background: var(--secondary); }
+        .dist-n {
+            flex: 0 0 1.8rem; text-align: right;
+            font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--muted);
+        }
+
+        .metric-presets { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        .metric-preset {
+            padding: 0.15rem 0.45rem; border: 1px solid var(--border); background: white;
+            cursor: pointer; font-family: 'Space Mono', monospace; font-size: 0.7rem;
+            transition: all 0.15s;
+        }
+        .metric-preset:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ── VISTA LISTA / DIARIO ── */
+        .view-note {
+            border-left: 4px solid var(--accent); background: var(--input-bg);
+            padding: 0.75rem 0.9rem; margin-bottom: 1.25rem;
+            font-size: 1.02rem; line-height: 1.6; max-height: 260px; overflow-y: auto;
+        }
+        .view-note :is(h1,h2) { font-size: 1.2rem; font-weight: 700; margin: 0.3rem 0; }
+        .view-note ul, .view-note ol { padding-left: 1.4rem; margin: 0.3rem 0; }
+        .view-note img { max-width: 100%; height: auto; }
+        .view-note a { color: var(--accent); }
+        .view-section-title {
+            font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--muted); margin-bottom: 0.5rem;
+        }
+
+        /* riepilogo per misura, con lo storico in miniatura */
+        .metric-card {
+            border: 2px solid var(--border); padding: 0.6rem 0.7rem; margin-bottom: 0.5rem;
+        }
+        .metric-card-head {
+            display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem;
+        }
+        .metric-card-name { font-weight: 700; font-size: 1.05rem; }
+        .metric-card-last { font-family: 'Space Mono', monospace; font-size: 1rem; color: var(--accent); }
+        .metric-card-range { font-size: 0.78rem; color: var(--muted); }
+        .metric-card-hint { font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.35; }
+        .spark { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 0.4rem; }
+        /* max-width: con due o tre registrazioni le colonne a flex:1 diventano
+           blocchi larghi mezzo riquadro, e non si legge più come uno storico */
+        .spark > i {
+            flex: 1; max-width: 26px; background: var(--secondary); min-height: 2px;
+            opacity: 0.75; transition: opacity 0.15s;
+        }
+        .spark > i:last-child { background: var(--primary); opacity: 1; }
+
+        /* i due pulsanti del sì/no larghi uguali: il bordo del ghost
+           basta a farli venire di due misure diverse */
+        .measure-bool { display: flex; gap: 0.5rem; }
+        .measure-bool .btn { min-width: 5rem; border: 2px solid transparent; }
+
+        /* registrazioni */
+        .entry-row {
+            border: 1px solid var(--border); padding: 0.6rem 0.7rem; margin-bottom: 0.5rem;
+            background: white;
+        }
+        .entry-row-head {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+        .entry-heading {
+            display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; min-width: 0;
+        }
+        .entry-date { font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+        .entry-title { font-size: 1.05rem; font-weight: 700; word-break: break-word; }
+        .entry-note { font-size: 0.95rem; color: var(--muted); margin-top: 0.35rem; line-height: 1.45; }
+        .entry-vals { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .entry-val {
+            font-size: 0.8rem; padding: 0.15rem 0.45rem; background: var(--input-bg);
+            border: 1px solid var(--border);
+        }
+        .entry-val b { font-family: 'Space Mono', monospace; }
+        .entry-val.orfana { border-style: dashed; color: var(--muted); }
+
+        /* ── RACCOLTA DELLE MISURE ── */
+        .measure-box {
+            border: 2px solid var(--border); padding: 0.75rem; margin-bottom: 0.75rem;
+        }
+        .measure-head {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 0.5rem; margin-bottom: 0.5rem;
+        }
+        .measure-name { font-weight: 700; font-size: 1.1rem; }
+        .measure-value {
+            font-family: 'Space Mono', monospace; font-size: 1.3rem; font-weight: 700;
+            color: var(--accent); min-width: 3rem; text-align: right;
+        }
+        /* la nota della misura: sta sotto il nome nel momento in cui si
+           dà il voto, che è l'unico momento in cui serve davvero */
+        .measure-hint {
+            font-size: 0.92rem; color: var(--muted); line-height: 1.4;
+            margin: -0.25rem 0 0.6rem 0;
+        }
+        .metric-hint { margin-top: 0.5rem; font-size: 0.95rem; }
+
+        .measure-scale { display: flex; align-items: center; gap: 0.6rem; }
+        .measure-scale input[type=range] {
+            flex: 1; height: 8px; accent-color: var(--primary);
+            -webkit-appearance: auto; appearance: auto;
+        }
+        .measure-scale .lim { font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+        .measure-num { display: flex; align-items: center; gap: 0.5rem; }
+        .measure-num input { width: 8rem; }
+        .measure-unit { font-size: 0.95rem; color: var(--muted); font-weight: 700; }
+
+        /* ── MOBILE ── */
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+            .cards-grid { grid-template-columns: 1fr; }
+
+            .sidebar {
+                display: flex !important;
+                position: fixed !important;
+                top: 56px !important;
+                left: 0 !important; right: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: #F3F4F6 !important;
+                border-bottom: 2px solid var(--border) !important;
+                border-right: none !important;
+                padding: 0.1rem 0 !important;
+                z-index: 1000;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+
+            .nav-menu {
+                display: flex !important;
+                flex-direction: row !important;
+                width: 100% !important;
+                justify-content: space-around !important;
+                align-items: center !important;
+                gap: 0 !important;
+                margin: 0 !important;
+            }
+
+            .nav-item {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 0.15rem 0.1rem !important;
+                margin: 0 !important;
+                font-size: 2.2rem !important;
+                flex: 1 !important;
+                text-align: center !important;
+            }
+
+            .nav-item.active {
+                background: var(--primary) !important;
+                border-radius: 0;
+            }
+
+            .nav-item::after { content: none !important; display: none !important; }
+
+            .main-content { padding-top: 4.5rem !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+</div>
+
+
+<!-- AUTH OVERLAY -->
+<div id="authOverlay" style="display:flex;">
+    <div class="auth-box">
+        <div class="auth-icon">📋</div>
+        <div class="auth-title">Memorandum</div>
+        <div class="auth-desc">Apri questa app da AppSphere per accedere.</div>
+    </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirmDialog">
+    <div class="confirm-box">
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-btns">
+            <button class="btn btn-secondary" id="confirmNo">Annulla</button>
+            <button class="btn btn-danger" id="confirmYes">Elimina</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MAIN APP -->
+<div class="app-container">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="nav-menu">
+            <div class="nav-item active" data-text="Note" data-section="schede" data-kind="nota"
+                 onclick="showKind('nota', this)">📄</div>
+            <div class="nav-item" data-text="Liste" data-section="schede" data-kind="lista"
+                 onclick="showKind('lista', this)">☑️</div>
+            <div class="nav-item" data-text="Diari" data-section="schede" data-kind="diario"
+                 onclick="showKind('diario', this)">📊</div>
+            <div class="nav-item" data-text="Link" data-section="schede" data-kind="link"
+                 onclick="showKind('link', this)">🔗</div>
+            <div class="nav-item" data-text="Premiati" data-section="schede" data-kind="premiato"
+                 onclick="showKind('premiato', this)">🏅</div>
+            <div class="nav-item" data-text="Fissa" data-section="pinned"
+                 onclick="showPage('pinned'); setNavActive(this)">📌</div>
+            <div class="nav-item" data-text="Impostazioni" data-section="impostazioni"
+                 onclick="showPage('impostazioni'); setNavActive(this)">⚙️</div>
+        </nav>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- PAGE: SCHEDE -->
+        <section class="page active" id="page-schede">
+            <div class="page-header" style="margin-bottom:1rem;">
+                <div class="page-title" id="kindTitle">Note</div>
+            </div>
+            <div class="search-bar">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Cerca nelle schede…"
+                           oninput="onSearch(this.value)">
+                    <span class="search-clear" id="searchClear" onclick="clearSearch()">✕</span>
+                </div>
+                <select id="sortSelect" class="form-input" style="width:auto;padding:0.5rem;"
+                        onchange="renderCards()">
+                    <option value="updated">Recenti</option>
+                    <option value="created">Creazione</option>
+                    <option value="title">Titolo</option>
+                </select>
+            </div>
+
+            <div style="padding:0 0 0.75rem 0;">
+                <select id="catFilterSelect" class="form-input" style="width:100%;" onchange="setCatFilter(this.value||null)">
+                    <option value="">Tutte le categorie</option>
+                </select>
+            </div>
+
+            <div id="cardsGrid" class="cards-grid"></div>
+        </section>
+
+        <!-- PAGE: PINNED -->
+        <section class="page" id="page-pinned">
+            <div class="page-header">
+                <div class="page-title">In evidenza</div>
+            </div>
+            <div id="pinnedGrid" class="cards-grid"></div>
+        </section>
+
+        <!-- PAGE: IMPOSTAZIONI -->
+        <section class="page" id="page-impostazioni">
+            <div class="page-header">
+                <div class="page-title">Impostazioni</div>
+            </div>
+            <div style="max-width:520px;">
+                <div class="card" style="border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem;">
+                    <div style="font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem;">📏 Dimensione carattere schede</div>
+                    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+                        <span style="font-size:0.8rem;color:#999;">A</span>
+                        <input type="range" id="settingFontScale" min="80" max="150" step="5" value="100"
+                            style="flex:1;height:6px;-webkit-appearance:auto;appearance:auto;accent-color:var(--primary);"
+                            oninput="document.getElementById('fontScaleLabel').textContent=this.value+'%';applyMemoFontScalePreview(this.value);">
+                        <span style="font-size:1.2rem;color:#999;">A</span>
+                        <span id="fontScaleLabel" style="font-weight:700;min-width:3.5rem;text-align:center;background:var(--primary);color:white;padding:0.2rem 0.5rem;border-radius:4px;font-size:0.9rem;">100%</span>
+                    </div>
+                    <div id="fontScalePreview" style="margin-bottom:0.75rem;padding:0.75rem;border:1px dashed #dee2e6;background:#f8f9fa;border-radius:6px;">
+                        <p id="fontPreviewTitle" style="margin:0;font-weight:700;color:#333;font-family:'Darker Grotesque',sans-serif;">Anteprima titolo scheda</p>
+                        <p id="fontPreviewExcerpt" style="margin:0.2rem 0 0 0;color:#6b7280;font-family:'Darker Grotesque',sans-serif;">Anteprima testo scheda · 20/02/2026</p>
+                    </div>
+                    <small style="display:block;color:var(--muted);margin-bottom:1rem;">
+                        Fattore di ingrandimento per titoli e testo delle schede (80%-150%)
+                    </small>
+                    <button class="btn btn-primary" onclick="saveMemoFontScale()" style="text-transform:uppercase;font-weight:700;letter-spacing:.05em;">💾 Salva Impostazioni</button>
+                </div>
+
+                <div class="card" style="border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem;">
+                    <div style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem;">Informazioni</div>
+                    <table style="width:100%;font-size:0.95rem;border-collapse:collapse;">
+                        <tr>
+                            <td style="padding:0.3rem 0;color:var(--muted);">Versione</td>
+                            <td style="font-family:'Space Mono',monospace;" id="infoVersion">—</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:0.3rem 0;color:var(--muted);">Build</td>
+                            <td style="font-family:'Space Mono',monospace;font-size:0.8rem;" id="infoBuild">—</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:0.3rem 0;color:var(--muted);">Ambiente</td>
+                            <td id="infoEnv">—</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="card" style="border:1px solid var(--border);padding:1.25rem;">
+                    <div style="font-size:1.2rem;font-weight:700;margin-bottom:0.75rem;">SQL migrazioni</div>
+                    <p style="font-size:0.9rem;color:var(--muted);margin-bottom:0.75rem;">
+                        Esegui questo SQL nel tuo progetto Supabase per creare le tabelle necessarie.
+                    </p>
+                    <pre id="sqlMigrations" style="font-size:0.7rem;background:#f3f4f6;padding:0.75rem;overflow-x:auto;line-height:1.5;color:#374151;border:1px solid var(--border);"></pre>
+                    <button class="btn btn-secondary btn-small" style="margin-top:0.5rem;" onclick="copySql()">Copia SQL</button>
+                </div>
+
+                <!-- Log di debug -->
+                <div class="card" style="border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                        <div style="font-size:1.1rem;font-weight:700;">🪲 Log di debug</div>
+                        <div style="display:flex;gap:0.5rem;">
+                            <button class="btn btn-secondary btn-small" onclick="navigator.clipboard.writeText(_debugLines.join('\n')).then(()=>showToast('📋 Log copiato!'))">Copia</button>
+                            <button class="btn btn-secondary btn-small" onclick="document.getElementById('debugLog').textContent='';_debugLines=[];">Svuota</button>
+                        </div>
+                    </div>
+                    <pre id="debugLog" style="font-size:0.7rem;background:#1a1a2e;color:#00ff88;padding:0.75rem;overflow:auto;max-height:300px;border-radius:6px;line-height:1.5;white-space:pre-wrap;word-break:break-all;">— nessun log —</pre>
+                </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Modalità nascosta: compare solo se il launcher l'ha attivata -->
+<button class="hidden-mode-fab" id="hiddenModeFab" onclick="toggleHiddenMode()"
+        title="Mostra solo le riservate">🙈</button>
+
+<!-- FAB — crea una scheda del tipo della Tab aperta -->
+<button class="fab" id="fabNew" onclick="newCardOfKind(currentKind)" title="Nuova nota">+</button>
+
+<!-- ========================================================= -->
+<!-- MODAL: CARD EDITOR                                        -->
+<!-- ========================================================= -->
+<div class="modal" id="cardModal">
+    <div class="modal-content" style="max-width:820px;">
+        <div class="modal-header">
+            <div class="modal-title" id="cardModalTitle">Nuova scheda</div>
+            <button class="modal-close" onclick="closeCardModal()">✕</button>
+        </div>
+
+        <!-- TITOLO -->
+        <div class="form-group">
+            <label class="form-label">Titolo</label>
+            <input type="text" class="form-input" id="cardTitle" placeholder="Titolo della scheda…" maxlength="200">
+        </div>
+
+        <!-- EDITOR TESTO -->
+        <div class="form-group">
+            <label class="form-label" id="cardContentLabel">Contenuto</label>
+            <div class="editor-hint" id="cardContentHint"
+                 style="display:none;font-size:0.9rem;color:var(--muted);margin-bottom:0.4rem;"></div>
+            <div class="editor-toolbar" id="editorToolbar">
+                <button class="toolbar-btn" onclick="execCmd('bold')" title="Grassetto" data-cmd="bold"><b>B</b></button>
+                <button class="toolbar-btn" onclick="execCmd('italic')" title="Corsivo" data-cmd="italic"><i>I</i></button>
+                <button class="toolbar-btn" onclick="execCmd('underline')" title="Sottolineato" data-cmd="underline"><u>U</u></button>
+                <button class="toolbar-btn" onclick="execCmd('strikeThrough')" title="Barrato" data-cmd="strikeThrough"><s>S</s></button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="insertHeading(1)" title="Titolo 1" style="font-size:0.75rem;font-family:sans-serif;">H1</button>
+                <button class="toolbar-btn" onclick="insertHeading(2)" title="Titolo 2" style="font-size:0.75rem;font-family:sans-serif;">H2</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="execCmd('insertUnorderedList')" title="Elenco puntato" data-cmd="insertUnorderedList">☰</button>
+                <button class="toolbar-btn" onclick="execCmd('insertOrderedList')" title="Elenco numerato" data-cmd="insertOrderedList">①</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="execCmd('createLink', prompt('URL:'))" title="Link">🔗</button>
+                <button class="toolbar-btn" onclick="execCmd('insertHorizontalRule')" title="Linea separatore">—</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="execCmd('removeFormat')" title="Rimuovi formattazione" style="font-family:sans-serif;font-size:0.7rem;">✕F</button>
+            </div>
+            <div class="editor-area" id="editorArea" contenteditable="true"
+                 data-placeholder="Scrivi qui il contenuto della scheda…"
+                 onkeyup="updateToolbarState()" onmouseup="updateToolbarState()"
+                 onfocus="updateToolbarState()">
+            </div>
+        </div>
+
+        <!-- URL (solo kind = link) -->
+        <div class="form-group" id="linkSection" style="display:none;">
+            <label class="form-label">Indirizzo</label>
+            <div style="font-size:0.9rem;color:var(--muted);margin-bottom:0.4rem;">
+                Il link da ricordare. Se è un video di YouTube la copertina
+                compare da sé: arriva da YouTube, non occupa spazio.
+            </div>
+            <input type="url" class="form-input" id="cardLinkUrl" inputmode="url"
+                   placeholder="https://…" oninput="onLinkUrlInput()">
+            <div id="linkPreview" style="margin-top:0.6rem;"></div>
+        </div>
+
+        <!-- PUNTEGGIO (solo kind = premiato) -->
+        <div class="form-group" id="premiatoSection" style="display:none;">
+            <label class="form-label" for="cardPunteggio">Punteggio</label>
+            <div style="font-size:0.9rem;color:var(--muted);margin-bottom:0.4rem;">
+                I punti di questo premiato. La somma dei punti di tutti i premiati
+                è il numero della bolla di Memo in AppSphere, e si aggiunge al
+                totale che paga i premi.
+            </div>
+            <input type="number" class="form-input" id="cardPunteggio" inputmode="numeric"
+                   step="1" value="0" placeholder="0">
+        </div>
+
+        <!-- VOCI DELLA LISTA (solo kind = lista) -->
+        <div class="form-group" id="listSection" style="display:none;">
+            <label class="form-label">Voci della lista</label>
+            <div id="editorItems" style="border:2px solid var(--border);background:white;"></div>
+            <div class="li-add">
+                <input type="text" class="form-input" id="newItemText" placeholder="Aggiungi una voce…"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();addEditorItem();}">
+                <button type="button" class="btn btn-accent" onclick="addEditorItem()">Aggiungi</button>
+            </div>
+        </div>
+
+        <!-- MISURE DEL DIARIO (solo kind = diario) -->
+        <div class="form-group" id="diarySection" style="display:none;">
+            <div class="riservato-row">
+                <input type="checkbox" id="cardRiservato">
+                <div>
+                    <label for="cardRiservato" style="cursor:pointer;font-weight:700;font-size:1rem;">
+                        🙈 Riservato
+                    </label>
+                    <div class="riservato-desc">
+                        Il diario si vede solo in modalità nascosta, che si attiva da AppSphere.
+                        Fuori da lì non compare in elenco e non viene nemmeno letto dal database.
+                    </div>
+                </div>
+            </div>
+
+            <label class="form-label">Cosa misurare</label>
+            <div style="font-size:0.9rem;color:var(--muted);margin-bottom:0.6rem;">
+                Ogni misura viene chiesta a ogni registrazione. Una <b>scala</b> ha un minimo e un
+                massimo (1-20, 1-100…), un <b>numero</b> è libero e può avere un'unità di misura,
+                un <b>sì/no</b> vale 0 o 1 nei riepiloghi, una <b>scelta</b> è una combo fra le
+                opzioni che scrivi tu (es. <i>origine</i>: sociale, autorità, sbagliare, giudizio).
+            </div>
+            <div id="editorMetrics"></div>
+            <button type="button" class="btn btn-accent btn-small" onclick="addEditorMetric()">➕ Aggiungi misura</button>
+        </div>
+
+        <!-- CATEGORIE -->
+        <div class="form-group">
+            <label class="form-label">Categorie</label>
+            <div class="cat-multi" id="catMulti" onclick="toggleCatDropdown(event)">
+                <span class="cat-multi-placeholder" id="catMultiPlaceholder">Seleziona categorie…</span>
+            </div>
+            <div class="cat-dropdown" id="catDropdown"></div>
+        </div>
+
+        <!-- COLORE + PIN -->
+        <div class="form-group">
+            <label class="form-label">Colore scheda</label>
+            <div class="color-row" id="colorRow">
+                <div class="color-swatch selected" data-color="#FFFFFF" style="background:#FFFFFF;border:3px solid #d1d5db;" onclick="selectColor('#FFFFFF', this)" title="Bianco"></div>
+                <div class="color-swatch" data-color="#FEF9C3" style="background:#FEF9C3;" onclick="selectColor('#FEF9C3', this)" title="Giallo"></div>
+                <div class="color-swatch" data-color="#DCFCE7" style="background:#DCFCE7;" onclick="selectColor('#DCFCE7', this)" title="Verde"></div>
+                <div class="color-swatch" data-color="#DBEAFE" style="background:#DBEAFE;" onclick="selectColor('#DBEAFE', this)" title="Blu"></div>
+                <div class="color-swatch" data-color="#FAE8FF" style="background:#FAE8FF;" onclick="selectColor('#FAE8FF', this)" title="Viola"></div>
+                <div class="color-swatch" data-color="#FFE4E6" style="background:#FFE4E6;" onclick="selectColor('#FFE4E6', this)" title="Rosa"></div>
+                <div class="color-swatch" data-color="#FED7AA" style="background:#FED7AA;" onclick="selectColor('#FED7AA', this)" title="Arancione"></div>
+                <input type="color" class="color-custom" id="colorCustom" value="#FFFFFF" onchange="selectColor(this.value, null, true)" title="Colore personalizzato">
+            </div>
+        </div>
+
+        <!-- IMMAGINI -->
+        <div class="form-group">
+            <label class="form-label">Immagini <span style="font-weight:400;text-transform:none;color:var(--muted)">(max 5 MB ciascuna)</span></label>
+            <div class="images-section">
+                <!-- Input nascosti -->
+                <input type="file" id="imgFileInput" accept="image/*" multiple
+                       style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
+                <input type="file" id="imgCameraInput" accept="image/*" capture="environment"
+                       style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
+
+                <!-- Bottone unico -->
+                <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+                    <button type="button" class="btn btn-accent" onclick="openImgPopup()">
+                        📎 Aggiungi immagine
+                    </button>
+                    <!-- Zona drag-drop solo desktop -->
+                    <div class="img-upload-zone-desktop" id="imgUploadZone"
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                        <span style="font-size:0.85rem;color:var(--muted);">o trascina qui</span>
+                    </div>
+                </div>
+
+                <div class="images-grid" id="imagesGrid"></div>
+            </div>
+        </div>
+
+        <!-- PIN -->
+        <div class="form-group" style="display:flex;align-items:center;gap:0.75rem;">
+            <input type="checkbox" id="cardPinned" style="width:18px;height:18px;cursor:pointer;">
+            <label for="cardPinned" style="cursor:pointer;font-weight:700;font-size:1rem;">
+                📌 In evidenza
+            </label>
+        </div>
+
+        <!-- AZIONI MODAL -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;gap:0.75rem;">
+            <button class="btn btn-danger" id="deletCardBtn" onclick="deleteCurrentCard()" style="display:none;">
+                Elimina scheda
+            </button>
+            <div style="display:flex;gap:0.75rem;margin-left:auto;">
+                <button class="btn btn-secondary" onclick="closeCardModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="saveCard()">💾 Salva</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- MODAL: VISTA LISTA                                        -->
+<!-- ========================================================= -->
+<div class="modal" id="linkViewModal">
+    <div class="modal-content" style="max-width:640px;">
+        <div class="modal-header">
+            <div class="modal-title" id="linkViewTitle">Link</div>
+            <button class="modal-close" onclick="closeLinkView()">✕</button>
+        </div>
+
+        <div id="linkViewThumb" style="margin-bottom:0.75rem;"></div>
+        <div class="link-host" id="linkViewUrl" style="margin-bottom:0.75rem;"></div>
+        <div id="linkViewNote" class="view-note" style="display:none;"></div>
+
+        <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;padding:0.7rem;"
+                onclick="apriLinkDaVista()">▶️ Apri</button>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;gap:0.75rem;">
+            <button class="btn btn-ghost" onclick="editFromView()">✏️ Modifica scheda</button>
+            <button class="btn btn-secondary" onclick="closeLinkView()">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="listViewModal">
+    <div class="modal-content" style="max-width:640px;">
+        <div class="modal-header">
+            <div class="modal-title" id="listViewTitle">Lista</div>
+            <button class="modal-close" onclick="closeListView()">✕</button>
+        </div>
+
+        <div id="listViewNote" class="view-note" style="display:none;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;margin-bottom:0.4rem;">
+            <div class="view-section-title" style="margin:0;" id="listViewCount">—</div>
+            <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.9rem;color:var(--muted);cursor:pointer;">
+                <input type="checkbox" id="listHideDone" onchange="renderListView()" style="width:16px;height:16px;cursor:pointer;">
+                Nascondi le fatte
+            </label>
+        </div>
+        <div class="list-progress" style="margin-bottom:0.75rem;"><i id="listViewBar" style="width:0%"></i></div>
+
+        <div id="listViewItems" style="border:2px solid var(--border);background:white;"></div>
+
+        <div class="li-add">
+            <input type="text" class="form-input" id="listViewNewItem" placeholder="Aggiungi una voce…"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addItemFromView();}">
+            <button type="button" class="btn btn-accent" onclick="addItemFromView()">Aggiungi</button>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;gap:0.75rem;">
+            <button class="btn btn-ghost" onclick="editFromView()">✏️ Modifica scheda</button>
+            <button class="btn btn-secondary" onclick="closeListView()">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- MODAL: VISTA DIARIO                                       -->
+<!-- ========================================================= -->
+<div class="modal" id="diaryViewModal">
+    <div class="modal-content" style="max-width:720px;">
+        <div class="modal-header">
+            <div class="modal-title" id="diaryViewTitle">Diario</div>
+            <button class="modal-close" onclick="closeDiaryView()">✕</button>
+        </div>
+
+        <div id="diaryViewNote" class="view-note" style="display:none;"></div>
+
+        <button class="btn btn-primary" style="width:100%;margin-bottom:1.25rem;padding:0.7rem;"
+                onclick="openEntryModal(null)">
+            ➕ Nuova registrazione
+        </button>
+
+        <div id="diaryMetricsSummary" style="margin-bottom:1.25rem;"></div>
+
+        <div class="view-section-title">Registrazioni</div>
+        <div id="diaryEntriesList"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;gap:0.75rem;">
+            <button class="btn btn-ghost" onclick="editFromView()">✏️ Modifica scheda</button>
+            <button class="btn btn-secondary" onclick="closeDiaryView()">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- MODAL: REGISTRAZIONE DEL DIARIO                           -->
+<!-- ========================================================= -->
+<div class="modal" id="entryModal">
+    <div class="modal-content" style="max-width:620px;">
+        <div class="modal-header">
+            <div class="modal-title" id="entryModalTitle">Nuova registrazione</div>
+            <button class="modal-close" onclick="closeEntryModal()">✕</button>
+        </div>
+
+        <!-- la nota del diario: è il promemoria di cosa si sta misurando e perché -->
+        <div id="entryNote" class="view-note" style="display:none;"></div>
+
+        <div class="form-group">
+            <label class="form-label">Titolo <span style="font-weight:400;text-transform:none;color:var(--danger)">(obbligatorio)</span></label>
+            <input type="text" class="form-input" id="entryTitle" maxlength="80"
+                   placeholder="In due parole: com'è andata…">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Data</label>
+            <input type="date" class="form-input" id="entryDate" style="max-width:14rem;">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Misure</label>
+            <div id="entryMeasures"></div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Commento <span style="font-weight:400;text-transform:none;color:var(--muted)">(facoltativo)</span></label>
+            <textarea class="form-input" id="entryComment" rows="3"
+                      placeholder="Cos'è successo oggi…" style="resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;gap:0.75rem;">
+            <button class="btn btn-danger" id="deleteEntryBtn" onclick="deleteCurrentEntry()" style="display:none;">
+                Elimina
+            </button>
+            <div style="display:flex;gap:0.75rem;margin-left:auto;">
+                <button class="btn btn-secondary" onclick="closeEntryModal()">Annulla</button>
+                <button class="btn btn-primary" id="saveEntryBtn" onclick="saveEntry()">💾 Registra</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- IMAGE VIEWER MODAL                                        -->
+<!-- ========================================================= -->
+<!-- ── IMG POPUP ── -->
+<div class="img-popup-overlay" id="imgPopupOverlay" onclick="closeImgPopup(event)">
+    <div class="img-popup" onclick="event.stopPropagation()">
+        <div class="img-popup-title">Aggiungi immagine</div>
+
+        <div class="ocr-switch-row">
+            <div>
+                <div class="ocr-switch-label">🔍 Modalità OCR</div>
+                <div class="ocr-switch-desc">Estrae il testo dall'immagine nel contenuto</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="ocrModeSwitch">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div class="img-popup-btns">
+            <button type="button" class="img-popup-btn" onclick="imgPopupAction('gallery')">
+                <span class="btn-icon">🖼</span>
+                Galleria
+            </button>
+            <button type="button" class="img-popup-btn" onclick="imgPopupAction('camera')">
+                <span class="btn-icon">📷</span>
+                Fotocamera
+            </button>
+        </div>
+        <button type="button" class="img-popup-cancel" onclick="closeImgPopup()">Annulla</button>
+    </div>
+</div>
+
+<div class="modal" id="imgViewerModal" onclick="this.classList.remove('active')">
+    <div style="max-width:90vw;max-height:90vh;display:flex;align-items:center;justify-content:center;">
+        <img id="imgViewerImg" src="" style="max-width:88vw;max-height:88vh;object-fit:contain;border:3px solid white;">
+    </div>
+</div>
+
+<script>
+// ============================================================
+// VERSIONE
+// ============================================================
+// ── Debug log in-page ──────────────────────────────────────
+var _debugLines = [];
+function _debugWrite(level, args) {
+    const ts = new Date().toTimeString().slice(0,8);
+    const msg = Array.from(args).map(a => {
+        try { return (typeof a === 'object') ? JSON.stringify(a) : String(a); } catch(e) { return String(a); }
+    }).join(' ');
+    _debugLines.push('[' + ts + '][' + level + '] ' + msg);
+    if (_debugLines.length > 200) _debugLines.shift();
+    const el = document.getElementById('debugLog');
+    if (el) { el.textContent = _debugLines.join('\n'); el.scrollTop = el.scrollHeight; }
+}
+const _origLog   = console.log.bind(console);
+const _origError = console.error.bind(console);
+const _origWarn  = console.warn.bind(console);
+console.log   = function() { _origLog(...arguments);   _debugWrite('LOG',  arguments); };
+console.error = function() { _origError(...arguments); _debugWrite('ERR',  arguments); };
+console.warn  = function() { _origWarn(...arguments);  _debugWrite('WARN', arguments); };
+window.addEventListener('error', e => _debugWrite('EXC', [e.message + ' @ ' + e.filename + ':' + e.lineno]));
+window.addEventListener('unhandledrejection', e => _debugWrite('ERR', ['Unhandled:', e.reason]));
+// ────────────────────────────────────────────────────────────
+
+var APP_VERSION = 'v1.2.1';
+var BUILD_TIME  = '2026-09-14T10:30:00Z';
+console.log('%c Memorandum ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#2563EB;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+// ============================================================
+// SUPABASE — inizializzato dopo auth
+// ============================================================
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+             || (window.location.hostname.endsWith('.netlify.app')
+                && window.location.hostname.startsWith('dev--'));
+
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+let sb            = null;
+let sbAccessToken = null;
+let currentUserId = null;
+
+// ============================================================
+// DATA STORE
+// ============================================================
+let cards       = [];   // mm_cards rows (con categories, images_count)
+let categories  = [];   // cm_categories rows
+let imagesMeta  = {};   // { cardId: [mm_images rows + signedUrl] }
+
+// stato editor
+let editingCardId   = null;
+let selectedCatIds  = [];
+let selectedColor   = '#FFFFFF';
+let pendingImages   = [];   // { file, previewUrl, tempId } — non ancora caricate
+let existingImages  = [];   // { id, storage_path, file_name, signedUrl } — già su Storage
+let currentCatFilter = null; // id categoria filtro sidebar
+
+// stato ricerca
+let searchQuery = '';
+
+// ── LISTE E DIARIO ──────────────────────────────────────────
+// Una scheda è una nota, una lista, un diario, un link o un premiato
+// (mm_cards.kind).
+// Voci, misure e registrazioni si caricano solo quando si apre
+// la scheda: nell'elenco bastano i conteggi, che arrivano già
+// con la query delle schede.
+const KINDS = {
+    nota:     { icon: '📄', label: 'Nota'     },
+    lista:    { icon: '☑️', label: 'Lista'    },
+    diario:   { icon: '📊', label: 'Diario'   },
+    link:     { icon: '🔗', label: 'Link'     },
+    premiato: { icon: '🏅', label: 'Premiato' }
+};
+
+// il nome del tipo con l'articolo giusto: serve nei titoli del modale,
+// negli elenchi vuoti, nel tooltip del + e nel placeholder della ricerca
+// (`cerca`), e scriverlo in quattro posti diversi è il modo migliore
+// per farli divergere
+const KIND_NOMI = {
+    nota:     { nome: 'nota',     nuovo: 'Nuova nota',     nessuno: 'Nessuna nota',     cerca: 'le note'     },
+    lista:    { nome: 'lista',    nuovo: 'Nuova lista',    nessuno: 'Nessuna lista',    cerca: 'le liste'    },
+    diario:   { nome: 'diario',   nuovo: 'Nuovo diario',   nessuno: 'Nessun diario',    cerca: 'i diari'     },
+    link:     { nome: 'link',     nuovo: 'Nuovo link',     nessuno: 'Nessun link',      cerca: 'i link'      },
+    premiato: { nome: 'premiato', nuovo: 'Nuovo premiato', nessuno: 'Nessun premiato',  cerca: 'i premiati'  }
+};
+
+// La Tab aperta: ogni tipo ha la sua pagina, e non esiste una vista
+// che li mescola — 📌 Fissa è l'unica che attraversa i cinque tipi.
+let currentKind = 'nota';     // 'nota' | 'lista' | 'diario' | 'link' | 'premiato'
+
+let editorKind       = 'nota';
+let editorItems      = [];    // voci in modifica    { id?, tempId?, text, done, done_at }
+let editorMetrics    = [];    // misure in modifica  { id?, tempId?, name, kind, min_value, max_value, unit }
+let deletedItemIds   = [];
+let deletedMetricIds = [];
+
+let editorPunteggio = 0;      // i punti in modifica (kind = premiato)
+
+let editorLinkUrl = '';       // url dell'allegato in modifica (kind = link)
+let viewLinkUrl   = '';       // url della scheda link aperta
+
+let viewCardId    = null;     // scheda aperta in vista lista/diario/link
+let viewItems     = [];       // voci della lista aperta
+let viewMetrics   = [];       // misure del diario aperto
+let viewEntries   = [];       // registrazioni del diario aperto
+let editingEntryId = null;    // registrazione in modifica
+
+let _tempSeq = 0;
+function tempId() { return 'tmp-' + (++_tempSeq); }
+
+// ── MODALITÀ NASCOSTA ───────────────────────────────────────
+// Tre stati, gli stessi di events-log.html e del launcher:
+//   spenta                       → si vedono solo le schede normali
+//   accesa, filtro spento        → si vede tutto
+//   accesa, filtro acceso (👁)   → si vedono solo le riservate
+// La modalità la accende AppSphere, non questa pagina: qui si può
+// solo alzare o abbassare il filtro quando è già accesa.
+let hiddenMode      = false;
+let riservatoFilter = false;
+
+function updateHiddenModeFab() {
+    const fab = document.getElementById('hiddenModeFab');
+    if (!fab) return;
+    fab.classList.toggle('active', riservatoFilter);
+    fab.textContent = riservatoFilter ? '👁' : '🙈';
+    fab.title = riservatoFilter
+        ? 'Solo le riservate — premi per mostrarle tutte'
+        : 'Mostra solo le riservate';
+    fab.style.display = hiddenMode ? 'flex' : 'none';
+}
+
+function toggleHiddenMode() {
+    if (!hiddenMode) return;
+    riservatoFilter = !riservatoFilter;
+    sessionStorage.setItem('riservato_filter', riservatoFilter ? '1' : '0');
+    updateHiddenModeFab();
+    if (sb) loadCards().then(() => { renderCatFilters(); renderCards(); renderPinned(); });
+}
+
+// il launcher può cambiarla mentre la pagina è aperta
+function applyHiddenMode(active) {
+    hiddenMode = !!active;
+    riservatoFilter = false;
+    sessionStorage.setItem('riservato_filter', '0');
+    updateHiddenModeFab();
+    if (sb) loadCards().then(() => { renderCatFilters(); renderCards(); renderPinned(); });
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function initWithToken(token) {
+    if (sb) return;
+    sbAccessToken = token;
+    localStorage.setItem('sb_token', token);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+    const payload = decodeJWT(token);
+    currentUserId = payload?.sub || null;
+    console.log('✅ Supabase autenticato (Memorandum ' + APP_VERSION + ')');
+    document.getElementById('authOverlay').style.display = 'none';
+    startApp();
+}
+
+function handleAuthError(error) {
+    if (!error) return false;
+    const msg = (error.message || '').toLowerCase();
+    const isAuth = error.status === 401
+        || msg.includes('jwt expired') || msg.includes('invalid jwt')
+        || msg.includes('not authenticated') || msg.includes('pgjwt');
+    if (!isAuth) return false;
+    sb = null; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return true;
+}
+
+function decodeJWT(token) {
+    try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
+    catch(e) { return null; }
+}
+
+window.addEventListener('message', (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'SB_TOKEN' && e.data.token) {
+        console.log('✅ SB_TOKEN ricevuto dal launcher (Memorandum)');
+        initWithToken(e.data.token);
+    } else if (e.data.type === 'HIDDEN_MODE') {
+        applyHiddenMode(e.data.active);
+        console.log('👁 Modalità nascosta:', hiddenMode ? 'ATTIVA' : 'DISATTIVA');
+    }
+});
+
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null; sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+    } else if (e.data.type === 'HIDDEN_MODE') {
+        applyHiddenMode(e.data.active);
+        console.log('👁 Modalità nascosta (broadcast):', hiddenMode ? 'ATTIVA' : 'DISATTIVA');
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        const t = e.data.sbToken;
+        localStorage.setItem('sb_token', t); sbAccessToken = t;
+        if (sb) {
+            sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                auth:   { persistSession: false, autoRefreshToken: false },
+                global: { headers: { Authorization: 'Bearer ' + t } }
+            });
+        }
+    }
+};
+
+window.addEventListener('load', () => {
+    const storedHidden = sessionStorage.getItem('hidden_mode');
+    if (storedHidden !== null) {
+        hiddenMode = storedHidden === '1';
+        riservatoFilter = hiddenMode && sessionStorage.getItem('riservato_filter') === '1';
+        updateHiddenModeFab();
+    }
+
+    const stored = localStorage.getItem('sb_token');
+    if (stored) initWithToken(stored);
+    else document.getElementById('authOverlay').style.display = 'flex';
+});
+
+// ============================================================
+// FONT SCALE
+// ============================================================
+function applyMemoFontScale(val) {
+    const scale = parseInt(val) / 100;
+    document.documentElement.style.setProperty('--memo-title-size',   (1.2  * scale) + 'rem');
+    document.documentElement.style.setProperty('--memo-excerpt-size', (0.95 * scale) + 'rem');
+}
+function applyMemoFontScalePreview(val) {
+    const scale = parseInt(val) / 100;
+    const t = document.getElementById('fontPreviewTitle');
+    const e = document.getElementById('fontPreviewExcerpt');
+    if (t) t.style.fontSize = (1.2  * scale) + 'rem';
+    if (e) e.style.fontSize = (0.95 * scale) + 'rem';
+}
+function saveMemoFontScale() {
+    const val = document.getElementById('settingFontScale').value;
+    localStorage.setItem('memo_font_scale', val);
+    applyMemoFontScale(val);
+    showToast('✅ Impostazioni salvate');
+}
+function loadMemoFontScale() {
+    const val = parseInt(localStorage.getItem('memo_font_scale') || '100');
+    document.getElementById('settingFontScale').value = val;
+    document.getElementById('fontScaleLabel').textContent = val + '%';
+    applyMemoFontScale(val);
+    applyMemoFontScalePreview(val);
+}
+
+// ============================================================
+// START
+// ============================================================
+function startApp() {
+    document.getElementById('infoVersion').textContent = APP_VERSION;
+    document.getElementById('infoBuild').textContent   = BUILD_TIME;
+    document.getElementById('infoEnv').textContent     = _IS_DEV ? '🧪 Development' : '🚀 Production';
+    document.getElementById('sqlMigrations').textContent = SQL_MIGRATIONS;
+    loadMemoFontScale();
+
+    log('===========================================');
+    log('MEMORANDUM ' + APP_VERSION + ' — build: ' + BUILD_TIME);
+    log('===========================================');
+
+    Promise.all([loadCategories(), loadCards()]).then(() => {
+        showKind('nota', document.querySelector('.nav-item[data-kind="nota"]'));
+        renderPinned();
+        updateStats();
+    });
+}
+
+function log(msg) { console.log('%c[MEMO]%c ' + msg, 'color:#2563EB;font-weight:bold', 'color:inherit'); }
+
+// ============================================================
+// LOAD DATA
+// ============================================================
+async function loadCategories() {
+    const { data, error } = await sb.from('cm_categories').select('*').order('name');
+    if (error) { if (handleAuthError(error)) return; console.error('loadCategories:', error); return; }
+    categories = data || [];
+}
+
+async function loadCards() {
+    let q = sb
+        .from('mm_cards')
+        .select(`
+            *,
+            mm_card_categories(category_id),
+            mm_images(id),
+            mm_list_items(id, done),
+            mm_diary_entries(id, entry_date),
+            mm_attachments(id, url, tipo)
+        `)
+        .order('pinned', { ascending: false })
+        .order('updated_at', { ascending: false });
+
+    // fuori dalla modalità nascosta la riga non si legge nemmeno:
+    // nasconderla solo a schermo la lascerebbe in chiaro a chiunque
+    // apra gli strumenti del browser
+    if (riservatoFilter)   q = q.eq('riservato', true);
+    else if (!hiddenMode)  q = q.or('riservato.eq.false,riservato.is.null');
+
+    const { data, error } = await q;
+    if (error) { if (handleAuthError(error)) return; console.error('loadCards:', error); return; }
+
+    cards = (data || []).map(c => {
+        const items   = c.mm_list_items    || [];
+        const entries = c.mm_diary_entries || [];
+        const alleg   = c.mm_attachments   || [];
+        return {
+            ...c,
+            kind:        c.kind || 'nota',
+            punteggio:   Number(c.punteggio) || 0,
+            linkUrl:     (alleg.find(a => a.tipo === 'link') || {}).url || '',
+            categoryIds: (c.mm_card_categories || []).map(r => r.category_id),
+            imagesCount: (c.mm_images || []).length,
+            itemsTotal:  items.length,
+            itemsDone:   items.filter(i => i.done).length,
+            entriesCount: entries.length,
+            lastEntryDate: entries.length
+                ? entries.map(e => e.entry_date).sort().slice(-1)[0]
+                : null
+        };
+    });
+}
+
+// ── voci di una lista ──
+async function loadListItems(cardId) {
+    const { data, error } = await sb.from('mm_list_items')
+        .select('*').eq('card_id', cardId)
+        .order('position').order('created_at');
+    if (error) { if (handleAuthError(error)) return []; console.error('loadListItems:', error); return []; }
+    return data || [];
+}
+
+// ── misure e registrazioni di un diario ──
+async function loadDiaryMetrics(cardId) {
+    const { data, error } = await sb.from('mm_diary_metrics')
+        .select('*').eq('card_id', cardId)
+        .order('position').order('created_at');
+    if (error) { if (handleAuthError(error)) return []; console.error('loadDiaryMetrics:', error); return []; }
+    return data || [];
+}
+
+async function loadDiaryEntries(cardId) {
+    const { data, error } = await sb.from('mm_diary_entries')
+        .select('*').eq('card_id', cardId)
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false });
+    if (error) { if (handleAuthError(error)) return []; console.error('loadDiaryEntries:', error); return []; }
+    return data || [];
+}
+
+async function loadCardImages(cardId) {
+    const { data, error } = await sb.from('mm_images').select('*').eq('card_id', cardId).order('created_at');
+    if (error) { console.error('loadCardImages:', error); return []; }
+
+    const imgs = await Promise.all((data || []).map(async (img) => {
+        const { data: urlData } = await sb.storage
+            .from('mm-images')
+            .createSignedUrl(img.storage_path, 7200);
+        return { ...img, signedUrl: urlData?.signedUrl || '' };
+    }));
+    return imgs;
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name)?.classList.add('active');
+    if (name === 'pinned') renderPinned();
+    closeSidebar();
+}
+
+function setNavActive(el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+}
+
+// ============================================================
+// LINK — riconoscere un url e ricavarne quel che si può
+//
+// ⚠️ Niente di quanto sta qui sotto viene archiviato: in
+// `mm_attachments` c'è l'url e basta. Id del video, miniatura e
+// nome del sito si ricavano ogni volta, perché un dato calcolato
+// *e* archiviato sono due verità sullo stesso numero, che divergono
+// il giorno che una delle due cambia.
+// ============================================================
+
+// Copre le forme in cui YouTube scrive i suoi link: watch?v=,
+// youtu.be/, /shorts/, /embed/, /live/. L'id è sempre 11 caratteri.
+const YT_RE = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
+
+function ytIdDa(url) {
+    const m = YT_RE.exec(String(url || ''));
+    return m ? m[1] : null;
+}
+
+// La copertina di YouTube è un url pubblico: nessuna API, nessuna
+// chiave, nessun byte nel bucket. hqdefault c'è su ogni video —
+// maxresdefault manca sui video vecchi e darebbe un riquadro rotto.
+function thumbDa(url) {
+    const id = ytIdDa(url);
+    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+}
+
+function hostDa(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); }
+    catch (e) { return ''; }
+}
+
+// Un url incollato a mano può arrivare senza schema: senza,
+// `new URL` solleva e il link si aprirebbe come percorso relativo.
+function normalizzaUrl(url) {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    return /^https?:\/\//i.test(u) ? u : 'https://' + u;
+}
+
+// ⚠️ Il punto nel nome del sito è il controllo che conta. Senza,
+// `new URL` accetta «https://ciao» come indirizzo validissimo con
+// hostname «ciao»: una parola secca condivisa da un'altra app
+// diventerebbe una scheda link che non porta da nessuna parte,
+// invece della nota che è.
+function urlValido(url) {
+    try {
+        const u = new URL(normalizzaUrl(url));
+        return !!u.hostname && (u.hostname.includes('.') || u.hostname === 'localhost');
+    } catch (e) { return false; }
+}
+
+// ── Il titolo, quando non lo manda nessuno ────────────────────────
+//
+// Condividendo dal telefono il titolo arriva da EXTRA_SUBJECT ed è
+// esatto. Ma incollando un link a mano dal PC quel campo non esiste,
+// e senza queste due funzioni il titolo sarebbe sempre il nome del
+// sito: «youtu.be» per ogni video.
+
+// Segmenti che non dicono niente: si risale a quello prima.
+const SEGMENTI_MUTI = /^(index|home|default|amp|it|en|article|articolo|video|watch|page|p|s)$/i;
+
+// L'ultimo pezzo del percorso ripulito: da
+// «/news/manovra_governo_conti-424193/» esce «Manovra governo conti».
+//
+// ⚠️ Uno slug NON è un titolo: è quello che il sito ha scritto
+// nell'indirizzo per i motori di ricerca, spesso troncato. È meglio
+// del nome del sito e peggio del titolo vero — per questo viene dopo
+// EXTRA_SUBJECT e dopo l'oEmbed, mai prima.
+function titoloDaSlug(url) {
+    // su YouTube lo slug è l'id del video: «jNQXAC9IVRw» non è un titolo
+    if (ytIdDa(url)) return '';
+    let pezzi;
+    try { pezzi = new URL(normalizzaUrl(url)).pathname.split('/').filter(Boolean); }
+    catch (e) { return ''; }
+
+    // si risale dal fondo: l'ultimo segmento è spesso un id nudo
+    for (let i = pezzi.length - 1; i >= 0; i--) {
+        let s;
+        try { s = decodeURIComponent(pezzi[i]); } catch (e) { s = pezzi[i]; }
+        s = s.replace(/\.[a-z0-9]{2,5}$/i, '');            // .html, .shtml, .php…
+        s = s.replace(/[-_]\d{3,}$/, '');                   // …-424193
+        s = s.replace(/[-_][0-9a-f]{8,}$/i, '');            // …-3f9a2b11
+        // token misto lettere+cifre in coda (…-abc123), ma solo con almeno
+        // tre cifre: senza quella soglia «Covid-19» diventerebbe «Covid»
+        s = s.replace(/[-_](?=[a-z0-9]{6,}$)(?=[a-z]*\d[a-z0-9]*\d[a-z0-9]*\d)[a-z0-9]+$/i, '');
+        if (SEGMENTI_MUTI.test(s)) continue;
+        s = s.replace(/[-_+]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (s.length < 3) continue;                  // troppo corto per dire qualcosa
+        if (!/[a-zà-ÿ]{2,}/i.test(s)) continue;      // solo cifre: è un id
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+    return '';
+}
+
+// Il titolo vero di un video, dall'oEmbed di YouTube: nessuna chiave,
+// nessuna API da abilitare. È l'unica strada per un link YouTube
+// incollato a mano, dove lo slug è l'id e non dice niente.
+//
+// ⚠️ Fallisce in silenzio e torna stringa vuota: senza rete, o se un
+// giorno quell'endpoint chiudesse, la scheda deve nascere lo stesso
+// col ripiego. Un titolo è una comodità, non una condizione.
+async function titoloYouTube(url) {
+    const id = ytIdDa(url);
+    if (!id) return '';
+    try {
+        // sempre la forma canonica: l'oEmbed non accetta /shorts/ né youtu.be
+        const q = encodeURIComponent('https://www.youtube.com/watch?v=' + id);
+        const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + q);
+        if (!r.ok) return '';
+        const j = await r.json();
+        return String(j.title || '').trim();
+    } catch (e) {
+        console.warn('titoloYouTube:', e);
+        return '';
+    }
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function getFilteredCards() {
+    let list = [...cards];
+
+    list = list.filter(c => c.kind === currentKind);
+
+    if (currentCatFilter) {
+        list = list.filter(c => c.categoryIds.includes(currentCatFilter));
+    }
+
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        list = list.filter(c =>
+            c.title.toLowerCase().includes(q) ||
+            stripHtml(c.content).toLowerCase().includes(q)
+        );
+    }
+
+    const sort = document.getElementById('sortSelect')?.value || 'updated';
+    if (sort === 'created') list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    else if (sort === 'title') list.sort((a,b) => a.title.localeCompare(b.title));
+    // 'updated' already sorted by DB, but respect pin
+
+    return list;
+}
+
+// Sulla Tab dei premiati il titolo porta il totale: è il numero che
+// finisce nella bolla di AppSphere, e ricavarlo sommando le schede a
+// mente sarebbe il modo migliore per non guardarlo mai. Si rifà a ogni
+// disegno e non al solo cambio di Tab, o dopo un salvataggio resterebbe
+// il totale di prima.
+function aggiornaTitoloKind() {
+    const el = document.getElementById('kindTitle');
+    if (!el) return;
+    el.innerHTML = currentKind === 'premiato'
+        ? escHtml(KIND_TITLES[currentKind])
+          + '<span class="punti-totale">' + escHtml(fmtPunti(totalePunti())) + '</span>'
+        : escHtml(KIND_TITLES[currentKind]);
+}
+
+function renderCards() {
+    aggiornaTitoloKind();
+    const grid = document.getElementById('cardsGrid');
+    const list = getFilteredCards();
+    if (!list.length) {
+        const k = KINDS[currentKind];
+        const n = KIND_NOMI[currentKind];
+        grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+            <div class="empty-icon">${k.icon}</div>
+            <div class="empty-title">${searchQuery ? 'Nessun risultato' : n.nessuno}</div>
+            <div class="empty-desc">${searchQuery
+                ? 'Prova con un altro termine.'
+                : `Crea il primo col pulsante + in basso a destra${currentKind === 'link'
+                    ? ', o condividi un link dal telefono verso AppSfera.' : '.'}`}</div>
+        </div>`;
+        return;
+    }
+    grid.innerHTML = list.map(renderCardTile).join('');
+}
+
+function renderPinned() {
+    const grid = document.getElementById('pinnedGrid');
+    const list = cards.filter(c => c.pinned);
+    if (!list.length) {
+        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">📌</div><div class="empty-title">Nessuna scheda in evidenza</div><div class="empty-desc">Fissa una scheda per vederla qui.</div></div>`;
+        return;
+    }
+    grid.innerHTML = list.map(renderCardTile).join('');
+}
+
+function renderCardTile(c) {
+    const cats = c.categoryIds.map(cid => {
+        const cat = categories.find(x => x.id === cid);
+        return cat ? `<span class="cat-chip" style="background:${cat.color||'#6B7280'}">${escHtml(cat.icon||'')} ${escHtml(cat.name)}</span>` : '';
+    }).join('');
+
+    const barColor = c.color && c.color !== '#FFFFFF' ? c.color : 'transparent';
+    const dateStr  = fmtDate(c.updated_at);
+    const excerpt  = stripHtml(c.content).slice(0, 280);
+    const pin      = c.pinned ? '<span class="pin-badge">📌</span>' : '';
+    const imgBadge = c.imagesCount > 0 ? `<span class="memo-card-img-count">📷 ${c.imagesCount}</span>` : '';
+
+    // il tipo si vede sulla scheda: una lista e un diario si aprono
+    // diversamente da una nota, e deve saperlo prima di toccarli
+    const badge = `<span class="kind-badge ${c.kind}">${KINDS[c.kind].icon} ${KINDS[c.kind].label}</span>`
+        + (c.riservato ? '<span class="kind-badge riservato">🙈 Riservato</span>' : '');
+
+    let extra = '';
+    if (c.kind === 'lista' && c.itemsTotal > 0) {
+        const pct = Math.round(c.itemsDone / c.itemsTotal * 100);
+        extra = `<div class="list-progress" title="${c.itemsDone} di ${c.itemsTotal}"><i style="width:${pct}%"></i></div>`;
+    }
+
+    // la miniatura sta SOPRA il corpo della scheda: è la cosa per cui
+    // si riconosce un video a colpo d'occhio, e sotto il testo servirebbe
+    // scorrere per vederla
+    let thumb = '';
+    if (c.kind === 'link' && c.linkUrl) {
+        const t = thumbDa(c.linkUrl);
+        thumb = t
+            ? `<div class="link-thumb"><img src="${escHtml(t)}" alt="" loading="lazy"
+                 onerror="this.parentNode.classList.add('generic');this.remove();"><span class="play">▶️</span></div>`
+            : `<div class="link-thumb generic">🔗</div>`;
+    }
+
+    // i punti stanno accanto al titolo e non in fondo: sono la cosa
+    // che distingue un premiato da una nota, e in coda alla scheda
+    // finirebbero sotto l'estratto del contenuto
+    const punti = c.kind === 'premiato'
+        ? `<span class="punti-badge${c.punteggio ? '' : ' zero'}">${escHtml(fmtPunti(c.punteggio))}</span>`
+        : '';
+
+    let meta = imgBadge;
+    if (c.kind === 'lista') {
+        meta = `<span class="memo-card-img-count">☑️ ${c.itemsDone}/${c.itemsTotal}</span>` + imgBadge;
+    } else if (c.kind === 'diario') {
+        const last = c.lastEntryDate ? ' · ultima ' + fmtDay(c.lastEntryDate) : '';
+        meta = `<span class="memo-card-img-count">📊 ${c.entriesCount}${last}</span>` + imgBadge;
+    } else if (c.kind === 'link' && c.linkUrl) {
+        meta = `<span class="memo-card-img-count">${ytIdDa(c.linkUrl) ? '▶️ YouTube' : '🔗'}</span>` + imgBadge;
+    }
+
+    // su una scheda link il sito si legge sotto il titolo: due video
+    // diversi hanno spesso la stessa copertina scura, e l'url dice quale
+    const hostRow = (c.kind === 'link' && c.linkUrl)
+        ? `<div class="link-host">${escHtml(hostDa(c.linkUrl))}</div>` : '';
+
+    return `<div class="memo-card kind-${c.kind}${c.pinned?' pinned':''}" onclick="openCard('${c.id}')">
+        <div class="memo-card-color-bar" style="background:${barColor}"></div>
+        ${thumb}
+        <div class="memo-card-body">
+            <div class="memo-card-header">
+                <div class="memo-card-title">${escHtml(c.title) || '<em style="opacity:0.4">Senza titolo</em>'}</div>
+                ${pin}
+            </div>
+            <div class="memo-card-kind-row">${badge}${punti}</div>
+            ${hostRow}
+            <div class="memo-card-excerpt">${escHtml(excerpt)}</div>
+            ${extra}
+            ${cats ? `<div class="cat-chips">${cats}</div>` : ''}
+        </div>
+        <div class="memo-card-footer">
+            <span class="memo-card-date">${dateStr}</span>
+            <div class="memo-card-meta">${meta}</div>
+        </div>
+    </div>`;
+}
+
+// Una nota si apre in modifica, come sempre; lista, diario e link
+// hanno una vista propria, perché la cosa che si fa più spesso —
+// spuntare una voce, aggiungere una registrazione, aprire il link —
+// non è modificare la scheda.
+function openCard(cardId) {
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+    if (card.kind === 'lista')  return openListView(cardId);
+    if (card.kind === 'diario') return openDiaryView(cardId);
+    if (card.kind === 'link')   return openLinkView(cardId);
+    return openCardModal(cardId);
+}
+
+const KIND_TITLES = { nota: 'Note', lista: 'Liste', diario: 'Diari', link: 'Link', premiato: 'Premiati' };
+
+function showKind(kind, navEl) {
+    currentKind = kind;
+    // il filtro categoria non sopravvive al cambio di Tab: le categorie
+    // di un tipo non sono quelle di un altro, e una tab che si apre già
+    // filtrata su una categoria che qui non c'è sembra vuota
+    currentCatFilter = null;
+
+    aggiornaTitoloKind();
+    document.getElementById('fabNew').title = KIND_NOMI[kind].nuovo;
+    document.getElementById('searchInput').placeholder =
+        'Cerca fra ' + KIND_NOMI[kind].cerca + '…';
+
+    showPage('schede');
+    if (navEl) setNavActive(navEl);
+    renderCatFilters();
+    renderCards();
+}
+
+function newCardOfKind(kind) {
+    openCardModal(null, kind);
+}
+
+// La somma dei punti di tutti i premiati: è quel che la score_query di
+// `cm_apps` calcola sul database per dimensionare la bolla, e qui si
+// rifà sulle schede già caricate perché il titolo lo mostri subito.
+// ⚠️ Conta TUTTE le schede premiato e non quelle filtrate: una ricerca
+// in corso non deve cambiare il totale, o quel numero direbbe una cosa
+// diversa da quella che si legge in home.
+function totalePunti() {
+    return cards.filter(c => c.kind === 'premiato')
+                .reduce((t, c) => t + (Number(c.punteggio) || 0), 0);
+}
+
+function fmtPunti(n) {
+    return (n > 0 ? '+' : '') + n + (Math.abs(n) === 1 ? ' punto' : ' punti');
+}
+
+function renderCatFilters() {
+    const sel = document.getElementById('catFilterSelect');
+    if (!sel) return;
+    // i conteggi seguono il filtro per tipo: con "Liste" attivo, una
+    // categoria che ha solo note deve mostrare 0, non il totale
+    const pool = cards.filter(c => c.kind === currentKind);
+    const countByCat = {};
+    pool.forEach(c => c.categoryIds.forEach(cid => { countByCat[cid] = (countByCat[cid]||0)+1; }));
+
+    let html = `<option value="">Tutte le categorie (${pool.length})</option>`;
+    categories.forEach(cat => {
+        const cnt = countByCat[cat.id] || 0;
+        const sel = currentCatFilter === cat.id ? ' selected' : '';
+        html += `<option value="${cat.id}"${sel}>${escHtml((cat.icon||'') + ' ' + cat.name)} (${cnt})</option>`;
+    });
+    sel.innerHTML = html;
+    if (!currentCatFilter) sel.value = '';
+}
+
+function setCatFilter(catId) {
+    currentCatFilter = catId;
+    renderCatFilters();
+    renderCards();
+    // la Tab attiva resta quella del tipo aperto: le tre condividono
+    // la stessa pagina, e cercare per data-section le accenderebbe tutte
+    showPage('schede');
+    document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.toggle('active', n.dataset.kind === currentKind);
+    });
+}
+
+function updateStats() {}
+
+// ============================================================
+// SEARCH
+// ============================================================
+let searchTimer = null;
+function onSearch(val) {
+    searchQuery = val.trim();
+    document.getElementById('searchClear').style.display = searchQuery ? 'block' : 'none';
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderCards, 250);
+}
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    onSearch('');
+}
+
+// ============================================================
+// CARD MODAL — OPEN
+// ============================================================
+async function openCardModal(cardId, kind) {
+    editingCardId  = cardId;
+    selectedCatIds = [];
+    selectedColor  = '#FFFFFF';
+    pendingImages  = [];
+    existingImages = [];
+    editorItems      = [];
+    editorMetrics    = [];
+    deletedItemIds   = [];
+    deletedMetricIds = [];
+    editorKind = kind || 'nota';
+
+    document.getElementById('cardTitle').value   = '';
+    document.getElementById('editorArea').innerHTML = '';
+    document.getElementById('cardPinned').checked  = false;
+    document.getElementById('cardRiservato').checked = false;
+    document.getElementById('deletCardBtn').style.display = 'none';
+    document.getElementById('imagesGrid').innerHTML = '';
+    document.getElementById('newItemText').value = '';
+    editorLinkUrl = '';
+    document.getElementById('cardLinkUrl').value = '';
+    editorPunteggio = 0;
+    document.getElementById('cardPunteggio').value = '0';
+    renderLinkPreview();
+    renderCatMulti();
+    renderCatDropdownList();
+    selectColor('#FFFFFF', document.querySelector('.color-swatch[data-color="#FFFFFF"]'));
+
+    if (cardId) {
+        const card = cards.find(c => c.id === cardId);
+        if (card) {
+            editorKind = card.kind || 'nota';
+            document.getElementById('cardTitle').value      = card.title;
+            document.getElementById('editorArea').innerHTML = card.content;
+            document.getElementById('cardPinned').checked   = card.pinned;
+            document.getElementById('cardRiservato').checked = !!card.riservato;
+            selectedCatIds = [...(card.categoryIds || [])];
+            editorPunteggio = Number(card.punteggio) || 0;
+            document.getElementById('cardPunteggio').value = String(editorPunteggio);
+            selectedColor  = card.color || '#FFFFFF';
+            selectColor(selectedColor, null, true);
+            renderCatMulti();
+            renderCatDropdownList();
+        }
+        document.getElementById('cardModalTitle').textContent =
+            'Modifica ' + KINDS[editorKind].label.toLowerCase();
+        document.getElementById('deletCardBtn').style.display = 'block';
+        // l'url arriva già con l'elenco: nessuna query in più per aprirlo
+        if (editorKind === 'link') {
+            const c = cards.find(x => x.id === cardId);
+            editorLinkUrl = (c && c.linkUrl) || '';
+            document.getElementById('cardLinkUrl').value = editorLinkUrl;
+            renderLinkPreview();
+        }
+    } else {
+        document.getElementById('cardModalTitle').textContent = KIND_NOMI[editorKind].nuovo;
+    }
+
+    applyEditorKind();
+    document.getElementById('cardModal').classList.add('active');
+    document.getElementById('cardTitle').focus();
+
+    // il resto arriva dopo: la scheda è già utilizzabile mentre carica
+    if (cardId) {
+        if (editorKind === 'lista') {
+            editorItems = (await loadListItems(cardId)).map(r => ({ ...r }));
+            renderEditorItems();
+        } else if (editorKind === 'diario') {
+            editorMetrics = (await loadDiaryMetrics(cardId)).map(r => ({ ...r }));
+            renderEditorMetrics();
+        }
+        showToast('Caricamento immagini…');
+        existingImages = await loadCardImages(cardId);
+        renderImagesGrid();
+    }
+}
+
+// Mostra le sezioni che il tipo di scheda richiede e adatta le
+// etichette: per un diario il "contenuto" è lo scopo, ed è quello
+// che verrà rimostrato a ogni registrazione.
+function applyEditorKind() {
+    const isLista    = editorKind === 'lista';
+    const isDiario   = editorKind === 'diario';
+    const isLink     = editorKind === 'link';
+    const isPremiato = editorKind === 'premiato';
+
+    document.getElementById('listSection').style.display  = isLista  ? 'block' : 'none';
+    document.getElementById('diarySection').style.display = isDiario ? 'block' : 'none';
+    document.getElementById('linkSection').style.display  = isLink   ? 'block' : 'none';
+    document.getElementById('premiatoSection').style.display = isPremiato ? 'block' : 'none';
+
+    const label = document.getElementById('cardContentLabel');
+    const hint  = document.getElementById('cardContentHint');
+    if (isLink) {
+        label.textContent = 'Perché lo tieni';
+        hint.textContent  = 'Facoltativo: cosa volevi ricordarti di questo link.';
+        hint.style.display = 'block';
+    } else if (isDiario) {
+        label.textContent = 'Scopo del diario';
+        hint.textContent  = 'Perché stai misurando, e come vanno lette le misure. Te lo rimostro a ogni registrazione.';
+        hint.style.display = 'block';
+    } else if (isLista) {
+        label.textContent = 'Nota della lista';
+        hint.textContent  = 'Facoltativa: a cosa serve questa lista.';
+        hint.style.display = 'block';
+    } else if (isPremiato) {
+        label.textContent = 'Per cosa';
+        hint.textContent  = 'Facoltativo: che cosa è stato premiato, e perché vale quei punti.';
+        hint.style.display = 'block';
+    } else {
+        label.textContent = 'Contenuto';
+        hint.style.display = 'none';
+    }
+
+    if (isDiario) renderEditorMetrics();
+    if (isLista)  renderEditorItems();
+    if (isLink)   renderLinkPreview();
+}
+
+// Chi ha chiesto per ultimo un titolo: una risposta dell'oEmbed che
+// arriva dopo che l'url è cambiato riguarda il video di prima, e
+// scriverla sarebbe il titolo sbagliato sulla scheda giusta.
+let titoloToken = 0;
+
+/**
+ * Compila il titolo della scheda link, ma solo se è vuoto.
+ *
+ * ⚠️ Non sovrascrive MAI quello che c'è: né quel che hai scritto tu,
+ * né l'EXTRA_SUBJECT arrivato dalla condivisione, che è esatto e non
+ * va rimpiazzato da un ripiego.
+ *
+ * Due tempi, di proposito: prima lo slug (o il nome del sito), che è
+ * immediato e non chiede niente a nessuno, poi — solo per YouTube —
+ * il titolo vero dall'oEmbed, che prende il posto del provvisorio.
+ * Aspettare la rete per scrivere il primo carattere lascerebbe il
+ * campo vuoto per mezzo secondo su ogni link incollato.
+ */
+async function riempiTitoloSeVuoto(url) {
+    const campo = document.getElementById('cardTitle');
+    if (!campo || campo.value.trim() || !urlValido(url)) return;
+
+    const mio = ++titoloToken;
+    const u   = normalizzaUrl(url);
+
+    const provvisorio = (titoloDaSlug(u) || hostDa(u)).slice(0, 200);
+    campo.value = provvisorio;
+
+    if (!ytIdDa(u)) return;
+
+    const vero = await titoloYouTube(u);
+    // nel frattempo: l'url è cambiato, oppure il titolo l'hai
+    // ritoccato tu — in tutt'e due i casi qui non si tocca più niente
+    if (!vero || mio !== titoloToken || campo.value !== provvisorio) return;
+    campo.value = vero.slice(0, 200);
+}
+
+// L'url si scrive un carattere per volta, e chiedere il titolo a ogni
+// tasto premuto vorrebbe dire una richiesta per lettera. Stessa pausa
+// di digitazione della ricerca alimenti in calorie.html.
+let titoloTimer = null;
+function onLinkUrlInput() {
+    renderLinkPreview();
+    clearTimeout(titoloTimer);
+    const url = (document.getElementById('cardLinkUrl').value || '').trim();
+    titoloTimer = setTimeout(() => riempiTitoloSeVuoto(url), 500);
+}
+
+// L'anteprima si vede PRIMA di salvare: un url incollato storto (o il
+// video sbagliato) si riconosce dalla copertina, non rileggendo
+// carattere per carattere una riga di sessanta caratteri.
+function renderLinkPreview() {
+    const box = document.getElementById('linkPreview');
+    if (!box) return;
+    const raw = (document.getElementById('cardLinkUrl').value || '').trim();
+    if (!raw) { box.innerHTML = ''; return; }
+    if (!urlValido(raw)) {
+        box.innerHTML = '<div style="color:var(--danger);font-size:0.9rem;">Non sembra un indirizzo valido.</div>';
+        return;
+    }
+    const url = normalizzaUrl(raw);
+    const t   = thumbDa(url);
+    box.innerHTML = t
+        ? `<div class="link-thumb" style="max-width:320px;"><img src="${escHtml(t)}" alt=""
+             onerror="this.parentNode.classList.add('generic');this.remove();"><span class="play">▶️</span></div>
+           <div class="link-host">${escHtml(hostDa(url))}</div>`
+        : `<div class="link-host">🔗 ${escHtml(hostDa(url))}</div>`;
+}
+
+function closeCardModal() {
+    document.getElementById('cardModal').classList.remove('active');
+    document.getElementById('catDropdown').classList.remove('open');
+    editingCardId  = null;
+    pendingImages  = [];
+    existingImages = [];
+    editorItems    = [];
+    editorMetrics  = [];
+    editorLinkUrl  = '';
+    deletedItemIds   = [];
+    deletedMetricIds = [];
+}
+
+// ============================================================
+// EDITOR — VOCI DELLA LISTA
+// ============================================================
+function renderEditorItems() {
+    const box = document.getElementById('editorItems');
+    if (!editorItems.length) {
+        box.innerHTML = `<div style="padding:0.9rem;color:var(--muted);font-size:0.95rem;">
+            Nessuna voce. Scrivi qui sotto e premi Invio.</div>`;
+        return;
+    }
+    box.innerHTML = editorItems.map((it, i) => `
+        <div class="li-row${it.done ? ' done' : ''}">
+            <input type="checkbox" class="li-check" ${it.done ? 'checked' : ''}
+                   onchange="editorItemDone(${i}, this.checked)">
+            <input type="text" class="form-input" style="flex:1;border-width:1px;background:white;"
+                   value="${escAttr(it.text)}" oninput="editorItems[${i}].text = this.value">
+            <button type="button" class="li-del" onclick="removeEditorItem(${i})" title="Togli">✕</button>
+        </div>`).join('');
+}
+
+function addEditorItem() {
+    const input = document.getElementById('newItemText');
+    const text  = input.value.trim();
+    if (!text) return;
+    editorItems.push({ tempId: tempId(), text, done: false, done_at: null });
+    input.value = '';
+    renderEditorItems();
+    input.focus();
+}
+
+function editorItemDone(i, done) {
+    if (!editorItems[i]) return;
+    editorItems[i].done    = done;
+    editorItems[i].done_at = done ? new Date().toISOString() : null;
+    renderEditorItems();
+}
+
+function removeEditorItem(i) {
+    const it = editorItems[i];
+    if (!it) return;
+    if (it.id) deletedItemIds.push(it.id);
+    editorItems.splice(i, 1);
+    renderEditorItems();
+}
+
+// ============================================================
+// EDITOR — MISURE DEL DIARIO
+// ============================================================
+const METRIC_PRESETS = [[1,5], [1,10], [1,20], [0,100], [1,100]];
+
+// Le opzioni di una combo hanno un id stabile e la registrazione
+// archivia quello: rinominare un'opzione rilegge lo storico col nome
+// nuovo invece di spaccarlo in due categorie che sembrano diverse.
+function optionId() {
+    return 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function renderEditorMetrics() {
+    const box = document.getElementById('editorMetrics');
+    if (!editorMetrics.length) {
+        box.innerHTML = `<div style="padding:0.75rem;color:var(--muted);font-size:0.95rem;border:2px dashed var(--border);margin-bottom:0.6rem;">
+            Nessuna misura: aggiungine almeno una, altrimenti una registrazione non raccoglie niente.</div>`;
+        return;
+    }
+    box.innerHTML = editorMetrics.map((m, i) => {
+        const presets = METRIC_PRESETS.map(([a,b]) =>
+            `<button type="button" class="metric-preset" onclick="setMetricRange(${i},${a},${b})">${a}-${b}</button>`).join('');
+        let opts = '';
+        if (m.kind === 'scala') {
+            opts = `<span>da</span>
+                <input type="number" class="form-input" value="${m.min_value ?? 1}"
+                       oninput="editorMetrics[${i}].min_value = this.value === '' ? null : Number(this.value)">
+                <span>a</span>
+                <input type="number" class="form-input" value="${m.max_value ?? 10}"
+                       oninput="editorMetrics[${i}].max_value = this.value === '' ? null : Number(this.value)">
+                <div class="metric-presets">${presets}</div>`;
+        } else if (m.kind === 'numero') {
+            opts = `<span>unità</span>
+                <input type="text" class="form-input" style="width:8rem;" placeholder="kg, km, €, min…"
+                       value="${escAttr(m.unit || '')}" oninput="editorMetrics[${i}].unit = this.value">`;
+        } else if (m.kind === 'scelta') {
+            const righe = (m.options || []).map((o, j) => `
+                <div class="opt-row">
+                    <span class="opt-n">${j + 1}.</span>
+                    <input type="text" class="form-input" placeholder="Etichetta dell'opzione…"
+                           value="${escAttr(o.label)}"
+                           oninput="editorMetrics[${i}].options[${j}].label = this.value">
+                    <button type="button" class="li-del" onclick="removeMetricOption(${i}, ${j})" title="Togli">✕</button>
+                </div>`).join('');
+            opts = `<div class="metric-options">
+                ${righe || '<div class="opt-vuoto">Nessuna opzione: una combo senza opzioni non chiede niente.</div>'}
+                <button type="button" class="btn btn-secondary btn-small" style="margin-top:0.4rem;"
+                        onclick="addMetricOption(${i})">➕ Aggiungi opzione</button>
+            </div>`;
+        } else {
+            opts = `<span>sì / no — vale 1 o 0 nei riepiloghi</span>`;
+        }
+
+        return `<div class="metric-row">
+            <div class="metric-row-top">
+                <input type="text" class="form-input" placeholder="Cosa misuri (es. umore, sonno, origine…)"
+                       value="${escAttr(m.name)}" oninput="editorMetrics[${i}].name = this.value">
+                <select class="form-select" style="width:auto;" onchange="setMetricKind(${i}, this.value)">
+                    <option value="scala"  ${m.kind === 'scala'  ? 'selected' : ''}>Scala</option>
+                    <option value="numero" ${m.kind === 'numero' ? 'selected' : ''}>Numero</option>
+                    <option value="bool"   ${m.kind === 'bool'   ? 'selected' : ''}>Sì/No</option>
+                    <option value="scelta" ${m.kind === 'scelta' ? 'selected' : ''}>Scelta</option>
+                </select>
+                <button type="button" class="li-del" onclick="removeEditorMetric(${i})" title="Togli">✕</button>
+            </div>
+            <div class="metric-row-opts${m.kind === 'scelta' ? ' colonna' : ''}">${opts}</div>
+            <input type="text" class="form-input metric-hint" maxlength="200"
+                   placeholder="Cosa vuol dire il punteggio (es. 1 = per niente, 20 = non penso ad altro)"
+                   value="${escAttr(m.hint || '')}" oninput="editorMetrics[${i}].hint = this.value">
+        </div>`;
+    }).join('');
+}
+
+function addEditorMetric() {
+    editorMetrics.push({
+        tempId: tempId(), name: '', kind: 'scala',
+        min_value: 1, max_value: 10, unit: '', options: [], hint: ''
+    });
+    renderEditorMetrics();
+}
+
+function setMetricKind(i, kind) {
+    const m = editorMetrics[i];
+    if (!m) return;
+    m.kind = kind;
+    if (kind === 'scala') {
+        if (m.min_value == null) m.min_value = 1;
+        if (m.max_value == null) m.max_value = 10;
+    } else {
+        m.min_value = null; m.max_value = null;
+    }
+    if (kind !== 'numero') m.unit = '';
+    // le opzioni non si buttano passando a un altro tipo e tornando
+    // indietro: sono la cosa più lunga da riscrivere di tutta la misura
+    if (kind === 'scelta' && !(m.options || []).length) {
+        m.options = [{ id: optionId(), label: '' }, { id: optionId(), label: '' }];
+    }
+    renderEditorMetrics();
+}
+
+function setMetricRange(i, min, max) {
+    const m = editorMetrics[i];
+    if (!m) return;
+    m.min_value = min; m.max_value = max;
+    renderEditorMetrics();
+}
+
+function addMetricOption(i) {
+    const m = editorMetrics[i];
+    if (!m) return;
+    m.options = m.options || [];
+    m.options.push({ id: optionId(), label: '' });
+    renderEditorMetrics();
+    // il campo appena nato prende il fuoco, o si aggiunge al buio
+    const campi = document.querySelectorAll(
+        `#editorMetrics .metric-row:nth-child(${i + 1}) .opt-row input`);
+    campi[campi.length - 1]?.focus();
+}
+
+async function removeMetricOption(i, j) {
+    const m = editorMetrics[i];
+    if (!m || !m.options?.[j]) return;
+    const o = m.options[j];
+
+    // su una misura già salvata l'opzione può essere citata da registrazioni
+    // passate: quelle restano, e mostreranno «opzione tolta»
+    if (m.id && o.label.trim()) {
+        const ok = await customConfirm(
+            `Togliere l'opzione "${o.label}"?\n\n` +
+            'Le registrazioni che l\'hanno scelta restano, ma al posto del nome mostreranno «opzione tolta».');
+        if (!ok) return;
+    }
+    m.options.splice(j, 1);
+    renderEditorMetrics();
+}
+
+async function removeEditorMetric(i) {
+    const m = editorMetrics[i];
+    if (!m) return;
+    // una misura tolta si porta via la colonna, non le registrazioni:
+    // i valori già raccolti restano scritti ma non si vedono più
+    if (m.id) {
+        const ok = await customConfirm(
+            `Togliere la misura "${m.name || 'senza nome'}"?\n\n` +
+            'Le registrazioni già fatte restano, ma il valore di questa misura non si vedrà più.');
+        if (!ok) return;
+        deletedMetricIds.push(m.id);
+    }
+    editorMetrics.splice(i, 1);
+    renderEditorMetrics();
+}
+
+// ============================================================
+// CARD MODAL — SAVE
+// ============================================================
+async function saveCard() {
+    const title   = document.getElementById('cardTitle').value.trim();
+    const content = document.getElementById('editorArea').innerHTML.trim();
+    const pinned  = document.getElementById('cardPinned').checked;
+    // la spunta vale solo dove si vede: su una nota o una lista il campo
+    // non c'è, e leggerlo lì scriverebbe il valore rimasto dall'ultima volta
+    const riservato = editorKind === 'diario'
+        && document.getElementById('cardRiservato').checked;
+
+    // un link è il suo indirizzo: senza, la scheda non porta da nessuna
+    // parte — è rotta, non vuota. È l'unico tipo con un campo obbligatorio
+    if (editorKind === 'link') {
+        const raw = (document.getElementById('cardLinkUrl').value || '').trim();
+        if (!raw)             { showToast('Scrivi l\'indirizzo del link.'); return; }
+        if (!urlValido(raw))  { showToast('Quell\'indirizzo non è valido.'); return; }
+        editorLinkUrl = normalizzaUrl(raw);
+    }
+
+    // i punti di un premiato: la casella vuota vale 0, che è il DEFAULT
+    // della colonna, ma una parola scritta lì dentro non diventa zero in
+    // silenzio — un punteggio sbagliato finisce nel totale dei premi
+    if (editorKind === 'premiato') {
+        const raw = (document.getElementById('cardPunteggio').value || '').trim();
+        const n = raw === '' ? 0 : Number(raw);
+        if (!Number.isFinite(n) || !Number.isInteger(n)) {
+            showToast('Il punteggio dev\'essere un numero intero.'); return;
+        }
+        editorPunteggio = n;
+    } else {
+        // il punteggio si scrive SEMPRE, e vale 0 fuori dai premiati:
+        // l'update riscrive la riga intera, e una scheda che cambiasse
+        // tipo si porterebbe dietro punti che nessuno vede più
+        editorPunteggio = 0;
+    }
+
+    // una lista può nascere col solo titolo e le sue voci, un diario
+    // col titolo e le sue misure, un link col solo indirizzo, un
+    // premiato col solo punteggio: il contenuto lì è facoltativo
+    const hasExtra = (editorKind === 'lista'  && editorItems.length)
+                  || (editorKind === 'diario' && editorMetrics.length)
+                  || (editorKind === 'link'   && editorLinkUrl)
+                  || (editorKind === 'premiato' && editorPunteggio !== 0);
+    if (!title && !content && !hasExtra) {
+        showToast('Inserisci almeno un titolo o del contenuto.'); return;
+    }
+
+    if (editorKind === 'diario') {
+        const senzaNome = editorMetrics.some(m => !m.name.trim());
+        if (senzaNome) { showToast('Dai un nome a ogni misura.'); return; }
+        const scalaStorta = editorMetrics.some(m =>
+            m.kind === 'scala' && (m.min_value == null || m.max_value == null || Number(m.max_value) <= Number(m.min_value)));
+        if (scalaStorta) { showToast('Ogni scala vuole un massimo maggiore del minimo.'); return; }
+        // le opzioni lasciate in bianco si buttano da sé, ma una combo
+        // che resta senza non chiederebbe niente
+        editorMetrics.forEach(m => {
+            if (m.kind === 'scelta') m.options = (m.options || []).filter(o => o.label.trim());
+        });
+        const comboVuota = editorMetrics.some(m => m.kind === 'scelta' && !m.options.length);
+        if (comboVuota) { showToast('Una misura a scelta vuole almeno un\'opzione.'); renderEditorMetrics(); return; }
+    }
+
+    const btn = document.querySelector('#cardModal .btn-primary');
+    btn.disabled = true; btn.textContent = 'Salvataggio…';
+
+    try {
+        const payload = {
+            title, content, pinned, riservato, color: selectedColor,
+            kind: editorKind,
+            punteggio: editorPunteggio,
+            updated_at: new Date().toISOString(),
+            user_id: currentUserId
+        };
+
+        let cardId = editingCardId;
+
+        if (cardId) {
+            const { error } = await sb.from('mm_cards').update(payload).eq('id', cardId);
+            if (error) { if (handleAuthError(error)) return; throw error; }
+        } else {
+            payload.created_at = new Date().toISOString();
+            const { data, error } = await sb.from('mm_cards').insert(payload).select('id').single();
+            if (error) { if (handleAuthError(error)) return; throw error; }
+            cardId = data.id;
+        }
+
+        // sync categorie
+        await sb.from('mm_card_categories').delete().eq('card_id', cardId);
+        if (selectedCatIds.length) {
+            const rows = selectedCatIds.map(cid => ({ card_id: cardId, category_id: cid }));
+            const { error } = await sb.from('mm_card_categories').insert(rows);
+            if (error) console.error('Errore categorie:', error);
+        }
+
+        // sync voci di lista / misure del diario / allegato del link
+        if (editorKind === 'lista')  await syncListItems(cardId);
+        if (editorKind === 'diario') await syncDiaryMetrics(cardId);
+        if (editorKind === 'link')   await syncLinkAttachment(cardId);
+
+        // carica immagini pendenti
+        for (const pi of pendingImages) {
+            await uploadImage(cardId, pi.file);
+        }
+
+        await loadCards();
+        renderCards();
+        renderPinned();
+        renderCatFilters();
+        updateStats();
+        closeCardModal();
+        showToast('✅ Scheda salvata');
+    } catch (err) {
+        console.error('saveCard:', err);
+        const msg = err.message || String(err);
+        const hint = msg.includes('relation') || msg.includes('does not exist')
+            ? '\n\n⚠️ Le tabelle mm_cards non esistono ancora.\nVai in Impostazioni → copia e incolla il SQL nel tuo progetto Supabase.'
+            : '';
+        alert('Errore nel salvataggio: ' + msg + hint);
+    } finally {
+        btn.disabled = false; btn.textContent = '💾 Salva';
+    }
+}
+
+// Una scheda = un allegato, quindi la riga si aggiorna se c'è già e
+// nasce se non c'è: niente cancella-e-ricrea come per le categorie,
+// perché quando gli allegati saranno più d'uno l'ordine (`position`)
+// dovrà sopravvivere al salvataggio.
+async function syncLinkAttachment(cardId) {
+    const { data, error } = await sb.from('mm_attachments')
+        .select('id').eq('card_id', cardId).eq('tipo', 'link').limit(1);
+    if (error) { console.error('syncLinkAttachment (select):', error); return; }
+
+    const riga = (data || [])[0];
+    if (riga) {
+        const { error: e2 } = await sb.from('mm_attachments')
+            .update({ url: editorLinkUrl }).eq('id', riga.id);
+        if (e2) console.error('syncLinkAttachment (update):', e2);
+    } else {
+        const { error: e2 } = await sb.from('mm_attachments').insert({
+            card_id: cardId, user_id: currentUserId,
+            tipo: 'link', url: editorLinkUrl, position: 0
+        });
+        if (e2) console.error('syncLinkAttachment (insert):', e2);
+    }
+}
+
+// ============================================================
+// SYNC — VOCI E MISURE
+//
+// ⚠️ Le misure si aggiornano riga per riga e non si cancellano
+// per ricrearle: le registrazioni le richiamano per id dentro
+// `measures`, e ricrearle vorrebbe dire perdere tutto lo storico
+// pur avendo le righe ancora lì. Vale anche per le voci di lista,
+// che portano created_at e done_at.
+// ============================================================
+async function syncListItems(cardId) {
+    if (deletedItemIds.length) {
+        const { error } = await sb.from('mm_list_items').delete().in('id', deletedItemIds);
+        if (error) throw error;
+    }
+
+    const nuove = [], esistenti = [];
+    editorItems.forEach((it, i) => {
+        const riga = {
+            card_id: cardId, user_id: currentUserId,
+            text: it.text.trim(), done: !!it.done,
+            position: i, done_at: it.done_at || null
+        };
+        if (it.id) esistenti.push({ id: it.id, ...riga });
+        else if (riga.text) nuove.push(riga);
+    });
+
+    if (nuove.length)     { const { error } = await sb.from('mm_list_items').insert(nuove); if (error) throw error; }
+    if (esistenti.length) { const { error } = await sb.from('mm_list_items').upsert(esistenti); if (error) throw error; }
+}
+
+async function syncDiaryMetrics(cardId) {
+    if (deletedMetricIds.length) {
+        const { error } = await sb.from('mm_diary_metrics').delete().in('id', deletedMetricIds);
+        if (error) throw error;
+    }
+
+    const nuove = [], esistenti = [];
+    editorMetrics.forEach((m, i) => {
+        const riga = {
+            card_id: cardId, user_id: currentUserId,
+            name: m.name.trim(), kind: m.kind,
+            min_value: m.kind === 'scala' ? Number(m.min_value) : null,
+            max_value: m.kind === 'scala' ? Number(m.max_value) : null,
+            unit: m.kind === 'numero' ? (m.unit || '').trim() : '',
+            hint: (m.hint || '').trim(),
+            // le opzioni tengono il loro id: le registrazioni passate lo citano
+            options: m.kind === 'scelta'
+                ? (m.options || []).map(o => ({ id: o.id, label: o.label.trim() }))
+                : [],
+            position: i
+        };
+        if (m.id) esistenti.push({ id: m.id, ...riga });
+        else nuove.push(riga);
+    });
+
+    if (nuove.length)     { const { error } = await sb.from('mm_diary_metrics').insert(nuove); if (error) throw error; }
+    if (esistenti.length) { const { error } = await sb.from('mm_diary_metrics').upsert(esistenti); if (error) throw error; }
+}
+
+// ============================================================
+// DELETE CARD
+// ============================================================
+async function deleteCurrentCard() {
+    if (!editingCardId) return;
+    const card = cards.find(c => c.id === editingCardId);
+    const name = card?.title || 'questa scheda';
+    // le voci, le misure e le registrazioni se ne vanno per cascata:
+    // che sparisca uno storico va detto prima, non scoperto dopo
+    const extra = card?.kind === 'lista'  ? ' Anche le voci della lista verranno eliminate.'
+                : card?.kind === 'diario' ? ' Anche le misure e tutte le registrazioni verranno eliminate.'
+                : '';
+    const ok = await customConfirm(`Eliminare "${name}"? Anche le immagini verranno eliminate.${extra}`);
+    if (!ok) return;
+
+    // elimina immagini da Storage
+    const imgs = await loadCardImages(editingCardId);
+    for (const img of imgs) {
+        await sb.storage.from('mm-images').remove([img.storage_path]);
+    }
+
+    const { error } = await sb.from('mm_cards').delete().eq('id', editingCardId);
+    if (error) { console.error('deleteCard:', error); alert('Errore: ' + error.message); return; }
+
+    await loadCards();
+    renderCards();
+    renderPinned();
+    renderCatFilters();
+    updateStats();
+    closeCardModal();
+    showToast('🗑 Scheda eliminata');
+}
+
+// ============================================================
+// VISTA LISTA
+//
+// Le spunte sono ottimistiche con rollback: la voce cambia
+// subito e torna indietro se il DB rifiuta, così non resta a
+// schermo una spunta finta che sparisce al ricarico.
+// ============================================================
+// La cosa che si fa più spesso su una scheda link è aprirla, non
+// modificarla — quindi il tocco porta qui e non nell'editor. Non porta
+// direttamente al video: la nota («perché lo tieni») è metà del motivo
+// per cui la scheda esiste, e saltarla la renderebbe illeggibile.
+function openLinkView(cardId) {
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+    viewCardId  = cardId;
+    viewLinkUrl = card.linkUrl || '';
+
+    document.getElementById('linkViewTitle').textContent = card.title || 'Link senza titolo';
+
+    const t = thumbDa(viewLinkUrl);
+    document.getElementById('linkViewThumb').innerHTML = viewLinkUrl
+        ? (t ? `<div class="link-thumb" style="cursor:pointer;" onclick="apriLinkDaVista()"><img src="${escHtml(t)}" alt=""
+                 onerror="this.parentNode.classList.add('generic');this.remove();"><span class="play">▶️</span></div>`
+             : `<div class="link-thumb generic">🔗</div>`)
+        : '';
+    document.getElementById('linkViewUrl').textContent = viewLinkUrl;
+
+    const note = document.getElementById('linkViewNote');
+    if (card.content && stripHtml(card.content).trim()) {
+        note.innerHTML = card.content; note.style.display = 'block';
+    } else {
+        note.innerHTML = ''; note.style.display = 'none';
+    }
+
+    document.getElementById('linkViewModal').classList.add('active');
+}
+
+function closeLinkView() {
+    document.getElementById('linkViewModal').classList.remove('active');
+    viewCardId = null; viewLinkUrl = '';
+}
+
+// `noopener` non è formalità: senza, la pagina aperta riceve un
+// window.opener con cui può riscrivere l'indirizzo di questa.
+function apriLinkDaVista() {
+    if (!viewLinkUrl) { showToast('Questa scheda non ha un indirizzo.'); return; }
+    window.open(viewLinkUrl, '_blank', 'noopener,noreferrer');
+}
+
+async function openListView(cardId) {
+    viewCardId = cardId;
+    viewItems  = [];
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    document.getElementById('listViewTitle').textContent = card.title || 'Lista senza titolo';
+    const note = document.getElementById('listViewNote');
+    if (card.content && stripHtml(card.content).trim()) {
+        note.innerHTML = card.content; note.style.display = 'block';
+    } else {
+        note.innerHTML = ''; note.style.display = 'none';
+    }
+    document.getElementById('listHideDone').checked = false;
+    document.getElementById('listViewNewItem').value = '';
+    document.getElementById('listViewItems').innerHTML =
+        '<div style="padding:0.9rem;color:var(--muted);">Caricamento…</div>';
+    document.getElementById('listViewModal').classList.add('active');
+
+    viewItems = await loadListItems(cardId);
+    renderListView();
+}
+
+function closeListView() {
+    document.getElementById('listViewModal').classList.remove('active');
+    viewCardId = null; viewItems = [];
+}
+
+function renderListView() {
+    const box  = document.getElementById('listViewItems');
+    const tot  = viewItems.length;
+    const fatt = viewItems.filter(i => i.done).length;
+
+    document.getElementById('listViewCount').textContent = tot
+        ? `${fatt} di ${tot} fatte`
+        : 'Nessuna voce';
+    document.getElementById('listViewBar').style.width = tot ? (fatt / tot * 100) + '%' : '0%';
+
+    const hideDone = document.getElementById('listHideDone').checked;
+    const list = hideDone ? viewItems.filter(i => !i.done) : viewItems;
+
+    if (!list.length) {
+        box.innerHTML = `<div style="padding:0.9rem;color:var(--muted);font-size:0.95rem;">${
+            tot ? 'Tutte fatte 🎉' : 'Nessuna voce: aggiungine una qui sotto.'}</div>`;
+        return;
+    }
+
+    box.innerHTML = list.map(it => `
+        <div class="li-row${it.done ? ' done' : ''}">
+            <input type="checkbox" class="li-check" ${it.done ? 'checked' : ''}
+                   onchange="toggleViewItem('${it.id}', this.checked)">
+            <div class="li-text" onclick="toggleViewItem('${it.id}', ${!it.done})">${escHtml(it.text)}</div>
+            <button type="button" class="li-del" onclick="deleteViewItem('${it.id}')" title="Elimina">✕</button>
+        </div>`).join('');
+}
+
+async function toggleViewItem(itemId, done) {
+    const it = viewItems.find(x => x.id === itemId);
+    if (!it) return;
+
+    const prima = { done: it.done, done_at: it.done_at };
+    it.done    = done;
+    it.done_at = done ? new Date().toISOString() : null;
+    renderListView();
+
+    const { error } = await sb.from('mm_list_items')
+        .update({ done: it.done, done_at: it.done_at }).eq('id', itemId);
+
+    if (error) {
+        it.done = prima.done; it.done_at = prima.done_at;
+        renderListView();
+        if (!handleAuthError(error)) showToast('⚠️ Non sono riuscito a salvare la spunta');
+        return;
+    }
+    refreshCardCounts();
+}
+
+async function addItemFromView() {
+    const input = document.getElementById('listViewNewItem');
+    const text  = input.value.trim();
+    if (!text || !viewCardId) return;
+
+    const position = viewItems.length ? Math.max(...viewItems.map(i => i.position)) + 1 : 0;
+    input.value = '';
+
+    const { data, error } = await sb.from('mm_list_items').insert({
+        card_id: viewCardId, user_id: currentUserId, text, position
+    }).select('*').single();
+
+    if (error) {
+        if (!handleAuthError(error)) showToast('⚠️ Errore: ' + error.message);
+        input.value = text;
+        return;
+    }
+    viewItems.push(data);
+    renderListView();
+    refreshCardCounts();
+    input.focus();
+}
+
+async function deleteViewItem(itemId) {
+    const it = viewItems.find(x => x.id === itemId);
+    if (!it) return;
+    const ok = await customConfirm(`Eliminare "${it.text}"?`);
+    if (!ok) return;
+
+    const { error } = await sb.from('mm_list_items').delete().eq('id', itemId);
+    if (error) { if (!handleAuthError(error)) showToast('⚠️ Errore: ' + error.message); return; }
+
+    viewItems = viewItems.filter(x => x.id !== itemId);
+    renderListView();
+    refreshCardCounts();
+}
+
+// dalla vista si passa alla modifica della scheda
+function editFromView() {
+    const cardId = viewCardId;
+    closeListView(); closeDiaryView(); closeLinkView();
+    openCardModal(cardId);
+}
+
+// i conteggi in elenco (☑️ 3/7, 📊 12) vanno riletti dopo ogni
+// modifica fatta dalla vista, o restano fermi finché non si ricarica
+async function refreshCardCounts() {
+    await loadCards();
+    renderCards();
+    renderPinned();
+    renderCatFilters();
+}
+
+// ============================================================
+// VISTA DIARIO
+// ============================================================
+async function openDiaryView(cardId) {
+    viewCardId  = cardId;
+    viewMetrics = []; viewEntries = [];
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    document.getElementById('diaryViewTitle').textContent = card.title || 'Diario senza titolo';
+    const note = document.getElementById('diaryViewNote');
+    if (card.content && stripHtml(card.content).trim()) {
+        note.innerHTML = card.content; note.style.display = 'block';
+    } else {
+        note.innerHTML = ''; note.style.display = 'none';
+    }
+    document.getElementById('diaryMetricsSummary').innerHTML = '';
+    document.getElementById('diaryEntriesList').innerHTML =
+        '<div style="padding:0.5rem;color:var(--muted);">Caricamento…</div>';
+    document.getElementById('diaryViewModal').classList.add('active');
+
+    [viewMetrics, viewEntries] = await Promise.all([
+        loadDiaryMetrics(cardId), loadDiaryEntries(cardId)
+    ]);
+    renderDiaryView();
+}
+
+function closeDiaryView() {
+    document.getElementById('diaryViewModal').classList.remove('active');
+    viewCardId = null; viewMetrics = []; viewEntries = [];
+}
+
+function renderDiaryView() {
+    renderDiaryMetricsSummary();
+    renderDiaryEntries();
+}
+
+// Riepilogo per misura: ultimo valore e lo storico in miniatura.
+// Le registrazioni arrivano dalla più recente, qui servono in ordine
+// di tempo, quindi si rovesciano.
+function renderDiaryMetricsSummary() {
+    const box = document.getElementById('diaryMetricsSummary');
+    if (!viewMetrics.length) {
+        box.innerHTML = `<div style="padding:0.75rem;border:2px dashed var(--border);color:var(--muted);font-size:0.95rem;">
+            Questo diario non misura ancora niente. Apri ✏️ Modifica scheda e aggiungi almeno una misura.</div>`;
+        return;
+    }
+
+    const storico = [...viewEntries].reverse();
+
+    box.innerHTML = viewMetrics.map(m => {
+        // Una scelta non ha un andamento: ha una distribuzione. Disegnarne
+        // la spezzata vorrebbe dire trattare l'ordine delle opzioni come
+        // una scala, che non è — quello che si vuole sapere è quante volte
+        // è uscita ciascuna.
+        if (m.kind === 'scelta') {
+            const scelte = storico.map(e => e.measures?.[m.id]).filter(v => v !== undefined && v !== null);
+            const conteggi = {};
+            scelte.forEach(id => { conteggi[id] = (conteggi[id] || 0) + 1; });
+            const max = Math.max(1, ...Object.values(conteggi));
+            const ultimo = scelte.length ? scelte[scelte.length - 1] : null;
+
+            // prima le opzioni definite, nel loro ordine; poi quelle tolte
+            // che qualche registrazione cita ancora
+            const tolte = Object.keys(conteggi).filter(id => !(m.options || []).some(o => o.id === id));
+            const righe = [...(m.options || []).map(o => [o.id, o.label]),
+                           ...tolte.map(id => [id, null])]
+                .map(([id, label]) => {
+                    const n = conteggi[id] || 0;
+                    return `<div class="dist-row">
+                        <span class="dist-label${label === null ? ' tolta' : ''}">${label === null ? '<i>opzione tolta</i>' : escHtml(label)}</span>
+                        <span class="dist-bar"><i style="width:${n / max * 100}%"></i></span>
+                        <span class="dist-n">${n}</span>
+                    </div>`;
+                }).join('');
+
+            return `<div class="metric-card">
+                <div class="metric-card-head">
+                    <div>
+                        <div class="metric-card-name">${escHtml(m.name)}</div>
+                        <div class="metric-card-range">scelta fra ${(m.options || []).length} opzioni</div>
+                        ${m.hint ? `<div class="metric-card-hint">${escHtml(m.hint)}</div>` : ''}
+                    </div>
+                    <div class="metric-card-last">${ultimo === null ? '—' : optionLabel(m, ultimo)}</div>
+                </div>
+                <div class="dist">${righe}</div>
+            </div>`;
+        }
+
+        const serie = storico
+            .map(e => numericValue(m, e.measures?.[m.id]))
+            .filter(v => v !== null)
+            .slice(-12);
+
+        const ultimo = serie.length ? serie[serie.length - 1] : null;
+        const range  = m.kind === 'scala'  ? `scala ${fmtNum(m.min_value)}-${fmtNum(m.max_value)}`
+                     : m.kind === 'numero' ? (m.unit ? 'numero in ' + escHtml(m.unit) : 'numero')
+                     : 'sì / no';
+
+        // fondo scala: la scala ha i suoi limiti, il numero libero no
+        let lo = 0, hi = 1;
+        if (m.kind === 'scala')      { lo = Number(m.min_value); hi = Number(m.max_value); }
+        else if (m.kind === 'numero'){ lo = Math.min(...serie, 0); hi = Math.max(...serie, 1); }
+        const span = (hi - lo) || 1;
+
+        const spark = serie.length
+            ? `<div class="spark">${serie.map(v =>
+                `<i style="height:${Math.max(4, Math.round((v - lo) / span * 100))}%" title="${fmtNum(v)}"></i>`).join('')}</div>`
+            : '';
+
+        return `<div class="metric-card">
+            <div class="metric-card-head">
+                <div>
+                    <div class="metric-card-name">${escHtml(m.name)}</div>
+                    <div class="metric-card-range">${range}</div>
+                    ${m.hint ? `<div class="metric-card-hint">${escHtml(m.hint)}</div>` : ''}
+                </div>
+                <div class="metric-card-last">${ultimo === null ? '—' : displayValue(m, ultimo)}</div>
+            </div>
+            ${spark}
+        </div>`;
+    }).join('');
+}
+
+function renderDiaryEntries() {
+    const box = document.getElementById('diaryEntriesList');
+    if (!viewEntries.length) {
+        box.innerHTML = `<div style="padding:0.75rem;color:var(--muted);font-size:0.95rem;">
+            Nessuna registrazione. Premi ➕ Nuova registrazione.</div>`;
+        return;
+    }
+
+    box.innerHTML = viewEntries.map(e => {
+        const vals = Object.entries(e.measures || {}).map(([mid, raw]) => {
+            const m = viewMetrics.find(x => x.id === mid);
+            // una misura tolta dopo: il valore c'è ancora ma non ha più un nome
+            if (!m) return `<span class="entry-val orfana" title="misura non più definita">misura tolta: <b>${escHtml(String(raw))}</b></span>`;
+            return `<span class="entry-val">${escHtml(m.name)} <b>${valueLabel(m, raw)}</b></span>`;
+        }).join('');
+
+        return `<div class="entry-row">
+            <div class="entry-row-head">
+                <span class="entry-heading">
+                    <span class="entry-date">${fmtDay(e.entry_date)}</span>
+                    ${e.title ? `<span class="entry-title">${escHtml(e.title)}</span>` : ''}
+                </span>
+                <div style="display:flex;gap:0.3rem;">
+                    <button class="btn btn-secondary btn-small" onclick="openEntryModal('${e.id}')">✏️</button>
+                    <button class="btn btn-secondary btn-small" onclick="deleteEntry('${e.id}')">🗑</button>
+                </div>
+            </div>
+            <div class="entry-vals">${vals || '<span style="color:var(--muted);font-size:0.85rem;">nessuna misura registrata</span>'}</div>
+            ${e.note ? `<div class="entry-note">${escHtml(e.note)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// il valore archiviato torna numero: i sì/no valgono 1 e 0.
+// Una scelta non è un numero e non se ne inventa uno: l'ordine delle
+// opzioni è un elenco, non una scala, e mediarlo non vorrebbe dire niente.
+function numericValue(m, raw) {
+    if (raw === null || raw === undefined || raw === '') return null;
+    if (m.kind === 'scelta') return null;
+    if (m.kind === 'bool') return raw === true || raw === 1 || raw === '1' ? 1 : 0;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+// un'opzione tolta dopo: la registrazione tiene il suo id, e quell'id
+// non ha più un'etichetta — si dice, invece di far sparire il valore
+function optionLabel(m, id) {
+    const o = (m.options || []).find(x => x.id === id);
+    return o ? escHtml(o.label) : '<i>opzione tolta</i>';
+}
+
+// che cosa mostrare per un valore archiviato, qualunque sia il tipo
+function valueLabel(m, raw) {
+    if (raw === null || raw === undefined || raw === '') return '—';
+    if (m.kind === 'scelta') return optionLabel(m, raw);
+    return displayValue(m, numericValue(m, raw));
+}
+
+function displayValue(m, v) {
+    if (v === null) return '—';
+    if (m.kind === 'bool')   return v ? 'sì' : 'no';
+    if (m.kind === 'scala')  return `${fmtNum(v)}/${fmtNum(m.max_value)}`;
+    return fmtNum(v) + (m.unit ? ' ' + escHtml(m.unit) : '');
+}
+
+function fmtNum(n) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return '—';
+    return Number.isInteger(x) ? String(x) : String(Math.round(x * 100) / 100);
+}
+
+// ============================================================
+// REGISTRAZIONE — raccolta delle misure
+//
+// Una misura non toccata NON viene archiviata: «non l'ho
+// misurata» e «vale zero» sono due cose diverse, e uno slider
+// lasciato a metà scriverebbe la seconda al posto della prima.
+// ============================================================
+let entryValues = {};   // { <metric_id>: numero | booleano }
+
+async function openEntryModal(entryId) {
+    if (!viewCardId) return;
+    if (!viewMetrics.length) {
+        showToast('Prima aggiungi almeno una misura (✏️ Modifica scheda)');
+        return;
+    }
+
+    editingEntryId = entryId || null;
+    entryValues = {};
+
+    const card = cards.find(c => c.id === viewCardId);
+    // la nota del diario si rilegge qui: è il promemoria di cosa
+    // significano le misure che si stanno per dare
+    const note = document.getElementById('entryNote');
+    if (card && card.content && stripHtml(card.content).trim()) {
+        note.innerHTML = card.content; note.style.display = 'block';
+    } else {
+        note.innerHTML = ''; note.style.display = 'none';
+    }
+
+    const entry = entryId ? viewEntries.find(e => e.id === entryId) : null;
+    document.getElementById('entryModalTitle').textContent =
+        entry ? 'Modifica registrazione' : 'Nuova registrazione';
+    document.getElementById('entryTitle').value = entry ? (entry.title || '') : '';
+    document.getElementById('entryDate').value =
+        entry ? entry.entry_date : new Date().toISOString().slice(0, 10);
+    document.getElementById('entryComment').value = entry ? (entry.note || '') : '';
+    document.getElementById('deleteEntryBtn').style.display = entry ? 'block' : 'none';
+
+    if (entry) {
+        Object.entries(entry.measures || {}).forEach(([mid, raw]) => {
+            const m = viewMetrics.find(x => x.id === mid);
+            if (!m) return;
+            entryValues[mid] = m.kind === 'scelta' ? String(raw)
+                             : m.kind === 'bool'   ? !!numericValue(m, raw)
+                             : numericValue(m, raw);
+        });
+    }
+
+    renderEntryMeasures();
+    document.getElementById('entryModal').classList.add('active');
+}
+
+function closeEntryModal() {
+    document.getElementById('entryModal').classList.remove('active');
+    editingEntryId = null; entryValues = {};
+}
+
+function renderEntryMeasures() {
+    document.getElementById('entryMeasures').innerHTML = viewMetrics.map(m => {
+        const dato = entryValues[m.id];
+        const dato_c = dato !== undefined && dato !== null;
+
+        let corpo = '';
+        if (m.kind === 'scala') {
+            const min = Number(m.min_value), max = Number(m.max_value);
+            const pos = dato_c ? dato : Math.round((min + max) / 2);
+            corpo = `<div class="measure-scale">
+                <span class="lim">${fmtNum(min)}</span>
+                <input type="range" min="${min}" max="${max}" step="1" value="${pos}"
+                       oninput="setEntryValue('${m.id}', Number(this.value))">
+                <span class="lim">${fmtNum(max)}</span>
+                <input type="number" class="form-input" style="width:5.5rem;"
+                       min="${min}" max="${max}" value="${dato_c ? dato : ''}" placeholder="—"
+                       oninput="setEntryValue('${m.id}', this.value === '' ? null : Number(this.value))">
+            </div>`;
+        } else if (m.kind === 'numero') {
+            corpo = `<div class="measure-num">
+                <input type="number" class="form-input" step="any" placeholder="—"
+                       value="${dato_c ? dato : ''}"
+                       oninput="setEntryValue('${m.id}', this.value === '' ? null : Number(this.value))">
+                ${m.unit ? `<span class="measure-unit">${escHtml(m.unit)}</span>` : ''}
+            </div>`;
+        } else if (m.kind === 'scelta') {
+            // la casella vuota in cima è «non l'ho misurata»: sceglierla
+            // toglie il valore invece di archiviarne uno finto
+            const voci = (m.options || []).map(o =>
+                `<option value="${escAttr(o.id)}" ${dato === o.id ? 'selected' : ''}>${escHtml(o.label)}</option>`).join('');
+            const orfana = dato_c && !(m.options || []).some(o => o.id === dato)
+                ? `<option value="${escAttr(dato)}" selected>opzione tolta</option>` : '';
+            corpo = `<select class="form-select" onchange="setEntryValue('${m.id}', this.value || null)">
+                <option value="">— non l'ho misurata</option>
+                ${orfana}${voci}
+            </select>`;
+        } else {
+            const si = dato === true, no = dato === false;
+            corpo = `<div class="measure-bool">
+                <button type="button" class="btn ${si ? 'btn-success' : 'btn-ghost'}"
+                        onclick="setEntryValue('${m.id}', ${si ? 'null' : 'true'})">Sì</button>
+                <button type="button" class="btn ${no ? 'btn-danger' : 'btn-ghost'}"
+                        onclick="setEntryValue('${m.id}', ${no ? 'null' : 'false'})">No</button>
+            </div>`;
+        }
+
+        return `<div class="measure-box">
+            <div class="measure-head">
+                <span class="measure-name">${escHtml(m.name)}</span>
+                <span class="measure-value">${dato_c ? valueLabel(m, dato) : '—'}</span>
+            </div>
+            ${m.hint ? `<div class="measure-hint">${escHtml(m.hint)}</div>` : ''}
+            ${corpo}
+            ${dato_c ? `<button type="button" class="btn btn-secondary btn-small" style="margin-top:0.5rem;"
+                    onclick="setEntryValue('${m.id}', null)">Non l'ho misurata</button>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function setEntryValue(metricId, value) {
+    if (value === null || (typeof value === 'number' && !Number.isFinite(value))) {
+        delete entryValues[metricId];
+        renderEntryMeasures();
+        return;
+    }
+
+    // la casella numerica non è vincolata come lo slider: un 500 su una
+    // scala 1-20 passerebbe, e da lì in poi lo storico in miniatura
+    // sarebbe schiacciato da un valore che quella misura non può avere
+    const m = viewMetrics.find(x => x.id === metricId);
+    if (m && m.kind === 'scala' && typeof value === 'number') {
+        value = Math.min(Number(m.max_value), Math.max(Number(m.min_value), value));
+    }
+
+    entryValues[metricId] = value;
+    renderEntryMeasures();
+}
+
+async function saveEntry() {
+    if (!viewCardId) return;
+    const title = document.getElementById('entryTitle').value.trim();
+    if (!title) {
+        showToast('Dai un titolo a questa registrazione.');
+        document.getElementById('entryTitle').focus();
+        return;
+    }
+
+    const entry_date = document.getElementById('entryDate').value;
+    if (!entry_date) { showToast('Scegli una data.'); return; }
+
+    const note = document.getElementById('entryComment').value.trim();
+    if (!Object.keys(entryValues).length && !note) {
+        showToast('Registra almeno una misura o scrivi un commento.'); return;
+    }
+
+    const btn = document.getElementById('saveEntryBtn');
+    btn.disabled = true; btn.textContent = 'Salvataggio…';
+
+    try {
+        const payload = {
+            card_id: viewCardId, user_id: currentUserId,
+            title, entry_date, note, measures: entryValues
+        };
+
+        if (editingEntryId) {
+            const { error } = await sb.from('mm_diary_entries').update(payload).eq('id', editingEntryId);
+            if (error) { if (handleAuthError(error)) return; throw error; }
+        } else {
+            const { error } = await sb.from('mm_diary_entries').insert(payload);
+            if (error) { if (handleAuthError(error)) return; throw error; }
+        }
+
+        viewEntries = await loadDiaryEntries(viewCardId);
+        renderDiaryView();
+        closeEntryModal();
+        await refreshCardCounts();
+        showToast('✅ Registrazione salvata');
+    } catch (err) {
+        console.error('saveEntry:', err);
+        alert('Errore nel salvataggio: ' + (err.message || String(err)));
+    } finally {
+        btn.disabled = false; btn.textContent = '💾 Registra';
+    }
+}
+
+async function deleteCurrentEntry() {
+    if (!editingEntryId) return;
+    const id = editingEntryId;
+    closeEntryModal();
+    await deleteEntry(id);
+}
+
+async function deleteEntry(entryId) {
+    const e = viewEntries.find(x => x.id === entryId);
+    const ok = await customConfirm(
+        `Eliminare la registrazione del ${fmtDay(e?.entry_date)}${e?.title ? ' — «' + e.title + '»' : ''}?`);
+    if (!ok) return;
+
+    const { error } = await sb.from('mm_diary_entries').delete().eq('id', entryId);
+    if (error) { if (!handleAuthError(error)) showToast('⚠️ Errore: ' + error.message); return; }
+
+    viewEntries = viewEntries.filter(x => x.id !== entryId);
+    renderDiaryView();
+    await refreshCardCounts();
+    showToast('🗑 Registrazione eliminata');
+}
+
+// ============================================================
+// EDITOR — TOOLBAR
+// ============================================================
+function execCmd(cmd, val) {
+    document.getElementById('editorArea').focus();
+    document.execCommand(cmd, false, val || null);
+    updateToolbarState();
+}
+
+function insertHeading(level) {
+    document.getElementById('editorArea').focus();
+    document.execCommand('formatBlock', false, 'h' + level);
+    updateToolbarState();
+}
+
+function updateToolbarState() {
+    const cmds = ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList'];
+    cmds.forEach(cmd => {
+        const btn = document.querySelector(`.toolbar-btn[data-cmd="${cmd}"]`);
+        if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+    });
+}
+
+// ============================================================
+// CATEGORIES MULTI-SELECT
+// ============================================================
+function toggleCatDropdown(e) {
+    if (e.target.classList.contains('remove')) return;
+    document.getElementById('catDropdown').classList.toggle('open');
+}
+
+document.addEventListener('click', (e) => {
+    const multi    = document.getElementById('catMulti');
+    const dropdown = document.getElementById('catDropdown');
+    if (!multi?.contains(e.target) && !dropdown?.contains(e.target)) {
+        dropdown?.classList.remove('open');
+    }
+});
+
+function toggleCatSelection(catId) {
+    const idx = selectedCatIds.indexOf(catId);
+    if (idx === -1) selectedCatIds.push(catId);
+    else selectedCatIds.splice(idx, 1);
+    renderCatMulti();
+    renderCatDropdownList();
+}
+
+function removeCat(catId, e) {
+    e.stopPropagation();
+    selectedCatIds = selectedCatIds.filter(id => id !== catId);
+    renderCatMulti();
+    renderCatDropdownList();
+}
+
+function renderCatMulti() {
+    const multi = document.getElementById('catMulti');
+    const placeholder = document.getElementById('catMultiPlaceholder');
+    if (!selectedCatIds.length) {
+        placeholder.style.display = 'block';
+        // rimuovi chip esistenti
+        multi.querySelectorAll('.cat-multi-chip').forEach(el => el.remove());
+        return;
+    }
+    placeholder.style.display = 'none';
+    multi.querySelectorAll('.cat-multi-chip').forEach(el => el.remove());
+    selectedCatIds.forEach(cid => {
+        const cat = categories.find(c => c.id === cid);
+        if (!cat) return;
+        const chip = document.createElement('div');
+        chip.className = 'cat-multi-chip';
+        chip.style.background = cat.color || '#6B7280';
+        chip.innerHTML = `${escHtml(cat.icon||'')} ${escHtml(cat.name)} <span class="remove" onclick="removeCat('${cid}',event)">✕</span>`;
+        multi.insertBefore(chip, placeholder);
+    });
+}
+
+function renderCatDropdownList() {
+    const dropdown = document.getElementById('catDropdown');
+    if (!categories.length) {
+        dropdown.innerHTML = '<div style="padding:0.5rem 0.75rem;color:var(--muted);font-size:0.9rem;">Nessuna categoria disponibile</div>';
+        return;
+    }
+    dropdown.innerHTML = categories.map(cat => {
+        const sel = selectedCatIds.includes(cat.id);
+        return `<div class="cat-dropdown-item${sel?' selected':''}" onclick="toggleCatSelection('${cat.id}')">
+            <span style="width:12px;height:12px;border-radius:50%;background:${cat.color||'#6B7280'};flex-shrink:0;display:inline-block;"></span>
+            ${escHtml(cat.icon||'')} ${escHtml(cat.name)}
+            <span class="check">✓</span>
+        </div>`;
+    }).join('');
+}
+
+// ============================================================
+// COLOR PICKER
+// ============================================================
+function selectColor(color, swatchEl, fromCustom) {
+    selectedColor = color;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    if (swatchEl) {
+        swatchEl.classList.add('selected');
+    } else if (!fromCustom) {
+        const matching = document.querySelector(`.color-swatch[data-color="${CSS.escape(color)}"]`);
+        if (matching) matching.classList.add('selected');
+    }
+    if (fromCustom) {
+        document.getElementById('colorCustom').value = color;
+    }
+}
+
+// ============================================================
+// IMAGE UPLOAD
+// ============================================================
+// ── IMG POPUP ──────────────────────────────────────────────
+function openImgPopup() {
+    document.getElementById('imgPopupOverlay').classList.add('active');
+}
+function closeImgPopup(e) {
+    if (e && e.target !== document.getElementById('imgPopupOverlay')) return;
+    document.getElementById('imgPopupOverlay').classList.remove('active');
+}
+function imgPopupAction(source) {
+    const ocrMode = document.getElementById('ocrModeSwitch').checked;
+    console.log('[OCR] imgPopupAction source=' + source + ' ocrMode=' + ocrMode);
+    document.getElementById('imgPopupOverlay').classList.remove('active');
+
+    const inputId = source === 'camera' ? 'imgCameraInput' : 'imgFileInput';
+    const input   = document.getElementById(inputId);
+
+    const handler = (e) => {
+        input.removeEventListener('change', handler);
+        const files = Array.from(e.target.files || []);
+        console.log('[OCR] change event files=' + files.length + ' ocrMode=' + ocrMode);
+        if (!files.length) return;
+        // Aggiunge sempre le immagini al pending (anteprima)
+        files.forEach(addPendingImage);
+        // Se OCR attivo, estrae anche il testo
+        if (ocrMode) runOcrOnFiles(files);
+        input.value = '';
+    };
+    input.addEventListener('change', handler);
+    input.click();
+}
+
+async function runOcrOnFiles(files) {
+    const toastEl = showToast('🔍 OCR in corso… (può richiedere 20-30 sec)', 60000);
+    for (const file of files) {
+        try {
+            const text = await ocrFromFile(file);
+            if (toastEl && toastEl.remove) toastEl.remove();
+            if (text && text.trim()) {
+                const area = document.getElementById('editorArea');
+                area.focus();
+                const escaped = escHtml(text.trim()).replace(/\n/g, '<br>');
+                const existing = area.innerHTML.trim();
+                if (existing && existing !== '<br>') {
+                    area.innerHTML = existing + '<br><hr><p>' + escaped + '</p>';
+                } else {
+                    area.innerHTML = '<p>' + escaped + '</p>';
+                }
+                // Sposta cursore alla fine
+                const range = document.createRange();
+                range.selectNodeContents(area);
+                range.collapse(false);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                showToast('✅ Testo estratto (' + text.trim().length + ' caratteri)');
+            } else {
+                showToast('⚠️ Nessun testo trovato nell\'immagine');
+            }
+        } catch(err) {
+            if (toastEl && toastEl.remove) toastEl.remove();
+            console.error('OCR fallito:', err);
+            if (err.message === 'OCR timeout') {
+                showToast('⏱ OCR timeout — riprova con un\'immagine più piccola');
+            } else {
+                showToast('❌ OCR non riuscito: ' + (err.message || 'errore sconosciuto'));
+            }
+        }
+    }
+}
+
+// Mappa callback OCR: { callbackId → resolve }
+const _ocrCallbacks = {};
+function ocrCallback(id, text) {
+    if (_ocrCallbacks[id]) {
+        _ocrCallbacks[id](text || '');
+        delete _ocrCallbacks[id];
+    }
+}
+
+function ocrFromFile(file) {
+    return new Promise((resolve, reject) => {
+        // Timeout globale 40 secondi
+        const timer = setTimeout(() => {
+            reject(new Error('OCR timeout'));
+        }, 40000);
+        const done = (text) => { clearTimeout(timer); resolve(text); };
+        const fail = (e)    => { clearTimeout(timer); reject(e); };
+
+        if (window.AndroidBridge) {
+            // Usa ML Kit via AndroidBridge (più veloce e affidabile)
+            const id = 'ocr_' + Date.now();
+            _ocrCallbacks[id] = done;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const b64 = e.target.result.split(',')[1];
+                    AndroidBridge.performOcr(b64, file.type, id);
+                } catch(ex) { fail(ex); }
+            };
+            reader.onerror = () => fail(new Error('Lettura file fallita'));
+            reader.readAsDataURL(file);
+        } else {
+            // Su mobile browser Tesseract causa problemi di rete post-elaborazione
+            const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+            if (isMobile) {
+                console.warn('[OCR] mobile browser senza AndroidBridge — OCR non disponibile');
+                fail(new Error('OCR disponibile solo nell\'app Android su mobile'));
+                return;
+            }
+            // Fallback desktop: Tesseract.js caricato in modo lazy
+            console.log('[OCR] percorso browser/Tesseract desktop');
+            const runTesseract = () => {
+                console.log('[OCR] Tesseract caricato, avvio doOcrTesseract');
+                doOcrTesseract(file, done, fail);
+            };
+            if (typeof Tesseract === 'undefined') {
+                console.log('[OCR] caricamento Tesseract.js dal CDN...');
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                s.onload  = runTesseract;
+                s.onerror = () => { console.error('[OCR] Tesseract CDN fallito'); fail(new Error('Tesseract.js non disponibile')); };
+                document.head.appendChild(s);
+            } else {
+                runTesseract();
+            }
+        }
+    });
+}
+
+async function doOcrTesseract(file, resolve, reject) {
+    try {
+        console.log('[OCR] createWorker...');
+        const worker = await Tesseract.createWorker('eng');
+        console.log('[OCR] worker pronto, recognize...');
+        // Usa ArrayBuffer per evitare conflitti con blob URL del preview
+        const buf = await file.arrayBuffer();
+        const { data } = await worker.recognize(new Uint8Array(buf));
+        await worker.terminate();
+        console.log('[OCR] testo estratto:', data.text.length, 'caratteri');
+        resolve(data.text.trim());
+    } catch(e) {
+        console.error('[OCR] doOcrTesseract errore:', e);
+        reject(e);
+    }
+}
+
+function handleDragOver(e)  { e.preventDefault(); document.getElementById('imgUploadZone').classList.add('drag-over'); }
+function handleDragLeave(e) { document.getElementById('imgUploadZone').classList.remove('drag-over'); }
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('imgUploadZone').classList.remove('drag-over');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    files.forEach(addPendingImage);
+}
+function handleFileSelect(e) {
+    Array.from(e.target.files).forEach(addPendingImage);
+    e.target.value = ''; // reset
+}
+
+function addPendingImage(file) {
+    if (file.size > 5 * 1024 * 1024) { showToast('❌ File troppo grande: ' + file.name); return; }
+    const tempId = 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const previewUrl = URL.createObjectURL(file);
+    pendingImages.push({ file, previewUrl, tempId });
+    renderImagesGrid();
+}
+
+function renderImagesGrid() {
+    const grid = document.getElementById('imagesGrid');
+    let html = '';
+
+    existingImages.forEach(img => {
+        html += `<div class="img-thumb" id="imgthumb_${img.id}">
+            <img src="${escAttr(img.signedUrl)}" alt="${escAttr(img.file_name)}"
+                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23eee%22 width=%22100%22 height=%22100%22/><text x=%2250%%22 y=%2250%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22>?</text></svg>'"
+                 onclick="viewImage('${escAttr(img.signedUrl)}')">
+            <div class="img-thumb-overlay">
+                <button class="img-action-btn img-ins-btn" onclick="insertImageInEditor('${escAttr(img.signedUrl)}',event)" title="Inserisci nel testo">✎</button>
+                <button class="img-action-btn img-del-btn" onclick="deleteExistingImage('${img.id}',event)" title="Elimina">✕</button>
+            </div>
+        </div>`;
+    });
+
+    pendingImages.forEach(pi => {
+        html += `<div class="img-thumb" id="imgthumb_${pi.tempId}">
+            <img src="${escAttr(pi.previewUrl)}" alt="In attesa di upload">
+            <div class="img-thumb-overlay">
+                <button class="img-action-btn img-del-btn" onclick="removePendingImage('${pi.tempId}',event)" title="Rimuovi">✕</button>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:white;font-size:0.6rem;padding:2px;text-align:center;">In attesa</div>
+        </div>`;
+    });
+
+    grid.innerHTML = html || '';
+}
+
+async function uploadImage(cardId, file) {
+    const mime   = file.type || 'image/jpeg';
+    const nameParts = (file.name || 'image.jpg').split('.');
+    const ext   = nameParts.length > 1 ? nameParts.pop().toLowerCase() : (mime.split('/')[1] || 'jpg');
+    const fname = Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
+    const path  = currentUserId + '/' + cardId + '/' + fname;
+    const url   = SUPABASE_URL + '/storage/v1/object/mm-images/' + path;
+
+    // Usa XHR invece di fetch — più affidabile in Android WebView per upload binari
+    const upErr = await new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + sbAccessToken);
+        xhr.setRequestHeader('Content-Type', mime);
+        xhr.setRequestHeader('x-upsert', 'false');
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(null);
+            } else {
+                let msg = xhr.statusText;
+                try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+                console.error('uploadImage XHR status:', xhr.status, xhr.responseText);
+                resolve(new Error('HTTP ' + xhr.status + ': ' + msg));
+            }
+        };
+        xhr.onerror = () => {
+            console.error('uploadImage XHR network error');
+            resolve(new Error('Errore di rete (XHR)'));
+        };
+        // Legge il file con FileReader (supportato in tutti i WebView)
+        const reader = new FileReader();
+        reader.onload = (e) => xhr.send(e.target.result);
+        reader.onerror = () => resolve(new Error('Lettura file fallita'));
+        reader.readAsArrayBuffer(file);
+    });
+
+    if (upErr) {
+        showToast('❌ Upload fallito: ' + upErr.message, 10000);
+        return;
+    }
+
+    const { error: dbErr } = await sb.from('mm_images').insert({
+        card_id: cardId, user_id: currentUserId,
+        storage_path: path, file_name: fname, mime_type: mime
+    });
+    if (dbErr) { console.error('uploadImage db:', dbErr); showToast('❌ DB errore: ' + dbErr.message, 10000); }
+}
+
+async function deleteExistingImage(imgId, e) {
+    e.stopPropagation();
+    const img = existingImages.find(i => i.id === imgId);
+    if (!img) return;
+    const ok = await customConfirm('Eliminare questa immagine?');
+    if (!ok) return;
+
+    await sb.storage.from('mm-images').remove([img.storage_path]);
+    const { error } = await sb.from('mm_images').delete().eq('id', imgId);
+    if (error) { console.error('deleteExistingImage:', error); return; }
+
+    existingImages = existingImages.filter(i => i.id !== imgId);
+    renderImagesGrid();
+    showToast('🗑 Immagine eliminata');
+}
+
+function removePendingImage(tempId, e) {
+    e.stopPropagation();
+    const pi = pendingImages.find(p => p.tempId === tempId);
+    if (pi) URL.revokeObjectURL(pi.previewUrl);
+    pendingImages = pendingImages.filter(p => p.tempId !== tempId);
+    renderImagesGrid();
+}
+
+function insertImageInEditor(url, e) {
+    e.stopPropagation();
+    document.getElementById('editorArea').focus();
+    document.execCommand('insertHTML', false, `<img src="${escAttr(url)}" alt="immagine"><br>`);
+}
+
+function viewImage(url) {
+    document.getElementById('imgViewerImg').src = url;
+    document.getElementById('imgViewerModal').classList.add('active');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function escHtml(str) {
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+    return String(str||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function stripHtml(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+}
+function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,'0');
+    return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear()
+         + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+// Le date delle registrazioni sono già 'YYYY-MM-DD' e vanno
+// spezzate a mano: passarle da new Date() le legge come UTC e
+// a fuso orario positivo tornano indietro di un giorno.
+function fmtDay(iso) {
+    if (!iso) return '';
+    const [y, m, d] = String(iso).slice(0, 10).split('-');
+    return `${d}/${m}/${y}`;
+}
+
+let toastTimer = null;
+function showToast(msg, ms) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.style.display = 'none'; }, ms || 2800);
+    t.remove = () => { clearTimeout(toastTimer); t.style.display = 'none'; };
+    return t;
+}
+
+function customConfirm(msg) {
+    return new Promise(resolve => {
+        document.getElementById('confirmMsg').textContent = msg;
+        document.getElementById('confirmDialog').classList.add('active');
+        const yes = document.getElementById('confirmYes');
+        const no  = document.getElementById('confirmNo');
+        const cleanup = () => {
+            document.getElementById('confirmDialog').classList.remove('active');
+            yes.onclick = null; no.onclick = null;
+        };
+        yes.onclick = () => { cleanup(); resolve(true); };
+        no.onclick  = () => { cleanup(); resolve(false); };
+    });
+}
+
+function copySql() {
+    navigator.clipboard.writeText(SQL_MIGRATIONS).then(() => showToast('📋 SQL copiato!'));
+}
+
+// ============================================================
+// ⚠️ LA CONDIVISIONE È DELL'APK NATIVA, NON DI QUESTA PAGINA
+//
+// Fino alla v1.1.1 l'APK WebView riceveva i link condivisi (ACTION_SEND +
+// text/plain) e li iniettava qui con `openMemoFromSharedLink(testo, titolo)`,
+// che apriva l'editor già compilato. La voce «Salva in Memo» del menù
+// «Condividi» è passata all'APK nativa (`com.garsal.appsphere`), dove la scheda
+// si compila con l'interfaccia dell'app invece che con una pagina dentro un
+// WebView: l'intent-filter lo dichiara **una sola APK**, o nel menù
+// «Condividi» comparirebbero due voci indistinguibili.
+//
+// Quel che era qui e resta qui, perché serve anche a un link **incollato a
+// mano dal PC**: `normalizzaUrl`, `urlValido`, `titoloDaSlug`, `titoloYouTube`
+// e `riempiTitoloSeVuoto`. I loro gemelli nativi stanno in `Link` dentro
+// `memo/MemoData.kt` e vanno cambiati insieme a questi.
+// ============================================================
+
+// ============================================================
+// OCR DA ANDROID — chiamato da MainActivity dopo condivisione screenshot/immagine
+// ============================================================
+function openMemoFromOcr(text) {
+    log('OCR ricevuto da Android: ' + text.length + ' caratteri');
+    openCardModal(null);
+    setTimeout(() => {
+        document.getElementById('cardTitle').value = 'Da screenshot — ' + new Date().toLocaleDateString('it-IT');
+        if (text) document.getElementById('editorArea').innerText = text;
+
+        // Recupera l'immagine originale dall'AndroidBridge
+        if (window.AndroidBridge) {
+            try {
+                const b64  = AndroidBridge.getPendingImageBase64();
+                const mime = AndroidBridge.getPendingImageMime() || 'image/jpeg';
+                AndroidBridge.clearPendingImage();
+
+                if (b64) {
+                    const byteStr = atob(b64);
+                    const ab = new ArrayBuffer(byteStr.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+                    const ext  = mime.split('/')[1] || 'jpg';
+                    const file = new File([new Blob([ab], { type: mime })], 'screenshot.' + ext, { type: mime });
+                    addPendingImage(file);
+                    log('Immagine aggiunta ai pending: ' + Math.round(file.size/1024) + ' KB');
+                }
+            } catch(e) {
+                console.error('openMemoFromOcr: errore recupero immagine:', e);
+            }
+        }
+
+        document.getElementById('cardTitle').select();
+    }, 150);
+}
+
+// ============================================================
+// SQL MIGRATIONS (mostrato in impostazioni)
+// ============================================================
+const SQL_MIGRATIONS = `-- ============================================================
+-- MEMORANDUM — Migrazioni Supabase
+-- Eseguire nel SQL Editor del progetto Supabase
+-- ============================================================
+
+-- 1. Schede
+CREATE TABLE IF NOT EXISTS mm_cards (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  title       text NOT NULL DEFAULT '',
+  content     text NOT NULL DEFAULT '',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  pinned      boolean NOT NULL DEFAULT false,
+  riservato   boolean NOT NULL DEFAULT false,
+  color       text NOT NULL DEFAULT '#FFFFFF'
+);
+-- su un database che ha già la tabella il CREATE qui sopra non fa niente
+ALTER TABLE mm_cards ADD COLUMN IF NOT EXISTS riservato boolean NOT NULL DEFAULT false;
+-- 🏅 i punti di un premiato: 0 su ogni altro tipo di scheda
+ALTER TABLE mm_cards ADD COLUMN IF NOT EXISTS punteggio integer NOT NULL DEFAULT 0;
+ALTER TABLE mm_cards DROP CONSTRAINT IF EXISTS mm_cards_kind_check;
+ALTER TABLE mm_cards ADD CONSTRAINT mm_cards_kind_check
+  CHECK (kind IN ('nota', 'lista', 'diario', 'link', 'premiato'));
+CREATE INDEX IF NOT EXISTS mm_cards_user_riservato ON mm_cards(user_id, riservato);
+ALTER TABLE mm_cards ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_cards: utente vede solo le sue" ON mm_cards;
+CREATE POLICY "mm_cards: utente vede solo le sue" ON mm_cards
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS mm_cards_fts
+  ON mm_cards USING gin(to_tsvector('italian', coalesce(title,'') || ' ' || coalesce(content,'')));
+
+-- 2. Associazione schede ↔ categorie condivise
+CREATE TABLE IF NOT EXISTS mm_card_categories (
+  card_id     uuid REFERENCES mm_cards(id) ON DELETE CASCADE,
+  category_id uuid REFERENCES cm_categories(id) ON DELETE CASCADE,
+  PRIMARY KEY (card_id, category_id)
+);
+ALTER TABLE mm_card_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_card_categories: utente vede solo le sue" ON mm_card_categories;
+CREATE POLICY "mm_card_categories: utente vede solo le sue" ON mm_card_categories
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM mm_cards WHERE id = card_id AND user_id = auth.uid())
+  );
+
+-- 3. Metadati immagini
+CREATE TABLE IF NOT EXISTS mm_images (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id      uuid REFERENCES mm_cards(id) ON DELETE CASCADE,
+  user_id      uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  storage_path text NOT NULL,
+  file_name    text NOT NULL,
+  mime_type    text,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE mm_images ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_images: utente vede solo le sue" ON mm_images;
+CREATE POLICY "mm_images: utente vede solo le sue" ON mm_images
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 4. Tipo di scheda: nota, lista, diario o link
+--    'nota' è il default, quindi le schede che esistono già
+--    restano quello che sono senza toccarle una per una.
+ALTER TABLE mm_cards ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'nota';
+-- il CHECK si riscrive per intero: un vincolo non si allarga sul posto
+ALTER TABLE mm_cards DROP CONSTRAINT IF EXISTS mm_cards_kind_check;
+ALTER TABLE mm_cards ADD CONSTRAINT mm_cards_kind_check
+  CHECK (kind IN ('nota', 'lista', 'diario', 'link'));
+
+-- 5. Voci di una lista
+CREATE TABLE IF NOT EXISTS mm_list_items (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id    uuid NOT NULL REFERENCES mm_cards(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  text       text NOT NULL DEFAULT '',
+  done       boolean NOT NULL DEFAULT false,
+  position   integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  done_at    timestamptz
+);
+ALTER TABLE mm_list_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_list_items: utente vede solo le sue" ON mm_list_items;
+CREATE POLICY "mm_list_items: utente vede solo le sue" ON mm_list_items
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS mm_list_items_card ON mm_list_items(card_id, position);
+
+-- 6. Le misure di un diario
+--    kind = 'scala'  → min_value/max_value obbligatori (1-20, 1-100…)
+--    kind = 'numero' → nessun limite, unit è l'unità di misura
+--    kind = 'bool'   → sì/no, vale 0 o 1 nei riepiloghi
+--    kind = 'scelta' → combo: options è [{id, label}] e la
+--                      registrazione archivia l'**id** dell'opzione,
+--                      così rinominarla rilegge anche lo storico
+--    hint            → cosa vuol dire il punteggio, rimostrato
+--                      sotto il nome della misura a ogni registrazione
+CREATE TABLE IF NOT EXISTS mm_diary_metrics (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id    uuid NOT NULL REFERENCES mm_cards(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name       text NOT NULL,
+  kind       text NOT NULL DEFAULT 'scala',
+  min_value  numeric,
+  max_value  numeric,
+  unit       text NOT NULL DEFAULT '',
+  options    jsonb NOT NULL DEFAULT '[]'::jsonb,
+  hint       text NOT NULL DEFAULT '',
+  position   integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT mm_diary_metrics_scala_check CHECK (
+    kind <> 'scala' OR (min_value IS NOT NULL AND max_value IS NOT NULL AND max_value > min_value)
+  )
+);
+-- su un database che ha già la tabella il CREATE qui sopra non fa niente:
+-- colonna e vincoli si aggiungono a parte
+ALTER TABLE mm_diary_metrics ADD COLUMN IF NOT EXISTS options jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE mm_diary_metrics ADD COLUMN IF NOT EXISTS hint text NOT NULL DEFAULT '';
+ALTER TABLE mm_diary_metrics DROP CONSTRAINT IF EXISTS mm_diary_metrics_kind_check;
+ALTER TABLE mm_diary_metrics ADD CONSTRAINT mm_diary_metrics_kind_check
+  CHECK (kind IN ('scala', 'numero', 'bool', 'scelta'));
+ALTER TABLE mm_diary_metrics DROP CONSTRAINT IF EXISTS mm_diary_metrics_scelta_check;
+ALTER TABLE mm_diary_metrics ADD CONSTRAINT mm_diary_metrics_scelta_check
+  CHECK (kind <> 'scelta'
+         OR (jsonb_typeof(options) = 'array' AND jsonb_array_length(options) > 0));
+ALTER TABLE mm_diary_metrics ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_diary_metrics: utente vede solo le sue" ON mm_diary_metrics;
+CREATE POLICY "mm_diary_metrics: utente vede solo le sue" ON mm_diary_metrics
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS mm_diary_metrics_card ON mm_diary_metrics(card_id, position);
+
+-- 7. Le registrazioni
+--    measures è { "<id della misura>": numero|booleano }: le misure
+--    sono righe vere, i valori no — si leggono e si scrivono sempre
+--    tutti insieme. Una misura non registrata NON compare come zero:
+--    la sua chiave non c'è proprio.
+CREATE TABLE IF NOT EXISTS mm_diary_entries (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id    uuid NOT NULL REFERENCES mm_cards(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title      text NOT NULL DEFAULT '',
+  entry_date date NOT NULL DEFAULT current_date,
+  note       text NOT NULL DEFAULT '',
+  measures   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+-- il titolo lo chiede l'app, non il database: le registrazioni fatte
+-- prima di questa colonna non ce l'hanno, e un NOT NULL senza default
+-- renderebbe impossibile perfino correggerle
+ALTER TABLE mm_diary_entries ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
+ALTER TABLE mm_diary_entries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_diary_entries: utente vede solo le sue" ON mm_diary_entries;
+CREATE POLICY "mm_diary_entries: utente vede solo le sue" ON mm_diary_entries
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS mm_diary_entries_card
+  ON mm_diary_entries(card_id, entry_date DESC);
+
+-- 8. Storage bucket (eseguire come service_role o nella dashboard)
+-- INSERT INTO storage.buckets (id, name, public)
+--   VALUES ('mm-images', 'mm-images', false)
+--   ON CONFLICT (id) DO NOTHING;
+--
+-- CREATE POLICY "mm-images upload" ON storage.objects FOR INSERT
+--   WITH CHECK (bucket_id = 'mm-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- CREATE POLICY "mm-images read" ON storage.objects FOR SELECT
+--   USING (bucket_id = 'mm-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- CREATE POLICY "mm-images delete" ON storage.objects FOR DELETE
+--   USING (bucket_id = 'mm-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- 8b. Allegati di una scheda (oggi: i link)
+--     Si archivia l'URL e basta: id del video, miniatura e nome del
+--     sito si ricavano da lui ogni volta, e archiviarli sarebbe una
+--     seconda verità sullo stesso dato.
+--     La colonna tipo ammette già 'file' perché il giorno che i file
+--     arrivano non si debba toccare anche il vincolo.
+CREATE TABLE IF NOT EXISTS mm_attachments (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id    uuid NOT NULL REFERENCES mm_cards(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  tipo       text NOT NULL DEFAULT 'link',
+  url        text NOT NULL DEFAULT '',
+  position   integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT mm_attachments_tipo_check CHECK (tipo IN ('link', 'file'))
+);
+CREATE INDEX IF NOT EXISTS mm_attachments_card ON mm_attachments(card_id);
+ALTER TABLE mm_attachments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "mm_attachments: utente vede solo i suoi" ON mm_attachments;
+CREATE POLICY "mm_attachments: utente vede solo i suoi" ON mm_attachments
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 9. Registro app in AppSphere
+INSERT INTO cm_apps (title, description, html_file, score_query, active)
+VALUES (
+  'Memorandum',
+  'Schede con note, immagini e categorie',
+  'memo.html',
+  'SELECT COUNT(*)::int FROM mm_cards WHERE user_id = auth.uid()',
+  true
+) ON CONFLICT DO NOTHING;
+`;
+
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+[functions.enable-banking-sync]
+verify_jwt = false

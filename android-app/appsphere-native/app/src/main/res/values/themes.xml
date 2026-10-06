@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema di sistema e non AppCompat: qui l'interfaccia è tutta Compose,
+         appcompat non è fra le dipendenze. Serve solo a togliere la action bar
+         e a dare un colore alla status bar prima che Compose disegni. -->
+    <style name="Theme.AppSphereNative" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">#0081C8</item>
+        <item name="android:navigationBarColor">#1F2937</item>
+    </style>
+</resources>

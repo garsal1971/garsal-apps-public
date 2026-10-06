@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- ⚠️ Nessun permesso per la fotocamera né per le immagini: le schermate
+         si scelgono col selettore di sistema, che restituisce le sole foto
+         scelte. Dichiarando READ_MEDIA_IMAGES, Android lo pretenderebbe
+         concesso a runtime per una cosa che funziona senza. Stessa ragione per
+         cui «Spese in giro» non dichiara CAMERA. -->
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Modifiche">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Il link ricevuto via email si apre qui dentro invece che nel
+                 browser, così la sessione finisce nello storage di QUESTA
+                 WebView: il link punta prima a Supabase (auth/v1/verify), che
+                 poi reindirizza alla pagina — la WebView segue da sé il
+                 redirect, quindi basta intercettare il primo hop. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="jajlmmdsjlvzgcxiiypk.supabase.co"
+                    android:pathPrefix="/auth/v1/verify" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="garsal.men"
+                    android:pathPrefix="/modifiche.html" />
+            </intent-filter>
+            <!-- ⚠️ Il rientro dal login GOOGLE passa da uno schema PROPRIO, e non
+                 dai due intent-filter https qui sopra: senza App Links
+                 verificati, Chrome **non consegna all'app un redirect** — un
+                 salto dentro il browser resta nel browser, e quei due scattano
+                 solo quando il link lo tocca una persona. La pagina-ponte
+                 `oauth-callback-modifiche.html` mette il token dietro un
+                 pulsante, e il tap su uno schema custom esce dal browser
+                 sempre. Lo schema è `garsalmodifiche://` e non
+                 `garsalapps://` né `garsalnative://`: con lo stesso schema
+                 Android chiederebbe a ogni login quale delle tre app aprire. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="garsalmodifiche" android:host="oauth" />
+            </intent-filter>
+        </activity>
+
+        <!-- ⚠️ Le schermate si prestano con un FileProvider e non con un
+             `file://`: da Android 7 quello alza FileUriExposedException, cioè
+             l'app che si chiude proprio nel gesto per cui esiste. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.condivisione"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/percorsi_condivisi" />
+        </provider>
+
+    </application>
+
+</manifest>

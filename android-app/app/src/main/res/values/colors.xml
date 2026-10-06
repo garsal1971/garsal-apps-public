@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Il fondo dell'icona dell'APK **WebView**: bianco. È il segno che la
+         distingue dalla nativa, che porta lo stesso disegno su fondo nero. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

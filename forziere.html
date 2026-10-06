@@ -1,0 +1,2582 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔐 Forziere v1.6.3</title>
+<!-- ⚠️ QUESTA PAGINA NON CARICA NIENTE DA TERZI, e non è pignoleria: mentre è aperta
+     tiene in memoria le 24 parole, quindi QUALUNQUE script che gira qui dentro può
+     leggerle e spedirle senza che niente lo dica. Un `<script>` servito da un CDN è
+     codice che qualcun altro può cambiare quando vuole.
+     ⚠️ Fino alla v1.1.0 c'era `supabase-js@2` da jsDelivr — per giunta non fissato a una
+     versione — accanto a queste due librerie vendorizzate: la regola era scritta e non
+     rispettata. Al suo posto c'è ora un client PostgREST minimale scritto qui sotto,
+     come fa `weight-quest.html`.
+     ⚠️ Per la stessa ragione niente Google Fonts: un CSS non legge una variabile
+     JavaScript, quindi il rischio era di un altro ordine, ma «da terzi non si carica
+     niente» è una regola che regge solo se non ha eccezioni — e i caratteri di sistema
+     qui costano nulla. -->
+<script src="/vendor/openpgp.min.js"></script>
+<style>
+:root{
+  --primary:#1F2937; --secondary:#6C5CE7; --success:#00967A; --warning:#F39C12;
+  --danger:#E74C3C; --dark:#1F2937; --light:#FFFFFF; --muted:#6B7280;
+  --border:#E5E7EB; --card-bg:#FFFFFF; --input-bg:#F9FAFB; --oro:#C79A3A;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:linear-gradient(150deg,#0b1220 0%,#1F2937 45%,#0f172a 100%);
+  background-attachment:fixed;min-height:100vh;color:var(--dark);
+  padding-top:56px;overflow-x:hidden;
+  /* Coi caratteri di sistema grandi una parola sola può essere più larga del riquadro:
+     spezzarla è meglio che tagliarla, e a carattere normale non cambia niente. */
+  overflow-wrap:anywhere;
+}
+
+/* ── TOP BAR ── */
+#garsal-top-bar{position:fixed;top:0;left:0;right:0;min-height:56px;background:#0081C8;
+  display:flex;align-items:center;padding:0 16px;gap:10px;z-index:3000}
+#garsal-top-bar-text{font-size:15px;font-weight:700;color:#fff}
+.topbar-spacer{flex:1}
+.header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.app-version{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.62rem;color:rgba(255,255,255,.8);
+  background:rgba(0,0,0,.18);padding:4px 9px;border-radius:99px}
+.sync-badge{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.62rem;padding:4px 9px;border-radius:99px;
+  background:rgba(0,0,0,.2);color:rgba(255,255,255,.8);white-space:nowrap}
+.sync-badge.offline{background:rgba(231,76,60,.85);color:#fff}
+.sync-badge.ok{background:rgba(0,150,122,.9);color:#fff}
+
+/* ── LAYOUT ── */
+.main{max-width:960px;margin:0 auto;padding:18px 14px 80px}
+.card{background:var(--card-bg);border-radius:20px;padding:20px;margin-bottom:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.card-title{font-size:1.15rem;font-weight:900;display:flex;align-items:center;gap:8px;
+  margin-bottom:12px;flex-wrap:wrap}
+.muted{color:var(--muted);font-weight:600}
+.small{font-size:.92rem}
+.tiny{font-size:.82rem}
+.page{display:none}
+.page.on{display:block}
+.sep{height:1px;background:var(--border);margin:16px 0}
+
+/* ── PULSANTI ──
+   Una riga di pulsanti non va mai a capo: scorre col dito. Coi caratteri di sistema
+   grandi andando a capo tre pulsanti diventano tre righe. */
+.btn{border:none;border-radius:12px;padding:11px 16px;font-family:inherit;font-size:1rem;
+  font-weight:800;cursor:pointer;background:var(--primary);color:#fff;min-height:44px}
+.btn:hover:not(:disabled){filter:brightness(1.25)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.6)}
+.btn.ghost{background:var(--input-bg);color:var(--dark);border:1px solid var(--border)}
+.btn.danger{background:var(--danger)}
+.btn.ok{background:var(--success)}
+.btn.oro{background:var(--oro)}
+.btn.small{padding:8px 12px;font-size:.92rem;min-height:38px}
+.row-btns{display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding-bottom:4px;
+  scrollbar-width:thin}
+.row-btns>*{flex:0 0 auto}
+
+/* ── CAMPI ── */
+label{display:block;font-weight:800;margin:12px 0 5px;font-size:.98rem}
+input[type=text],input[type=password],input[type=search],textarea,select{
+  width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:12px;
+  font-family:inherit;font-size:1rem;background:var(--input-bg);color:var(--dark);min-height:44px}
+textarea{resize:vertical;line-height:1.45}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9rem}
+.hint{font-size:.88rem;color:var(--muted);font-weight:600;margin-top:5px}
+
+/* ── AVVISI ── */
+.avviso{border-radius:14px;padding:13px 15px;font-weight:700;margin:12px 0;font-size:.96rem;
+  border-left:5px solid}
+.avviso.giallo{background:#FEF6E7;border-color:var(--warning)}
+.avviso.rosso{background:#FDEDEC;border-color:var(--danger)}
+.avviso.verde{background:#E8F6F3;border-color:var(--success)}
+.avviso.blu{background:#EAF1FB;border-color:#2563EB}
+
+/* ── LA FRASE DA RICORDARE ──
+   Sta a schermo ogni volta che si entra: a forza di rileggerla non è più una procedura
+   letta ma una cosa che si sa. È l'unica cosa che il forziere chiede di ricordare. */
+.ricorda{background:#0f172a;color:#e2e8f0;border-radius:16px;padding:16px 18px;margin-bottom:16px}
+.ricorda .t{font-weight:900;font-size:1.02rem;color:#fff;margin-bottom:8px}
+.ricorda ol{margin:0 0 0 18px;font-weight:700;line-height:1.6}
+.ricorda code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(255,255,255,.12);
+  padding:2px 6px;border-radius:5px;font-size:.86rem}
+
+/* ── SCOMPARTI ──
+   Una riga di pillole che SCORRE e non va a capo: coi caratteri di sistema grandi sei
+   scomparti su 360 px andrebbero a capo tre volte e spingerebbero l'elenco sotto la
+   piega. È la stessa regola delle righe di pulsanti. */
+.box-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:thin}
+.box-bar>*{flex:0 0 auto}
+.box-pill{border:1px solid var(--border);background:var(--input-bg);color:var(--dark);
+  border-radius:99px;padding:8px 14px;font-family:inherit;font-size:.95rem;font-weight:800;
+  cursor:pointer;min-height:38px;display:flex;align-items:center;gap:6px}
+.box-pill.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.box-pill .n{opacity:.65;font-weight:700}
+
+/* ── ELENCO FILE ──
+   Schede e non righe di tabella: sei colonne coi caratteri grandi si tagliano o vanno a
+   capo ognuna per conto suo. */
+.griglia{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:14px}
+.tile{background:var(--input-bg);border:1px solid var(--border);border-radius:16px;
+  overflow:hidden;display:flex;flex-direction:column}
+.tile .anteprima{height:120px;background:#e5e7eb;display:flex;align-items:center;
+  justify-content:center;font-size:2.6rem}
+.tile .anteprima img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .corpo{padding:10px 12px;flex:1;display:flex;flex-direction:column;gap:3px}
+.tile .nome{font-weight:800;line-height:1.25;word-break:break-word}
+.tile .azioni{display:flex;gap:6px;padding:0 12px 12px;overflow-x:auto}
+.tile .azioni>*{flex:0 0 auto}
+.vuoto{text-align:center;padding:34px 12px;color:var(--muted);font-weight:700}
+
+/* ── OVERLAY / MODALI ── */
+.overlay{position:fixed;inset:0;background:rgba(8,12,20,.86);display:none;
+  align-items:center;justify-content:center;z-index:5000;padding:16px}
+.overlay.on{display:flex}
+.modal{background:var(--card-bg);border-radius:20px;padding:22px;width:100%;max-width:560px;
+  max-height:90vh;overflow-y:auto;overflow-x:hidden}
+.modal h3{font-size:1.3rem;font-weight:900;margin-bottom:4px}
+
+/* ── IL VISORE ──
+   Il file si guarda QUI DENTRO e non si scarica: un documento sceso nella cartella
+   Download resta in chiaro sul disco, fuori dal forziere, e ci resta finché qualcuno
+   non se ne ricorda. Il file decifrato vive in un blob in memoria, e si butta chiudendo. */
+.modal.visore{max-width:1100px;width:96vw;padding:16px}
+.visore-testa{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.visore-testa .nome{font-weight:900;font-size:1.05rem;min-width:0;word-break:break-word}
+.visore-corpo{background:#0f172a;border-radius:14px;overflow:auto;display:flex;
+  align-items:center;justify-content:center;height:min(74vh,860px)}
+.visore-corpo img,.visore-corpo video{max-width:100%;max-height:100%;display:block;object-fit:contain}
+.visore-corpo iframe{width:100%;height:100%;border:0;background:#fff}
+.visore-corpo pre{width:100%;height:100%;margin:0;padding:16px;overflow:auto;color:#e2e8f0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86rem;white-space:pre-wrap;
+  word-break:break-word;text-align:left}
+.visore-corpo audio{width:min(90%,520px)}
+.visore-niente{color:#94a3b8;font-weight:700;text-align:center;padding:24px}
+
+/* ── BARRA DI AVANZAMENTO ── */
+.barra{height:10px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:10px}
+.barra i{display:block;height:100%;background:var(--success);width:0;transition:width .2s}
+
+/* ── SBLOCCO ── */
+.serratura{max-width:460px;margin:8vh auto 0;text-align:center}
+.serratura .lucchetto{font-size:3.6rem}
+</style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+  <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+    <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+    <div id="garsal-top-bar-text">Forziere</div>
+  </a>
+  <div class="topbar-spacer"></div>
+  <div class="header-right">
+    <span class="sync-badge" id="syncBadge">···</span>
+    <span class="app-version" id="versionBadge">v1.5.0</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══════ 1. NON C'È ANCORA UN FORZIERE ══════ -->
+  <div class="page" id="pgCrea">
+    <div class="card">
+      <div class="card-title">🔐 Creiamo il forziere</div>
+      <p class="muted small">I file che ci metterai saranno cifrati sul tuo computer, prima di
+      partire. Nessuno — nemmeno chi avesse in mano il database o il Drive — potrà leggerli
+      senza le tue 24 parole.</p>
+
+      <label for="inParole">Le tue 24 parole</label>
+      <textarea id="inParole" class="mono" rows="4" spellcheck="false" autocomplete="off"
+        placeholder="scrivile separate da uno spazio"></textarea>
+      <div class="hint" id="parolePeso">—</div>
+
+      <div class="avviso giallo">
+        <strong>⚠️ Sono per sempre.</strong> Sono la chiave con cui i file vengono cifrati:
+        cambiarle vorrebbe dire ricifrare tutto l'archivio. E se le perdi non c'è niente da
+        fare, per nessuno — non esiste nessuna copia da nessuna parte. È la ragione per cui
+        questo forziere è un forziere.
+      </div>
+
+      <label for="inParole2">Riscrivile, per sicurezza</label>
+      <textarea id="inParole2" class="mono" rows="4" spellcheck="false" autocomplete="off"
+        placeholder="una parola sbagliata è un forziere perso senza che niente te lo dica"></textarea>
+
+      <div class="sep"></div>
+
+      <label for="inPass">Passphrase di tutti i giorni</label>
+      <input type="password" id="inPass" autocomplete="new-password"
+        placeholder="questa la userai ogni volta">
+      <div class="hint">È solo una scorciatoia: se la dimentichi riscrivi le 24 parole e ne
+      scegli un'altra, senza toccare un byte dei file.</div>
+
+      <label for="inPass2">Ripetila</label>
+      <input type="password" id="inPass2" autocomplete="new-password">
+
+      <div class="row-btns">
+        <button class="btn ok" id="btnCrea">🔐 Crea il forziere</button>
+      </div>
+      <div class="barra" id="barraCrea" style="display:none"><i></i></div>
+      <div class="hint" id="statoCrea"></div>
+    </div>
+  </div>
+
+  <!-- ══════ 2. IL FORZIERE È CHIUSO ══════ -->
+  <div class="page" id="pgSblocca">
+    <div class="serratura">
+      <div class="lucchetto">🔐</div>
+      <div class="card" style="margin-top:14px;text-align:left">
+        <div class="card-title">Il forziere è chiuso</div>
+        <label for="inSbloccoPass">Passphrase</label>
+        <input type="password" id="inSbloccoPass" autocomplete="current-password">
+        <div class="row-btns">
+          <button class="btn" id="btnSblocca">Apri</button>
+          <button class="btn ghost" id="btnUsaParole">Ho scordato la passphrase</button>
+        </div>
+        <!-- Compare solo dentro l'APK, e solo se questo telefono è registrato. -->
+        <div class="row-btns" id="rigaImpronta" style="display:none">
+          <button class="btn ok" id="btnImpronta">👆 Sblocca con l'impronta</button>
+        </div>
+        <div class="hint" id="statoSblocco"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 3. FORZIERE APERTO ══════ -->
+  <div class="page" id="pgDentro">
+
+    <div class="ricorda">
+      <div class="t">Se un giorno perdi tutto, ti basta questo</div>
+      <ol>
+        <li>Prendi un file <code>.gpg</code> (da Drive, dall'export, da una chiavetta)</li>
+        <li><code>gpg -d documento.gpg</code> — oppure aprilo con Kleopatra o GPG Suite</li>
+        <li>Scrivi le 24 parole</li>
+      </ol>
+      <div class="tiny" style="margin-top:9px;opacity:.75">Non serve internet, non serve questa
+      app, non serve nient'altro. Le 24 parole sono l'unica cosa che devi ricordare.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        🗂️ <span id="titoloElenco">I miei file</span>
+        <div class="topbar-spacer"></div>
+        <span class="muted small" id="contoFile"></span>
+      </div>
+
+      <div class="box-bar" id="barraBox"></div>
+
+      <input type="search" id="inCerca" placeholder="🔎 Cerca fra i nomi (la ricerca è qui, non sul server)">
+
+      <div class="row-btns">
+        <button class="btn ok" id="btnCarica">📥 Metti dentro un file</button>
+        <button class="btn oro" id="btnExport">💾 Esporta in .7z</button>
+        <button class="btn ghost" id="btnApriQuesto">📄 Scarica APRI-QUESTO</button>
+        <button class="btn ghost" id="btnImpostazioni">⚙️ Impostazioni</button>
+        <button class="btn ghost" id="btnChiudi">🔒 Chiudi il forziere</button>
+      </div>
+      <input type="file" id="filePicker" multiple style="display:none">
+
+      <div class="barra" id="barraOp" style="display:none"><i></i></div>
+      <div class="hint" id="statoOp"></div>
+
+      <div id="avvisoCollaudo"></div>
+      <div id="avvisoExport"></div>
+      <div id="avvisoIndici"></div>
+
+      <div class="griglia" id="griglia"></div>
+      <div class="vuoto" id="vuoto" style="display:none">Il forziere è vuoto.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════ MODALE ══════ -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<!-- ══════ LOGIN ══════ -->
+<div class="overlay" id="authOverlay" style="background:rgba(8,12,20,.97)">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:2.6rem">🔐</div>
+    <h3>Serve il login</h3>
+    <p class="muted small" style="margin:8px 0 14px">Apri il Forziere da AppSphere: il forziere
+    non ha un suo login, usa quello della suite.</p>
+    <a class="btn" href="/" style="display:inline-block;text-decoration:none">Vai ad AppSphere</a>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FORZIERE — versione
+// ============================================================
+var APP_VERSION = 'v1.6.3';
+var BUILD_TIME  = '2026-09-14T10:30:00Z';
+console.log('%c FORZIERE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+  'background:#1F2937;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+  'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+document.getElementById('versionBadge').textContent = APP_VERSION;
+
+// ============================================================
+// SUPABASE
+// ============================================================
+var _DEV_HOSTS = ['localhost','127.0.0.1','0.0.0.0'];
+var _IS_DEV = _DEV_HOSTS.indexOf(window.location.hostname) !== -1
+           || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+           || (window.location.hostname.endsWith('.netlify.app')
+              && window.location.hostname.startsWith('dev--'));
+
+var SUPABASE_URL = _IS_DEV
+  ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+  : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+var SUPABASE_KEY = _IS_DEV
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+var sbAccessToken = null, currentUserId = null, sbPronto = false;
+
+function decodeJWT(t){ try{ return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }catch(e){ return null; } }
+
+// ============================================================
+// POSTGREST — il client minimale che ha preso il posto di supabase-js
+// ============================================================
+// ⚠️ Scritto qui e non caricato da un CDN: vedi il commento in testa alla pagina. La
+// forma delle chiamate è **la stessa di supabase-js** di proposito (`db('tab').select()
+// .eq(...)`, risposta `{data, error}`), così chi arriva da tasks.html o da memo.html
+// trova quello che si aspetta e non deve imparare un secondo dialetto.
+// Serve solo il pezzo che questa pagina usa davvero: select/insert/update/delete con
+// eq, in, order e single. Non è un rimpiazzo generale della libreria.
+function db(tabella){
+  var q = { tabella: tabella, metodo: 'GET', corpo: null, filtri: [], param: [], torna: false, uno: null };
+  var e = encodeURIComponent;
+  var api = {
+    select: function(cols){
+      q.param.push('select=' + e(cols || '*'));
+      if (q.metodo !== 'GET') q.torna = true;   // `.insert(...).select()` = ridammi la riga
+      return api;
+    },
+    insert: function(riga){ q.metodo = 'POST';   q.corpo = riga; return api; },
+    update: function(riga){ q.metodo = 'PATCH';  q.corpo = riga; return api; },
+    delete: function(){      q.metodo = 'DELETE';               return api; },
+    eq: function(col, val){ q.filtri.push(e(col) + '=eq.' + e(val)); return api; },
+    in: function(col, vals){ q.filtri.push(e(col) + '=in.(' + vals.map(e).join(',') + ')'); return api; },
+    order: function(col, opt){
+      q.param.push('order=' + e(col) + '.' + (opt && opt.ascending === false ? 'desc' : 'asc'));
+      return api;
+    },
+    single:      function(){ q.uno = 'esatta'; return api; },
+    maybeSingle: function(){ q.uno = 'forse';  return api; },
+    // Thenable: `await db(...)...` funziona a qualsiasi punto della catena, come là.
+    then: function(ok, ko){ return esegui(q).then(ok, ko); }
+  };
+  return api;
+}
+
+async function esegui(q){
+  // ⚠️ Una PATCH o una DELETE senza filtri tocca TUTTE le righe che la RLS lascia
+  // passare. Qui non capita — ogni chiamata ha il suo `.eq()` — ma il giorno che una
+  // riga si scrivesse per sbaglio senza, il danno sarebbe silenzioso e completo: meglio
+  // fermarsi. È lo stesso ragionamento dei DELETE col `user_id` ridondante in Obiettivi.
+  if ((q.metodo === 'PATCH' || q.metodo === 'DELETE') && !q.filtri.length) {
+    return { data: null, error: { message: q.metodo + ' senza filtri: mi fermo', status: 0 } };
+  }
+  var url = SUPABASE_URL + '/rest/v1/' + q.tabella;
+  var pezzi = q.filtri.concat(q.param);
+  if (pezzi.length) url += '?' + pezzi.join('&');
+
+  var headers = {
+    apikey: SUPABASE_KEY,
+    Authorization: 'Bearer ' + sbAccessToken,
+    'Content-Type': 'application/json'
+  };
+  if (q.torna) headers.Prefer = 'return=representation';
+
+  try {
+    var r = await fetch(url, {
+      method: q.metodo, headers: headers,
+      body: q.corpo == null ? undefined : JSON.stringify(q.corpo)
+    });
+    if (!r.ok) {
+      var testo = await r.text();
+      var msg = testo;
+      try { msg = JSON.parse(testo).message || testo; } catch(err){}
+      // `status` serve a `handleAuthError`, che sul 401 chiude il forziere.
+      return { data: null, error: { message: msg, status: r.status } };
+    }
+    // DELETE e PATCH senza `.select()` non restituiscono niente, come là.
+    if (r.status === 204 || !q.torna && q.metodo !== 'GET') return { data: null, error: null };
+
+    var dati = await r.json();
+    if (q.uno) {
+      // Stesso contratto di supabase-js: `single()` pretende una riga sola,
+      // `maybeSingle()` ammette lo zero e risponde `data: null`.
+      if (dati.length === 1) return { data: dati[0], error: null };
+      if (dati.length === 0 && q.uno === 'forse') return { data: null, error: null };
+      return { data: null, error: { message: 'attesa una riga sola, ne sono tornate ' + dati.length, status: 406 } };
+    }
+    return { data: dati, error: null };
+  } catch(err){
+    return { data: null, error: { message: String(err && err.message || err), status: 0 } };
+  }
+}
+
+// ⚠️ Un token scaduto NON è un token. Un access token di Supabase dura un'ora,
+// `sb_token` in localStorage no: senza questo controllo la pagina si apriva come se la
+// sessione ci fosse, e a scoprirlo era la prima chiamata — col messaggio del gateway
+// (`{"code":"UNAUTHORIZED_ASYMMETRIC_JWT","message":"Invalid JWT"}`) scritto in faccia
+// al posto della richiesta di rifare il login. È successo il 10 settembre 2026.
+// ⚠️ Il margine di 30 secondi non è prudenza generica: senza, si può partire con un
+// token che scade nel mezzo dello sblocco, cioè il caso peggiore — le 24 parole già
+// scritte e la chiamata che le usa che fallisce.
+// ⚠️ Un token illeggibile o senza `exp` vale scaduto: non ci si fida di ciò che non si
+// riesce a leggere.
+function tokenVivo(t){
+  var p = decodeJWT(t);
+  if (!p || !p.exp) return false;
+  return p.exp * 1000 > Date.now() + 30000;
+}
+
+function initWithToken(token){
+  if (sbPronto) return;
+  sbPronto = true;
+  sbAccessToken = token;
+  localStorage.setItem('sb_token', token);
+  var p = decodeJWT(token);
+  currentUserId = p && p.sub ? p.sub : null;
+  document.getElementById('authOverlay').classList.remove('on');
+  startApp();
+}
+
+function handleAuthError(error){
+  if (!error) return false;
+  var m = (error.message||'').toLowerCase();
+  var isAuth = error.status === 401 || m.indexOf('jwt expired') !== -1
+            || m.indexOf('invalid jwt') !== -1 || m.indexOf('not authenticated') !== -1;
+  if (!isAuth) return false;
+  chiudiForziere('la sessione è scaduta');
+  sbPronto = false; sbAccessToken = null;
+  localStorage.removeItem('sb_token');
+  document.getElementById('authOverlay').classList.add('on');
+  return true;
+}
+
+window.addEventListener('message', function(e){
+  if (e.data && e.data.type === 'SB_TOKEN' && e.data.token) initWithToken(e.data.token);
+});
+
+var _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = function(e){
+  if (!e.data) return;
+  if (e.data.type === 'LOGOUT'){
+    // ⚠️ Uscendo dalla suite il forziere si CHIUDE, non resta aperto in una scheda
+    // dimenticata: le 24 parole vivono in memoria e devono sparire con la sessione.
+    chiudiForziere('sei uscito da AppSphere');
+    sbPronto = false; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').classList.add('on');
+  } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken){
+    // Il token nuovo basta scriverlo: ogni chiamata lo rilegge da `sbAccessToken`.
+    // Con la libreria bisognava invece ricostruire il client, che è esattamente il
+    // genere di passo che una volta ci si dimentica.
+    localStorage.setItem('sb_token', e.data.sbToken);
+    sbAccessToken = e.data.sbToken;
+    // ⚠️ Se la pagina è ferma sulla richiesta di login — token trovato scaduto
+    // all'apertura, o sessione caduta mentre la si usava — il token nuovo la fa
+    // ripartire invece di restare solo scritto: senza, l'overlay resterebbe lì con la
+    // sessione già buona sotto, e l'unico rimedio sarebbe ricaricare a mano.
+    if (!sbPronto) initWithToken(e.data.sbToken);
+  }
+};
+
+function setSync(stato, testo){
+  var el = document.getElementById('syncBadge');
+  el.textContent = testo;
+  el.className = 'sync-badge' + (stato ? ' ' + stato : '');
+}
+
+// ============================================================
+// STATO — ⚠️ tutto quello che apre il forziere vive QUI, in memoria, e in nessun
+// altro posto. Niente localStorage, niente sessionStorage: una scheda chiusa, un
+// processo terminato o il blocco automatico devono portarselo via.
+// ============================================================
+var S = {
+  vault: null,          // la riga di frz_vault
+  parole: null,         // le 24 parole normalizzate — solo mentre il forziere è aperto
+  chiaveIndice: null,   // CryptoKey non estraibile: nemmeno questo codice ne legge i byte
+  file: [],             // l'elenco, coi metadati già decifrati
+  boxes: [],            // gli scomparti, coi nomi già decifrati
+  box: null,            // null = tutti · '_senza' = fuori da ogni scomparto · id = quello
+  thumbs: {},           // id → dataURL, riempito pigramente
+  cerca: '',
+  visore: null,        // il file aperto adesso: blob + byte in chiaro, buttati alla chiusura
+  timerBlocco: null,
+  scorc: null,          // `scorciatoia.gpg` CIFRATA: non è un segreto (sta su Drive così
+                        // com'è), e serve a verificare la passphrase senza chiedere la rete
+  occupato: 0,          // quante operazioni lunghe sono in corso adesso (vedi bloccoSeNascosto)
+  timerNascosto: null,
+  indiciRotti: false    // l'ultima riscrittura degli indici su Drive non è andata a segno
+};
+
+var MINUTI_BLOCCO = 10;
+
+// ============================================================
+// OPENPGP — la configurazione che decide se `gpg -d` funziona
+// ============================================================
+// ⚠️ `aeadProtect = false` NON è una svista né un'impostazione di ripiego: è la
+// compatibilità. OpenPGP.js v6 userebbe di suo il formato SEIPDv2 (AEAD, RFC 9580), che
+// GnuPG legge solo dalla 2.5 in poi — cioè NON la versione installata oggi sulla gran
+// parte dei computer. Con SEIPDv1 il file lo apre qualunque gpg degli ultimi vent'anni,
+// ed è tutto il punto di aver scelto questo formato.
+openpgp.config.aeadProtect = false;
+openpgp.config.preferredSymmetricAlgorithm = openpgp.enums.symmetric.aes256;
+// La derivazione dalla password: il massimo che il formato ammette. Le 24 parole non ne
+// avrebbero bisogno, ma la scorciatoia è una passphrase corta e questo la protegge.
+openpgp.config.s2kIterationCountByte = 255;
+
+// ⚠️ LA NORMALIZZAZIONE DEVE ESSERE RIPRODUCIBILE A MANO, perché le stesse parole le
+// riscriverai dentro gpg, che non normalizza niente: prende i byte che digiti. Quindi
+// la forma canonica è la più semplice che esista — tutto minuscolo, una parola dopo
+// l'altra separate da UN solo spazio — e la pagina te la mostra alla creazione perché sia
+// quella che ricordi. Qualsiasi regola più furba di questa sarebbe irripetibile davanti
+// a un terminale.
+function normParole(s){
+  return String(s == null ? '' : s)
+    .normalize('NFC')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// Quanto valgono davvero. Non la lunghezza delle parole — quella non c'entra quasi
+// niente — ma quante sono e quante sono DIVERSE: 24 parole con 6 distinte valgono 6.
+function pesaParole(s){
+  var p = normParole(s);
+  if (!p) return { ok:false, n:0, distinte:0, msg:'—' };
+  var w = p.split(' ');
+  var set = {}, ripetuta = 0;
+  w.forEach(function(x){ set[x] = (set[x]||0)+1; });
+  Object.keys(set).forEach(function(k){ if (set[k] > 2) ripetuta++; });
+  var distinte = Object.keys(set).length;
+  var problemi = [];
+  if (w.length < 12) problemi.push('servono almeno 12 parole (ne hai ' + w.length + ')');
+  if (distinte < 10) problemi.push('almeno 10 devono essere diverse (ne hai ' + distinte + ')');
+  if (ripetuta) problemi.push('nessuna parola va ripetuta più di due volte');
+  return {
+    ok: problemi.length === 0,
+    n: w.length, distinte: distinte, canonica: p,
+    msg: problemi.length ? '⚠️ ' + problemi.join(' · ')
+                         : '✅ ' + w.length + ' parole, ' + distinte + ' diverse'
+  };
+}
+
+function b64(buf){
+  var b = new Uint8Array(buf), s = '';
+  // A blocchi: `String.fromCharCode.apply` su centinaia di migliaia di elementi
+  // sfonda il limite degli argomenti, e fallisce solo sui file grandi.
+  for (var i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i+8192));
+  return btoa(s);
+}
+function daB64(s){
+  var bin = atob(s), out = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// ── I file: OpenPGP simmetrico, la password sono le 24 parole ──────────────────
+// Il nome originale viaggia DENTRO il pacchetto cifrato (literal packet), quindi il file
+// su Drive può chiamarsi come un numero e restare muto, e `gpg -d --use-embedded-filename`
+// lo rimette a posto. È anche il motivo per cui il database non è indispensabile.
+async function cifraFile(bytes, nome, parole){
+  var msg = await openpgp.createMessage({ binary: new Uint8Array(bytes), filename: nome });
+  return await openpgp.encrypt({ message: msg, passwords: [parole], format: 'binary' });
+}
+async function decifraFile(bytes, parole){
+  var msg = await openpgp.readMessage({ binaryMessage: new Uint8Array(bytes) });
+  var r = await openpgp.decrypt({ message: msg, passwords: [parole], format: 'binary' });
+  return { dati: r.data, nome: r.filename || '' };
+}
+async function cifraTesto(testo, parole){
+  var msg = await openpgp.createMessage({ text: testo });
+  return await openpgp.encrypt({ message: msg, passwords: [parole], format: 'binary' });
+}
+async function decifraTesto(bytes, parole){
+  var msg = await openpgp.readMessage({ binaryMessage: new Uint8Array(bytes) });
+  var r = await openpgp.decrypt({ message: msg, passwords: [parole] });
+  return r.data;
+}
+
+// ── I metadati: AES-256-GCM sotto la chiave dell'indice ────────────────────────
+// ⚠️ Perché non OpenPGP anche qui: ogni apertura di OpenPGP con una password rifà la
+// derivazione lenta, e per trecento nomi di file vorrebbe dire trecento derivazioni, cioè
+// minuti. La chiave dell'indice è invece 32 byte casuali — non si indovina, quindi non
+// serve renderla lenta — e sta su Drive dentro `indice.gpg`, cifrata con le 24 parole.
+async function cifraMeta(obj){
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, S.chiaveIndice,
+              new TextEncoder().encode(JSON.stringify(obj)));
+  var out = new Uint8Array(12 + ct.byteLength);
+  out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+  return b64(out);
+}
+async function decifraMeta(s){
+  var raw = daB64(s);
+  var pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: raw.subarray(0,12) },
+              S.chiaveIndice, raw.subarray(12));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function cifraBytes(bytes){
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, S.chiaveIndice, bytes);
+  var out = new Uint8Array(12 + ct.byteLength);
+  out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+  return b64(out);
+}
+async function decifraBytes(s){
+  var raw = daB64(s);
+  return new Uint8Array(await crypto.subtle.decrypt(
+    { name:'AES-GCM', iv: raw.subarray(0,12) }, S.chiaveIndice, raw.subarray(12)));
+}
+
+// `extractable: false`: la chiave esiste nel browser ma da JavaScript non se ne leggono
+// i byte. Anche un'iniezione di codice nella pagina potrebbe usarla finché la pagina è
+// aperta, ma non portarsela via.
+async function importaChiaveIndice(bytes){
+  return await crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt','decrypt']);
+}
+
+// ============================================================
+// DRIVE — il ponte, che non vede mai niente in chiaro
+// ============================================================
+var FUNZIONE = function(){ return SUPABASE_URL + '/functions/v1/forziere-drive'; };
+
+async function drive(azione, corpo){
+  var r = await fetch(FUNZIONE(), {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+sbAccessToken, 'apikey':SUPABASE_KEY },
+    body: JSON.stringify(Object.assign({ azione: azione }, corpo || {}))
+  });
+  // ⚠️ UNA SESSIONE SCADUTA SI RICONOSCE QUI, e non si legge come un guasto del Drive.
+  // Il gateway di Supabase risponde **prima** che la funzione parta, quindi quello che
+  // torna non parla di Google affatto — ma il prefisso «Drive: » qui sotto lo faceva
+  // sembrare tale, e ci si metteva a cercare il guasto dalla parte sbagliata.
+  // `handleAuthError` c'era già e chiude il forziere riportando al login: la usavano le
+  // sole chiamate al database, e la Edge Function le passava accanto.
+  if (r.status === 401 || r.status === 403){
+    var errAuth = await r.text();
+    if (handleAuthError({ status: r.status, message: errAuth })) {
+      throw new Error('la sessione è scaduta: rientra da AppSphere');
+    }
+    throw new Error('Drive: ' + errAuth.slice(0, 200));
+  }
+  if (azione === 'get'){
+    if (!r.ok) throw new Error('Drive: ' + (await r.text()).slice(0,200));
+    return new Uint8Array(await r.arrayBuffer());
+  }
+  var d = await r.json();
+  if (!d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+  return d;
+}
+
+// I byte vanno dal browser a Google DIRETTI: la Edge Function dà solo l'indirizzo.
+// ⚠️ Se quella strada non passa — una policy del browser, un proxy che rompe il PUT fra
+// domini — i file abbastanza piccoli ripiegano sulla funzione invece di fallire e basta.
+// Sono già cifrati, quindi passare di là non cambia niente di quel che qualcuno vedrebbe:
+// cambia solo chi trasporta i byte.
+var RIPIEGO_MAX = 8 * 1024 * 1024;
+async function driveCarica(nome, bytes, onProgresso, cartella){
+  try {
+    return await driveCaricaDiretto(nome, bytes, onProgresso, cartella);
+  } catch(e){
+    if (bytes.length > RIPIEGO_MAX) throw e;
+    console.warn('caricamento diretto non riuscito, ripiego sulla funzione:', e.message);
+    if (onProgresso) onProgresso(0.5);
+    var r = await drive('put', { nome: nome, base64: b64(bytes), cartella: cartella || '' });
+    if (onProgresso) onProgresso(1);
+    return r.id;
+  }
+}
+
+async function driveCaricaDiretto(nome, bytes, onProgresso, cartella){
+  var d = await drive('upload-url', { nome: nome, bytes: bytes.length, cartella: cartella || '' });
+  var r = await new Promise(function(risolvi, rifiuta){
+    var x = new XMLHttpRequest();
+    x.open('PUT', d.url, true);
+    x.setRequestHeader('Content-Type', 'application/octet-stream');
+    if (onProgresso) x.upload.onprogress = function(e){
+      if (e.lengthComputable) onProgresso(e.loaded / e.total);
+    };
+    x.onload = function(){ risolvi({ stato:x.status, testo:x.responseText }); };
+    x.onerror = function(){ rifiuta(new Error('caricamento interrotto')); };
+    x.send(bytes);
+  });
+  if (r.stato < 200 || r.stato > 299) throw new Error('Google ha rifiutato il caricamento (HTTP ' + r.stato + ')');
+  try { return JSON.parse(r.testo).id; } catch(e){ throw new Error('Google non ha detto l\'id del file'); }
+}
+
+// ============================================================
+// UTILITÀ DI PAGINA
+// ============================================================
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function mostraPagina(id){
+  ['pgCrea','pgSblocca','pgDentro'].forEach(function(p){ $(p).classList.toggle('on', p === id); });
+}
+function peso(n){
+  n = Number(n)||0;
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n/1024).toFixed(0) + ' kB';
+  if (n < 1073741824) return (n/1048576).toFixed(1) + ' MB';
+  return (n/1073741824).toFixed(2) + ' GB';
+}
+function apriModale(html){ $('modalBody').innerHTML = html; $('overlay').classList.add('on'); }
+function chiudiModale(){
+  $('overlay').classList.remove('on');
+  $('modalBody').innerHTML = '';
+  $('modalBody').classList.remove('visore');
+  // ⚠️ Il blob del file decifrato si revoca QUI e non nel pulsante di chiusura: da questa
+  // finestra si esce anche col ✕, con l'indietro di Android e col blocco automatico, e un
+  // blob non revocato resta raggiungibile per tutta la vita della pagina.
+  if (S.visore){ try { URL.revokeObjectURL(S.visore.url); } catch(e){} S.visore = null; }
+}
+function avanzamento(barra, stato, frazione, testo){
+  var b = $(barra);
+  b.style.display = frazione == null ? 'none' : 'block';
+  if (frazione != null) b.firstElementChild.style.width = Math.round(frazione*100) + '%';
+  $(stato).textContent = testo || '';
+}
+function iconaPer(tipo, nome){
+  var t = (tipo||'') + ' ' + (nome||'');
+  if (/image\//.test(tipo)) return '🖼️';
+  if (/video\//.test(tipo)) return '🎬';
+  if (/audio\//.test(tipo)) return '🎵';
+  if (/pdf/i.test(t)) return '📕';
+  if (/word|document|\.docx?$/i.test(t)) return '📄';
+  if (/sheet|excel|\.xlsx?$|\.csv$/i.test(t)) return '📊';
+  if (/zip|rar|7z|tar|gz/i.test(t)) return '🗜️';
+  return '📎';
+}
+
+// ⚠️ Il blocco automatico non è un vezzo: le 24 parole vivono in memoria mentre il
+// forziere è aperto, e una scheda lasciata aperta su un computer è il forziere aperto.
+function rinviaBlocco(){
+  if (S.timerBlocco) clearTimeout(S.timerBlocco);
+  if (!S.parole) return;
+  S.timerBlocco = setTimeout(function(){
+    chiudiForziere('sono passati ' + MINUTI_BLOCCO + ' minuti senza toccare niente');
+  }, MINUTI_BLOCCO * 60000);
+}
+['click','keydown','pointerdown'].forEach(function(ev){
+  document.addEventListener(ev, function(){ if (S.parole) rinviaBlocco(); }, true);
+});
+
+// ⚠️ Il timer da solo non basta: una scheda che se ne va può tornare indietro dalla cache
+// di navigazione del browser (bfcache) col forziere ANCORA APERTO — e in quello stato i
+// timer sono congelati, quindi i dieci minuti non passano mai. Si chiude quindi anche
+// quando la scheda se ne va o passa in secondo piano: rientrare costa la passphrase, cioè
+// due secondi, e in cambio non esiste nessuno stato in cui il forziere resta aperto senza
+// che nessuno lo stia guardando.
+// ⚠️ Un'operazione lunga in corso NON si interrompe a metà: chiudendo il forziere mentre
+// un file sta salendo, le 24 parole e la chiave dell'indice spariscono a caricamento
+// avviato — il file resterebbe su Drive senza la sua riga, cioè un pacchetto cifrato che
+// nessuno sa più cos'è e che dall'app non si può più togliere. Si aspetta la fine.
+function bloccaSeNascosto(){
+  if (!S.parole) return true;
+  if (S.occupato > 0) return false;
+  chiudiForziere('la scheda è passata in secondo piano');
+  return true;
+}
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden){
+    if (S.timerNascosto){ clearInterval(S.timerNascosto); S.timerNascosto = null; }
+    return;
+  }
+  if (bloccaSeNascosto() || S.timerNascosto) return;
+  // ⚠️ In una scheda nascosta i timer del browser sono rallentati a uno scatto al minuto:
+  // va bene, qui si aspetta soltanto che l'operazione in corso finisca.
+  S.timerNascosto = setInterval(function(){
+    if (!document.hidden || bloccaSeNascosto()){
+      clearInterval(S.timerNascosto); S.timerNascosto = null;
+    }
+  }, 1000);
+});
+
+// ⚠️ `pagehide` e non `beforeunload`: il secondo non scatta affatto su iOS e su Android
+// quando la scheda viene semplicemente messa via, che è il caso per cui questo serve.
+// Qui si chiude comunque, anche a operazione in corso: la pagina se ne sta andando e con
+// lei se ne va tutto quello che c'era da salvare.
+window.addEventListener('pagehide', function(){
+  if (S.timerNascosto){ clearInterval(S.timerNascosto); S.timerNascosto = null; }
+  if (S.parole) chiudiForziere('la scheda è stata chiusa');
+});
+
+function chiudiForziere(perche){
+  S.parole = null; S.chiaveIndice = null; S.file = []; S.boxes = []; S.box = null; S.thumbs = {};
+  S.scorc = null;
+  if (S.timerBlocco) { clearTimeout(S.timerBlocco); S.timerBlocco = null; }
+  if (S.timerNascosto) { clearInterval(S.timerNascosto); S.timerNascosto = null; }
+  chiudiModale();
+  if (S.vault) {
+    mostraPagina('pgSblocca');
+    $('statoSblocco').textContent = perche ? '🔒 Chiuso: ' + perche + '.' : '';
+    // Registrata l'impronta e richiuso il forziere, il pulsante dev'esserci
+    // subito: `startApp` è passato una volta sola, all'avvio della pagina.
+    mostraSbloccoImpronta();
+  }
+  setSync('', 'chiuso');
+}
+
+// ============================================================
+// CARICAMENTO DELLO STATO
+// ============================================================
+async function startApp(){
+  setSync('', 'leggo…');
+  var r = await db('frz_vault').select('*').eq('user_id', currentUserId).maybeSingle();
+  if (handleAuthError(r.error)) return;
+  if (r.error) { setSync('offline', 'errore'); alert('Errore: ' + r.error.message); return; }
+  S.vault = r.data || null;
+  setSync('', S.vault ? 'chiuso' : 'nuovo');
+  mostraPagina(S.vault ? 'pgSblocca' : 'pgCrea');
+  if (S.vault) mostraSbloccoImpronta();
+  if (!S.vault) $('inParole').focus(); else $('inSbloccoPass').focus();
+}
+
+// ============================================================
+// CREAZIONE
+// ============================================================
+$('inParole').addEventListener('input', function(){
+  var p = pesaParole(this.value);
+  $('parolePeso').textContent = p.msg;
+  $('parolePeso').style.color = p.ok ? 'var(--success)' : 'var(--muted)';
+});
+
+$('btnCrea').addEventListener('click', async function(){
+  var p1 = pesaParole($('inParole').value), can = p1.canonica;
+  var p2 = normParole($('inParole2').value);
+  var pw = $('inPass').value, pw2 = $('inPass2').value;
+
+  if (!p1.ok) return alert('Le 24 parole non vanno bene:\n\n' + p1.msg);
+  if (can !== p2) return alert('Le due scritture delle 24 parole non coincidono.\n\nControlla con calma: una parola sbagliata adesso è un forziere che non si aprirà mai.');
+  if (pw.length < 6) return alert('La passphrase è troppo corta: almeno 6 caratteri.');
+  if (pw !== pw2) return alert('Le due passphrase non coincidono.');
+
+  this.disabled = true;
+  try {
+    avanzamento('barraCrea','statoCrea', 0.1, 'Preparo la cartella su Drive…');
+    var init = await drive('init', {});
+
+    avanzamento('barraCrea','statoCrea', 0.35, 'Genero la chiave dell\'indice…');
+    var chiave = crypto.getRandomValues(new Uint8Array(32));
+    var indice = await cifraTesto(b64(chiave), can);
+    var idIndice = (await drive('put', { nome:'indice.gpg', base64: b64(indice) })).id;
+
+    avanzamento('barraCrea','statoCrea', 0.65, 'Preparo la scorciatoia della passphrase…');
+    var scorc = await cifraTesto(can, pw);
+    S.scorc = scorc;
+    var idScorc = (await drive('put', { nome:'scorciatoia.gpg', base64: b64(scorc) })).id;
+
+    avanzamento('barraCrea','statoCrea', 0.85, 'Registro il forziere…');
+    var ins = await db('frz_vault').insert({
+      user_id: currentUserId,
+      drive_folder_id: init.cartella,
+      drive_indice_id: idIndice,
+      drive_scorciatoia_id: idScorc
+    }).select().single();
+    if (ins.error) throw new Error(ins.error.message);
+
+    S.vault = ins.data;
+    S.parole = can;
+    S.chiaveIndice = await importaChiaveIndice(chiave);
+
+    // I due indici nascono col forziere, vuoti. ⚠️ Un `contenuto.gpg` che dice «qui non
+    // c'è niente» non è inutile: è la prova che l'indice esiste e si apre, il primo
+    // giorno invece che al primo recupero. Se non passano non si ferma la creazione —
+    // il forziere c'è comunque, e il rimedio è un pulsante nelle Impostazioni.
+    S.boxes = []; S.file = [];
+    try { await tuttiGliIndici(); } catch(err){ console.warn('indici iniziali:', err); }
+
+    avanzamento('barraCrea','statoCrea', null, '');
+    $('inParole').value = ''; $('inParole2').value = ''; $('inPass').value = ''; $('inPass2').value = '';
+
+    mostraForma(can);
+  } catch(e){
+    avanzamento('barraCrea','statoCrea', null, '');
+    alert('Non ce l\'ho fatta: ' + e.message);
+  } finally { this.disabled = false; }
+});
+
+// ⚠️ Le parole si mostrano in forma CANONICA una volta sola, appena create: è così che
+// andranno riscritte dentro gpg, che non normalizza niente e prende i byte che digiti.
+// Mostrare la forma canonica adesso è ciò che rende ricordabile la procedura dopo.
+function mostraForma(can){
+  apriModale(
+    '<h3>✅ Il forziere è pronto</h3>' +
+    '<p class="muted small" style="margin:8px 0 12px">Queste sono le tue 24 parole <strong>nella forma esatta in cui vanno riscritte</strong> — tutto minuscolo, una parola dopo l\'altra separate da uno spazio solo. Scrivendole così in gpg, il file si apre.</p>' +
+    '<div class="mono" style="background:var(--input-bg);border:1px solid var(--border);border-radius:12px;padding:12px;line-height:1.7">' + esc(can) + '</div>' +
+    '<div class="avviso rosso" style="margin-top:14px"><strong>Non fotografarle e non salvarle su questo computer.</strong> Una foto finisce nel cloud delle immagini, un file di testo finisce in un backup. Se le vuoi su carta, scrivile a mano.</div>' +
+    '<div class="avviso blu">Adesso facciamo il <strong>collaudo</strong>: te le faccio riscrivere per essere certi che il recupero funzioni. È l\'unico modo per saperlo oggi invece che fra dieci anni.</div>' +
+    '<div class="row-btns"><button class="btn ok" onclick="apriCollaudo()">Facciamo il collaudo</button>' +
+    '<button class="btn ghost" onclick="chiudiModale();entraDentro()">Dopo</button></div>');
+}
+
+// ============================================================
+// SBLOCCO
+// ============================================================
+$('btnSblocca').addEventListener('click', async function(){
+  var pw = $('inSbloccoPass').value;
+  if (!pw) return;
+  this.disabled = true;
+  $('statoSblocco').textContent = 'Apro…';
+  try {
+    var scorc = await drive('get', { id: S.vault.drive_scorciatoia_id });
+    S.scorc = scorc;
+    var parole;
+    try { parole = await decifraTesto(scorc, pw); }
+    catch(e){ throw new Error('passphrase sbagliata'); }
+    await apriConParole(normParole(parole));
+    $('inSbloccoPass').value = '';
+  } catch(e){
+    $('statoSblocco').textContent = '❌ ' + e.message;
+  } finally { this.disabled = false; }
+});
+$('inSbloccoPass').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btnSblocca').click(); });
+$('btnImpronta').addEventListener('click', sbloccaConImpronta);
+
+$('btnUsaParole').addEventListener('click', function(){
+  apriModale(
+    '<h3>Le 24 parole</h3>' +
+    '<p class="muted small" style="margin:8px 0 4px">Tutto minuscolo, separate da uno spazio.</p>' +
+    '<textarea id="mdParole" class="mono" rows="4" spellcheck="false" autocomplete="off"></textarea>' +
+    '<div class="hint" id="mdStato"></div>' +
+    '<div class="row-btns"><button class="btn ok" id="mdOk">Apri il forziere</button>' +
+    '<button class="btn ghost" onclick="chiudiModale()">Annulla</button></div>');
+  $('mdParole').focus();
+  $('mdOk').addEventListener('click', async function(){
+    var can = normParole($('mdParole').value);
+    if (!can) return;
+    this.disabled = true;
+    $('mdStato').textContent = 'Provo…';
+    try {
+      await apriConParole(can);
+      chiudiModale();
+      // Aperto con le parole vuol dire che la passphrase è persa: se ne rifà una,
+      // e la vecchia scorciatoia viene sostituita.
+      setTimeout(function(){ cambiaPassphrase(true); }, 200);
+    } catch(e){
+      $('mdStato').textContent = '❌ ' + e.message;
+      this.disabled = false;
+    }
+  });
+});
+
+// Il cuore: le parole aprono `indice.gpg`, e se non lo aprono NON sono quelle di questo
+// forziere. ⚠️ `indice.gpg` fa da prova senza essere un secondo oggetto: se si decifra,
+// le parole sono giuste; se no, no. Un verificatore a parte sarebbe una seconda verità
+// sulla stessa domanda — e un oracolo in più per chi prova a indovinare.
+async function apriConParole(can){
+  var raw = await drive('get', { id: S.vault.drive_indice_id });
+  var chiaveB64;
+  try { chiaveB64 = await decifraTesto(raw, can); }
+  catch(e){ throw new Error('queste non sono le parole di questo forziere'); }
+  S.parole = can;
+  S.chiaveIndice = await importaChiaveIndice(daB64(chiaveB64.trim()));
+  await entraDentro();
+}
+
+async function entraDentro(){
+  mostraPagina('pgDentro');
+  setSync('ok', 'aperto');
+  rinviaBlocco();
+  await caricaElenco();
+  disegnaAvvisi();
+}
+
+// ============================================================
+// L'ELENCO
+// ============================================================
+async function caricaElenco(){
+  await caricaBoxes();
+  var r = await db('frz_files').select('*').eq('user_id', currentUserId)
+            .order('creato_il', { ascending:false });
+  if (handleAuthError(r.error)) return;
+  if (r.error) { alert('Errore: ' + r.error.message); return; }
+  S.file = [];
+  for (var i = 0; i < (r.data||[]).length; i++){
+    var riga = r.data[i], meta;
+    // ⚠️ Una riga che non si decifra non fa saltare l'elenco: si mostra e si dice che
+    // c'è. Sparire sarebbe il modo peggiore di segnalare un problema — un file in meno
+    // e nessuno che spieghi perché.
+    try { meta = await decifraMeta(riga.meta_enc); }
+    catch(e){ meta = { nome:'(metadati illeggibili)', tipo:'', rotto:true }; }
+    S.file.push({ riga: riga, meta: meta });
+  }
+  disegnaGriglia();
+  caricaMiniature();
+}
+
+// ============================================================
+// GLI SCOMPARTI
+// ============================================================
+// ⚠️ Sono ORGANIZZAZIONE, non separazione: le 24 parole sono una sola per tutto il
+// forziere, quindi chi lo apre apre tutti gli scomparti. Servono a tenere in ordine, e
+// il giorno che servisse davvero un forziere che l'altro non apre, quello vuol dire 24
+// parole per forziere — cioè N segreti per sempre, non una tendina in più.
+async function caricaBoxes(){
+  var r = await db('frz_boxes').select('*').eq('user_id', currentUserId)
+            .order('position', { ascending:true });
+  if (r.error) { S.boxes = []; return; }
+  S.boxes = [];
+  for (var i = 0; i < (r.data||[]).length; i++){
+    var meta;
+    // Come per i file: uno scomparto che non si decifra si mostra e lo dice, invece di
+    // sparire portandosi dietro l'elenco di quel che contiene.
+    try { meta = await decifraMeta(r.data[i].meta_enc); }
+    catch(e){ meta = { nome:'(nome illeggibile)', emoji:'⚠️' }; }
+    S.boxes.push({ riga: r.data[i], meta: meta });
+  }
+}
+
+function nomeBox(id){
+  if (id === '_senza') return 'Senza scomparto';
+  var b = S.boxes.find(function(x){ return x.riga.id === id; });
+  return b ? ((b.meta.emoji || '📁') + ' ' + (b.meta.nome || '')) : '';
+}
+function contaBox(id){
+  return S.file.filter(function(f){
+    return id === '_senza' ? !f.riga.box_id : f.riga.box_id === id;
+  }).length;
+}
+
+function disegnaBoxes(){
+  var senza = contaBox('_senza');
+  var h = '<button class="box-pill' + (S.box === null ? ' on' : '') + '" onclick="vaiBox(null)">' +
+          'Tutti <span class="n">' + S.file.length + '</span></button>';
+  S.boxes.forEach(function(b){
+    h += '<button class="box-pill' + (S.box === b.riga.id ? ' on' : '') +
+         '" onclick="vaiBox(\'' + b.riga.id + '\')">' +
+         esc((b.meta.emoji || '📁') + ' ' + (b.meta.nome || '')) +
+         ' <span class="n">' + contaBox(b.riga.id) + '</span></button>';
+  });
+  // ⚠️ «Senza scomparto» compare solo se serve davvero: senza nessuno scomparto
+  // sarebbe un doppione di «Tutti», e a zero file sarebbe una pillola che non apre niente.
+  if (S.boxes.length && senza)
+    h += '<button class="box-pill' + (S.box === '_senza' ? ' on' : '') + '" onclick="vaiBox(\'_senza\')">' +
+         'Senza scomparto <span class="n">' + senza + '</span></button>';
+  if (S.box && S.box !== '_senza')
+    h += '<button class="box-pill" onclick="modificaBox(\'' + S.box + '\')">✎</button>';
+  h += '<button class="box-pill" onclick="nuovoBox()">➕ Scomparto</button>';
+  $('barraBox').innerHTML = h;
+}
+
+// Dove finisce un file caricato adesso. ⚠️ Da «Tutti» e da «Senza scomparto» il file
+// nasce fuori da ogni scomparto: metterlo d'ufficio nel primo della lista sarebbe una
+// scelta presa dall'app al posto di chi carica, e la si scoprirebbe cercandolo altrove.
+function boxCorrente(){ return (S.box && S.box !== '_senza') ? S.box : null; }
+
+function vaiBox(id){ S.box = id; disegnaGriglia(); caricaMiniature(); }
+
+function nuovoBox(){
+  formBox(null);
+}
+function modificaBox(id){
+  var b = S.boxes.find(function(x){ return x.riga.id === id; });
+  if (b) formBox(b);
+}
+
+var EMOJI_BOX = ['📁','📄','🏠','🏥','💼','🎓','🚗','💳','📜','🔑','🧾','❤️'];
+
+function formBox(b){
+  var scelta = b ? (b.meta.emoji || '📁') : '📁';
+  apriModale(
+    '<h3>' + (b ? '✎ Scomparto' : '➕ Nuovo scomparto') + '</h3>' +
+    '<label for="bxNome">Nome</label>' +
+    '<input type="text" id="bxNome" maxlength="40" value="' + esc(b ? (b.meta.nome||'') : '') + '" placeholder="Documenti, Casa, Ada…">' +
+    '<div class="hint">Il nome è cifrato come quello dei file: nel database non si legge.</div>' +
+    '<label>Segno</label>' +
+    '<div class="box-bar" id="bxEmoji">' + EMOJI_BOX.map(function(e){
+      return '<button type="button" class="box-pill' + (e === scelta ? ' on' : '') +
+             '" data-e="' + e + '">' + e + '</button>';
+    }).join('') + '</div>' +
+    '<div class="row-btns">' +
+      '<button class="btn ok" id="bxOk">Salva</button>' +
+      // ⚠️ Il 🧹 compare SOLO se dentro c'è qualcosa: a zero file non c'è niente da
+      // svuotare, e un pulsante che risponde «non si può» dopo essere stato premuto è un
+      // pulsante che non si mette. Il numero sta sul pulsante perché è quel che si sta per
+      // perdere, e va letto prima di premere e non nella finestra che viene dopo.
+      (b && contaBox(b.riga.id) ? '<button class="btn danger" id="bxSvuota">🧹 Svuota (' + contaBox(b.riga.id) + ')</button>' : '') +
+      (b ? '<button class="btn danger" id="bxDel">🗑 Elimina</button>' : '') +
+      '<button class="btn ghost" onclick="chiudiModale()">Annulla</button>' +
+    '</div><div class="hint" id="bxStato"></div>');
+
+  $('bxEmoji').addEventListener('click', function(ev){
+    var t = ev.target.closest('[data-e]');
+    if (!t) return;
+    scelta = t.dataset.e;
+    [].forEach.call(this.children, function(c){ c.classList.toggle('on', c === t); });
+  });
+  $('bxNome').focus();
+
+  $('bxOk').addEventListener('click', async function(){
+    var nome = $('bxNome').value.trim();
+    if (!nome) { $('bxStato').textContent = 'Serve un nome.'; return; }
+    this.disabled = true;
+    try {
+      var meta = await cifraMeta({ nome: nome, emoji: scelta });
+      if (b){
+        var u = await db('frz_boxes').update({ meta_enc: meta }).eq('id', b.riga.id);
+        if (u.error) throw new Error(u.error.message);
+      } else {
+        var ins = await db('frz_boxes').insert({
+          user_id: currentUserId, meta_enc: meta, position: S.boxes.length
+        }).select().single();
+        if (ins.error) throw new Error(ins.error.message);
+        S.box = ins.data.id;   // appena creato, ci si entra: è quel che si stava per fare
+      }
+      chiudiModale();
+      await caricaBoxes();
+      // Uno scomparto nuovo si porta dietro la sua cartella su Drive: farla adesso vuol
+      // dire che il primo file ci finisce dentro senza aspettare nessun riordino.
+      var creato = b ? null : S.box;
+      if (creato){ try { await assicuraCartella(creato); } catch(err){ console.warn(err); } }
+      disegnaBoxes(); disegnaGriglia();
+      scriviIndici(creato ? [creato] : [], true);
+    } catch(e){
+      $('bxStato').textContent = '❌ ' + e.message;
+      this.disabled = false;
+    }
+  });
+
+  if (b && $('bxSvuota')) $('bxSvuota').addEventListener('click', function(){ chiediSvuota(b); });
+
+  if (b) $('bxDel').addEventListener('click', async function(){
+    var n = contaBox(b.riga.id);
+    // ⚠️ La conferma dice cosa NON succede: i file non si cancellano. Senza scriverlo,
+    // davanti a «elimini lo scomparto?» con dentro trenta documenti si preme Annulla —
+    // ed è la domanda giusta a cui questa app deve dare la risposta rassicurante vera.
+    if (!confirm('Elimino lo scomparto?\n\n' +
+      (n ? 'I ' + n + ' file che contiene NON si cancellano: tornano in «Senza scomparto».'
+         : 'È vuoto.'))) return;
+    this.disabled = true;
+    S.occupato++;
+    try {
+      // ⚠️ I file ESCONO PRIMA, poi si toglie la cartella, e solo alla fine si cancella la
+      // riga. Drive butta via una cartella **col suo contenuto**, mentre `box_id` è
+      // ON DELETE SET NULL: nell'ordine sbagliato la riga sopravvive e il file no — cioè
+      // esattamente il contrario di quello che la conferma ha appena promesso.
+      var cart = b.riga.drive_folder_id || '';
+      if (cart){
+        var dentro = fileDiBox(b.riga.id);
+        for (var i = 0; i < dentro.length; i++){
+          $('bxStato').textContent = 'Sposto i file… ' + (i+1) + '/' + dentro.length;
+          if (dentro[i].riga.drive_file_id)
+            await drive('move', { id: dentro[i].riga.drive_file_id, cartella: '' });
+        }
+        // ⚠️ Nella cartella resta il suo `contenuto.gpg`, che `rmdir` conta come
+        // contenuto e per cui si rifiuterebbe di cancellarla. Si toglie l'indice — che
+        // parla di uno scomparto che sta per non esistere più — e nient'altro: se resta
+        // dentro qualcos'altro, `rmdir` deve dire di no. È la rete che impedisce a una
+        // cartella di portarsi via un documento.
+        $('bxStato').textContent = 'Tolgo la cartella…';
+        var resti = (await drive('list', { cartella: cart })).file || [];
+        for (var k = 0; k < resti.length; k++){
+          if (resti[k].name === IDX_CONTENUTO) await drive('delete', { id: resti[k].id });
+        }
+        await drive('rmdir', { id: cart });
+      }
+      var d = await db('frz_boxes').delete().eq('id', b.riga.id);
+      if (d.error) throw new Error(d.error.message);
+      S.box = null;
+      chiudiModale();
+      await caricaElenco();   // i box_id sono andati a NULL nel database: si rilegge
+      scriviIndici([null], true);
+    } catch(e){
+      $('bxStato').textContent = '❌ ' + e.message;
+      this.disabled = false;
+    } finally { S.occupato--; }
+  });
+}
+
+// ============================================================
+// SVUOTARE UNO SCOMPARTO — i file se ne vanno, lo scomparto resta
+// ============================================================
+// ⚠️ Non è il 🗑 Elimina, ed è precisamente il suo contrario: là lo scomparto sparisce e i
+// file si salvano in «Senza scomparto», qui i file spariscono e lo scomparto resta — vuoto,
+// con la sua cartella su Drive, pronto a riempirsi di nuovo. Due gesti diversi con due esiti
+// opposti, quindi due pulsanti: uno solo che chiedesse «e i file?» metterebbe la risposta
+// distruttiva a un clic da quella prudente.
+//
+// ⚠️ Costa CANCELLA **e** la passphrase, come la 💣 zona pericolosa e per la stessa ragione:
+// il forziere è già aperto, e chi trova la scrivania incustodita non deve poter buttare via
+// trenta documenti scrivendo sette lettere. La passphrase si verifica con `passphraseGiusta`,
+// cioè aprendo davvero la scorciatoia, e le 24 parole restano una via per chi l'ha scordata.
+function chiediSvuota(b){
+  var conParole = false, parolaScritta = '';
+
+  function disegna(){
+    var lista = fileDiBox(b.riga.id);
+    var totale = lista.reduce(function(a,f){ return a + (f.meta.size || f.riga.size_bytes || 0); }, 0);
+    // L'export esporta quel che l'elenco MOSTRA, e da qui l'elenco è filtrato su questo
+    // scomparto: offrirlo altrove vorrebbe dire promettere una copia di quello che si sta
+    // per cancellare e farne un'altra.
+    var esportabile = (S.box === b.riga.id);
+
+    apriModale(
+      '<h3>🧹 Svuota ' + esc(nomeBox(b.riga.id)) + '</h3>' +
+      '<div class="avviso rosso" style="margin-top:10px"><strong>Da qui non si torna indietro.</strong> ' +
+        'Se ne vanno <strong>' + lista.length + '</strong> ' +
+        (lista.length === 1 ? 'documento' : 'documenti') + ' — ' + peso(totale) +
+        ' — da Drive e dal database, con le loro miniature.</div>' +
+      // ⚠️ Dire cosa NON succede è metà della finestra: senza, «svuota» e «elimina» si
+      // leggono come lo stesso pulsante, e si preme Annulla su tutt'e due.
+      '<div class="muted small" style="margin:12px 0 6px">Quello che <strong>non</strong> succede:</div>' +
+      '<ul class="small" style="margin:0 0 10px 18px;line-height:1.8">' +
+        '<li>lo scomparto <strong>resta</strong>, con la sua cartella su Drive: torna vuoto, non sparisce</li>' +
+        '<li>gli altri scomparti e i file fuori da questo non si toccano</li>' +
+        '<li>il forziere resta quello che è: le tue 24 parole continuano ad aprirlo</li>' +
+      '</ul>' +
+      (esportabile
+        ? '<div class="avviso blu">💾 Una copia in mano tua di questi ' + lista.length +
+          ' file la fai adesso o mai più. ' +
+          '<button class="btn small" style="margin-left:6px" id="svExport">Esporta questo scomparto</button></div>'
+        : '') +
+      '<div class="sep"></div>' +
+      '<label for="svParola">Scrivi <strong>CANCELLA</strong> per confermare</label>' +
+      // Il CANCELLA già scritto sopravvive al passaggio passphrase ↔ 24 parole, come nella
+      // zona pericolosa: farlo riscrivere sarebbe una punizione per aver cambiato idea su
+      // quale segreto usare.
+      '<input type="text" id="svParola" autocomplete="off" spellcheck="false" placeholder="CANCELLA" value="' +
+        esc(parolaScritta) + '">' +
+      '<label for="svIn" style="margin-top:10px">' + (conParole
+        ? 'Le 24 parole, tutto minuscolo e separate da uno spazio'
+        : 'La tua passphrase') + '</label>' +
+      (conParole
+        ? '<textarea id="svIn" class="mono" rows="3" spellcheck="false" autocomplete="off"></textarea>'
+        : '<input type="password" id="svIn" autocomplete="current-password">') +
+      '<div class="hint" id="svStato"></div>' +
+      '<div class="row-btns">' +
+        '<button class="btn danger" id="svOk">🧹 Svuota lo scomparto</button>' +
+        '<button class="btn ghost" id="svAlt">' +
+          (conParole ? 'Uso la passphrase' : 'Ho scordato la passphrase') + '</button>' +
+        '<button class="btn ghost" onclick="chiudiModale()">Annulla</button>' +
+      '</div>');
+
+    if (esportabile) $('svExport').addEventListener('click', function(){ chiudiModale(); $('btnExport').click(); });
+    $('svParola').addEventListener('input', function(){ parolaScritta = this.value; });
+    $('svAlt').addEventListener('click', function(){ conParole = !conParole; disegna(); });
+    (parolaScritta ? $('svIn') : $('svParola')).focus();
+
+    $('svOk').addEventListener('click', async function(){
+      if ($('svParola').value.trim() !== 'CANCELLA'){
+        $('svStato').textContent = '❌ scrivi CANCELLA, in maiuscolo';
+        $('svParola').focus();
+        return;
+      }
+      var v = $('svIn').value;
+      if (!v){ $('svStato').textContent = '❌ serve ' + (conParole ? 'le 24 parole' : 'la passphrase'); return; }
+      if (!S.parole){ $('svStato').textContent = '❌ il forziere si è chiuso'; return; }
+      this.disabled = true;
+      $('svStato').textContent = 'Controllo…';
+      var ok;
+      try { ok = conParole ? (normParole(v) === S.parole) : await passphraseGiusta(v); }
+      catch(e){ ok = false; }
+      if (!ok){
+        $('svStato').textContent = conParole ? '❌ non sono le parole di questo forziere' : '❌ passphrase sbagliata';
+        this.disabled = false;
+        return;
+      }
+      await svuotaScomparto(b);
+    });
+  }
+  disegna();
+}
+
+async function svuotaScomparto(b){
+  var lista = fileDiBox(b.riga.id), fatti = 0;
+  function passo(t){ var el = $('svStato'); if (el) el.textContent = t; }
+  S.occupato++;
+  try {
+    // ⚠️ PRIMA Drive, POI la riga, e un file per volta — come in `elimina()`. Al contrario,
+    // una rete che cade lascerebbe su Drive `.gpg` che nessuno sa più cosa siano e che
+    // dall'app non si possono più togliere. Fatto così, una rete che cade lascia lo
+    // scomparto svuotato a metà: quel che è andato è andato, e ripremendo si riprende da
+    // dove ci si era fermati invece di ricominciare.
+    for (var i = 0; i < lista.length; i++){
+      var f = lista[i];
+      passo('Cancello… ' + (i+1) + '/' + lista.length + ' — ' + (f.meta.nome || ''));
+      if (f.riga.drive_file_id) await drive('delete', { id: f.riga.drive_file_id });
+      var d = await db('frz_files').delete().eq('id', f.riga.id);
+      if (d.error) throw new Error(d.error.message);
+      // La riga esce dall'elenco appena è uscita davvero: fermandosi a metà, quello che si
+      // vede è già quello che è rimasto. Le miniature se ne vanno da sé, per cascata da
+      // `frz_files`.
+      S.file = S.file.filter(function(x){ return x.riga.id !== f.riga.id; });
+      delete S.thumbs[f.riga.id];
+      fatti++;
+    }
+    chiudiModale();
+    disegnaBoxes(); disegnaGriglia();
+    // Lo scomparto c'è ancora, quindi il suo `contenuto.gpg` va riscritto — vuoto, che è
+    // quello che adesso è vero. Gli scomparti non si toccano: nessuno di loro è cambiato.
+    scriviIndici([b.riga.id], false);
+    alert('Fatto: ' + fatti + ' ' + (fatti === 1 ? 'documento cancellato' : 'documenti cancellati') +
+          '.\n\nLo scomparto ' + nomeBox(b.riga.id) + ' resta, vuoto.');
+  } catch(e){
+    passo('❌ ' + e.message);
+    disegnaBoxes(); disegnaGriglia();
+    var bt = $('svOk'); if (bt) bt.disabled = false;
+    alert('Non ce l\'ho fatta: ' + e.message +
+          '\n\nCancellati ' + fatti + ' file su ' + lista.length +
+          '. Quello che è già stato cancellato resta cancellato: ripremendo il pulsante si riprende da dove si era fermato.');
+  } finally { S.occupato--; }
+}
+
+// Spostare un file da uno scomparto all'altro.
+function spostaFile(id){
+  var f = S.file.find(function(x){ return x.riga.id === id; });
+  if (!f) return;
+  if (!S.boxes.length) return nuovoBox();
+  var attuale = f.riga.box_id || '_senza';
+  apriModale(
+    '<h3>📁 Sposta «' + esc(f.meta.nome || '') + '»</h3>' +
+    '<div class="box-bar" style="margin-top:12px">' +
+      ['_senza'].concat(S.boxes.map(function(b){ return b.riga.id; })).map(function(bid){
+        return '<button class="box-pill' + (bid === attuale ? ' on' : '') +
+               '" onclick="spostaIn(\'' + id + '\',\'' + bid + '\')">' + esc(nomeBox(bid)) + '</button>';
+      }).join('') +
+    '</div>' +
+    '<div class="row-btns"><button class="btn ghost" onclick="chiudiModale()">Annulla</button></div>');
+}
+
+async function spostaIn(id, bid){
+  var f = S.file.find(function(x){ return x.riga.id === id; });
+  if (!f) return;
+  var nuovo = bid === '_senza' ? null : bid;
+  var vecchio = f.riga.box_id || null;
+  if (nuovo === vecchio) { chiudiModale(); return; }
+  S.occupato++;
+  try {
+    // ⚠️ Prima Drive, poi il database. Al contrario, una rete che cade lascerebbe la riga
+    // in uno scomparto e il file nella cartella di un altro — e la differenza non si
+    // vedrebbe da nessuna parte finché il database non serve davvero.
+    var cart = await assicuraCartella(nuovo);
+    if (f.riga.drive_file_id) await drive('move', { id: f.riga.drive_file_id, cartella: cart });
+    var u = await db('frz_files').update({ box_id: nuovo }).eq('id', id);
+    if (u.error) throw new Error(u.error.message);
+    f.riga.box_id = nuovo;
+    chiudiModale();
+    disegnaBoxes(); disegnaGriglia();
+    scriviIndici([vecchio, nuovo], false);
+  } catch(e){ alert('Non ce l\'ho fatta: ' + e.message); }
+  finally { S.occupato--; }
+}
+
+// ============================================================
+// GLI INDICI SU DRIVE — perché il database non sia indispensabile per ORIENTARSI
+// ============================================================
+// Fino alla v1.2.2 la proprietà era: perso il database, ogni `.gpg` si riapriva lo stesso.
+// Vera, ma erano trecento file di nome `<uuid>.gpg` e l'unico modo di sapere cosa fossero
+// era aprirli a uno a uno. Accanto ai file ci sono ora due indici, cifrati anche loro con
+// le 24 parole, e `gpg -d` ne tira fuori nomi, tipi, date e scomparti.
+//
+// ⚠️ LA VERITÀ RESTA IL DATABASE. Gli indici sono una COPIA, riscritta dopo ogni
+// operazione; se una riscrittura non passa la pagina lo dice e offre «🔄 Rifai gli
+// indici». Senza quel pulsante sarebbero due verità che divergono in silenzio — il
+// difetto che questa repo paga già altrove (lo snapshot del patrimonio).
+//
+// ⚠️ Il NOME della cartella di uno scomparto è un uuid e non il suo nome: una cartella
+// «Divorzio» racconterebbe la storia da sola, che è esattamente ciò che `meta_enc`
+// esiste per evitare. Chi guarda il Drive vede quello che vedeva prima — quante cartelle,
+// quanti file, i pesi, le date — e nient'altro.
+var IDX_SCOMPARTI = 'scomparti.gpg';
+var IDX_CONTENUTO = 'contenuto.gpg';
+
+function boxDi(id){ return S.boxes.find(function(x){ return x.riga.id === id; }) || null; }
+
+// La cartella su Drive di uno scomparto. '' = la radice del forziere.
+function cartellaDi(boxId){
+  var b = boxId ? boxDi(boxId) : null;
+  return (b && b.riga.drive_folder_id) || '';
+}
+
+// Quella cartella, creandola se non c'è ancora. ⚠️ È qui che `drive_folder_id` passa da
+// NULL a un id: gli scomparti nati prima della v1.3.0 ce l'hanno vuoto, e non è un dato
+// mancante — è «la cartella non l'ha ancora fatta nessuno».
+async function assicuraCartella(boxId){
+  if (!boxId) return '';
+  var b = boxDi(boxId);
+  if (!b) return '';
+  if (b.riga.drive_folder_id) return b.riga.drive_folder_id;
+  var r = await drive('mkdir', { nome: crypto.randomUUID() });
+  var u = await db('frz_boxes').update({ drive_folder_id: r.id }).eq('id', boxId);
+  if (u.error) throw new Error(u.error.message);
+  b.riga.drive_folder_id = r.id;
+  return r.id;
+}
+
+function fileDiBox(boxId){
+  return S.file.filter(function(f){
+    return boxId ? f.riga.box_id === boxId : !f.riga.box_id;
+  });
+}
+
+async function scriviIndiceScomparti(){
+  var payload = { v:1, il:new Date().toISOString(), scomparti: S.boxes.map(function(b){
+    return { id: b.riga.id, nome: b.meta.nome || '', emoji: b.meta.emoji || '',
+             cartella: b.riga.drive_folder_id || null };
+  }) };
+  var gpg = await cifraTesto(JSON.stringify(payload, null, 1), S.parole);
+  // ⚠️ `perNome` e non l'id: l'id dell'indice non sta in nessuna colonna, e il giorno che
+  // il database non c'è più dev'essere il Drive a dire qual è. Lo chiedono solo gli
+  // indici — sui documenti, dove il nome è un uuid, sarebbe un modo in più di
+  // sovrascrivere per sbaglio.
+  await drive('put', { nome: IDX_SCOMPARTI, base64: b64(gpg), perNome: true });
+}
+
+async function scriviIndiceContenuto(boxId){
+  var cart = cartellaDi(boxId);
+  if (boxId && !cart) return;   // scomparto senza cartella: non c'è dove scriverlo
+  var b = boxId ? boxDi(boxId) : null;
+  var payload = {
+    v: 1, il: new Date().toISOString(),
+    scomparto: b ? { id: b.riga.id, nome: b.meta.nome || '', emoji: b.meta.emoji || '' } : null,
+    // ⚠️ `file` è il NOME su Drive, non l'id di Drive: chi recupera ha in mano una
+    // cartella di file, non l'API di Google.
+    file: fileDiBox(boxId).map(function(f){
+      return { file: f.riga.id + '.gpg', nome: f.meta.nome || '', tipo: f.meta.tipo || '',
+               size: f.meta.size == null ? null : f.meta.size,
+               il: f.meta.il || f.riga.creato_il || null };
+    })
+  };
+  var gpg = await cifraTesto(JSON.stringify(payload, null, 1), S.parole);
+  await drive('put', { nome: IDX_CONTENUTO, base64: b64(gpg), perNome: true, cartella: cart });
+}
+
+async function tuttiGliIndici(){
+  await scriviIndiceScomparti();
+  await scriviIndiceContenuto(null);
+  for (var i = 0; i < S.boxes.length; i++) await scriviIndiceContenuto(S.boxes[i].riga.id);
+}
+
+// ⚠️ Non si aspetta e non si fa aspettare: l'operazione vera (il file caricato, la riga
+// cancellata) è già finita e archiviata nel database. Un indice che non si riscrive è una
+// comodità in meno, non un dato perso — quindi si segnala e basta.
+async function scriviIndici(box, ancheScomparti){
+  if (!S.parole) return;
+  try {
+    if (ancheScomparti) await scriviIndiceScomparti();
+    var visti = [];
+    (box || []).forEach(function(x){
+      var k = x || null;
+      if (visti.indexOf(k) === -1) visti.push(k);
+    });
+    for (var i = 0; i < visti.length; i++) await scriviIndiceContenuto(visti[i]);
+    if (S.indiciRotti){ S.indiciRotti = false; disegnaAvvisi(); }
+  } catch(e){
+    console.warn('indici su Drive:', e);
+    if (!S.indiciRotti){ S.indiciRotti = true; disegnaAvvisi(); }
+  }
+}
+
+async function rifaiIndici(){
+  if (!S.parole) return;
+  S.occupato++;
+  try {
+    avanzamento('barraOp','statoOp', 0.4, 'Riscrivo gli indici…');
+    await tuttiGliIndici();
+    avanzamento('barraOp','statoOp', null, '');
+    S.indiciRotti = false; disegnaAvvisi();
+    alert('Indici riscritti: ' + (S.boxes.length + 1) + ' cartelle.');
+  } catch(e){
+    avanzamento('barraOp','statoOp', null, '');
+    S.indiciRotti = true; disegnaAvvisi();
+    alert('Non ce l\'ho fatta: ' + e.message);
+  } finally { S.occupato--; }
+}
+
+// Una-tantum, dalle Impostazioni: crea le cartelle che mancano, porta ogni file dentro la
+// cartella del suo scomparto e riscrive tutti gli indici. Serve ai forzieri nati prima
+// della v1.3.0 — e come rimedio se una di quelle operazioni è fallita a metà.
+// ⚠️ È un PULSANTE e non una cosa che parte aprendo la pagina: su trecento file sono
+// trecento chiamate a Drive, e un'app che ci mette due minuti ad aprirsi senza dire
+// perché si smette di aprirla.
+async function riordinaDrive(){
+  if (!S.parole) return;
+  if (!confirm('Metto in ordine il Drive.\n\nCreo una cartella per ogni scomparto, ci porto ' +
+               'dentro i file che ci appartengono e riscrivo gli indici. Nessun file viene ' +
+               'cancellato e niente cambia nel database.')) return;
+  chiudiModale();
+  S.occupato++;
+  try {
+    avanzamento('barraOp','statoOp', 0.05, 'Preparo le cartelle…');
+    for (var i = 0; i < S.boxes.length; i++) await assicuraCartella(S.boxes[i].riga.id);
+
+    avanzamento('barraOp','statoOp', 0.15, 'Guardo dov\'è ogni file…');
+    var l = await drive('list', { dentro: true });
+    var dove = {};
+    (l.file || []).forEach(function(x){ dove[x.id] = x.cartella || l.radice; });
+
+    var spostati = 0, tot = S.file.length || 1;
+    for (var j = 0; j < S.file.length; j++){
+      var f = S.file[j];
+      if (!f.riga.drive_file_id) continue;
+      var atteso = cartellaDi(f.riga.box_id) || l.radice;
+      // Un file già al posto giusto non si tocca: `move` funzionerebbe lo stesso, ma
+      // sarebbe una chiamata di rete per non fare niente, moltiplicata per l'archivio.
+      if (dove[f.riga.drive_file_id] === atteso) continue;
+      avanzamento('barraOp','statoOp', 0.15 + (j/tot)*0.7, 'Sposto… ' + (spostati+1));
+      await drive('move', { id: f.riga.drive_file_id, cartella: cartellaDi(f.riga.box_id) });
+      spostati++;
+    }
+
+    avanzamento('barraOp','statoOp', 0.9, 'Riscrivo gli indici…');
+    await tuttiGliIndici();
+    avanzamento('barraOp','statoOp', null, '');
+    S.indiciRotti = false; disegnaAvvisi();
+    alert('Fatto.\n\nCartelle: ' + S.boxes.length + '\nFile spostati: ' + spostati +
+          '\nIndici riscritti: ' + (S.boxes.length + 1) + '.');
+  } catch(e){
+    avanzamento('barraOp','statoOp', null, '');
+    S.indiciRotti = true; disegnaAvvisi();
+    alert('Non ce l\'ho fatta: ' + e.message);
+  } finally { S.occupato--; }
+}
+
+function filtrati(){
+  var lista = S.file;
+  if (S.box === '_senza') lista = lista.filter(function(f){ return !f.riga.box_id; });
+  else if (S.box) lista = lista.filter(function(f){ return f.riga.box_id === S.box; });
+  var q = S.cerca.trim().toLowerCase();
+  if (!q) return lista;
+  return lista.filter(function(f){ return (f.meta.nome||'').toLowerCase().indexOf(q) !== -1; });
+}
+
+function disegnaGriglia(){
+  var lista = filtrati(), g = $('griglia');
+  disegnaBoxes();
+  $('contoFile').textContent = S.file.length
+    ? (lista.length === S.file.length ? S.file.length + ' file' : lista.length + ' di ' + S.file.length)
+    : '';
+  $('vuoto').style.display = S.file.length ? 'none' : 'block';
+  $('btnCarica').textContent = '📥 Metti dentro un file' +
+    (boxCorrente() ? ' → ' + nomeBox(S.box) : '');
+  g.innerHTML = lista.map(function(f){
+    var id = f.riga.id, m = f.meta;
+    var mini = S.thumbs[id]
+      ? '<img src="' + S.thumbs[id] + '" alt="">'
+      : iconaPer(m.tipo, m.nome);
+    return '<div class="tile">' +
+      '<div class="anteprima" id="th_' + id + '" style="cursor:zoom-in" onclick="apriFile(\'' + id + '\')">' + mini + '</div>' +
+      '<div class="corpo">' +
+        '<div class="nome">' + esc(m.nome || '(senza nome)') + '</div>' +
+        '<div class="muted tiny">' + esc(peso(m.size || f.riga.size_bytes)) + '</div>' +
+      '</div>' +
+      '<div class="azioni">' +
+        '<button class="btn small ok" onclick="apriFile(\'' + id + '\')">👁 Apri</button>' +
+        '<button class="btn small ghost" onclick="spostaFile(\'' + id + '\')">📁</button>' +
+        '<button class="btn small danger" onclick="elimina(\'' + id + '\')">🗑</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+$('inCerca').addEventListener('input', function(){ S.cerca = this.value; disegnaGriglia(); caricaMiniature(); });
+
+// Le miniature si prendono per quello che è a schermo, non tutte in blocco: sono la parte
+// pesante dell'elenco e su un archivio grande bloccherebbero l'apertura.
+async function caricaMiniature(){
+  var ids = filtrati().slice(0, 60).map(function(f){ return f.riga.id; })
+              .filter(function(id){ return !S.thumbs[id]; });
+  if (!ids.length) return;
+  var r = await db('frz_thumbs').select('file_id,thumb_enc').in('file_id', ids);
+  if (r.error || !r.data) return;
+  for (var i = 0; i < r.data.length; i++){
+    try {
+      var bytes = await decifraBytes(r.data[i].thumb_enc);
+      S.thumbs[r.data[i].file_id] = 'data:image/jpeg;base64,' + b64(bytes);
+      var el = $('th_' + r.data[i].file_id);
+      if (el) el.innerHTML = '<img src="' + S.thumbs[r.data[i].file_id] + '" alt="">';
+    } catch(e){ /* una miniatura illeggibile non è un motivo per fermare l'elenco */ }
+  }
+}
+
+// ============================================================
+// METTERE DENTRO UN FILE
+// ============================================================
+$('btnCarica').addEventListener('click', function(){ $('filePicker').click(); });
+$('filePicker').addEventListener('change', async function(){
+  var files = [].slice.call(this.files || []);
+  this.value = '';
+  if (!files.length) return;
+  await caricaFile(files);
+});
+
+async function caricaFile(files){
+  for (var i = 0; i < files.length; i++){
+    var f = files[i], etichetta = '(' + (i+1) + '/' + files.length + ') ' + f.name;
+    S.occupato++;
+    try {
+      avanzamento('barraOp','statoOp', 0.05, etichetta + ' — leggo…');
+      var bytes = new Uint8Array(await f.arrayBuffer());
+
+      // La miniatura si fa PRIMA di cifrare, dall'originale: dopo non c'è più niente da
+      // guardare. Solo per le immagini — per un video servirebbe decodificare il primo
+      // fotogramma, che è un'altra cosa e la faremo se servirà.
+      var mini = null;
+      if (/^image\//.test(f.type)) { try { mini = await miniatura(f); } catch(e){} }
+
+      avanzamento('barraOp','statoOp', 0.2, etichetta + ' — cifro…');
+      var gpg = await cifraFile(bytes, f.name, S.parole);
+      bytes = null;
+
+      // Il nome su Drive è l'id e basta: né la cartella né il nome del file devono
+      // raccontare niente a chi li guarda dall'esterno. Il nome vero sta dentro il
+      // pacchetto cifrato, e quello dello scomparto dentro `scomparti.gpg`.
+      var cart = await assicuraCartella(boxCorrente());
+      var idRiga = crypto.randomUUID();
+      var driveId = await driveCarica(idRiga + '.gpg', gpg, function(q){
+        avanzamento('barraOp','statoOp', 0.25 + q*0.65, etichetta + ' — carico… ' + Math.round(q*100) + '%');
+      }, cart);
+
+      avanzamento('barraOp','statoOp', 0.95, etichetta + ' — registro…');
+      var meta = { nome: f.name, tipo: f.type || '', size: f.size, il: new Date().toISOString() };
+      var ins = await db('frz_files').insert({
+        id: idRiga, user_id: currentUserId, drive_file_id: driveId,
+        meta_enc: await cifraMeta(meta), size_bytes: gpg.length,
+        box_id: boxCorrente()
+      }).select().single();
+      if (ins.error) throw new Error(ins.error.message);
+
+      if (mini){
+        var t = await db('frz_thumbs').insert({
+          file_id: idRiga, user_id: currentUserId, thumb_enc: await cifraBytes(mini)
+        });
+        if (!t.error) S.thumbs[idRiga] = 'data:image/jpeg;base64,' + b64(mini);
+      }
+      S.file.unshift({ riga: ins.data, meta: meta });
+      disegnaGriglia();
+    } catch(e){
+      avanzamento('barraOp','statoOp', null, '');
+      alert('«' + f.name + '» non è entrato: ' + e.message);
+    } finally { S.occupato--; }
+  }
+  avanzamento('barraOp','statoOp', null, '');
+  // Un indice per volta e non uno per file: l'intera infornata finisce nello stesso
+  // scomparto, e riscriverlo a ogni giro sarebbe la stessa cosa fatta N volte.
+  scriviIndici([boxCorrente()], false);
+}
+
+async function miniatura(file){
+  var bmp = await createImageBitmap(file);
+  var lato = 320, s = Math.min(lato/bmp.width, lato/bmp.height, 1);
+  var c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bmp.width*s));
+  c.height = Math.max(1, Math.round(bmp.height*s));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close && bmp.close();
+  var blob = await new Promise(function(r){ c.toBlob(r, 'image/jpeg', 0.72); });
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+// ============================================================
+// GUARDARE UN FILE — dentro la pagina, non nella cartella Download
+// ============================================================
+// ⚠️ Aprire NON è scaricare, ed è il punto. Un documento scaricato esce dal forziere: si
+// posa in chiaro nella cartella Download, dove resta finché qualcuno non se ne ricorda —
+// e lì non è più cifrato da niente. Qui il file decifrato vive in un blob in memoria, si
+// guarda, e chiudendo la finestra sparisce. Lo scaricamento resta, ma come **seconda**
+// scelta e dichiarata, dentro il visore.
+
+// Che cosa il browser sa mostrare, e come. ⚠️ Il tipo si decide QUI e non si prende da
+// `meta.tipo`: un file dichiarato `text/html` dentro un iframe girerebbe **nella nostra
+// origine**, con accesso alla pagina che in quel momento tiene le 24 parole in memoria.
+// L'iframe si usa quindi solo per il PDF, e il blob si costruisce forzando quel tipo.
+// Un SVG passa invece da <img>, dove gli script non partono.
+function comeMostrare(tipo){
+  tipo = String(tipo || '').toLowerCase();
+  if (tipo.indexOf('image/') === 0) return { modo:'img',   tipo: tipo };
+  if (tipo.indexOf('video/') === 0) return { modo:'video', tipo: tipo };
+  if (tipo.indexOf('audio/') === 0) return { modo:'audio', tipo: tipo };
+  if (tipo === 'application/pdf')   return { modo:'pdf',   tipo: 'application/pdf' };
+  if (tipo.indexOf('text/') === 0 || tipo === 'application/json')
+    return { modo: tipo === 'text/html' ? 'niente' : 'testo', tipo: 'text/plain' };
+  return { modo:'niente', tipo:'application/octet-stream' };
+}
+
+var TESTO_MAX = 2 * 1024 * 1024;
+
+async function apriFile(id){
+  var f = S.file.find(function(x){ return x.riga.id === id; });
+  if (!f) return;
+  S.occupato++;
+  try {
+    avanzamento('barraOp','statoOp', 0.3, 'Prendo ' + (f.meta.nome||'') + '…');
+    var gpg = await drive('get', { id: f.riga.drive_file_id });
+    avanzamento('barraOp','statoOp', 0.75, 'Decifro…');
+    var r = await decifraFile(gpg, S.parole);
+    avanzamento('barraOp','statoOp', null, '');
+    mostraVisore(f, r.dati, r.nome || f.meta.nome || 'documento');
+  } catch(e){
+    avanzamento('barraOp','statoOp', null, '');
+    alert('Non sono riuscito ad aprirlo: ' + e.message);
+  } finally { S.occupato--; }
+}
+
+function mostraVisore(f, dati, nome){
+  var q = comeMostrare(f.meta.tipo);
+  var url = URL.createObjectURL(new Blob([dati], { type: q.tipo }));
+  S.visore = { url: url, nome: nome, tipo: f.meta.tipo || '', dati: dati };
+
+  var corpo;
+  // ⚠️ `onerror`: il tipo dichiarato dice che il browser DOVREBBE saperlo mostrare, ma un
+  // .mov o un'immagine in un formato esotico lo mettono lo stesso in difficoltà — e senza
+  // questo si guarderebbe un riquadro nero senza sapere perché.
+  var rotto = ' onerror="visoreRotto(this)"';
+  if (q.modo === 'img')   corpo = '<img src="' + url + '" alt="' + esc(nome) + '"' + rotto + '>';
+  else if (q.modo === 'pdf')   corpo = '<iframe src="' + url + '" title="' + esc(nome) + '"></iframe>';
+  else if (q.modo === 'video') corpo = '<video src="' + url + '" controls playsinline' + rotto + '></video>';
+  else if (q.modo === 'audio') corpo = '<audio src="' + url + '" controls' + rotto + '></audio>';
+  else if (q.modo === 'testo') {
+    corpo = dati.length > TESTO_MAX
+      ? '<div class="visore-niente">Sono ' + peso(dati.length) + ' di testo: troppi per mostrarli tutti senza bloccare la pagina.<br>Scaricalo per leggerlo.</div>'
+      : '<pre>' + esc(new TextDecoder().decode(dati)) + '</pre>';
+  } else {
+    // ⚠️ Un tipo che non si sa mostrare lo DICE, e dice anche quale: «non si apre» senza
+    // spiegare perché si legge come un difetto dell'app invece che come un limite del
+    // browser. E lascia comunque la via d'uscita, che è lo scaricamento.
+    corpo = '<div class="visore-niente">' + iconaPer(f.meta.tipo, nome) +
+      '<br>Questo tipo di file il browser non lo sa mostrare' +
+      (f.meta.tipo ? ' <span class="mono">(' + esc(f.meta.tipo) + ')</span>' : '') +
+      '.<br>Scaricalo per aprirlo col suo programma.</div>';
+  }
+
+  apriModale(
+    '<div class="visore-testa">' +
+      '<span class="nome">' + esc(nome) + '</span>' +
+      '<div class="topbar-spacer"></div>' +
+      '<span class="muted small">' + esc(peso(dati.length)) + '</span>' +
+    '</div>' +
+    '<div class="visore-corpo">' + corpo + '</div>' +
+    '<div class="row-btns" id="visoreAzioni">' +
+      '<button class="btn ghost" onclick="chiudiModale()">Chiudi</button>' +
+      '<button class="btn" onclick="scaricaDalVisore()">⬇️ Scarica lo stesso</button>' +
+    '</div>' +
+    '<div class="tiny muted" style="margin-top:8px">Scaricandolo esce dal forziere: resta in chiaro nella cartella Download finché non lo cancelli.</div>');
+
+  $('modalBody').classList.add('visore');
+}
+
+function visoreRotto(el){
+  var box = el.parentNode;
+  if (!box) return;
+  box.innerHTML = '<div class="visore-niente">Il browser non riesce ad aprire questo file' +
+    (S.visore && S.visore.tipo ? ' <span class="mono">(' + esc(S.visore.tipo) + ')</span>' : '') +
+    '.<br>Scaricalo per aprirlo col suo programma.</div>';
+}
+
+// ⚠️ La passphrase si verifica APRENDO la scorciatoia, non confrontandola con qualcosa
+// che sta in memoria: in memoria non c'è: allo sblocco serve ad aprire `scorciatoia.gpg`
+// e viene buttata subito, ed è giusto che resti così. Se ne escono esattamente le 24
+// parole che il forziere sta usando, è quella. È lo stesso controllo dello sblocco — e un
+// confronto con una variabile sarebbe un controllo che passa sempre.
+async function passphraseGiusta(pw){
+  if (!S.parole) return false;
+  if (!S.scorc) S.scorc = await drive('get', { id: S.vault.drive_scorciatoia_id });
+  try { return normParole(await decifraTesto(S.scorc, pw)) === S.parole; }
+  catch(e){ return false; }
+}
+
+// ⚠️ La richiesta sta DENTRO il visore e non in una seconda finestra: `#modalBody` è uno
+// solo, quindi un `apriModale` qui sopra cancellerebbe il visore, e `chiudiModale` revoca
+// il blob — cioè proprio il file che si sta per scaricare. Prende il posto della riga dei
+// pulsanti, e Annulla la rimette com'era.
+function chiediPassphrase(){
+  return new Promise(function(risolvi){
+    var azioni = $('visoreAzioni');
+    if (!azioni) return risolvi(false);
+    var pulsanti = azioni.innerHTML, conParole = false;
+
+    function chiudi(esito){ azioni.innerHTML = pulsanti; risolvi(esito); }
+
+    async function prova(){
+      var v = $('dlIn').value;
+      if (!v) return;
+      if (!S.parole) { $('dlStato').textContent = '❌ il forziere si è chiuso'; return; }
+      $('dlOk').disabled = true;
+      $('dlStato').textContent = 'Controllo…';
+      var ok;
+      try { ok = conParole ? (normParole(v) === S.parole) : await passphraseGiusta(v); }
+      catch(e){ ok = false; }
+      if (ok) return chiudi(true);
+      $('dlStato').textContent = conParole
+        ? '❌ non sono le parole di questo forziere'
+        : '❌ passphrase sbagliata';
+      $('dlOk').disabled = false;
+    }
+
+    // ⚠️ Le 24 parole restano una via, come nella schermata di sblocco: chi è entrato con
+    // loro e ha risposto «Dopo» al cambio passphrase ha su Drive una scorciatoia che si
+    // apre con quella VECCHIA, ormai dimenticata — senza questa via lo scaricamento gli
+    // resterebbe chiuso per sempre, e nessuno gli direbbe perché.
+    function disegna(){
+      azioni.innerHTML =
+        '<div class="tiny muted" style="margin-bottom:6px">' + (conParole
+          ? 'Le 24 parole, tutto minuscolo e separate da uno spazio.'
+          : 'Sta per uscire un file in chiaro dal forziere: riscrivi la passphrase.') + '</div>' +
+        (conParole
+          ? '<textarea id="dlIn" class="mono" rows="3" spellcheck="false" autocomplete="off"></textarea>'
+          : '<input type="password" id="dlIn" autocomplete="current-password">') +
+        '<div class="hint" id="dlStato"></div>' +
+        '<div class="row-btns">' +
+          '<button class="btn" id="dlOk">⬇️ Scarica</button>' +
+          '<button class="btn ghost" id="dlAlt">' +
+            (conParole ? 'Uso la passphrase' : 'Ho scordato la passphrase') + '</button>' +
+          '<button class="btn ghost" id="dlNo">Annulla</button>' +
+        '</div>';
+      $('dlIn').focus();
+      $('dlOk').addEventListener('click', prova);
+      $('dlAlt').addEventListener('click', function(){ conParole = !conParole; disegna(); });
+      $('dlNo').addEventListener('click', function(){ chiudi(false); });
+      if (!conParole) $('dlIn').addEventListener('keydown', function(e){
+        if (e.key === 'Enter') prova();
+      });
+    }
+    disegna();
+  });
+}
+
+// Lo scaricamento è rimasto, ma è una scelta che si fa guardando il file — non il modo
+// normale di aprirlo. ⚠️ E costa la passphrase: è l'unico gesto che porta un documento
+// FUORI dal forziere, in chiaro, e chiederla è il modo di dire che al computer ci sei tu
+// adesso. ⚠️ Il controllo sta qui e NON in `salvaSulDisco()`, che è condivisa con l'export
+// (una password la chiede già di suo) e con APRI-QUESTO, che di segreti non ne porta.
+async function scaricaDalVisore(){
+  if (!S.visore) return;
+  if (!await chiediPassphrase()) return;
+  // Fra la domanda e la risposta il blocco automatico può essere scattato, e allora quei
+  // byte non ci sono più: meglio non scaricare niente che scaricare un residuo.
+  if (!S.visore) return;
+  salvaSulDisco(S.visore.dati, S.visore.nome, S.visore.tipo);
+}
+
+function salvaSulDisco(bytes, nome, tipo){
+  var url = URL.createObjectURL(new Blob([bytes], { type: tipo || 'application/octet-stream' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 30000);
+}
+
+async function elimina(id){
+  var f = S.file.find(function(x){ return x.riga.id === id; });
+  if (!f) return;
+  if (!confirm('Butto via «' + (f.meta.nome||'') + '»?\n\nDa qui non si torna indietro: sparisce da Drive e dal database.')) return;
+  S.occupato++;
+  try {
+    // ⚠️ Prima il file su Drive, poi la riga. Al contrario, una rete che cade lascerebbe
+    // su Drive un file cifrato che nessuno sa più cos'è e che nessuno può più cancellare
+    // dall'app. Stessa scelta delle foto di Memo.
+    await drive('delete', { id: f.riga.drive_file_id });
+    var d = await db('frz_files').delete().eq('id', id);
+    if (d.error) throw new Error(d.error.message);
+    var dovEra = f.riga.box_id || null;
+    S.file = S.file.filter(function(x){ return x.riga.id !== id; });
+    delete S.thumbs[id];
+    disegnaGriglia();
+    scriviIndici([dovEra], false);
+  } catch(e){ alert('Non ce l\'ho fatta: ' + e.message); }
+  finally { S.occupato--; }
+}
+
+// ============================================================
+// EXPORT .7z — la copia in mano tua
+// ============================================================
+// ⚠️ Dentro il .7z i documenti stanno IN CHIARO, protetti dalla cifratura del 7z stesso:
+// un archivio pieno di `.gpg` sarebbe una scatola dentro una scatola e non risparmierebbe
+// niente a chi lo apre. `-mhe=on` cifra anche l'elenco dei nomi — senza, la lista dei
+// file si legge senza password, e i nomi sono metà del segreto.
+var sevenZip = null;
+async function caricaSetteZip(){
+  if (sevenZip) return sevenZip;
+  if (typeof SevenZip === 'undefined'){
+    await new Promise(function(ok, ko){
+      var s = document.createElement('script');
+      s.src = '/vendor/7zz.umd.js'; s.onload = ok;
+      s.onerror = function(){ ko(new Error('non riesco a caricare 7-Zip')); };
+      document.head.appendChild(s);
+    });
+  }
+  sevenZip = await SevenZip({
+    locateFile: function(){ return '/vendor/7zz.wasm'; },
+    print: function(){}, printErr: function(){}
+  });
+  return sevenZip;
+}
+
+$('btnExport').addEventListener('click', function(){
+  if (!S.file.length) return alert('Non c\'è ancora niente da esportare.');
+  // ⚠️ Si esporta quello che l'elenco sta MOSTRANDO, non tutto l'archivio: è così che si
+  // esporta a pezzi un forziere troppo grosso per la memoria del browser. Ma allora il
+  // testo deve dirlo, o promette N file e ne mette dentro meno senza che nessuno lo veda.
+  var lista = filtrati();
+  var totale = lista.reduce(function(a,f){ return a + (f.meta.size || f.riga.size_bytes || 0); }, 0);
+  apriModale(
+    '<h3>💾 Esporta in .7z</h3>' +
+    '<p class="muted small" style="margin:8px 0 12px">Un archivio unico con ' + lista.length +
+    (lista.length === S.file.length ? ' file' : ' file <strong>dei ' + S.file.length + ' che hai</strong> — l\'elenco è filtrato' +
+      (boxCorrente() ? ' sullo scomparto ' + esc(nomeBox(S.box)) : '') + (S.cerca.trim() ? ' dalla ricerca' : '')) +
+    ', <strong>in chiaro dentro</strong> e protetti dalla cifratura AES-256 del 7z. Lo apri con un doppio clic (serve 7-Zip, Keka o WinRAR).</p>' +
+    (totale > 400*1024*1024 ? '<div class="avviso giallo">⚠️ Sono ' + peso(totale) +
+      '. L\'archivio si costruisce nella memoria del browser: sopra il mezzo giga può non farcela. Se si ferma, esporta in due volte usando la ricerca per restringere l\'elenco.</div>' : '') +
+    '<label for="exPw">Password dell\'archivio</label>' +
+    '<input type="password" id="exPw" placeholder="lascia vuoto per usare le 24 parole">' +
+    '<div class="hint">Vuoto = le tue 24 parole, così il segreto resta uno solo. Mettine un\'altra se questa copia la vuoi dare a qualcuno senza consegnargli anche il forziere.</div>' +
+    '<div class="row-btns"><button class="btn oro" id="exVia">Costruisci l\'archivio</button>' +
+    '<button class="btn ghost" onclick="chiudiModale()">Annulla</button></div>' +
+    '<div class="barra" id="barraEx" style="display:none"><i></i></div><div class="hint" id="statoEx"></div>');
+  $('exVia').addEventListener('click', function(){ esporta(this, $('exPw').value); });
+});
+
+async function esporta(bottone, password){
+  var pw = password || S.parole;
+  var lista = filtrati();
+  bottone.disabled = true;
+  S.occupato++;
+  try {
+    avanzamento('barraEx','statoEx', 0.02, 'Preparo 7-Zip…');
+    var z = await caricaSetteZip();
+    var usati = {}, nomi = [];
+
+    for (var i = 0; i < lista.length; i++){
+      var f = lista[i];
+      avanzamento('barraEx','statoEx', 0.05 + (i/lista.length)*0.75,
+        '(' + (i+1) + '/' + lista.length + ') ' + (f.meta.nome||''));
+      var gpg = await drive('get', { id: f.riga.drive_file_id });
+      var r = await decifraFile(gpg, S.parole);
+      var nome = nomeSicuro(r.nome || f.meta.nome || ('file-' + i), usati);
+      z.FS.writeFile(nome, r.dati);
+      nomi.push(nome);
+    }
+
+    var leggimi = testoLeggimi();
+    z.FS.writeFile('LEGGIMI.txt', new TextEncoder().encode(leggimi));
+    nomi.push('LEGGIMI.txt');
+
+    avanzamento('barraEx','statoEx', 0.86, 'Costruisco l\'archivio…');
+    var uscita = 'forziere-' + new Date().toISOString().slice(0,10) + '.7z';
+    z.callMain(['a', '-t7z', '-mhe=on', '-p' + pw, uscita].concat(nomi));
+    var out = z.FS.readFile(uscita);
+
+    avanzamento('barraEx','statoEx', null, '');
+    salvaSulDisco(out, uscita, 'application/x-7z-compressed');
+    // ⚠️ 7-Zip vive in una memoria sua che non si svuota da sé: senza questa pulizia un
+    // secondo export sullo stesso caricamento di pagina si porta dietro i file del primo.
+    nomi.concat([uscita]).forEach(function(n){ try { z.FS.unlink(n); } catch(e){} });
+
+    await db('frz_vault').update({ esportato_il: new Date().toISOString() })
+      .eq('user_id', currentUserId);
+    S.vault.esportato_il = new Date().toISOString();
+    disegnaAvvisi();
+    chiudiModale();
+  } catch(e){
+    avanzamento('barraEx','statoEx', null, '');
+    alert('L\'export non è riuscito: ' + e.message);
+    bottone.disabled = false;
+  } finally { S.occupato--; }
+}
+
+function nomeSicuro(nome, usati){
+  var n = String(nome).replace(/[\/\\:*?"<>|\x00-\x1f]/g, '_').replace(/^\.+/, '_') || 'file';
+  var base = n, i = 2;
+  while (usati[n.toLowerCase()]) {
+    var p = base.lastIndexOf('.');
+    n = (p > 0 ? base.slice(0,p) + ' (' + i + ')' + base.slice(p) : base + ' (' + i + ')');
+    i++;
+  }
+  usati[n.toLowerCase()] = true;
+  return n;
+}
+
+function testoLeggimi(){
+  return [
+'════════════════════════════════════════════',
+'  FORZIERE — export del ' + new Date().toLocaleDateString('it-IT'),
+'════════════════════════════════════════════',
+'',
+'I documenti dentro questo archivio sono IN CHIARO:',
+'li protegge la password del 7z, che sono le tue 24',
+'parole (o quella che hai scelto al momento dell\'export).',
+'',
+'Lo apri con 7-Zip, Keka o WinRAR. Doppio clic,',
+'scrivi la password, estrai.',
+'',
+'--------------------------------------------',
+'  SE INVECE HAI DEI FILE .gpg',
+'--------------------------------------------',
+'Sono i file come stanno su Google Drive.',
+'Si aprono con GnuPG, che li legge da sé:',
+'',
+'    gpg -d --use-embedded-filename documento.gpg',
+'',
+'e poi scrivi le 24 parole. Tutto minuscolo,',
+'separate da uno spazio solo.',
+'',
+'Nient\'altro: non serve internet, non serve',
+'l\'applicazione, non serve nessun codice.',
+'',
+'--------------------------------------------',
+'  COME CAPIRE CHE COS\'È OGNI FILE',
+'--------------------------------------------',
+'Su Drive i file si chiamano <uuid>.gpg, e ogni',
+'cartella ne ha uno che si chiama diversamente:',
+'',
+'    gpg -d contenuto.gpg',
+'',
+'Restituisce l\'elenco di quella cartella — nome,',
+'tipo, dimensione e data di ogni file — e nella',
+'cartella principale c\'è anche:',
+'',
+'    gpg -d scomparti.gpg',
+'',
+'che dice quale cartella è quale scomparto.',
+'Le stesse 24 parole aprono anche questi.',
+'',
+'Sono una COMODITÀ: senza di loro i documenti si',
+'aprono lo stesso, uno per uno, e ciascuno porta',
+'dentro il proprio nome originale.',
+'',
+'⚠️ Se hai perso le 24 parole non c\'è niente da',
+'   fare, per nessuno. Non esiste nessuna copia.',
+'   È la ragione per cui questo forziere esiste.',
+''].join('\n');
+}
+
+$('btnApriQuesto').addEventListener('click', async function(){
+  try {
+    var r = await fetch('/APRI-QUESTO.html');
+    salvaSulDisco(new Uint8Array(await r.arrayBuffer()), 'FORZIERE - APRI-QUESTO.html', 'text/html');
+  } catch(e){ alert('Non riesco a scaricarlo: ' + e.message); }
+});
+
+// ============================================================
+// AVVISI — quel che il forziere ha bisogno che tu faccia
+// ============================================================
+function giorniDa(iso){
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+function disegnaAvvisi(){
+  var c = $('avvisoCollaudo'), e = $('avvisoExport');
+  c.innerHTML = S.vault && S.vault.collaudato_il ? '' :
+    '<div class="avviso giallo">🧪 <strong>Il recupero non l\'hai ancora provato.</strong> ' +
+    'Farlo oggi costa un minuto; scoprire fra dieci anni che non funziona costa il forziere. ' +
+    '<button class="btn small" style="margin-left:6px" onclick="apriCollaudo()">Provalo adesso</button></div>';
+
+  var g = giorniDa(S.vault && S.vault.esportato_il);
+  e.innerHTML = (g === null)
+    ? (S.file.length ? '<div class="avviso blu">💾 <strong>Non hai ancora nessuna copia in mano tua.</strong> ' +
+        'I file stanno su Drive: perso l\'account Google, sono persi. L\'export su una chiavetta è la copia che nessuno ti può togliere.</div>' : '')
+    : (g > 60 ? '<div class="avviso giallo">💾 L\'ultimo export è di <strong>' + g + ' giorni fa</strong>. Quello che hai messo dentro da allora esiste in un posto solo.</div>' : '');
+
+  // ⚠️ Un indice non riscritto non è un dato perso — il database ce l'ha — ma tacerlo
+  // vorrebbe dire scoprire il giorno del recupero che l'indice parla di un forziere di
+  // sei mesi fa. Si dice, e si offre il rimedio nella stessa riga.
+  $('avvisoIndici').innerHTML = S.indiciRotti
+    ? '<div class="avviso giallo">🗂️ <strong>Gli indici su Drive sono rimasti indietro.</strong> ' +
+      'I tuoi file stanno tutti al loro posto — è la copia dell\'elenco che non si è riscritta. ' +
+      '<button class="btn small" style="margin-left:6px" onclick="rifaiIndici()">Rifalli adesso</button></div>'
+    : '';
+}
+
+// ============================================================
+// COLLAUDO — provare il recupero il primo giorno, non fra dieci anni
+// ============================================================
+// ⚠️ La verifica è la stessa dello sblocco vero (`indice.gpg` che si apre o non si apre),
+// non un confronto con le parole che si hanno in memoria: un collaudo che si confronta
+// con sé stesso passerebbe sempre e non proverebbe niente.
+function apriCollaudo(){
+  apriModale(
+    '<h3>🧪 Collaudo del recupero</h3>' +
+    '<p class="muted small" style="margin:8px 0 12px">Riscrivi le 24 parole senza guardarle da nessuna parte. Sto per provarle come le proverebbe un recupero vero: se aprono, il forziere è recuperabile davvero.</p>' +
+    '<textarea id="coParole" class="mono" rows="4" spellcheck="false" autocomplete="off"></textarea>' +
+    '<div class="hint" id="coStato"></div>' +
+    '<div class="row-btns"><button class="btn ok" id="coOk">Prova</button>' +
+    '<button class="btn ghost" onclick="chiudiModale()">Dopo</button></div>');
+  $('coParole').focus();
+  $('coOk').addEventListener('click', async function(){
+    var can = normParole($('coParole').value);
+    this.disabled = true;
+    $('coStato').textContent = 'Provo…';
+    try {
+      var raw = await drive('get', { id: S.vault.drive_indice_id });
+      await decifraTesto(raw, can);
+      await db('frz_vault').update({ collaudato_il: new Date().toISOString() })
+        .eq('user_id', currentUserId);
+      S.vault.collaudato_il = new Date().toISOString();
+      $('coStato').innerHTML = '<span style="color:var(--success)">✅ Aprono. Il recupero funziona.</span>';
+      disegnaAvvisi();
+      setTimeout(function(){ chiudiModale(); if (!$('pgDentro').classList.contains('on')) entraDentro(); }, 1400);
+    } catch(err){
+      // ⚠️ Non si dice QUALE parola è sbagliata, perché non si può saperlo: AES o apre o
+      // non apre. Ma dire che è successo è tutta la differenza fra un errore di battitura
+      // e il panico di credere di aver perso tutto.
+      $('coStato').innerHTML = '<span style="color:var(--danger)">❌ Non aprono. Hai sbagliato a scrivere qualcosa — riprova con calma, il forziere è intatto.</span>';
+      this.disabled = false;
+    }
+  });
+}
+
+// ============================================================
+// PASSPHRASE
+// ============================================================
+function cambiaPassphrase(obbligatoria){
+  apriModale(
+    '<h3>' + (obbligatoria ? '🔑 Scegli una nuova passphrase' : '🔑 Cambia la passphrase') + '</h3>' +
+    '<p class="muted small" style="margin:8px 0 12px">' +
+    (obbligatoria ? 'Sei entrato con le 24 parole, quindi la vecchia passphrase è persa. Scegline un\'altra: ' : '') +
+    'non si ricifra niente — si rifà solo la scorciatoia, che è una manciata di byte. I file non vengono toccati.</p>' +
+    '<label for="cpA">Nuova passphrase</label><input type="password" id="cpA" autocomplete="new-password">' +
+    '<label for="cpB">Ripetila</label><input type="password" id="cpB" autocomplete="new-password">' +
+    '<div class="hint" id="cpStato"></div>' +
+    '<div class="row-btns"><button class="btn ok" id="cpOk">Salva</button>' +
+    '<button class="btn ghost" onclick="chiudiModale()">' + (obbligatoria ? 'Dopo' : 'Annulla') + '</button></div>');
+  $('cpA').focus();
+  $('cpOk').addEventListener('click', async function(){
+    var a = $('cpA').value, b = $('cpB').value;
+    if (a.length < 6) { $('cpStato').textContent = 'Almeno 6 caratteri.'; return; }
+    if (a !== b) { $('cpStato').textContent = 'Le due non coincidono.'; return; }
+    this.disabled = true;
+    $('cpStato').textContent = 'Salvo…';
+    try {
+      var scorc = await cifraTesto(S.parole, a);
+      // Si SOVRASCRIVE la scorciatoia che c'è, passando il suo id: creandone una seconda
+      // resterebbe su Drive anche la vecchia, cioè la passphrase appena cambiata
+      // continuerebbe ad aprire il forziere.
+      var d = await drive('put', { nome:'scorciatoia.gpg', base64: b64(scorc), id: S.vault.drive_scorciatoia_id });
+      if (d.id !== S.vault.drive_scorciatoia_id){
+        await db('frz_vault').update({ drive_scorciatoia_id: d.id }).eq('user_id', currentUserId);
+        S.vault.drive_scorciatoia_id = d.id;
+      }
+      S.scorc = scorc;
+      chiudiModale();
+    } catch(e){
+      $('cpStato').textContent = '❌ ' + e.message;
+      this.disabled = false;
+    }
+  });
+}
+
+// ============================================================
+// IMPOSTAZIONI
+// ============================================================
+
+
+// ============================================================
+// 👆 SBLOCCO COL TELEFONO — la fase 2
+// ============================================================
+// Le 24 parole avvolte nel Keystore di Android e riaperte con l'impronta, così
+// sul telefono non si digita più niente. Il lavoro vero sta in
+// `ForziereKeystore.kt` dentro l'APK WebView (`com.garsalapps`): qui c'è solo
+// il ponte.
+//
+// ⚠️ **Apre il forziere e NIENT'ALTRO.** Lo ⬇️ scaricamento e la 💣 zona
+// pericolosa continuano a chiedere la passphrase scritta: là la domanda non è
+// «chi sei» ma «sei sicuro», e un dito appoggiato è il gesto meno deliberato
+// che ci sia. Chi tocca `scaricaDalVisore` o `zonaPericolosa` non porti qui
+// l'impronta senza rifare quel ragionamento.
+//
+// ⚠️ Sul PC non cambia niente: senza il ponte, `bioPonte()` torna null e la
+// pagina resta esattamente quella di prima.
+var _bioAttese = {};
+
+// La chiama il Kotlin con `evaluateJavascript`. ⚠️ Riceve l'esito e non le
+// parole: quelle si vanno a prendere dopo, con una lettura che le cancella.
+function forziereCallback(id, esito){
+  var f = _bioAttese[id];
+  delete _bioAttese[id];
+  if (f) f(esito);
+}
+
+// ⚠️ Si cerca il METODO, non il ponte: `window.AndroidBridge` esiste anche
+// negli APK precedenti alla 1.2.0, e chiedergli uno sblocco che non conosce
+// darebbe un errore invece del ripiego sulla passphrase.
+function bioPonte(){
+  try {
+    var b = window.AndroidBridge;
+    return (b && typeof b.forziereDisponibile === 'function') ? b : null;
+  } catch(e){ return null; }
+}
+function bioDisponibile(){
+  var b = bioPonte();
+  try { return !!b && b.forziereDisponibile(); } catch(e){ return false; }
+}
+function bioRegistrato(){
+  var b = bioPonte();
+  try { return !!b && b.forziereRegistrato(); } catch(e){ return false; }
+}
+function bioDimentica(){
+  var b = bioPonte();
+  try { if (b) b.forziereDimentica(); } catch(e){ /* niente da togliere */ }
+}
+
+function bioChiedi(azione, parole){
+  return new Promise(function(risolvi){
+    var b = bioPonte();
+    if (!b) return risolvi('errore');
+    var id = 'bio' + Math.random().toString(36).slice(2);
+    _bioAttese[id] = risolvi;
+    try {
+      if (azione === 'registra') b.forziereRegistra(parole, id);
+      else b.forziereApri(id);
+    } catch(e){ delete _bioAttese[id]; risolvi('errore'); }
+  });
+}
+
+// Le quattro risposte del Kotlin dette a chi legge. «Scaduta» non è un errore:
+// è un'impronta nuova sul telefono che ha invalidato la chiave, ed è successo
+// apposta — va detto così, o si legge come un guasto.
+function bioMessaggio(esito){
+  if (esito === 'rinuncia') return '';                     // ha annullato: non si dice niente
+  if (esito === 'scaduta')  return '👆 La registrazione non vale più (di solito è un\'impronta nuova sul telefono). Apri con la passphrase e rifalla.';
+  return '❌ Lo sblocco con l\'impronta non è riuscito.';
+}
+
+function mostraSbloccoImpronta(){
+  var riga = $('rigaImpronta');
+  if (!riga) return;
+  riga.style.display = (bioDisponibile() && bioRegistrato()) ? '' : 'none';
+}
+
+async function sbloccaConImpronta(){
+  var b = $('btnImpronta');
+  b.disabled = true;
+  $('statoSblocco').textContent = 'Aspetto l\'impronta…';
+  try {
+    var esito = await bioChiedi('apri');
+    if (esito !== 'ok'){
+      $('statoSblocco').textContent = bioMessaggio(esito);
+      if (esito === 'scaduta') mostraSbloccoImpronta();
+      return;
+    }
+    var parole = bioPonte().forzierePrendiParole();
+    if (!parole) { $('statoSblocco').textContent = bioMessaggio('errore'); return; }
+    $('statoSblocco').textContent = 'Apro…';
+    // ⚠️ Si passa comunque da `apriConParole`, che prova le parole su
+    // `indice.gpg`: il Keystore dice che sei tu, non che quelle parole aprano
+    // questo forziere. Sono due domande diverse e la seconda la fa lui.
+    await apriConParole(normParole(parole));
+  } catch(e){
+    $('statoSblocco').textContent = '❌ ' + e.message;
+  } finally { b.disabled = false; }
+}
+
+// Dalle Impostazioni, a forziere aperto: le parole sono già in memoria e già
+// verificate, quindi non si fa riscrivere niente. È la ragione per cui la
+// registrazione sta lì dentro e non sulla schermata di sblocco, dove le parole
+// non ci sono ancora.
+async function registraImpronta(){
+  if (!S.parole) return;
+  var b = bioPonte();
+  if (!b) return;
+  chiudiModale();
+  avanzamento('barraOp','statoOp', 0.5, 'Aspetto l\'impronta…');
+  var esito = await bioChiedi('registra', S.parole);
+  avanzamento('barraOp','statoOp', null, '');
+  if (esito === 'ok'){
+    alert('Fatto: da adesso questo telefono apre il forziere con l\'impronta.\n\n' +
+          'La passphrase resta valida, e serve comunque per scaricare un file e per la zona pericolosa.');
+  } else if (esito !== 'rinuncia'){
+    alert(bioMessaggio(esito).replace(/^[👆❌] /, ''));
+  }
+}
+
+function togliImpronta(){
+  if (!confirm('Tolgo lo sblocco con l\'impronta da questo telefono?\n\n' +
+               'I file non si toccano: si torna ad aprire il forziere con la passphrase.')) return;
+  bioDimentica();
+  chiudiModale();
+  alert('Tolto. Su questo telefono il forziere si riapre con la passphrase.');
+}
+
+// ============================================================
+// ZONA PERICOLOSA — il forziere che smette di esistere
+// ============================================================
+// ⚠️ Non è «svuota l'archivio»: se ne vanno anche `indice.gpg` e `scorciatoia.gpg`, cioè
+// il forziere stesso. Da domani le 24 parole non aprono più niente — non perché siano
+// sbagliate, ma perché non c'è più niente da aprire. È una scelta che va detta con quelle
+// parole prima di farla, non scoperta dopo.
+//
+// ⚠️ Costa CANCELLA **e** la passphrase, che è più di quanto chiedono le altre app della
+// suite (`spese-personali`, `obiettivi`, dove basta la parola). La ragione è che qui il
+// forziere è già aperto: chi trova la scrivania incustodita non deve poterlo svuotare
+// scrivendo sette lettere. La passphrase si verifica come nello scaricamento —
+// `passphraseGiusta`, cioè aprendo davvero la scorciatoia — e le 24 parole restano una
+// via, per chi la passphrase l'ha dimenticata.
+function zonaPericolosa(){
+  var g = giorniDa(S.vault && S.vault.esportato_il);
+  var conParole = false, parolaScritta = '';
+
+  function disegna(){
+    apriModale(
+      '<h3>💣 Cancella tutto</h3>' +
+      '<div class="avviso rosso" style="margin-top:10px"><strong>Da qui non si torna indietro.</strong> ' +
+        'Non è un archivio che si svuota: è il forziere che smette di esistere.</div>' +
+      '<div class="muted small" style="margin:12px 0 6px">Spariscono, in quest\'ordine:</div>' +
+      '<ul class="small" style="margin:0 0 10px 18px;line-height:1.8">' +
+        '<li><strong>' + S.file.length + '</strong> ' + (S.file.length === 1 ? 'documento' : 'documenti') +
+          ' su Drive, con le loro miniature</li>' +
+        '<li><strong>' + S.boxes.length + '</strong> ' + (S.boxes.length === 1 ? 'scomparto' : 'scomparti') +
+          ' e le loro cartelle</li>' +
+        '<li>gli indici <span class="mono">scomparti.gpg</span> e <span class="mono">contenuto.gpg</span></li>' +
+        '<li><span class="mono">indice.gpg</span> e <span class="mono">scorciatoia.gpg</span> — cioè il forziere</li>' +
+      '</ul>' +
+      '<div class="hint">Le tue 24 parole da domani non aprono più niente: non perché siano ' +
+        'sbagliate, ma perché non c\'è più niente da aprire. Ricominciando se ne scelgono di ' +
+        'nuove e si rifà il collaudo. La cartella «AppSphere/rooms» resta su Drive, vuota: ' +
+        'la riusa il forziere che verrà.</div>' +
+      // ⚠️ L'export è l'unica copia che sopravvive a questo pulsante, e va offerto QUI:
+      // ricordarsene dopo non serve a niente. Quanto è vecchio lo dice il numero — «mai»
+      // è l'informazione che più conta e va scritta a gran voce.
+      '<div class="avviso ' + (g === null ? 'rosso' : 'blu') + '" style="margin-top:12px">💾 ' +
+        (g === null
+          ? '<strong>Non hai nessuna copia in mano tua.</strong> Cancellando adesso, quei file non esistono più da nessuna parte.'
+          : 'L\'ultima copia in mano tua è di <strong>' + g + ' ' + (g === 1 ? 'giorno' : 'giorni') +
+            ' fa</strong>: quello che hai messo dentro dopo se ne va con questo pulsante.') +
+        ' <button class="btn small" style="margin-left:6px" id="dzExport">Fai un export adesso</button></div>' +
+      '<div class="sep"></div>' +
+      '<label for="dzParola">Scrivi <strong>CANCELLA</strong> per confermare</label>' +
+      // Il CANCELLA già scritto sopravvive al passaggio passphrase ↔ 24 parole: la
+      // finestra si ridisegna, ma farlo riscrivere sarebbe una punizione per aver
+      // cambiato idea su quale segreto usare.
+      '<input type="text" id="dzParola" autocomplete="off" spellcheck="false" placeholder="CANCELLA" value="' +
+        esc(parolaScritta) + '">' +
+      '<label for="dzIn" style="margin-top:10px">' + (conParole
+        ? 'Le 24 parole, tutto minuscolo e separate da uno spazio'
+        : 'La tua passphrase') + '</label>' +
+      (conParole
+        ? '<textarea id="dzIn" class="mono" rows="3" spellcheck="false" autocomplete="off"></textarea>'
+        : '<input type="password" id="dzIn" autocomplete="current-password">') +
+      '<div class="hint" id="dzStato"></div>' +
+      '<div class="row-btns">' +
+        '<button class="btn danger" id="dzOk">💣 Cancella tutto</button>' +
+        '<button class="btn ghost" id="dzAlt">' +
+          (conParole ? 'Uso la passphrase' : 'Ho scordato la passphrase') + '</button>' +
+        '<button class="btn ghost" onclick="chiudiModale()">Annulla</button>' +
+      '</div>');
+
+    $('dzExport').addEventListener('click', function(){ chiudiModale(); $('btnExport').click(); });
+    $('dzParola').addEventListener('input', function(){ parolaScritta = this.value; });
+    $('dzAlt').addEventListener('click', function(){ conParole = !conParole; disegna(); });
+    (parolaScritta ? $('dzIn') : $('dzParola')).focus();
+
+    $('dzOk').addEventListener('click', async function(){
+      if ($('dzParola').value.trim() !== 'CANCELLA'){
+        $('dzStato').textContent = '❌ scrivi CANCELLA, in maiuscolo';
+        $('dzParola').focus();
+        return;
+      }
+      var v = $('dzIn').value;
+      if (!v){ $('dzStato').textContent = '❌ serve ' + (conParole ? 'le 24 parole' : 'la passphrase'); return; }
+      if (!S.parole){ $('dzStato').textContent = '❌ il forziere si è chiuso'; return; }
+      this.disabled = true;
+      $('dzStato').textContent = 'Controllo…';
+      var ok;
+      try { ok = conParole ? (normParole(v) === S.parole) : await passphraseGiusta(v); }
+      catch(e){ ok = false; }
+      if (!ok){
+        $('dzStato').textContent = conParole ? '❌ non sono le parole di questo forziere' : '❌ passphrase sbagliata';
+        this.disabled = false;
+        return;
+      }
+      await cancellaTutto();
+    });
+  }
+  disegna();
+}
+
+async function cancellaTutto(){
+  S.occupato++;
+  function passo(t){ var el = $('dzStato'); if (el) el.textContent = t; }
+  try {
+    // ⚠️ PRIMA Drive, POI il database, come in `elimina()` e per la stessa ragione: un
+    // `.gpg` rimasto su Drive senza la sua riga è un pacchetto che nessuno sa più cos'è e
+    // che dall'app non si può più togliere. Nell'ordine giusto, una rete che cade lascia
+    // un forziere a metà — e ripremendo il pulsante si riprende da dove si era fermato.
+    //
+    // ⚠️ L'elenco lo dà DRIVE e non il database (`list` con `dentro`, un livello solo,
+    // che è tutto quel che c'è): così se ne vanno anche i file di righe perdute, che il
+    // database non nominerebbe affatto. È l'opposto di quel che fa «📁 Riordina il
+    // Drive», che parte dal database perché lì la verità è quella.
+    passo('Guardo cosa c\'è su Drive…');
+    var l = await drive('list', { dentro: true });
+    var tutto = l.file || [];
+    var cartelle = tutto.filter(function(x){ return x.mimeType === 'application/vnd.google-apps.folder'; });
+    var files    = tutto.filter(function(x){ return x.mimeType !== 'application/vnd.google-apps.folder'; });
+
+    for (var i = 0; i < files.length; i++){
+      passo('Cancello su Drive… ' + (i+1) + '/' + files.length);
+      await drive('delete', { id: files[i].id });
+    }
+    // Le cartelle DOPO i file: `rmdir` si rifiuta su una cartella non vuota, ed è la
+    // stessa rete che impedisce a uno scomparto di portarsi via un documento.
+    for (var j = 0; j < cartelle.length; j++){
+      passo('Tolgo le cartelle… ' + (j+1) + '/' + cartelle.length);
+      await drive('rmdir', { id: cartelle[j].id });
+    }
+
+    // ⚠️ Dal figlio al padre, e ogni DELETE porta il filtro `user_id`: ridondante rispetto
+    // alla RLS e voluto, come in Obiettivi. `frz_thumbs` sparirebbe da sé per cascata da
+    // `frz_files`, ma una riga che nessuno nomina è una riga che, il giorno che un vincolo
+    // cambia, resta lì senza che nessuno la veda più.
+    var tabelle = ['frz_thumbs', 'frz_files', 'frz_boxes', 'frz_vault'];
+    for (var k = 0; k < tabelle.length; k++){
+      passo('Svuoto ' + tabelle[k] + '…');
+      var d = await db(tabelle[k]).delete().eq('user_id', currentUserId);
+      if (d.error) throw new Error(tabelle[k] + ': ' + d.error.message);
+    }
+
+    // ⚠️ `S.vault = null` PRIMA di `chiudiForziere()`: quella funzione, con un vault in
+    // piedi, riporterebbe sulla schermata di sblocco — cioè chiederebbe la passphrase di
+    // un forziere che non esiste più.
+    // ⚠️ Via anche la registrazione dell'impronta, o su questo telefono
+    // resterebbe un «👆 Sblocca» che riapre le parole di un forziere che non
+    // esiste più — e le parole di un forziere cancellato non sono un segreto
+    // che valga la pena tenersi nel Keystore.
+    bioDimentica();
+    S.vault = null;
+    chiudiForziere(null);
+    mostraPagina('pgCrea');
+    setSync('', 'nuovo');
+    $('inParole').value = ''; $('inParole2').value = '';
+    $('inPass').value = ''; $('inPass2').value = '';
+    $('parolePeso').textContent = '';
+    $('inParole').focus();
+    alert('Fatto: il forziere non c\'è più.\n\nSu Drive resta la cartella vuota, che il prossimo forziere riuserà.');
+  } catch(e){
+    passo('❌ ' + e.message);
+    var b = $('dzOk');
+    if (b) b.disabled = false;
+    // ⚠️ Non si dice «riprova più tardi» e basta: metà del lavoro può essere già fatta, e
+    // chi legge deve sapere che ripremendo si riprende, non si ricomincia.
+    alert('Non ce l\'ho fatta: ' + e.message +
+          '\n\nQuello che è già stato cancellato resta cancellato. Ripremendo il pulsante si riprende da dove si era fermato.');
+  } finally { S.occupato--; }
+}
+
+$('btnImpostazioni').addEventListener('click', function(){
+  var g = giorniDa(S.vault.esportato_il);
+  apriModale(
+    '<h3>⚙️ Impostazioni</h3>' +
+    '<div class="muted small" style="margin:8px 0 14px">' +
+      'Forziere creato il ' + new Date(S.vault.creato_il).toLocaleDateString('it-IT') + '.<br>' +
+      'Recupero collaudato: ' + (S.vault.collaudato_il ? new Date(S.vault.collaudato_il).toLocaleDateString('it-IT') : '<strong>mai</strong>') + '.<br>' +
+      'Ultimo export: ' + (g === null ? '<strong>mai</strong>' : g + ' giorni fa') + '.<br>' +
+      'File nel forziere: ' + S.file.length + '.' +
+    '</div>' +
+    '<div class="row-btns">' +
+      '<button class="btn" onclick="chiudiModale();cambiaPassphrase(false)">🔑 Cambia passphrase</button>' +
+      '<button class="btn ghost" onclick="chiudiModale();apriCollaudo()">🧪 Rifai il collaudo</button>' +
+      '<button class="btn ghost" onclick="mostraParole()">👁 Rivedi le 24 parole</button>' +
+    '</div>' +
+    // Solo dentro l'APK e solo dove l'impronta c'è: sul PC questa riga non
+    // compare affatto, invece di offrire un pulsante che non farebbe niente.
+    (bioDisponibile()
+      ? '<div class="sep"></div>' +
+        '<div class="row-btns">' +
+          (bioRegistrato()
+            ? '<button class="btn ghost" onclick="togliImpronta()">👆 Togli lo sblocco con l\'impronta</button>'
+            : '<button class="btn" onclick="registraImpronta()">👆 Apri con l\'impronta su questo telefono</button>') +
+        '</div>' +
+        '<div class="tiny muted" style="margin-top:6px">' + (bioRegistrato()
+          ? 'Questo telefono apre il forziere con l\'impronta. Scaricare un file e la zona pericolosa chiedono comunque la passphrase.'
+          : 'Le 24 parole restano chiuse nel Keystore del telefono e si riaprono con l\'impronta: qui dentro non si scrive più la passphrase per aprire. ⬇️ Scaricare e 💣 cancellare continuano a chiederla.') +
+        '</div>'
+      : '') +
+    '<div class="sep"></div>' +
+    '<div class="tiny muted" style="margin-bottom:8px">Su Drive ogni scomparto ha una cartella ' +
+    '(che si chiama con un uuid, non col suo nome) e accanto ai file ci sono due indici cifrati: ' +
+    '<code>scomparti.gpg</code> e <code>contenuto.gpg</code>. Servono a ritrovare i nomi con ' +
+    '<code>gpg -d</code> il giorno che il database non ci fosse più.</div>' +
+    '<div class="row-btns">' +
+      '<button class="btn ghost" onclick="riordinaDrive()">📁 Riordina il Drive</button>' +
+      '<button class="btn ghost" onclick="chiudiModale();rifaiIndici()">🔄 Rifai gli indici</button>' +
+    '</div>' +
+    '<div class="sep"></div>' +
+    '<div class="row-btns">' +
+      '<button class="btn danger" onclick="zonaPericolosa()">💣 Cancella tutto</button>' +
+    '</div>' +
+    '<div class="tiny muted" style="margin-top:6px">Il forziere smette di esistere: documenti, ' +
+    'scomparti, indici e le due chiavi di servizio. Chiede la passphrase.</div>' +
+    '<div class="sep"></div>' +
+    '<div class="tiny muted">Il forziere si chiude da sé dopo ' + MINUTI_BLOCCO +
+    ' minuti che non lo tocchi, e appena la scheda se ne va o passa in secondo piano (a operazione finita, se ce n\'è una in corso). Le 24 parole vivono solo nella memoria di questa pagina: non sono scritte su questo computer da nessuna parte.</div>');
+});
+
+function mostraParole(){
+  if (!confirm('Sto per scriverle a schermo.\n\nGuardati intorno: è l\'unico momento in cui sono leggibili.')) return;
+  apriModale(
+    '<h3>👁 Le tue 24 parole</h3>' +
+    '<div class="mono" style="background:var(--input-bg);border:1px solid var(--border);border-radius:12px;padding:12px;line-height:1.7;margin-top:10px">' + esc(S.parole) + '</div>' +
+    '<div class="avviso rosso" style="margin-top:12px">Così come le vedi — minuscole, uno spazio fra una e l\'altra — è come vanno scritte dentro gpg.</div>' +
+    '<div class="row-btns"><button class="btn" onclick="chiudiModale()">Chiudi</button></div>');
+}
+
+$('btnChiudi').addEventListener('click', function(){ chiudiForziere(null); });
+
+// ============================================================
+// AVVIO
+// ============================================================
+console.log('%c🔐 Forziere ' + APP_VERSION, 'color:#1F2937;font-size:16px;font-weight:bold;');
+console.log('%cbuild: ' + BUILD_TIME, 'color:#888;font-size:11px;');
+console.log('%cambiente: ' + (_IS_DEV ? '🧪 Development' : '🚀 Production'), 'color:#888;font-size:11px;');
+
+window.addEventListener('load', function(){
+  var stored = localStorage.getItem('sb_token');
+  if (stored && tokenVivo(stored)) return initWithToken(stored);
+  // Scaduto o illeggibile: si butta e si chiede il login. Tenerlo scritto vorrebbe dire
+  // riprovarci alla prossima apertura con lo stesso esito.
+  if (stored) localStorage.removeItem('sb_token');
+  document.getElementById('authOverlay').classList.add('on');
+});
+
+// ⚠️ Il tasto «indietro» di Android dentro un popup: senza questa guardia esce dalla
+// pagina e butta via quel che si stava scrivendo. Blocco identico in tutte le app che
+// hanno dei popup — se lo correggi qui, portalo nelle altre.
+(function guardiaIndietroPopup(elenco) {
+  const visibile = el => el && getComputedStyle(el).display !== 'none';
+  const aperti = () => elenco.flatMap(p =>
+    [...document.querySelectorAll(p.sel)].filter(visibile).map(el => ({ el, chiudi: p.chiudi })));
+
+  let spinta = false;
+
+  function controlla() {
+    const n = aperti().length;
+    if (n && !spinta) { spinta = true; history.pushState({ __popup: true }, ''); }
+    else if (!n && spinta) {
+      spinta = false;
+      if (history.state && history.state.__popup) history.back();
+    }
+  }
+
+  function avvia() {
+    const osservatore = new MutationObserver(controlla);
+    elenco.forEach(p => document.querySelectorAll(p.sel).forEach(el =>
+      osservatore.observe(el, { attributes: true, attributeFilter: ['class', 'style'] })));
+    controlla();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.addEventListener('popstate', () => {
+    const a = aperti();
+    if (!a.length) return;
+    spinta = false;
+    const ultimo = a[a.length - 1];
+    try { ultimo.chiudi(ultimo.el); } catch (err) { console.warn('indietro:', err); }
+  });
+})([
+  { sel: '#overlay', chiudi: () => chiudiModale() },
+]);
+</script>
+
+</body>
+</html>

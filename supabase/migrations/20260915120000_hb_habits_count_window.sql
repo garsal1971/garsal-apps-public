@@ -1,0 +1,22 @@
+-- Nuova frequenza per le abitudini: «N volte in M giorni a partire dal
+-- giorno di inizio» (frequency = 'count_window').
+--
+-- Servono due numeri che le altre frequenze non hanno: N (quante volte) e
+-- M (la lunghezza della finestra in giorni). Le finestre si ripetono dal
+-- giorno di inizio — [inizio, inizio+M-1], [inizio+M, inizio+2M-1], … — e
+-- una finestra è "fatta" quando dentro ci sono almeno N spunte; chiusa con
+-- meno di N è una mancata (jolly e game over come le altre frequenze).
+--
+-- ⚠️ Colonne NULLABLE, come `weekdays`/`daily_times`: hanno senso solo per
+-- questa frequenza, e su daily/weekly restano NULL. `hb_habits` non nasce da
+-- nessuna migration (è nata a mano in produzione, come dice il CLAUDE.md),
+-- quindi si aggiungono con `if not exists`. Nessun CHECK su `frequency` da
+-- allargare: non ne esiste uno (la migration del 'custom' fece solo UPDATE).
+--
+-- ⚠️ Per ora la nuova frequenza vive SOLO nel web (`habit-tracker.html`), che
+-- usa la sua copia JS delle regole. Il nativo e le RPC `hb_*` non la conoscono
+-- ancora: un'abitudine 'count_window' cade nel loro ramo sconosciuto e
+-- semplicemente non compare in 🎯 Oggi, senza rompersi. Il nativo è un secondo
+-- giro.
+alter table hb_habits add column if not exists times_target integer;
+alter table hb_habits add column if not exists window_days  integer;

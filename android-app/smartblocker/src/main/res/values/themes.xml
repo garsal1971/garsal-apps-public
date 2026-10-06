@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SmartBlocker" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/purple_primary</item>
+        <item name="android:windowBackground">@color/white</item>
+    </style>
+
+    <!-- windowShowWhenLocked e windowTurnScreenOn sono API 27+, gestiti via codice in BlockOverlayActivity -->
+    <style name="Theme.SmartBlocker.Block" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/bg_dark</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

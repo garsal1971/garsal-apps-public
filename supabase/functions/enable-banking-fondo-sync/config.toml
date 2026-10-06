@@ -1,0 +1,2 @@
+[functions.enable-banking-fondo-sync]
+verify_jwt = false

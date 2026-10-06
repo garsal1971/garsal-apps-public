@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conto Spese Teresa v1.9.3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'DM Mono', ui-monospace, monospace;
+      --c-bg:        #f4f6fb;
+      --c-surface:   #ffffff;
+      --c-border:    #e2e8f0;
+      --c-text:      #1e293b;
+      --c-muted:     #64748b;
+      --c-primary:   #4f46e5;
+      --c-primary-h: #4338ca;
+      --c-teresa:    #dc2626;
+      --c-salvatore: #16a34a;
+      --c-success:   #16a34a;
+      --c-danger:    #dc2626;
+      --c-warning:   #d97706;
+      --radius-sm: 6px;
+      --radius:    12px;
+      --radius-lg: 18px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+      --shadow:    0 4px 16px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+    }
+    body { font-family: var(--font-sans); background: var(--c-bg); color: var(--c-text); min-height: 100dvh; -webkit-font-smoothing: antialiased; padding-top: 56px; }
+    .hidden { display: none !important; }
+    .mono   { font-family: var(--font-mono); }
+    .pos    { color: var(--c-success); }
+    .neg    { color: var(--c-danger); }
+    .text-muted { color: var(--c-muted); }
+    .text-sm    { font-size: .82rem; }
+    .text-lg    { font-size: 1.05rem; }
+    .fw-600  { font-weight: 600; }
+    .fw-700  { font-weight: 700; }
+    .text-right  { text-align: right; }
+    .flex-1  { flex: 1; }
+    .hstack  { display: flex; align-items: center; }
+    .gap-4   { gap: 4px; }
+    .gap-8   { gap: 8px; }
+    .gap-12  { gap: 12px; }
+    .mt-2    { margin-top: 2px; }
+    .mt-8    { margin-top: 8px; }
+    .mt-12   { margin-top: 12px; }
+    .mb-16   { margin-bottom: 16px; }
+    #loading-overlay { position: fixed; inset: 0; z-index: 9999; background: var(--c-bg); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+    .spinner { width: 34px; height: 34px; border: 3px solid var(--c-border); border-top-color: var(--c-primary); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #screen-app { display: none; flex-direction: column; min-height: 100dvh; }
+    #garsal-top-bar { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #0081C8; display: flex; align-items: center; padding: 0 20px; gap: 10px; z-index: 3000; }
+    #garsal-top-bar-text { font-family: 'Darker Grotesque', sans-serif; font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+    .topbar-spacer { flex: 1; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--c-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .78rem; font-weight: 600; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--c-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .78rem; font-weight: 600; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .btn-logout { background: none; border: 1px solid var(--c-border); border-radius: var(--radius-sm); padding: 4px 11px; font-family: var(--font-sans); font-size: .8rem; color: var(--c-muted); cursor: pointer; transition: border-color .15s, color .15s; }
+    .btn-logout:hover { border-color: var(--c-danger); color: var(--c-danger); }
+    .app-layout { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--c-border); background: var(--c-surface); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+    .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: var(--radius-sm); font-size: .88rem; font-weight: 500; color: var(--c-muted); cursor: pointer; transition: background .12s, color .12s; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-sans); }
+    .nav-item:hover { background: var(--c-bg); color: var(--c-text); }
+    .nav-item.active { background: #eef2ff; color: var(--c-primary); }
+    .nav-label { font-size: .68rem; font-weight: 700; color: var(--c-muted); text-transform: uppercase; letter-spacing: .08em; padding: 14px 11px 6px; }
+    .nav-sep { height: 1px; background: var(--c-border); margin: 10px 4px 4px; }
+    .app-main { flex: 1; padding: 24px 28px; overflow-y: auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .view-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .page-title { font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em; }
+    .page-sub { color: var(--c-muted); font-size: .84rem; margin-top: 2px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .88rem; font-weight: 500; cursor: pointer; border: none; transition: background .15s, color .15s, border-color .15s; }
+    .btn-primary { background: var(--c-primary); color: #fff; }
+    .btn-primary:hover { background: var(--c-primary-h); }
+    .btn-outline { background: var(--c-surface); color: var(--c-text); border: 1.5px solid var(--c-border); }
+    .btn-outline:hover { border-color: #aab0bc; background: #f8f9fb; }
+    .btn-danger { background: #fee2e2; color: var(--c-danger); }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-sm { padding: 6px 12px; font-size: .82rem; }
+    .btn-icon { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: var(--radius-sm); color: var(--c-muted); font-size: .9rem; line-height: 1; transition: background .12s, color .12s; }
+    .btn-icon:hover { background: var(--c-bg); color: var(--c-text); }
+    .btn-icon-danger:hover { background: #fee2e2; color: var(--c-danger); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); }
+    .kpi-label { font-size: .74rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .kpi-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -.03em; text-align: right; }
+    .kpi-value.teresa { color: var(--c-teresa); }
+    .kpi-value.salvatore { color: var(--c-salvatore); }
+    .card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow-sm); margin-bottom: 14px; }
+    .card-title { font-size: .96rem; font-weight: 600; margin-bottom: 14px; }
+    .card-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .card-header-row .card-title { margin-bottom: 0; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .table-wrap { overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .table th { text-align: left; font-size: .72rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; letter-spacing: .06em; padding: 0 10px 9px; white-space: nowrap; }
+    .table td { padding: 9px 10px; border-top: 1px solid var(--c-border); white-space: nowrap; }
+    .table tbody tr:hover td { background: #fafbfd; }
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: .72rem; font-weight: 600; white-space: nowrap; }
+    .badge-teresa  { background: #fee2e2; color: #991b1b; }
+    .badge-salvatore { background: #dcfce7; color: #166534; }
+    .badge-bonifico { background: #eef2ff; color: #3730a3; }
+    .badge-altro { background: #fef3c7; color: #92400e; }
+    .badge-mensa { background: #f0f9ff; color: #0369a1; }
+    .badge-impianto { background: #f3e8ff; color: #6b21a8; }
+    .badge-importato { background: #e0f2fe; color: #075985; }
+    .badge-manuale { background: #f1f5f9; color: #475569; }
+    .chart-wrap { height: 200px; display: flex; align-items: center; justify-content: center; }
+    .chart-wrap canvas { max-height: 200px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: .82rem; font-weight: 600; color: var(--c-text); margin-bottom: 5px; }
+    .form-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .9rem; color: var(--c-text); outline: none; transition: border-color .15s; background: var(--c-surface); }
+    .form-input:focus { border-color: var(--c-primary); }
+    .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    #modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
+    #modal-card { background: var(--c-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); width: 100%; max-width: 540px; max-height: 90dvh; overflow-y: auto; }
+    #modal-card.modal-wide { max-width: 820px; }
+    .import-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .import-table th { text-align: left; color: var(--c-muted); font-weight: 600; padding: 4px 6px; white-space: nowrap; }
+    .import-table td { padding: 5px 6px; border-top: 1px solid var(--c-border); vertical-align: top; }
+    .import-table tr.is-dup td { opacity: .55; }
+    .import-note { font-size: .78rem; color: var(--c-muted); }
+    #modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid var(--c-border); }
+    #modal-title { font-size: 1rem; font-weight: 700; }
+    #modal-close { background: none; border: none; cursor: pointer; color: var(--c-muted); font-size: 1.2rem; padding: 2px 6px; border-radius: var(--radius-sm); transition: background .12s; }
+    #modal-close:hover { background: var(--c-bg); }
+    #modal-body { padding: 18px 22px 22px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 6px; border-top: 1px solid var(--c-border); margin-top: 18px; }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--c-muted); }
+    .empty-icon { font-size: 2.4rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .88rem; line-height: 1.6; }
+    .summary-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--c-border); font-size: .9rem; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-total { font-weight: 700; font-size: 1rem; border-top: 2px solid var(--c-text); margin-top: 4px; padding-top: 8px; }
+    .year-select { padding: 7px 12px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .88rem; color: var(--c-text); outline: none; background: var(--c-surface); cursor: pointer; }
+    .year-select:focus { border-color: var(--c-primary); }
+    .version-bar { border-top: 1px solid var(--c-border); padding: 7px 22px; font-size: .7rem; color: var(--c-muted); display: flex; align-items: center; gap: 7px; background: var(--c-surface); }
+    .btn-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 8px; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    .btn-hamburger span { display: block; width: 20px; height: 2px; background: #fff; border-radius: 2px; }
+    .topbar-username { color: rgba(255,255,255,.85); font-size: 11px; white-space: nowrap; font-family: var(--font-mono); }
+    #mobile-nav-overlay { display: none; position: fixed; inset: 0; top: 56px; background: rgba(0,0,0,.35); z-index: 98; }
+    #mobile-nav-overlay.open { display: block; }
+    @media (max-width: 768px) {
+      .btn-hamburger { display: flex; align-items: center; }
+      .sidebar { position: fixed; top: 56px; left: 0; z-index: 99; height: calc(100dvh - 56px); transform: translateX(-100%); transition: transform .25s ease; display: flex; box-shadow: 4px 0 20px rgba(0,0,0,.12); }
+      .sidebar.open { transform: translateX(0); }
+      .app-main { padding: 16px; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+      .kpi-card { padding: 10px 12px; }
+      .kpi-label { font-size: .62rem; margin-bottom: 3px; }
+      .kpi-value { font-size: 1rem; }
+      .form-row-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div id="garsal-top-bar">
+  <a href="finanza.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex:1;min-width:0;">
+    <span style="width:22px;height:22px;background:rgba(255,255,255,0.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">💰</span>
+    <div id="garsal-top-bar-text">GarsalFinanza</div>
+  </a>
+  <button id="btn-hamburger" class="btn-hamburger" aria-label="Apri menu"><span></span><span></span><span></span></button>
+</div>
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <span class="text-muted text-sm">Caricamento…</span>
+</div>
+
+<div id="screen-app">
+  <div style="display:none">
+    <div class="avatar" id="user-avatar"></div>
+    <button class="btn-logout" id="btn-logout">Esci</button>
+  </div>
+  <div id="mobile-nav-overlay"></div>
+  <div class="app-layout">
+    <nav class="sidebar" id="sidebar">
+      <button class="nav-item active" data-action="nav" data-view="dashboard">📊 Dashboard</button>
+      <div class="nav-label">Movimenti</div>
+      <button class="nav-item" data-action="nav" data-view="bonifici">💳 Bonifici</button>
+      <button class="nav-item" data-action="nav" data-view="spese">🧾 Altre Spese</button>
+      <button class="nav-item" data-action="nav" data-view="import">📥 Importa movimenti</button>
+      <div class="nav-label">Report</div>
+      <button class="nav-item" data-action="nav" data-view="report">📈 Report Annuali</button>
+      <div class="nav-label">Gestione</div>
+      <button class="nav-item" data-action="nav" data-view="impostazioni">⚙️ Impostazioni</button>
+      <div class="nav-sep"></div>
+      <a class="nav-item" href="finanza.html" style="text-decoration:none">← Torna a 💰 Finanza</a>
+    </nav>
+    <main class="app-main">
+      <div id="view-dashboard" class="view active"></div>
+      <div id="view-bonifici" class="view"></div>
+      <div id="view-spese" class="view"></div>
+      <div id="view-report" class="view"></div>
+      <div id="view-import" class="view"></div>
+      <div id="view-impostazioni" class="view"></div>
+    </main>
+  </div>
+  <footer class="version-bar">
+    Conto Spese Teresa · <span class="mono">v1.9.1</span>
+    <span class="topbar-spacer"></span>
+    <span id="footer-info"></span>
+  </footer>
+</div>
+
+<div id="modal-overlay" class="hidden">
+  <div id="modal-card">
+    <div id="modal-header">
+      <h3 id="modal-title"></h3>
+      <button id="modal-close" data-action="close-modal">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+var APP_VERSION = 'v1.9.3';
+var BUILD_TIME  = '2026-08-30T23:30:00Z';
+console.log('%c CONTO SPESE TERESA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#4f46e5;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+const SUPABASE_URL = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+const S = { session: null, view: 'dashboard', transactions: [], charts: {}, selectedYear: null };
+
+const tok = () => S.session?.access_token || SUPABASE_ANON_KEY;
+function sbH(extra = {}) {
+  return { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${tok()}`, 'Content-Type': 'application/json', ...extra };
+}
+async function sbQ(table, params = '') {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: sbH() });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+  return r.json();
+}
+async function sbIns(table, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST', headers: sbH({ 'Prefer': 'return=representation' }), body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+  return (await r.json())[0];
+}
+async function sbUpd(table, filter, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+    method: 'PATCH', headers: sbH({ 'Prefer': 'return=representation' }), body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+  return r.json();
+}
+async function sbDel(table, filter) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, { method: 'DELETE', headers: sbH() });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+}
+async function sbFn(name, payload) {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+    method: 'POST', headers: sbH(), body: JSON.stringify(payload),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data?.error) throw new Error(data?.error?.message || r.statusText);
+  return data;
+}
+
+const loadSession = () => { try { return JSON.parse(localStorage.getItem('garsal_session')); } catch { return null; } };
+async function initFromSbToken(token) {
+  try {
+    const user = await (await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },
+    })).json();
+    if (user?.id) {
+      return { access_token: token, refresh_token: null, expires_at: Date.now() + 3600_000, user };
+    }
+  } catch {}
+  return null;
+}
+async function refreshSession(session) {
+  if (!session?.refresh_token) return null;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const ns = { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + d.expires_in * 1000, user: d.user };
+    localStorage.setItem('garsal_session', JSON.stringify(ns));
+    return ns;
+  } catch { return null; }
+}
+async function logout() {
+  location.href = '/';
+}
+
+const fmtEUR = n => { if (n == null) return '—'; const v = Math.round(n); return (v < 0 ? '-' : '') + Math.abs(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €'; };
+const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT') : '—';
+
+const $ = id => document.getElementById(id);
+const setHtml = (id, h) => { const el = $(id); if (el) el.innerHTML = h; };
+
+const badgePersona = p => p === 'TERESA' ? '<span class="badge badge-teresa">Teresa</span>' : '<span class="badge badge-salvatore">Salvatore</span>';
+const badgeTipo = t => t === 'BONIFICO' ? '<span class="badge badge-bonifico">Bonifico</span>' : t === 'MENSA' ? '<span class="badge badge-mensa">Mensa</span>' : '<span class="badge badge-altro">Altro</span>';
+const badgeProvenienza = p => p === 'IMPIANTO' ? '<span class="badge badge-impianto">Impianto</span>' : p === 'IMPORTATO' ? '<span class="badge badge-importato">Importato</span>' : '<span class="badge badge-manuale">Manuale</span>';
+const kpi = (label, value, cls = 'neutral') => `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value mono ${cls}">${value}</div></div>`;
+
+async function loadData() {
+  S.transactions = await sbQ('acct_transactions', 'select=*&order=data.desc,created_at.desc');
+}
+
+function calcolaQuote(anno) {
+  const txs = S.transactions.filter(t => t.anno === anno);
+  const bonTeresa = txs.filter(t => t.tipo === 'BONIFICO' && t.persona === 'TERESA').reduce((s, t) => s + +t.importo, 0);
+  const bonSalva = txs.filter(t => t.tipo === 'BONIFICO' && t.persona === 'SALVATORE').reduce((s, t) => s + +t.importo, 0);
+  const altTeresa = txs.filter(t => t.tipo === 'ALTRO' && t.persona === 'TERESA').reduce((s, t) => s + +t.importo, 0);
+  const altSalva = txs.filter(t => t.tipo === 'ALTRO' && t.persona === 'SALVATORE').reduce((s, t) => s + +t.importo, 0);
+  const mensa = txs.filter(t => t.tipo === 'MENSA').reduce((s, t) => s + +t.importo, 0);
+  const versatoTeresa = bonTeresa + altTeresa;
+  const versatoSalva = bonSalva + altSalva + mensa;
+  const totaleSpeso = versatoTeresa + versatoSalva;
+  const quotaTeresa = anno <= 2023 ? totaleSpeso * 2 / 5 : totaleSpeso / 3;
+  const quotaSalva = totaleSpeso - quotaTeresa;
+  const diffTeresa = versatoTeresa - quotaTeresa;
+  const diffSalva = versatoSalva - quotaSalva;
+  return { anno, bonTeresa, bonSalva, altTeresa, altSalva, mensa, versatoTeresa, versatoSalva, totaleSpeso, quotaTeresa, quotaSalva, diffTeresa, diffSalva };
+}
+
+function calcolaTotaliGenerali() {
+  const anni = getAnni();
+  const initTot = () => ({ bonTeresa:0, bonSalva:0, altTeresa:0, altSalva:0, mensa:0, versatoTeresa:0, versatoSalva:0, totaleSpeso:0, quotaTeresa:0, quotaSalva:0, diffTeresa:0, diffSalva:0 });
+  const p1 = initTot(); // Periodo <= 2023
+  const p2 = initTot(); // Periodo >= 2024
+  const tot = initTot(); // Gran totale
+  
+  for (const a of anni) {
+    const q = calcolaQuote(a);
+    const target = a <= 2023 ? p1 : p2;
+    
+    [target, tot].forEach(t => {
+      t.bonTeresa += q.bonTeresa;
+      t.bonSalva += q.bonSalva;
+      t.altTeresa += q.altTeresa;
+      t.altSalva += q.altSalva;
+      t.mensa += q.mensa;
+      t.versatoTeresa += q.versatoTeresa;
+      t.versatoSalva += q.versatoSalva;
+      t.totaleSpeso += q.totaleSpeso;
+      t.quotaTeresa += q.quotaTeresa;
+      t.quotaSalva += q.quotaSalva;
+      t.diffTeresa += q.diffTeresa;
+      t.diffSalva += q.diffSalva;
+    });
+  }
+  return { p1, p2, tot };
+}
+
+function getAnni() {
+  return [...new Set(S.transactions.map(t => t.anno))].sort((a, b) => b - a);
+}
+
+function drawChart(id, labels, data, colors) {
+  if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; }
+  const canvas = document.getElementById(id);
+  if (!canvas || !data.some(v => v > 0)) return;
+  const PALETTE = ['#4f46e5','#16a34a','#d97706','#dc2626','#0891b2'];
+  S.charts[id] = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: (colors || PALETTE).slice(0, data.length), borderWidth: 2, borderColor: '#fff' }] },
+    options: { cutout: '60%', plugins: { legend: { position: 'right', labels: { font: { family: "'DM Sans'", size: 11 }, boxWidth: 11, padding: 12 } } }, animation: { duration: 400 } },
+  });
+}
+
+// ══════════ RENDERERS ══════════
+
+function renderDashboard() {
+  const anni = getAnni();
+  if (!S.selectedYear || !anni.includes(S.selectedYear)) S.selectedYear = anni[0] || new Date().getFullYear();
+  const annoSel = S.selectedYear;
+  const q = calcolaQuote(annoSel);
+  const tot = calcolaTotaliGenerali();
+  
+  setHtml('view-dashboard', `
+    <div class="view-header">
+      <h2 class="page-title">Dashboard</h2>
+      <div class="hstack gap-8">
+        <button class="btn btn-primary btn-sm" data-action="new-transaction">+ Movimento</button>
+      </div>
+    </div>
+
+    <!-- ── TOTALI GENERALI ── -->
+    <div class="kpi-grid">
+      ${kpi('Versato Teresa (TOT)', fmtEUR(tot.tot.versatoTeresa), 'teresa')}
+      ${kpi('Versato Salva (TOT)',  fmtEUR(tot.tot.versatoSalva), 'salvatore')}
+      ${kpi('Totale Speso (TOT)',   fmtEUR(tot.tot.totaleSpeso))}
+      ${kpi(tot.tot.diffTeresa >= 0 ? 'Salvatore Debito' : 'Teresa Debito', fmtEUR(Math.abs(tot.tot.diffTeresa)), tot.tot.diffTeresa >= 0 ? 'pos' : 'neg')}
+    </div>
+
+    <div class="card mb-16">
+      <div class="card-title">Riepilogo Storico per Periodi</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Periodo</th>
+              <th class="text-right">Versato Teresa</th>
+              <th class="text-right">Versato Salva</th>
+              <th class="text-right">Totale Speso</th>
+              <th class="text-right">Quota Teresa</th>
+              <th class="text-right">Quota Salva</th>
+              <th class="text-right">Saldo Teresa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Fino al 2023</strong><br><span class="text-muted text-sm">(2/5 - 3/5)</span></td>
+              <td class="text-right mono">${fmtEUR(tot.p1.versatoTeresa)}</td>
+              <td class="text-right mono">${fmtEUR(tot.p1.versatoSalva)}</td>
+              <td class="text-right mono">${fmtEUR(tot.p1.totaleSpeso)}</td>
+              <td class="text-right mono teresa">${fmtEUR(tot.p1.quotaTeresa)}</td>
+              <td class="text-right mono salvatore">${fmtEUR(tot.p1.quotaSalva)}</td>
+              <td class="text-right mono ${tot.p1.diffTeresa >= 0 ? 'pos' : 'neg'}">${tot.p1.diffTeresa >= 0 ? '+' : ''}${fmtEUR(tot.p1.diffTeresa)}</td>
+            </tr>
+            <tr>
+              <td><strong>Dal 2024</strong><br><span class="text-muted text-sm">(1/3-2/3)</span></td>
+              <td class="text-right mono">${fmtEUR(tot.p2.versatoTeresa)}</td>
+              <td class="text-right mono">${fmtEUR(tot.p2.versatoSalva)}</td>
+              <td class="text-right mono">${fmtEUR(tot.p2.totaleSpeso)}</td>
+              <td class="text-right mono teresa">${fmtEUR(tot.p2.quotaTeresa)}</td>
+              <td class="text-right mono salvatore">${fmtEUR(tot.p2.quotaSalva)}</td>
+              <td class="text-right mono ${tot.p2.diffTeresa >= 0 ? 'pos' : 'neg'}">${tot.p2.diffTeresa >= 0 ? '+' : ''}${fmtEUR(tot.p2.diffTeresa)}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>GRAN TOTALE</th>
+              <th class="text-right mono">${fmtEUR(tot.tot.versatoTeresa)}</th>
+              <th class="text-right mono">${fmtEUR(tot.tot.versatoSalva)}</th>
+              <th class="text-right mono">${fmtEUR(tot.tot.totaleSpeso)}</th>
+              <th class="text-right mono teresa">${fmtEUR(tot.tot.quotaTeresa)}</th>
+              <th class="text-right mono salvatore">${fmtEUR(tot.tot.quotaSalva)}</th>
+              <th class="text-right mono ${tot.tot.diffTeresa >= 0 ? 'pos' : 'neg'}">${tot.tot.diffTeresa >= 0 ? '+' : ''}${fmtEUR(tot.tot.diffTeresa)}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PROSPETTO ANNUALE ── -->
+    <div class="view-header" style="margin-top: 32px; border-top: 1px solid var(--c-border); padding-top: 24px;">
+      <div>
+        <h2 class="page-title">Prospetto Annuale</h2>
+        <p class="page-sub">Dettaglio per l'anno <strong>${annoSel}</strong></p>
+      </div>
+      <select class="year-select" data-action="year-filter" data-target="dashboard">
+        ${anni.map(a => `<option value="${a}" ${a === annoSel ? 'selected' : ''}>${a}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="kpi-grid">
+      ${kpi('Versato Teresa', fmtEUR(q.versatoTeresa), 'teresa')}
+      ${kpi('Versato Salva',  fmtEUR(q.versatoSalva), 'salvatore')}
+      ${kpi('Speso ' + annoSel, fmtEUR(q.totaleSpeso))}
+      ${kpi(q.diffTeresa >= 0 ? 'Salvatore Debito' : 'Teresa Debito', fmtEUR(Math.abs(q.diffTeresa)), q.diffTeresa >= 0 ? 'pos' : 'neg')}
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Dettaglio per Categoria (${annoSel})</div>
+        <div class="summary-row"><span>Bonifici Teresa</span><span class="mono fw-600">${fmtEUR(q.bonTeresa)}</span></div>
+        <div class="summary-row"><span>Bonifici Salvatore</span><span class="mono fw-600">${fmtEUR(q.bonSalva)}</span></div>
+        <div class="summary-row"><span>Altro Teresa</span><span class="mono fw-600">${fmtEUR(q.altTeresa)}</span></div>
+        <div class="summary-row"><span>Altro Salvatore</span><span class="mono fw-600">${fmtEUR(q.altSalva)}</span></div>
+        <div class="summary-row"><span>Mensa Salvatore</span><span class="mono fw-600">${fmtEUR(q.mensa)}</span></div>
+        <div class="summary-row summary-total"><span>Totale</span><span class="mono">${fmtEUR(q.totaleSpeso)}</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Divisione Quote (${annoSel})</div>
+        <div class="summary-row"><span>Divisione</span><span class="text-muted text-sm">${annoSel <= 2023 ? 'Teresa 2/5 · Salvatore 3/5' : 'Teresa 1/3 · Salvatore 2/3'}</span></div>
+        <div class="summary-row"><span>Quota Teresa (${annoSel <= 2023 ? '40%' : '33%'})</span><span class="mono teresa fw-600">${fmtEUR(q.quotaTeresa)}</span></div>
+        <div class="summary-row"><span>Quota Salvatore (${annoSel <= 2023 ? '60%' : '67%'})</span><span class="mono salvatore fw-600">${fmtEUR(q.quotaSalva)}</span></div>
+        <div class="summary-row" style="border-top:2px solid var(--c-border);margin-top:4px;padding-top:8px">
+          <span>Differenza Teresa</span>
+          <span class="mono ${q.diffTeresa >= 0 ? 'pos' : 'neg'} fw-600">${q.diffTeresa >= 0 ? '+' : ''}${fmtEUR(q.diffTeresa)}</span>
+        </div>
+        <div class="summary-row">
+          <span>Differenza Salvatore</span>
+          <span class="mono ${q.diffSalva >= 0 ? 'pos' : 'neg'} fw-600">${q.diffSalva >= 0 ? '+' : ''}${fmtEUR(q.diffSalva)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Distribuzione Spese (${annoSel})</div>
+        <div class="chart-wrap"><canvas id="chart-dash-spese"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Confronto Persone (${annoSel})</div>
+        <div class="chart-wrap"><canvas id="chart-dash-persone"></canvas></div>
+      </div>
+    </div>
+  `);
+
+  requestAnimationFrame(() => {
+    drawChart('chart-dash-spese', ['Bonifici Teresa', 'Bonifici Salvatore', 'Altro Teresa', 'Altro Salvatore', 'Mensa'], [q.bonTeresa, q.bonSalva, q.altTeresa, q.altSalva, q.mensa]);
+    drawChart('chart-dash-persone', ['Versato Teresa', 'Versato Salvatore'], [q.versatoTeresa, q.versatoSalva], ['#dc2626', '#16a34a']);
+  });
+}
+
+function renderBonifici() {
+  const anni = getAnni();
+  if (!S.selectedYear || !anni.includes(S.selectedYear)) S.selectedYear = anni[0] || new Date().getFullYear();
+  const annoSel = S.selectedYear;
+  const txs = S.transactions.filter(t => t.tipo === 'BONIFICO' && t.anno === annoSel);
+
+  setHtml('view-bonifici', `
+    <div class="view-header">
+      <div><h2 class="page-title">Bonifici</h2><p class="page-sub">Elenco bonifici effettuati</p></div>
+      <div class="hstack gap-8">
+        <select class="year-select" data-action="year-filter" data-target="bonifici">
+          ${anni.map(a => `<option value="${a}" ${a === annoSel ? 'selected' : ''}>${a}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" data-action="new-transaction" data-tipo="BONIFICO">+ Bonifico</button>
+      </div>
+    </div>
+    ${txs.length === 0
+      ? `<div class="empty-state"><div class="empty-icon">💳</div><p>Nessun bonifico per ${annoSel}.</p></div>`
+      : `<div class="card"><div class="table-wrap"><table class="table">
+        <thead><tr><th>Da</th><th>Data</th><th>Importo</th><th>Descrizione</th><th>Provenienza</th><th></th></tr></thead>
+        <tbody>${txs.map(t => `<tr>
+          <td>${badgePersona(t.persona)}</td>
+          <td class="mono text-sm">${fmtDate(t.data)}</td>
+          <td class="mono fw-600">${fmtEUR(t.importo)}</td>
+          <td class="text-muted text-sm">${t.descrizione || '—'}</td>
+          <td>${badgeProvenienza(t.provenienza)}</td>
+          <td>
+            <button class="btn-icon" data-action="edit-tx" data-id="${t.id}" title="Modifica">✎</button>
+            <button class="btn-icon btn-icon-danger" data-action="del-tx" data-id="${t.id}" title="Elimina">✕</button>
+          </td>
+        </tr>`).join('')}
+        </tbody></table></div></div>`
+    }
+  `);
+}
+
+function renderSpese() {
+  const anni = getAnni();
+  if (!S.selectedYear || !anni.includes(S.selectedYear)) S.selectedYear = anni[0] || new Date().getFullYear();
+  const annoSel = S.selectedYear;
+  const txs = S.transactions.filter(t => t.tipo !== 'BONIFICO' && t.anno === annoSel);
+
+  setHtml('view-spese', `
+    <div class="view-header">
+      <div><h2 class="page-title">Altre Spese</h2><p class="page-sub">Altro e buoni mensa</p></div>
+      <div class="hstack gap-8">
+        <select class="year-select" data-action="year-filter" data-target="spese">
+          ${anni.map(a => `<option value="${a}" ${a === annoSel ? 'selected' : ''}>${a}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" data-action="new-transaction">+ Spesa</button>
+      </div>
+    </div>
+    ${txs.length === 0
+      ? `<div class="empty-state"><div class="empty-icon">🧾</div><p>Nessuna spesa per ${annoSel}.</p></div>`
+      : `<div class="card"><div class="table-wrap"><table class="table">
+        <thead><tr><th>Persona</th><th>Tipo</th><th>Data</th><th>Importo</th><th>Causale</th><th>Descrizione</th><th>Provenienza</th><th></th></tr></thead>
+        <tbody>${txs.map(t => `<tr>
+          <td>${badgePersona(t.persona)}</td>
+          <td>${badgeTipo(t.tipo)}</td>
+          <td class="mono text-sm">${fmtDate(t.data)}</td>
+          <td class="mono fw-600">${fmtEUR(t.importo)}</td>
+          <td class="text-muted text-sm">${t.causale || '—'}</td>
+          <td class="text-muted text-sm">${t.descrizione || '—'}</td>
+          <td>${badgeProvenienza(t.provenienza)}</td>
+          <td>
+            <button class="btn-icon" data-action="edit-tx" data-id="${t.id}">✎</button>
+            <button class="btn-icon btn-icon-danger" data-action="del-tx" data-id="${t.id}">✕</button>
+          </td>
+        </tr>`).join('')}
+        </tbody></table></div></div>`
+    }
+  `);
+}
+
+function renderReport() {
+  const anni = getAnni();
+  const quote = anni.map(calcolaQuote);
+
+  setHtml('view-report', `
+    <div class="view-header">
+      <div><h2 class="page-title">Report Annuali</h2><p class="page-sub">Confronto completo anno per anno</p></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Riepilogo Annuale</div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr>
+          <th>Anno</th><th class="text-right">Bon. Teresa</th><th class="text-right">Bon. Salvatore</th>
+          <th class="text-right">Altro Teresa</th><th class="text-right">Altro Salvatore</th><th class="text-right">Mensa</th>
+          <th class="text-right">Totale Speso</th><th class="text-right">Quota Teresa</th><th class="text-right">Quota Salvatore</th><th class="text-right">Diff. Teresa</th>
+        </tr></thead>
+        <tbody>${quote.map(q => `<tr>
+          <td class="fw-600">${q.anno}</td>
+          <td class="mono text-right">${fmtEUR(q.bonTeresa)}</td>
+          <td class="mono text-right">${fmtEUR(q.bonSalva)}</td>
+          <td class="mono text-right">${fmtEUR(q.altTeresa)}</td>
+          <td class="mono text-right">${fmtEUR(q.altSalva)}</td>
+          <td class="mono text-right">${fmtEUR(q.mensa)}</td>
+          <td class="mono text-right fw-600">${fmtEUR(q.totaleSpeso)}</td>
+          <td class="mono text-right teresa fw-600">${fmtEUR(q.quotaTeresa)}</td>
+          <td class="mono text-right salvatore fw-600">${fmtEUR(q.quotaSalva)}</td>
+          <td class="mono text-right ${q.diffTeresa >= 0 ? 'pos' : 'neg'} fw-600">${q.diffTeresa >= 0 ? '+' : ''}${fmtEUR(q.diffTeresa)}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Andamento Spese Annuali</div>
+        <div class="chart-wrap" style="height:250px"><canvas id="chart-report-bar"></canvas></div>
+      </div>
+    </div>
+  `);
+
+  if (quote.length) {
+    requestAnimationFrame(() => {
+      const labels = quote.map(q => q.anno);
+      const ctx = document.getElementById('chart-report-bar')?.getContext('2d');
+      if (ctx) {
+        if (S.charts['report-bar']) S.charts['report-bar'].destroy();
+        S.charts['report-bar'] = new Chart(ctx, {
+          type: 'bar', data: {
+            labels,
+            datasets: [
+              { label: 'Teresa', data: quote.map(q => q.versatoTeresa), backgroundColor: '#dc262680', borderColor: '#dc2626', borderWidth: 2 },
+              { label: 'Salvatore', data: quote.map(q => q.versatoSalva), backgroundColor: '#16a34a80', borderColor: '#16a34a', borderWidth: 2 },
+            ],
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { family: "'DM Sans'", size: 11 } } } }, scales: { y: { ticks: { callback: v => '€' + v.toLocaleString('it-IT') } } } },
+        });
+      }
+    });
+  }
+}
+
+function renderImport() {
+  const anni = getAnni();
+  if (!S.selectedYear || !anni.includes(S.selectedYear)) S.selectedYear = anni[0] || new Date().getFullYear();
+  const annoSel = S.selectedYear;
+  const imported = S.transactions.filter(t => t.provenienza === 'IMPORTATO' && t.anno === annoSel);
+
+  setHtml('view-import', `
+    <div class="view-header">
+      <div><h2 class="page-title">Importa movimenti</h2><p class="page-sub">I bonifici in entrata arrivano dal conto spuntato come «💰 Contribuzione», lo stesso che alimenta Spese Famiglia</p></div>
+      <select class="year-select" data-action="year-filter" data-target="import">
+        ${anni.map(a => `<option value="${a}" ${a === annoSel ? 'selected' : ''}>${a}</option>`).join('')}
+      </select>
+    </div>
+    <div class="card">
+      <div class="card-header-row">
+        <div class="card-title">Dal conto collegato</div>
+        <button class="btn btn-primary btn-sm" data-action="bank-import">🏦 Leggi i bonifici dal conto</button>
+      </div>
+      <p class="text-muted text-sm">Legge i movimenti del conto spuntato come «💰 Contribuzione» in
+      Finanza — lo stesso che alimenta Spese Famiglia — e propone
+      i <strong>bonifici in entrata</strong>, attribuiti a Teresa o a Salvatore in base alla controparte.
+      Niente viene salvato finché non confermi. Gli indizi che riconoscono le persone si cambiano in
+      <strong>Impostazioni</strong>.</p>
+    </div>
+    <div class="card">
+      <div class="card-header-row">
+        <div class="card-title">Da file CSV Revolut (storico)</div>
+        <label class="btn btn-outline btn-sm" style="cursor:pointer">
+          📥 Scegli file CSV
+          <input type="file" id="revolut-csv-input" accept=".csv" style="display:none" />
+        </label>
+      </div>
+      <p class="text-muted text-sm">Serve per lo storico più vecchio di quanto la banca espone via PSD2.
+      Il file deve contenere le colonne: Tipo, Data, Importo, Descrizione. Vengono importati solo i
+      bonifici entranti (righe con "Ricarica" nel campo Tipo).</p>
+    </div>
+    <div class="card">
+      <div class="card-header-row">
+        <div class="card-title">Importati (${annoSel})</div>
+        ${imported.length > 0 ? `<button class="btn btn-danger btn-sm" data-action="del-imported-all">🗑️ Cancella tutti</button>` : ''}
+      </div>
+      ${imported.length === 0
+        ? `<div class="empty-state"><div class="empty-icon">📥</div><p>Nessuna transazione importata per ${annoSel}.</p></div>`
+        : `<div class="table-wrap"><table class="table">
+          <thead><tr><th>Persona</th><th>Data</th><th>Importo</th><th>Descrizione</th><th>Provenienza</th><th></th></tr></thead>
+          <tbody>${imported.map(t => `<tr>
+            <td>${badgePersona(t.persona)}</td>
+            <td class="mono text-sm">${fmtDate(t.data)}</td>
+            <td class="mono fw-600">${fmtEUR(t.importo)}</td>
+            <td class="text-muted text-sm" style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${t.descrizione || '—'}</td>
+            <td>${badgeProvenienza(t.provenienza)}</td>
+            <td>
+              <button class="btn-icon" data-action="edit-tx" data-id="${t.id}" title="Modifica">✎</button>
+              <button class="btn-icon btn-icon-danger" data-action="del-tx" data-id="${t.id}" title="Elimina">✕</button>
+            </td>
+          </tr>`).join('')}
+          </tbody></table></div>`
+      }
+    </div>
+  `);
+}
+
+function renderImpostazioni() {
+  const u = S.session.user;
+  const anni = getAnni();
+  const hints = personHints();
+  setHtml('view-impostazioni', `
+    <div class="view-header"><h2 class="page-title">Impostazioni</h2></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Account</div>
+        <div class="fw-600">${u.user_metadata?.full_name || u.email?.split('@')[0] || 'Utente'}</div>
+        <div class="text-muted text-sm">${u.email || '—'}</div>
+        <button class="btn btn-outline btn-sm mt-12" data-action="logout">Disconnetti</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Database</div>
+        <div class="summary-row"><span>Transazioni</span><strong>${S.transactions.length}</strong></div>
+        <div class="summary-row"><span>Anni</span><strong>${anni.join(', ')}</strong></div>
+        <div class="summary-row text-sm text-muted">${SUPABASE_URL}</div>
+        <div class="summary-row text-sm text-muted">${APP_VERSION} · build ${BUILD_TIME}</div>
+      </div>
+    </div>
+    <div class="card mt-12">
+      <div class="card-title">Chi ha versato — riconoscimento dei bonifici</div>
+      <p class="text-muted text-sm">Un indizio per riga: l'<strong>IBAN</strong> della persona (il più
+      affidabile) oppure un pezzo del nome come compare sul bonifico. Un bonifico che non corrisponde a
+      nessuno, o che corrisponde a tutti e due, resta «da attribuire» e lo si sceglie a mano
+      nell'anteprima. Vale su questo browser.</p>
+      <div class="form-row-2 mt-12">
+        <div class="form-group">
+          <label class="form-label">Teresa</label>
+          <textarea id="hints-TERESA" class="form-input" rows="4" style="font-family:var(--font-mono);font-size:.8rem">${(hints.TERESA || []).join('\n')}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Salvatore</label>
+          <textarea id="hints-SALVATORE" class="form-input" rows="4" style="font-family:var(--font-mono);font-size:.8rem">${(hints.SALVATORE || []).join('\n')}</textarea>
+        </div>
+      </div>
+      <div class="hstack gap-8">
+        <button class="btn btn-primary btn-sm" data-action="save-hints">Salva indizi</button>
+        <span id="hints-saved" class="text-sm pos"></span>
+      </div>
+    </div>
+  `);
+}
+
+function savePersonHintsFromForm() {
+  const hints = {};
+  for (const p of PERSONE) {
+    hints[p] = ($(`hints-${p}`)?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  savePersonHints(hints);
+  const el = $('hints-saved');
+  if (el) { el.textContent = '✅ Salvato'; setTimeout(() => { if ($('hints-saved')) $('hints-saved').textContent = ''; }, 2500); }
+}
+
+// ══════════ MODAL ══════════
+
+function openModal(title, bodyHtml, wide = false) {
+  $('modal-title').textContent = title;
+  $('modal-body').innerHTML = bodyHtml;
+  $('modal-card').classList.toggle('modal-wide', wide);
+  $('modal-overlay').classList.remove('hidden');
+}
+function closeModal() {
+  $('modal-overlay').classList.add('hidden');
+  $('modal-card').classList.remove('modal-wide');
+  $('modal-body').innerHTML = '';
+  _bankImport = null;
+}
+
+function openNewTxModal(editId = null, preTipo = null) {
+  const editTx = editId ? S.transactions.find(t => t.id === editId) : null;
+  const isEdit = !!editTx;
+  const oggi = new Date().toISOString().slice(0, 10);
+
+  openModal(isEdit ? 'Modifica movimento' : 'Nuovo movimento', `
+    <form id="modal-form">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Persona *</label>
+          <select name="persona" class="form-input form-select" required>
+            <option value="TERESA" ${editTx?.persona === 'TERESA' ? 'selected' : ''}>Teresa</option>
+            <option value="SALVATORE" ${editTx?.persona === 'SALVATORE' ? 'selected' : ''}>Salvatore</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <select name="tipo" class="form-input form-select" required>
+            <option value="BONIFICO" ${(editTx?.tipo === 'BONIFICO' || preTipo === 'BONIFICO') ? 'selected' : ''}>Bonifico</option>
+            <option value="ALTRO" ${(editTx?.tipo === 'ALTRO' || preTipo === 'ALTRO') ? 'selected' : ''}>Altro</option>
+            <option value="MENSA" ${(editTx?.tipo === 'MENSA' || preTipo === 'MENSA') ? 'selected' : ''}>Mensa</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input name="data" type="date" class="form-input" required value="${editTx?.data || oggi}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Importo * (€)</label>
+          <input name="importo" type="number" step="0.01" min="0" class="form-input mono" required placeholder="0.00" value="${editTx?.importo || ''}" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrizione</label>
+        <input name="descrizione" class="form-input" placeholder="Descrizione" value="${editTx?.descrizione || ''}" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Causale</label>
+        <input name="causale" class="form-input" placeholder="Causale (opzionale)" value="${editTx?.causale || ''}" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-action="close-modal">Annulla</button>
+        <button type="submit" class="btn btn-primary">${isEdit ? 'Salva' : 'Aggiungi'}</button>
+      </div>
+    </form>
+  `);
+
+  $('modal-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    const payload = {
+      persona: data.persona, tipo: data.tipo, data: data.data,
+      importo: parseFloat(data.importo), descrizione: data.descrizione || '',
+      causale: data.causale || '', tipo_versamento: '',
+      provenienza: isEdit ? undefined : 'MANUALE',
+      anno: new Date(data.data).getFullYear(),
+    };
+    try {
+      if (isEdit) {
+        await sbUpd('acct_transactions', `id=eq.${editTx.id}`, payload);
+      } else {
+        await sbIns('acct_transactions', { ...payload, user_id: S.session.user.id });
+      }
+      closeModal();
+      await reload();
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    }
+  });
+}
+
+// ══════════ IMPORT DAL CONTO BANCARIO ══════════
+// La contribuzione si alimenta dallo STESSO conto che alimenta Spese Famiglia: i conti sono
+// quelli di cm_bank_connections con 'cost_analysis' fra gli uses, collegati e battezzati in
+// Finanza → Configurazione → 🏦 Banche e Conti.
+//
+// enable-banking-transactions legge e basta: non scrive niente nel database, quindi il filtro
+// (solo bonifici entranti), l'attribuzione a Teresa o Salvatore e il controllo dei doppioni
+// restano qui, dove si sa com'è fatta questa contabilità.
+
+const PERSONE = ['TERESA', 'SALVATORE'];
+
+const normText = s => (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+const normIban = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const isIbanLike = s => /^[A-Z]{2}[0-9]{2}[A-Z0-9]{8,}$/.test(normIban(s));
+
+// Indizi che riconoscono chi ha versato: un IBAN (chiave sicura) o un pezzo di nome. I valori
+// di partenza sono quelli che usava l'import da CSV; si cambiano da Impostazioni e restano nel
+// browser, perché sono una preferenza di lettura e non un dato della contabilità.
+const PERSON_HINTS_KEY = 'cst_person_hints';
+const DEFAULT_PERSON_HINTS = { TERESA: ['TERESA', 'GARSIA'], SALVATORE: ['SALVATORE'] };
+function personHints() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PERSON_HINTS_KEY));
+    if (saved && PERSONE.every(p => Array.isArray(saved[p]))) return saved;
+  } catch {}
+  return DEFAULT_PERSON_HINTS;
+}
+function savePersonHints(hints) {
+  localStorage.setItem(PERSON_HINTS_KEY, JSON.stringify(hints));
+}
+
+// Chi ha versato si decide in tre gradini, dal segnale più affidabile al più fragile: IBAN
+// della controparte, nome della controparte, e solo per ultimo il testo della causale — che è
+// quello su cui sbagliava l'import da CSV, dove un "bonifico per Teresa" scritto da Salvatore
+// diventava un versamento di Teresa. Se nessuno risponde, o rispondono in due, la riga resta
+// "da attribuire" e la si sceglie a mano nell'anteprima invece di indovinare.
+function guessPersona(tx) {
+  const hints = personHints();
+  const hitsIban = p => (hints[p] || []).some(h => isIbanLike(h) && normIban(h) === normIban(tx.counterpartyIban));
+  const hitsText = (p, hay) => (hints[p] || []).some(h => (h || '').trim() && !isIbanLike(h) && hay.includes(normText(h)));
+
+  if (tx.counterpartyIban) {
+    const perIban = PERSONE.filter(hitsIban);
+    if (perIban.length === 1) return { persona: perIban[0], via: 'IBAN' };
+  }
+  const nome = normText(tx.counterpartyName);
+  if (nome) {
+    const perNome = PERSONE.filter(p => hitsText(p, nome));
+    if (perNome.length === 1) return { persona: perNome[0], via: 'nome' };
+  }
+  const testo = normText(`${tx.counterpartyName || ''} ${tx.description || ''}`);
+  const perTesto = PERSONE.filter(p => hitsText(p, testo));
+  if (perTesto.length === 1) return { persona: perTesto[0], via: 'causale' };
+  return { persona: null, via: null };
+}
+
+// Solo bonifici: i pagamenti carta, i prelievi e gli addebiti che passano sullo stesso conto
+// sono spese, non contribuzioni. Enable Banking espone il codice ISO 20022 (domain/family/
+// sub_family): i bonifici stanno in ICDT (inviati) e RCDT (ricevuti), la carta in CCRD/POSD, il
+// prelievo in CWDL. I codici veri di questo conto non sono verificati su una risposta reale:
+// quando il codice manca si ripiega sul testo e sulla presenza di un IBAN di controparte, e
+// quello che resta fuori è comunque contato e mostrabile con una spunta, così se il filtro
+// sbaglia si vede invece di perdere movimenti in silenzio.
+const CODICE_BONIFICO = /\b(ICDT|RCDT)\b/;
+const CODICE_NON_BONIFICO = /\b(CCRD|CWDL|POSD)\b/;
+const TESTO_NON_BONIFICO = /(PRELIEVO|BANCOMAT|\bATM\b|\bPOS\b|CARTA|COMMISSION|CANONE|IMPOSTA|BOLLO)/i;
+function isBonifico(tx) {
+  const code = (tx.bankTransactionCode || '').toUpperCase();
+  if (CODICE_NON_BONIFICO.test(code)) return false;
+  if (CODICE_BONIFICO.test(code)) return true;
+  if (TESTO_NON_BONIFICO.test(`${tx.description || ''} ${tx.counterpartyName || ''}`)) return false;
+  return !!tx.counterpartyIban;
+}
+
+function bankTxDescription(tx) {
+  const parts = [tx.description, tx.counterpartyName].map(s => (s || '').trim()).filter(Boolean);
+  // Causale e nome della controparte spesso si ripetono: scriverlo due volte non aiuta.
+  const uniq = parts.filter((p, i) => !parts.slice(0, i).some(q => q.toLowerCase().includes(p.toLowerCase())));
+  return uniq.join(' · ') || tx.bankTransactionCode || 'Bonifico';
+}
+
+let _bankImport = null;
+
+async function openBankImport() {
+  openModal('Importa dal conto', '<p class="import-note">Cerco i conti collegati…</p>', true);
+  try {
+    const conns = await sbQ('cm_bank_connections', 'select=*&order=created_at.desc');
+    // È lo stesso conto che alimenta Spese Famiglia, ma va spuntato anche come «Contribuzione»:
+    // uses ammette più moduli sullo stesso conto, e dirlo esplicitamente evita di leggere i
+    // bonifici da un conto che serve solo a categorizzare le spese.
+    const usable = (conns || []).filter(c => c.account_id && (c.uses || []).includes('contribuzione'));
+    if (!usable.length) {
+      $('modal-body').innerHTML = `
+        <p class="text-sm">Nessun conto destinato alla Contribuzione.</p>
+        <p class="import-note mt-8">Apri <strong>Finanza → Configurazione → 🏦 Banche e Conti</strong>,
+        battezza il conto delle spese comuni e spunta <strong>«💰 Contribuzione»</strong> (è lo stesso
+        conto già spuntato come «🧾 Spese Famiglia»: gli usi si sommano). Il conto deve inoltre essere
+        in whitelist nel Control Panel di Enable Banking.</p>
+        <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
+      return;
+    }
+    // Si riparte dal giorno dopo l'ultimo movimento già presente: rileggere ogni volta tutto lo
+    // storico serve solo a far ricontrollare cose già viste.
+    const ultimaData = S.transactions.map(t => t.data).filter(Boolean).sort().pop();
+    const defaultFrom = ultimaData
+      ? new Date(new Date(ultimaData + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10)
+      : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    $('modal-body').innerHTML = `
+      <p class="import-note">Legge i bonifici in entrata dal conto collegato. Niente viene salvato finché non confermi.</p>
+      <div class="form-row-2 mt-12">
+        <div class="form-group">
+          <label class="form-label">Conto</label>
+          <select id="bank-import-conn" class="form-input form-select">
+            ${usable.map(c => `<option value="${c.id}">${c.display_name || c.iban || c.aspsp_name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dal giorno</label>
+          <input type="date" id="bank-import-from" class="form-input" value="${defaultFrom}" />
+        </div>
+      </div>
+      <label class="hstack gap-8 text-sm"><input type="checkbox" id="bank-import-all" /> Mostra anche le entrate che non sembrano bonifici</label>
+      <div class="modal-footer">
+        <button class="btn btn-outline" data-action="close-modal">Annulla</button>
+        <button class="btn btn-primary" data-action="bank-import-read">Leggi i movimenti</button>
+      </div>`;
+  } catch (e) {
+    $('modal-body').innerHTML = `<p class="text-sm neg">Errore: ${e.message}</p>
+      <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
+  }
+}
+
+async function loadBankMovements() {
+  const bankConnectionId = $('bank-import-conn').value;
+  const dateFrom = $('bank-import-from').value || undefined;
+  const mostraTutto = $('bank-import-all').checked;
+  $('modal-body').innerHTML = '<p class="import-note">Leggo i movimenti dalla banca…</p>';
+  try {
+    const res = await sbFn('enable-banking-transactions', { bankConnectionId, dateFrom });
+    // Solo entrate: un bonifico in uscita da questo conto è una spesa, non una contribuzione.
+    const entrate = (res.transactions || []).filter(t => t.amount > 0 && (t.bookingDate || t.valueDate));
+    const scartati = entrate.filter(t => !isBonifico(t));
+    const candidati = mostraTutto ? entrate : entrate.filter(isBonifico);
+    if (!candidati.length) {
+      $('modal-body').innerHTML = `
+        <p class="text-sm">Nessun bonifico in entrata nel periodo scelto${scartati.length ? ` (${scartati.length} entrate scartate perché non sembrano bonifici)` : ''}.</p>
+        <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
+      return;
+    }
+
+    // Doppioni: stessa data, stesso importo e stessa descrizione è la stessa riga, e rileggere
+    // un periodo già importato è la normalità. Stessa data e stesso importo con descrizione
+    // diversa è quasi sempre la stessa contribuzione già entrata da CSV con un'altra dicitura:
+    // qui si tratta di soldi che entrano nelle quote, quindi si parte deselezionata e la si
+    // rimette a mano, invece di raddoppiare un versamento in silenzio.
+    const chiave = t => `${t.data}|${Math.abs(+t.importo).toFixed(2)}`;
+    const esatti = new Set(S.transactions.map(t => `${chiave(t)}|${(t.descrizione || '').trim().toLowerCase()}`));
+    const stessoGiornoImporto = new Set(S.transactions.map(chiave));
+
+    const items = candidati.map(t => {
+      const data = (t.bookingDate || t.valueDate).slice(0, 10);
+      const descrizione = bankTxDescription(t);
+      const importo = Math.abs(t.amount);
+      const k = `${data}|${importo.toFixed(2)}`;
+      const duplicato = esatti.has(`${k}|${descrizione.trim().toLowerCase()}`);
+      const g = guessPersona(t);
+      return {
+        data, descrizione, importo,
+        persona: g.persona, via: g.via,
+        bonifico: isBonifico(t),
+        counterpartyName: t.counterpartyName || '',
+        duplicato,
+        simile: !duplicato && stessoGiornoImporto.has(k),
+      };
+    }).sort((a, b) => a.data.localeCompare(b.data));
+
+    _bankImport = { items, account: res.account };
+    const nuovi = items.filter(i => !i.duplicato && !i.simile).length;
+    const daAttribuire = items.filter(i => !i.persona).length;
+    $('modal-body').innerHTML = `
+      <p class="import-note">
+        ${items.length} movimenti da <strong>${res.account?.aspspName || 'banca'}</strong> —
+        ${nuovi} nuovi, ${items.length - nuovi} già presenti o sospetti (deselezionati).
+        ${scartati.length && !mostraTutto ? `<br/>${scartati.length} entrate scartate perché non sembrano bonifici.` : ''}
+        ${daAttribuire ? `<br/>⚠️ ${daAttribuire} da attribuire: controlla la persona prima di importare.` : ''}
+        ${res.truncated ? '<br/>⚠️ Elenco troncato: restringi il periodo per vederli tutti.' : ''}
+      </p>
+      <div style="max-height:46vh;overflow-y:auto;margin:12px 0">
+        <table class="import-table">
+          <thead><tr><th></th><th>Data</th><th>Descrizione</th><th class="text-right">Importo</th><th>Da</th></tr></thead>
+          <tbody>${items.map((it, i) => `
+            <tr class="${it.duplicato || it.simile ? 'is-dup' : ''}">
+              <td><input type="checkbox" data-bank-idx="${i}" ${it.duplicato || it.simile ? '' : 'checked'} /></td>
+              <td class="mono" style="white-space:nowrap">${fmtDate(it.data)}</td>
+              <td>${it.descrizione.replace(/</g, '&lt;')}
+                ${it.duplicato ? '<span class="text-muted"> · già presente</span>' : ''}
+                ${it.simile ? '<span style="color:var(--c-warning)"> · ⚠️ stessa data e importo di un movimento presente</span>' : ''}
+                ${it.bonifico ? '' : '<span style="color:var(--c-warning)"> · ⚠️ non sembra un bonifico</span>'}</td>
+              <td class="mono text-right" style="white-space:nowrap">${fmtEUR(it.importo)}</td>
+              <td>
+                <select class="form-input form-select" data-bank-persona="${i}" style="padding:3px 6px;font-size:.78rem">
+                  ${PERSONE.map(p => `<option value="${p}" ${it.persona === p ? 'selected' : ''}>${p === 'TERESA' ? 'Teresa' : 'Salvatore'}</option>`).join('')}
+                </select>
+                <div class="import-note">${it.persona ? `da ${it.via}` : '⚠️ da attribuire'}</div>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" data-action="close-modal">Annulla</button>
+        <button class="btn btn-primary" data-action="bank-import-confirm">Importa selezionati</button>
+      </div>`;
+  } catch (e) {
+    $('modal-body').innerHTML = `<p class="text-sm neg">Errore: ${e.message}</p>
+      <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
+  }
+}
+
+async function confirmBankImport() {
+  if (!_bankImport) return;
+  const scelti = [];
+  document.querySelectorAll('#modal-body input[data-bank-idx]').forEach(cb => {
+    if (!cb.checked) return;
+    const i = parseInt(cb.dataset.bankIdx, 10);
+    const sel = document.querySelector(`#modal-body [data-bank-persona="${i}"]`);
+    scelti.push({ ..._bankImport.items[i], persona: sel ? sel.value : 'SALVATORE' });
+  });
+  if (!scelti.length) { alert('Nessun movimento selezionato.'); return; }
+  $('modal-body').innerHTML = '<p class="import-note">Importo…</p>';
+  let importati = 0;
+  const errori = [];
+  for (const it of scelti) {
+    try {
+      await sbIns('acct_transactions', {
+        user_id: S.session.user.id,
+        anno: parseInt(it.data.slice(0, 4), 10),
+        data: it.data,
+        persona: it.persona,
+        tipo: 'BONIFICO',
+        importo: it.importo,
+        descrizione: it.descrizione,
+        causale: 'Importato dal conto Spese Famiglia',
+        provenienza: 'IMPORTATO',
+      });
+      importati++;
+    } catch (e) {
+      errori.push(`${fmtDate(it.data)} ${fmtEUR(it.importo)}: ${e.message}`);
+    }
+  }
+  closeModal();
+  _bankImport = null;
+  alert(`✅ Importazione completata\n\nMovimenti caricati: ${importati}` +
+    (errori.length ? `\n\n⚠️ Non caricati: ${errori.length}\n${errori.slice(0, 5).join('\n')}` : ''));
+  await reload();
+}
+
+async function handleRevolutCSV(file) {
+  const text = await file.text();
+  // Rimuovi eventuali caratteri invisibili (BOM) all'inizio
+  const cleanText = text.trim().replace(/^\uFEFF/, '');
+  
+  // Rileva separatore (virgola o punto e virgola)
+  const firstLine = cleanText.split('\n')[0];
+  const sep = firstLine.includes(';') ? ';' : ',';
+  
+  const rows = cleanText.split('\n').map(r => r.split(sep).map(c => c.trim().replace(/^"|"$/g, '')));
+  if (rows.length < 2) return;
+  
+  const header = rows[0].map(h => h.toLowerCase());
+  console.log('[Revolut Import] Header rilevati:', header);
+
+  const findIdx = (names) => {
+    for (const name of names) {
+      const i = header.indexOf(name.toLowerCase());
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+
+  const idx = {
+    type:   findIdx(['Type', 'Tipo']),
+    date:   findIdx(['Started Date', 'Data di inizio', 'Completed Date', 'Data di completamento', 'Data']),
+    amount: findIdx(['Amount', 'Importo']),
+    desc:   findIdx(['Description', 'Descrizione']),
+    state:  findIdx(['State', 'Stato'])
+  };
+
+  console.log('[Revolut Import] Mappatura colonne:', idx);
+
+  if (idx.type === -1 || idx.amount === -1) {
+    console.error('[Revolut Import] Header mancanti. Type:', idx.type, 'Amount:', idx.amount);
+    alert('Formato CSV Revolut non riconosciuto.\n\nAssicurati che il file contenga le colonne: Tipo, Data, Importo, Descrizione.');
+    return;
+  }
+
+  const dataRows = rows.slice(1).filter(r => r.length >= Math.max(...Object.values(idx)));
+
+  let imported = 0;
+  let skipped = 0;
+
+  for (const r of dataRows) {
+    const status = (r[idx.state] || '').toUpperCase();
+    if (status !== 'COMPLETED' && status !== 'COMPLETATO') continue;
+    
+    const type = (r[idx.type] || '').toUpperCase();
+    const rawAmount = parseFloat(r[idx.amount]);
+    const amount = Math.abs(rawAmount);
+    const dateStr = r[idx.date].split(' ')[0]; // Prende solo la data YYYY-MM-DD
+    const desc = r[idx.desc] || '';
+    
+    // Solo bonifici entranti (ricariche sul conto)
+    if (!type.includes('RICARICA')) continue;
+    const tipo = 'BONIFICO';
+
+    // Logica di auto-assegnazione intelligente
+    let persona = 'SALVATORE'; // Default
+    const upperDesc = desc.toUpperCase();
+    if (upperDesc.includes('TERESA') || upperDesc.includes('GARSIA')) persona = 'TERESA';
+    if (upperDesc.includes('SALVATORE')) persona = 'SALVATORE';
+
+    // Controllo duplicati base (data + importo + descrizione)
+    const isDup = S.transactions.some(t => 
+      t.data === dateStr && 
+      Math.abs(parseFloat(t.importo)) === amount &&
+      t.descrizione === desc
+    );
+
+    if (isDup) {
+      skipped++;
+      continue;
+    }
+
+    const payload = {
+      user_id: S.session.user.id,
+      anno: new Date(dateStr).getFullYear(),
+      data: dateStr,
+      persona: persona,
+      tipo: tipo,
+      importo: amount,
+      descrizione: desc,
+      causale: 'Importato da Revolut',
+      provenienza: 'IMPORTATO'
+    };
+
+    await sbIns('acct_transactions', payload);
+    imported++;
+  }
+
+  alert(`Importazione completata!\n\n✅ Transazioni caricate: ${imported}\n⏭️ Saltate (già presenti): ${skipped}`);
+  await reload();
+}
+
+// ══════════ NAV / EVENTS ══════════
+
+function navigate(view) {
+  S.view = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const vEl = $(`view-${view}`);
+  if (vEl) vEl.classList.add('active');
+  const nEl = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (nEl) nEl.classList.add('active');
+  $('sidebar')?.classList.remove('open');
+  $('mobile-nav-overlay')?.classList.remove('open');
+  history.pushState({ view }, '');
+  render();
+}
+
+window.addEventListener('popstate', e => {
+  if (!e.state) return;
+  const view = e.state.view || 'dashboard';
+  S.view = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const vEl = $(`view-${view}`);
+  if (vEl) vEl.classList.add('active');
+  const nEl = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (nEl) nEl.classList.add('active');
+  render();
+});
+
+function render() {
+  switch (S.view) {
+    case 'dashboard': renderDashboard(); break;
+    case 'bonifici': renderBonifici(); break;
+    case 'spese': renderSpese(); break;
+    case 'report': renderReport(); break;
+    case 'import': renderImport(); break;
+    case 'impostazioni': renderImpostazioni(); break;
+  }
+}
+
+async function reload() {
+  await loadData();
+  render();
+}
+
+// ══════════ EVENTS ══════════
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'nav') {
+    navigate(btn.dataset.view);
+  } else if (action === 'close-modal') {
+    closeModal();
+  } else if (action === 'new-transaction') {
+    openNewTxModal(null, btn.dataset.tipo || null);
+  } else if (action === 'edit-tx') {
+    openNewTxModal(btn.dataset.id);
+  } else if (action === 'del-tx') {
+    if (confirm('Eliminare questo movimento?')) {
+      sbDel('acct_transactions', `id=eq.${btn.dataset.id}`).then(reload);
+    }
+  } else if (action === 'del-imported-all') {
+    if (confirm('Eliminare TUTTE le transazioni importate (banca e CSV) per quest\'anno?')) {
+      const ids = S.transactions.filter(t => t.provenienza === 'IMPORTATO' && t.anno === S.selectedYear).map(t => t.id);
+      if (ids.length === 0) return;
+      Promise.all(ids.map(id => sbDel('acct_transactions', `id=eq.${id}`))).then(reload);
+    }
+  } else if (action === 'bank-import') {
+    openBankImport();
+  } else if (action === 'bank-import-read') {
+    loadBankMovements();
+  } else if (action === 'bank-import-confirm') {
+    confirmBankImport();
+  } else if (action === 'save-hints') {
+    savePersonHintsFromForm();
+  } else if (action === 'logout') {
+    logout();
+  }
+});
+
+document.addEventListener('change', async e => {
+  if (e.target.id === 'revolut-csv-input') {
+    const file = e.target.files[0];
+    if (file) {
+      const label = e.target.closest('label');
+      const oldText = label ? label.textContent : '';
+      if (label) { label.textContent = '⌛ Elaborazione...'; label.style.pointerEvents = 'none'; }
+      try {
+        await handleRevolutCSV(file);
+      } finally {
+        if (label) { label.textContent = oldText; label.style.pointerEvents = ''; }
+        e.target.value = '';
+      }
+    }
+  }
+  if (e.target.matches('[data-action="year-filter"]')) {
+    S.selectedYear = parseInt(e.target.value);
+    render();
+  }
+});
+
+document.getElementById('btn-hamburger').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('mobile-nav-overlay').classList.toggle('open');
+});
+document.getElementById('mobile-nav-overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('mobile-nav-overlay').classList.remove('open');
+});
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+async function init() {
+  let session = null;
+
+  // 1. Token condiviso da AppSphere launcher (sb_token in localStorage)
+  const sbToken = localStorage.getItem('sb_token');
+  if (sbToken) session = await initFromSbToken(sbToken);
+
+  // 2. Sessione propria salvata
+  if (!session) {
+    session = loadSession();
+    if (session && session.expires_at < Date.now()) {
+      session = await refreshSession(session);
+    }
+  }
+
+  if (!session) {
+    location.href = 'finanza.html';
+    return;
+  }
+  S.session = session;
+
+  // BroadcastChannel AppSphere
+  const _authChannel = new BroadcastChannel('appsphere_auth');
+  _authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+      localStorage.removeItem('sb_token');
+      location.href = 'finanza.html';
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+      localStorage.setItem('sb_token', e.data.sbToken);
+      if (S.session) S.session.access_token = e.data.sbToken;
+    }
+  };
+
+  const u = session.user;
+  // (nome non mostrato)
+  if (u.user_metadata?.avatar_url) {
+    $('user-avatar').innerHTML = `<img src="${u.user_metadata.avatar_url}" alt="" />`;
+  } else {
+    $('user-avatar').textContent = (u.user_metadata?.full_name || u.email || 'U')[0].toUpperCase();
+  }
+
+  try {
+    await loadData();
+  } catch (err) {
+    console.error('Errore caricamento dati:', err);
+  }
+
+  $('screen-app').classList.remove('hidden');
+  $('screen-app').style.display = 'flex';
+  $('loading-overlay').classList.add('hidden');
+
+  const anni = getAnni();
+  $('footer-info').textContent = `${S.transactions.length} transazioni · ${anni.length} anni`;
+
+  navigate('dashboard');
+  history.replaceState({ view: 'dashboard' }, '');
+}
+
+init();
+
+/* ── Il tasto «indietro» di Android e i popup ──────────────────────────────
+   ⚠️ Dentro un popup l'indietro usciva dalla PAGINA: la WebView non ha niente in cronologia,
+   quindi tornava ad AppSphere buttando via quel che si stava scrivendo. Un popup non è una
+   pagina, ma su Android deve comportarsi come tale — l'indietro è il gesto con cui si chiude
+   qualunque cosa si sia aperta.
+
+   Aprendo un popup si spinge una voce di cronologia; l'indietro la consuma e qui sotto si chiude
+   il popup invece di lasciare la pagina. Chiudendolo col ✕ la voce si consuma da sé, o ogni
+   apri-e-chiudi ne lascerebbe una dietro e dopo cinque popup servirebbero cinque indietro per
+   uscire.
+
+   ⚠️ L'apertura NON si intercetta avvolgendo le funzioni che aprono i popup: in queste pagine
+   sono decine, alcune sono `onclick` scritti nell'HTML e altre non hanno nemmeno un nome. Si
+   guarda invece quando l'overlay diventa visibile — l'unica cosa che tutti i popup hanno in
+   comune, comunque siano stati aperti — e si riconosce dallo stile calcolato, non dal nome della
+   classe, che in queste pagine è ora `hidden`, ora `active`, ora `open`.
+
+   ⚠️ La voce si spinge UNA SOLA VOLTA anche con più popup aperti uno sopra l'altro: sono
+   contenuti nella stessa finestra, non schermate, e due voci vorrebbero dire due indietro per
+   chiudere una cosa sola. L'indietro chiude l'ultimo aperto.
+
+   ⚠️ Il consumo controlla `history.state`: se nel frattempo la pagina ha spinto una voce sua (un
+   cambio di vista) la nostra non è più in cima, e un `history.back()` cieco tornerebbe indietro
+   di una schermata invece di togliere la voce del popup.
+
+   ⚠️ Questo blocco è UGUALE in tutte le app della suite: se lo correggi qui, portalo anche
+   nelle altre (l'elenco dei popup è l'unica cosa che cambia). */
+(function guardiaIndietroPopup(elenco) {
+  const visibile = el => el && getComputedStyle(el).display !== 'none';
+  const aperti = () => elenco.flatMap(p =>
+    [...document.querySelectorAll(p.sel)].filter(visibile).map(el => ({ el, chiudi: p.chiudi })));
+
+  let spinta = false;
+
+  function controlla() {
+    const n = aperti().length;
+    if (n && !spinta) { spinta = true; history.pushState({ __popup: true }, ''); }
+    else if (!n && spinta) {
+      spinta = false;
+      if (history.state && history.state.__popup) history.back();
+    }
+  }
+
+  function avvia() {
+    const osservatore = new MutationObserver(controlla);
+    elenco.forEach(p => document.querySelectorAll(p.sel).forEach(el =>
+      osservatore.observe(el, { attributes: true, attributeFilter: ['class', 'style'] })));
+    controlla();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.addEventListener('popstate', () => {
+    const a = aperti();
+    if (!a.length) return;          // nessun popup: l'indietro fa quel che ha sempre fatto
+    spinta = false;
+    const ultimo = a[a.length - 1];
+    try { ultimo.chiudi(ultimo.el); } catch (err) { console.warn('indietro:', err); }
+  });
+})([
+  { sel: '#modal-overlay', chiudi: () => closeModal() },
+]);
+</script>
+</body>
+</html>

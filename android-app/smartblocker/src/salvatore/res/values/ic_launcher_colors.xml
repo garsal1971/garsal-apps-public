@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fondo nero, come l'APK AppSphere **nativa**: i cinque cerchi si
+         leggono uguali, e il fondo è il segno che distingue le app che
+         portano lo stesso marchio.
+
+         ⚠️ Il nome non è `ic_launcher_background`: in `main/res/drawable`
+         esiste già un drawable con quel nome (il viola dell'icona vecchia,
+         che il flavor `teresa` continua a usare), e due risorse omonime di
+         tipo diverso sono un modo di sbagliare riferimento senza accorgersene. -->
+    <color name="sb_icon_bg">#111111</color>
+</resources>

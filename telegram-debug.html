@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Webhook Debug</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    h1 { color: #54a3ff; font-size: 20px; margin-bottom: 24px; }
+    h2 { color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+
+    input[type="text"], input[type="password"] {
+      flex: 1;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 8px 12px;
+    }
+    input:focus { outline: none; border-color: #54a3ff; }
+
+    button {
+      background: #1d4ed8;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 8px 16px;
+      white-space: nowrap;
+    }
+    button:hover { background: #2563eb; }
+    button.danger  { background: #7f1d1d; }
+    button.danger:hover { background: #991b1b; }
+    button.success { background: #14532d; }
+    button.success:hover { background: #166534; }
+    button.warn    { background: #78350f; }
+    button.warn:hover { background: #92400e; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .log {
+      background: #0a0a0a;
+      border: 1px solid #222;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log .ok   { color: #4ade80; }
+    .log .err  { color: #f87171; }
+    .log .info { color: #60a5fa; }
+    .log .warn { color: #facc15; }
+    .log .dim  { color: #555; }
+    .log .bold { color: #e0e0e0; font-weight: bold; }
+
+    .status-badge {
+      display: inline-block;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 8px;
+    }
+    .badge-ok  { background: #14532d; color: #4ade80; }
+    .badge-err { background: #7f1d1d; color: #f87171; }
+    .badge-unk { background: #333; color: #888; }
+
+    .sep { border: none; border-top: 1px solid #2a2a2a; margin: 16px 0; }
+
+    label { color: #888; font-size: 12px; }
+    small { color: #555; font-size: 11px; display: block; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<h1>🔧 Telegram Webhook Debug</h1>
+
+<!-- Configurazione -->
+<div class="card">
+  <h2>Configurazione</h2>
+  <div class="row">
+    <label style="white-space:nowrap">Bot Token</label>
+    <input type="password" id="botToken" placeholder="123456:ABC-DEF1234..." />
+    <button onclick="saveToken()">Salva</button>
+  </div>
+  <small>Il token non lascia il browser — viene usato solo per chiamate dirette all'API Telegram.</small>
+</div>
+
+<!-- Webhook -->
+<div class="card">
+  <h2>Webhook</h2>
+
+  <div class="row">
+    <button onclick="getWebhookInfo()">📡 getWebhookInfo</button>
+    <button class="success" onclick="setWebhook()">✅ Set Webhook</button>
+    <button class="danger" onclick="deleteWebhook()">🗑 Delete Webhook</button>
+  </div>
+
+  <div class="row">
+    <label style="white-space:nowrap">Webhook URL</label>
+    <input type="text" id="webhookUrl"
+      value="https://jajlmmdsjlvzgcxiiypk.supabase.co/functions/v1/telegram-webhook" />
+  </div>
+  <div class="row">
+    <label style="white-space:nowrap">Secret Token</label>
+    <input type="password" id="webhookSecret" placeholder="(opzionale)" />
+  </div>
+</div>
+
+<!-- Simulazione callback -->
+<div class="card">
+  <h2>Simula Callback Bottone</h2>
+  <div class="row">
+    <button class="warn" onclick="simulateSnooze()">⏸ Simula Snooze 30min</button>
+    <button class="warn" onclick="simulateCancel()">❌ Simula Cancel</button>
+    <button class="success" onclick="simulateComplete()">✅ Simula Complete</button>
+  </div>
+  <div class="row">
+    <label style="white-space:nowrap">Queue ID (UUID)</label>
+    <input type="text" id="queueId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+  </div>
+  <small>Invia una POST diretta alla Edge Function simulando un callback_query di Telegram.</small>
+</div>
+
+<!-- Updates (polling) -->
+<div class="card">
+  <h2>Ultimi Update (polling)</h2>
+  <div class="row">
+    <button onclick="getUpdates()">📬 getUpdates</button>
+    <small style="color:#facc15">⚠ Funziona solo se il webhook NON è impostato (altrimenti i messaggi vanno al webhook)</small>
+  </div>
+</div>
+
+<!-- Log -->
+<hr class="sep">
+<h2>Log</h2>
+<div class="log" id="log"><span class="dim">// I risultati appariranno qui…</span></div>
+
+<script>
+  const SUPABASE_FUNCTION_URL = 'https://jajlmmdsjlvzgcxiiypk.supabase.co/functions/v1/telegram-webhook'
+
+  // ── Storage ──────────────────────────────────────────────────────────────
+  let BOT_TOKEN = localStorage.getItem('tg_debug_token') || ''
+  if (BOT_TOKEN) document.getElementById('botToken').value = BOT_TOKEN
+
+  function saveToken() {
+    BOT_TOKEN = document.getElementById('botToken').value.trim()
+    localStorage.setItem('tg_debug_token', BOT_TOKEN)
+    log('info', '💾 Token salvato in localStorage')
+  }
+
+  function getToken() {
+    BOT_TOKEN = document.getElementById('botToken').value.trim()
+    if (!BOT_TOKEN) { log('err', '❌ Inserisci il Bot Token prima!'); return null }
+    return BOT_TOKEN
+  }
+
+  // ── Log helper ───────────────────────────────────────────────────────────
+  const logEl = document.getElementById('log')
+
+  function log(type, msg) {
+    const ts = new Date().toLocaleTimeString('it-IT')
+    const line = document.createElement('div')
+    line.innerHTML = `<span class="dim">[${ts}]</span> <span class="${type}">${escHtml(msg)}</span>`
+    logEl.appendChild(line)
+    logEl.scrollTop = logEl.scrollHeight
+  }
+
+  function logJSON(label, obj) {
+    log('info', `─── ${label} ───`)
+    const pre = document.createElement('pre')
+    pre.style.color = '#a78bfa'
+    pre.style.marginLeft = '16px'
+    pre.style.fontSize = '11px'
+    pre.textContent = JSON.stringify(obj, null, 2)
+    logEl.appendChild(pre)
+    logEl.scrollTop = logEl.scrollHeight
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  }
+
+  // ── Telegram API helper ──────────────────────────────────────────────────
+  async function telegramAPI(method, params = {}) {
+    const token = getToken()
+    if (!token) return null
+    const url = `https://api.telegram.org/bot${token}/${method}`
+    log('dim', `→ POST ${method}`)
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      })
+      const data = await res.json()
+      return data
+    } catch (e) {
+      log('err', `Fetch error: ${e.message}`)
+      return null
+    }
+  }
+
+  // ── Webhook Info ─────────────────────────────────────────────────────────
+  async function getWebhookInfo() {
+    log('bold', '📡 getWebhookInfo…')
+    const data = await telegramAPI('getWebhookInfo')
+    if (!data) return
+    if (data.ok) {
+      const w = data.result
+      log(w.url ? 'ok' : 'warn', `URL: ${w.url || '(nessun webhook impostato)'}`)
+      log('info', `Pending updates: ${w.pending_update_count ?? 0}`)
+      if (w.last_error_message) log('err', `Ultimo errore: ${w.last_error_message}`)
+      if (w.last_error_date)    log('err', `Data errore: ${new Date(w.last_error_date * 1000).toLocaleString('it-IT')}`)
+      if (w.max_connections)    log('info', `Max connections: ${w.max_connections}`)
+      logJSON('Risposta completa', w)
+    } else {
+      log('err', `Errore: ${data.description}`)
+    }
+  }
+
+  // ── Set Webhook ──────────────────────────────────────────────────────────
+  async function setWebhook() {
+    const url    = document.getElementById('webhookUrl').value.trim()
+    const secret = document.getElementById('webhookSecret').value.trim()
+    if (!url) { log('err', '❌ Inserisci un URL webhook'); return }
+    log('bold', `✅ setWebhook → ${url}`)
+    const params = { url, allowed_updates: ['callback_query', 'message'] }
+    if (secret) params.secret_token = secret
+    const data = await telegramAPI('setWebhook', params)
+    if (!data) return
+    if (data.ok) {
+      log('ok', `✅ ${data.description}`)
+    } else {
+      log('err', `❌ ${data.description}`)
+    }
+    logJSON('Risposta', data)
+  }
+
+  // ── Delete Webhook ───────────────────────────────────────────────────────
+  async function deleteWebhook() {
+    if (!confirm('Sei sicuro di voler rimuovere il webhook?')) return
+    log('bold', '🗑 deleteWebhook…')
+    const data = await telegramAPI('deleteWebhook', { drop_pending_updates: false })
+    if (!data) return
+    log(data.ok ? 'ok' : 'err', data.ok ? `✅ ${data.description}` : `❌ ${data.description}`)
+  }
+
+  // ── Simula callback ──────────────────────────────────────────────────────
+  async function simulateCallback(callbackData) {
+    const webhookUrl = document.getElementById('webhookUrl').value.trim()
+    const secret     = document.getElementById('webhookSecret').value.trim()
+    log('bold', `⚡ Simula callback → callback_data="${callbackData}"`)
+
+    const fakeUpdate = {
+      update_id: Math.floor(Math.random() * 1e9),
+      callback_query: {
+        id: String(Math.floor(Math.random() * 1e15)),
+        from: { id: 123456789, first_name: 'Debug', username: 'debug_user', is_bot: false, language_code: 'it' },
+        message: {
+          message_id: 42,
+          from: { id: 987654321, is_bot: true, first_name: 'TestBot', username: 'testbot' },
+          chat: { id: 123456789, first_name: 'Debug', type: 'private' },
+          date: Math.floor(Date.now() / 1000),
+          text: '⏰ Test Promemoria\nCorpo del messaggio di test',
+        },
+        data: callbackData,
+      },
+    }
+
+    log('dim', `POST ${webhookUrl}`)
+    logJSON('Payload inviato', fakeUpdate)
+
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (secret) headers['X-Telegram-Bot-Api-Secret-Token'] = secret
+
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(fakeUpdate),
+      })
+
+      const status = res.status
+      const body   = await res.text()
+
+      if (status === 200) {
+        log('ok', `✅ HTTP ${status}`)
+      } else if (status === 401) {
+        log('err', `❌ HTTP 401 — JWT verification attiva! Redeployare la funzione con config.toml (verify_jwt=false)`)
+      } else if (status === 403) {
+        log('err', `❌ HTTP 403 — Secret token errato o funzione non raggiungibile`)
+      } else {
+        log('err', `❌ HTTP ${status}`)
+      }
+
+      try {
+        logJSON('Risposta Edge Function', JSON.parse(body))
+      } catch {
+        log('warn', `Body: ${body.substring(0, 500)}`)
+      }
+    } catch (e) {
+      log('err', `❌ Fetch error: ${e.message}`)
+      log('warn', '⚠ Possibile errore CORS — la Edge Function deve rispondere con header CORS')
+    }
+  }
+
+  async function simulateSnooze() {
+    const queueId = document.getElementById('queueId').value.trim() || 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    await simulateCallback(`snooze:30:${queueId}`)
+  }
+
+  async function simulateCancel() {
+    const queueId = document.getElementById('queueId').value.trim() || 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    await simulateCallback(`cancel:${queueId}`)
+  }
+
+  async function simulateComplete() {
+    const queueId = document.getElementById('queueId').value.trim() || 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    await simulateCallback(`complete:${queueId}`)
+  }
+
+  // ── getUpdates (polling) ─────────────────────────────────────────────────
+  async function getUpdates() {
+    log('bold', '📬 getUpdates (ultimi 10)…')
+    const data = await telegramAPI('getUpdates', { limit: 10, offset: -10 })
+    if (!data) return
+    if (data.ok) {
+      const updates = data.result
+      if (!updates.length) {
+        log('warn', 'Nessun update in coda (normale se il webhook è attivo)')
+      } else {
+        updates.forEach(u => {
+          if (u.callback_query) {
+            log('ok', `callback_query — data="${u.callback_query.data}" id=${u.callback_query.id}`)
+          } else if (u.message) {
+            log('info', `message — "${u.message.text}"`)
+          }
+        })
+        logJSON('Updates', updates)
+      }
+    } else {
+      log('err', `❌ ${data.description}`)
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  log('info', '✔ Pagina caricata — inserisci il Bot Token e clicca "getWebhookInfo"')
+  log('dim', `Supabase Function URL: ${SUPABASE_FUNCTION_URL}`)
+</script>
+
+</body>
+</html>

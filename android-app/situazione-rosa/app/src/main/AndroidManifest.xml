@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SituazioneRosa">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Permette di aprire il link "magic link" ricevuto via email
+                 direttamente in questa app invece che nel browser, così la
+                 sessione (con refresh_token) viene salvata nello storage
+                 dell'app e non serve più autenticarsi in seguito.
+                 Il link nell'email punta prima a Supabase (auth/v1/verify),
+                 che poi reindirizza (302) alla pagina Netlify: la WebView
+                 segue da sola questo redirect, quindi basta intercettare
+                 il primo hop per restare sempre dentro l'app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="jajlmmdsjlvzgcxiiypk.supabase.co"
+                    android:pathPrefix="/auth/v1/verify" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="garsal.men"
+                    android:pathPrefix="/situazione-rosa.html" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

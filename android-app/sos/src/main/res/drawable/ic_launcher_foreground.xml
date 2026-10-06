@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SOS: il marchio AppSphere col badge rosso.
+
+     I cinque cerchi sono la **copia identica** di
+     `appsphere-native/.../ic_launcher_foreground.xml`, colori e coordinate
+     compresi: il marchio vive in più posti e vanno cambiati insieme (vedi
+     CLAUDE.md, «Il marchio vive in quattro posti»). Quello che distingue
+     quest'app nel cassetto è il badge, non un disegno diverso.
+
+     ⚠️ Fino alla v1.0.1 era un cerchio bianco spesso su fondo rosso, e la
+     ragione scritta allora era che «una scritta SOS a questa dimensione
+     sarebbe illeggibile». Vale per una scritta a tutta icona: dentro un badge
+     alto 23 dp le tre lettere ne prendono 10,7 — quasi la metà — e si leggono.
+
+     ⚠️ Niente esce dal **cerchio di sicurezza da 36 dp** dell'icona adattiva.
+     Per i quattro cerchi esterni è r·(1+√2) = 33.8 dp; per il badge il punto
+     peggiore è l'angolo alto-destro del suo alone, (80, 30) → 35.4 dp dal
+     centro. Nella foto di riferimento il badge sporgeva dall'angolo: lì lo
+     taglierebbe la maschera tonda, quindi qui è rientrato — e per rientrare
+     copre quasi tutto il cerchio rosso, che è il prezzo.
+
+     ⚠️ Le lettere sono **tracciati**, non testo: un `<vector>` non sa
+     disegnare una stringa, e un font non c'è. La S sono due archi da 225°
+     agganciati nel mezzo, la O un'ellisse. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- arancio, in alto a sinistra -->
+    <path
+        android:fillColor="#DE8026"
+        android:pathData="M40.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- rosso, in alto a destra -->
+    <path
+        android:fillColor="#CA372E"
+        android:pathData="M68.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- verde, in basso a sinistra -->
+    <path
+        android:fillColor="#32974C"
+        android:pathData="M40.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- viola, in basso a destra -->
+    <path
+        android:fillColor="#824FA5"
+        android:pathData="M68.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- blu, al centro e sopra ai quattro -->
+    <path
+        android:fillColor="#067BC0"
+        android:pathData="M54.0,54.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- ── Il badge ────────────────────────────────────────────────────────
+         ⚠️ L'alone scuro non è un contorno decorativo: il badge è rosso
+         (#EE334E, il rosso di quest'app) e sta sopra al cerchio rosso del
+         marchio (#CA372E). Senza, i due si toccherebbero senza un bordo e a
+         48 dp nel cassetto si leggerebbero come una macchia sola. -->
+    <path
+        android:fillColor="#22262A"
+        android:pathData="M56.8,30 L74.2,30 A5.8,5.8 0 0 1 80,35.8 L80,49.2 A5.8,5.8 0 0 1 74.2,55 L56.8,55 A5.8,5.8 0 0 1 51,49.2 L51,35.8 A5.8,5.8 0 0 1 56.8,30 Z" />
+    <path
+        android:fillColor="#EE334E"
+        android:pathData="M57,31 L74,31 A5,5 0 0 1 79,36 L79,49 A5,5 0 0 1 74,54 L57,54 A5,5 0 0 1 52,49 L52,36 A5,5 0 0 1 57,31 Z" />
+
+    <!-- S · O · S — tre tracciati bianchi, centrati in (65.5, 42.5) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M59.456,38.744 A2.2,2.2 0 1,0 57.9,42.5 A2.2,2.2 0 1,1 56.344,46.256" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.9"
+        android:fillColor="#00000000"
+        android:pathData="M65.5,42.5 m-2.45,0 a2.45,4.4 0 1,0 4.9,0 a2.45,4.4 0 1,0 -4.9,0" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M74.656,38.744 A2.2,2.2 0 1,0 73.1,42.5 A2.2,2.2 0 1,1 71.544,46.256" />
+</vector>

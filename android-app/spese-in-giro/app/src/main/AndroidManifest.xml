@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- ⚠️ NESSUN permesso per la fotocamera, e non è una dimenticanza: la foto
+         la scatta l'app della fotocamera (ACTION_IMAGE_CAPTURE) e ci torna
+         indietro in un file nostro, quindi il permesso non serve. Dichiarandolo,
+         Android lo pretenderebbe **concesso a runtime** proprio per quell'Intent
+         — cioè una richiesta in più davanti alla cassa per una cosa che
+         funziona senza. Niente READ_MEDIA_IMAGES per la stessa ragione: il
+         selettore di sistema restituisce la sola foto scelta.
+         <uses-feature> con required="false" perché un tablet senza fotocamera
+         deve poter installare l'app: lo scontrino è una comodità, non l'app. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SpeseInGiro">
+
+        <!-- Fa scaricare il modello di ML Kit all'installazione: al primo scontrino
+             è già pronto, invece di far aspettare il download davanti alla cassa. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- La fotocamera scrive in un file nostro e ce lo restituisce: senza un
+             FileProvider l'Intent morirebbe con una FileUriExposedException. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.foto"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+</manifest>

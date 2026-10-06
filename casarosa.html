@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Situazione Cassa Casa Rosa v1.2.1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'DM Mono', ui-monospace, monospace;
+      --c-bg:        #f4f6fb;
+      --c-surface:   #ffffff;
+      --c-border:    #e2e8f0;
+      --c-text:      #1e293b;
+      --c-muted:     #64748b;
+      --c-primary:   #db2777; /* Rosa */
+      --c-primary-h: #be185d;
+      --c-success:   #16a34a;
+      --c-danger:    #dc2626;
+      --c-warning:   #d97706;
+      --radius-sm: 6px;
+      --radius:    12px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+    }
+    body { font-family: var(--font-sans); background: var(--c-bg); color: var(--c-text); min-height: 100dvh; -webkit-font-smoothing: antialiased; padding-top: 56px; }
+    .hidden { display: none !important; }
+    .mono   { font-family: var(--font-mono); }
+    .hstack  { display: flex; align-items: center; }
+    .gap-8   { gap: 8px; }
+    #garsal-top-bar { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #0081C8; display: flex; align-items: center; padding: 0 20px; gap: 10px; z-index: 3000; }
+    #garsal-top-bar-text { font-family: 'Darker Grotesque', sans-serif; font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+    .btn-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 8px; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    .btn-hamburger span { display: block; width: 20px; height: 2px; background: #fff; border-radius: 2px; }
+    /* ── Sidebar ──────────────────────────────────────────────────
+       La pagina scorre tutta insieme (niente area di lavoro con
+       scorrimento proprio): la sidebar sta ferma con position:sticky
+       sotto la barra blu, alta 56px. */
+    .app-layout { display: flex; align-items: flex-start; min-height: calc(100dvh - 56px); }
+    .sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--c-border); background: var(--c-surface); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 56px; height: calc(100dvh - 56px); overflow-y: auto; }
+    .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: var(--radius-sm); font-size: .88rem; font-weight: 500; color: var(--c-muted); cursor: pointer; transition: background .12s, color .12s; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-sans); }
+    .nav-item:hover { background: var(--c-bg); color: var(--c-text); }
+    .nav-item.active { background: #dcfce7; color: var(--c-primary); }
+    .nav-sep { height: 1px; background: var(--c-border); margin: 10px 4px 4px; }
+    #mobile-nav-overlay { display: none; position: fixed; inset: 0; top: 56px; background: rgba(0,0,0,.35); z-index: 98; }
+    #mobile-nav-overlay.open { display: block; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .app-main { flex: 1; min-width: 0; padding: 24px 28px; }
+    @media (max-width: 768px) {
+      .btn-hamburger { display: flex; align-items: center; }
+      .sidebar { position: fixed; top: 56px; left: 0; z-index: 99; transform: translateX(-100%); transition: transform .25s ease; box-shadow: 4px 0 20px rgba(0,0,0,.12); }
+      .sidebar.open { transform: translateX(0); }
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); }
+    .kpi-label { font-size: .74rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; margin-bottom: 6px; }
+    .kpi-value { font-size: 1.5rem; font-weight: 700; text-align: right; }
+    .card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow-sm); }
+    .table-wrap { overflow-x: auto; margin-top: 14px; }
+    .table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .table th { text-align: left; font-size: .72rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; padding: 0 10px 9px; }
+    .table td { padding: 12px 10px; border-top: 1px solid var(--c-border); }
+    .btn { padding: 9px 16px; border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .88rem; font-weight: 500; cursor: pointer; border: none; }
+    .btn-primary { background: var(--c-primary); color: #fff; }
+    .btn-primary:hover { background: var(--c-primary-h); }
+    .btn-sm { padding: 6px 12px; font-size: .82rem; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: #fff; border-radius: var(--radius); width: 100%; max-width: 500px; padding: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: .82rem; font-weight: 600; margin-bottom: 6px; }
+    .form-input { width: 100%; padding: 10px; border: 1px solid var(--c-border); border-radius: var(--radius-sm); outline: none; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .year-select { padding: 7px 12px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .88rem; color: var(--c-text); outline: none; background: var(--c-surface); cursor: pointer; }
+    .year-select:focus { border-color: var(--c-primary); }
+
+    @media (max-width: 640px) {
+      .app-main { padding: 10px; }
+.kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .kpi-card { padding: 12px; }
+      .kpi-value { font-size: 1.15rem; }
+      .card { padding: 10px 12px; }
+      .hstack.gap-8 { flex-wrap: wrap; gap: 6px; }
+      .hstack.gap-8 h2 { font-size: 1rem; width: 100%; margin-bottom: 2px; }
+      .hstack.gap-8 select { flex: 1; min-width: 0; font-size: .82rem; }
+      .hstack.gap-8 .btn { font-size: .78rem; padding: 6px 10px; }
+      .table, .table thead, .table tbody, .table tr, .table th, .table td { display: block; }
+      .table thead { display: none; }
+      .table tbody { display: flex; flex-direction: column; gap: 8px; }
+      .table tr { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--shadow-sm); }
+      .table td { padding: 2px 0; border: none; }
+      .table td:nth-child(1) { font-size: .76rem; display: inline; }
+      .table td:nth-child(2) { font-size: .74rem; color: var(--c-muted); display: inline; margin-left: 8px; }
+      .table td:nth-child(3) { font-size: 1.05rem; font-weight: 700; float: right; margin-top: 4px; }
+      .table td:nth-child(4) { font-size: .85rem; padding: 6px 0 2px; clear: both; }
+      .table td:nth-child(4) .fw-600 { font-weight: 600; }
+      .table td:nth-child(4) .text-muted { font-size: .74rem; }
+      .table td:nth-child(5) { text-align: right; padding-top: 6px; }
+      .modal { margin: 10px; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div id="garsal-top-bar">
+  <a href="finanza.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex:1;min-width:0;">
+    <span style="width:22px;height:22px;background:rgba(255,255,255,0.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">💰</span>
+    <div id="garsal-top-bar-text">GarsalFinanza</div>
+  </a>
+  <button id="btn-hamburger" class="btn-hamburger" aria-label="Apri menu"><span></span><span></span><span></span></button>
+</div>
+
+<div id="mobile-nav-overlay"></div>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar">
+    <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">📊 Dashboard</button>
+    <button class="nav-item"        data-view="movimenti" onclick="showView('movimenti')">🧾 Movimenti</button>
+    <div class="nav-sep"></div>
+    <a class="nav-item" href="finanza.html" style="text-decoration:none">← Torna a 💰 Finanza</a>
+  </nav>
+  <main class="app-main">
+    <div class="hstack gap-8" style="margin-bottom: 20px;">
+      <h2 id="page-title" style="font-size: 1.3rem;">Situazione Cassa</h2>
+      <!-- Anno e categoria filtrano tutt'e due le pagine: restano qui sopra,
+           fuori dalle view, invece di essere duplicati in ciascuna. -->
+      <select id="year-select" class="year-select"></select>
+      <select id="cat-select" class="year-select" style="display:none"></select>
+    </div>
+
+    <div id="view-dashboard" class="view active">
+      <div class="kpi-grid" id="kpi-container">
+        <div class="kpi-card"><div class="kpi-label">Totale</div><div class="kpi-value mono" id="tot-voce">€0,00</div></div>
+        <div class="kpi-card"><div class="kpi-label">Saldo <span id="saldo-date" style="font-weight:400"></span></div><div class="kpi-value mono" id="tot-saldo">€0,00</div></div>
+      </div>
+
+      <div class="card" id="expected-payments-card" style="margin-bottom:14px">
+        <div style="font-size:.74rem;font-weight:600;color:var(--c-muted);text-transform:uppercase;margin-bottom:10px">Pagamenti Attesi</div>
+        <div id="expected-payments" style="display:flex;gap:12px;flex-wrap:wrap">
+          <div id="expected-payments-main" class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));flex:2 1 520px;margin-bottom:0"></div>
+          <div id="expected-payments-side" style="display:flex;flex-direction:column;gap:10px;flex:1 1 220px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div style="font-size:.74rem;font-weight:600;color:var(--c-muted);text-transform:uppercase;margin-bottom:10px">Riepilogo Categorie</div>
+        <div id="cat-summary" class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
+      </div>
+    </div>
+
+    <div id="view-movimenti" class="view">
+      <div class="hstack gap-8" style="flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-primary btn-sm" onclick="openModal()">+ Nuovo Movimento</button>
+        <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="document.getElementById('xlsx-input').click()">📊 Importa Excel</button>
+        <input type="file" id="xlsx-input" accept=".xls,.xlsx" style="display:none" />
+        <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="document.getElementById('csv-input').click()">📥 Importa CSV</button>
+        <input type="file" id="csv-input" accept=".csv" style="display:none" />
+        <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="openBankImport()">🏦 Importa dalla banca</button>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Categoria</th>
+                <th class="text-right">Importo</th>
+                <th>Descrizione / Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tx-table-body">
+              <tr><td colspan="5" style="text-align:center; padding: 40px;">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+  <div id="confirm-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeConfirm()">
+    <div class="modal" style="max-width:320px;text-align:center;">
+      <p style="font-size:1rem;margin-bottom:20px">Eliminare questo movimento?</p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn" style="flex:1" onclick="closeConfirm()">Annulla</button>
+        <button class="btn" id="confirm-ok-btn" style="flex:1;background:var(--c-danger);color:#fff;border-color:var(--c-danger)">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 style="margin-bottom: 20px;" id="modal-title">Nuovo Movimento</h3>
+      <form id="tx-form">
+        <input type="hidden" name="id" />
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input type="date" name="data" class="form-input" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <div class="hstack gap-8">
+              <select name="category_id" class="form-input" style="flex:1">
+                <option value="">— Nessuna —</option>
+              </select>
+              <button type="button" class="btn btn-sm" style="white-space:nowrap" onclick="addCategory()">+ Nuova</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrizione</label>
+          <input type="text" name="descrizione" class="form-input" required />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Importo (€)</label>
+            <input type="number" step="0.01" name="importo_voce" class="form-input mono" value="0" />
+          </div>
+        <div class="form-group">
+          <label class="form-label">Note</label>
+          <input type="text" name="note" class="form-input" />
+        </div>
+        <div class="hstack gap-8" style="justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn" onclick="closeModal()">Annulla</button>
+          <button type="submit" class="btn btn-primary">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="bank-import-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeBankImport()">
+    <div class="modal" style="max-width:720px">
+      <h3 id="bank-import-title" style="margin-bottom:6px">Importa dalla banca</h3>
+      <div id="bank-import-body"></div>
+    </div>
+  </div>
+
+  <div id="import-review-overlay" class="modal-overlay hidden">
+    <div class="modal" style="max-width:640px">
+      <h3 id="import-review-title" style="margin-bottom:6px">Verifica transazioni</h3>
+      <p style="font-size:.82rem;color:var(--c-muted);margin-bottom:14px">Queste righe hanno stessa data e stesso importo di movimenti già presenti. Seleziona quelle da importare comunque.</p>
+      <div id="import-review-list" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+      <div class="hstack gap-8" style="justify-content:flex-end">
+        <button class="btn" onclick="closeImportReview()">Ignora tutte</button>
+        <button class="btn btn-primary" onclick="confirmImportReview()">Importa selezionate</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var APP_VERSION = 'v1.2.1';
+    var BUILD_TIME  = '2026-08-30T23:30:00Z';
+    console.log('%c CASSA CASA ROSA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+        'background:#0081C8;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+        'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+    const SUPABASE_URL = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+    let S = {
+      transactions: [],
+      categories: [],
+      catMap: {},
+      session: null,
+      selectedYear: null,
+      selectedCategory: null,
+    };
+
+    const tok = () => S.session?.access_token || SUPABASE_ANON_KEY;
+    const sb = async (path, method = 'GET', body = null) => {
+      const options = {
+        method,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${tok()}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        }
+      };
+      if (body) options.body = JSON.stringify(body);
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, options);
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.message || r.statusText);
+      }
+      return r.json();
+    };
+
+    async function initFromSbToken(token) {
+      try {
+        const user = await (await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },
+        })).json();
+        if (user?.id) {
+          return { access_token: token, refresh_token: null, expires_at: Date.now() + 3600_000, user };
+        }
+      } catch {}
+      return null;
+    }
+
+    const fmtEUR = v => { const n = Math.round(v || 0); return (n < 0 ? '-' : '') + Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €'; };
+    const fmtDate = d => new Date(d).toLocaleDateString('it-IT');
+    const getAnni = () => [...new Set(S.transactions.map(t => t.anno || new Date(t.data).getFullYear()))].sort((a, b) => b - a);
+
+    async function loadData() {
+      try {
+        const [tx, cats, saldi] = await Promise.all([
+          sb('cntrs_transactions?order=data.desc'),
+          sb('cntrs_categories?order=name'),
+          sb('cntrs_saldi?order=created_at.desc&limit=1'),
+        ]);
+        S.transactions = tx;
+        S.categories = cats;
+        S.latestSaldo = saldi && saldi.length ? saldi[0] : null;
+        S.catMap = Object.fromEntries(cats.map(c => [c.id, c.name]));
+        const anni = getAnni();
+        if (!S.selectedYear || (S.selectedYear !== 'all' && !anni.includes(S.selectedYear))) {
+          S.selectedYear = anni[0] || new Date().getFullYear();
+        }
+        render();
+      } catch (e) {
+        console.error('Errore caricamento dati:', e);
+        document.getElementById('tx-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--c-danger); padding: 40px;"> Errore: ${e.message}</td></tr>`;
+      }
+    }
+
+    function catName(t) {
+      return S.catMap[t.category_id] || '(nessuna)';
+    }
+
+    /* ── Navigazione ────────────────────────────────────────────
+       Due pagine sole: il riepilogo (saldo, pagamenti attesi, categorie) e
+       l'elenco dei movimenti con gli import. Anno e categoria stanno fuori
+       dalle view perché filtrano tutt'e due. */
+    const VIEW_TITLES = { dashboard: 'Situazione Cassa', movimenti: 'Movimenti' };
+    function showView(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
+      document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+      document.getElementById('page-title').textContent = VIEW_TITLES[view] || '';
+      closeMobileNav();
+      window.scrollTo(0, 0);
+    }
+    function closeMobileNav() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('mobile-nav-overlay').classList.remove('open');
+    }
+
+    function render() {
+      const anni = getAnni();
+      if (!S.selectedYear || (S.selectedYear !== 'all' && !anni.includes(S.selectedYear))) {
+        S.selectedYear = anni[0] || new Date().getFullYear();
+      }
+      const isAll = S.selectedYear === 'all';
+      const prior = isAll ? [] : S.transactions.filter(t => (t.anno || new Date(t.data).getFullYear()) < S.selectedYear);
+      const current = isAll ? S.transactions : S.transactions.filter(t => (t.anno || new Date(t.data).getFullYear()) === S.selectedYear);
+
+      let filteredPrior = prior;
+      let filteredCurrent = current;
+      if (S.selectedCategory) {
+        filteredPrior = filteredPrior.filter(t => catName(t) === S.selectedCategory);
+        filteredCurrent = filteredCurrent.filter(t => catName(t) === S.selectedCategory);
+      }
+
+      const yearFiltered = isAll ? S.transactions : S.transactions.filter(t => (t.anno || new Date(t.data).getFullYear()) <= S.selectedYear);
+
+      const sel = document.getElementById('year-select');
+      sel.innerHTML = `<option value="all" ${isAll ? 'selected' : ''}>Tutti</option>` +
+        anni.map(a => `<option value="${a}" ${a === S.selectedYear ? 'selected' : ''}>${a}</option>`).join('');
+
+      const catSel = document.getElementById('cat-select');
+      const showCatFilter = S.categories.length > 1;
+      catSel.style.display = showCatFilter ? '' : 'none';
+      catSel.innerHTML = '<option value="">Tutte le categorie</option>' + S.categories.map(c =>
+        `<option value="${c.name}" ${c.name === S.selectedCategory ? 'selected' : ''}>${c.name}</option>`
+      ).join('');
+
+      const tbody = document.getElementById('tx-table-body');
+      let totVoce = 0;
+
+      const priorVoce = filteredPrior.reduce((s, t) => s + t.importo_voce, 0);
+
+      let html = '';
+
+      html += filteredCurrent.map(t => {
+        totVoce += t.importo_voce;
+        return `
+          <tr>
+            <td class="mono text-sm">${fmtDate(t.data)}</td>
+            <td class="text-muted">${catName(t)}</td>
+            <td class="text-right mono fw-600">${fmtEUR(t.importo_voce)}</td>
+            <td><span class="fw-600">${t.descrizione}</span>${t.note ? '<br><span class="text-muted text-sm">' + t.note + '</span>' : ''}</td>
+            <td class="text-right">
+              <button class="btn btn-sm" onclick="openModal('${t.id}')">✏️</button>
+              <button class="btn btn-sm" style="color:var(--c-danger)" onclick="deleteTx('${t.id}')">🗑️</button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      if (filteredPrior.length) {
+        html += `
+          <tr style="background:var(--c-bg)">
+            <td class="mono text-sm"><strong>Saldo anni precedenti</strong></td>
+            <td></td>
+            <td class="text-right mono fw-600">${fmtEUR(priorVoce)}</td>
+            <td colspan="2"></td>
+          </tr>`;
+      }
+
+      tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--c-muted)">Nessun movimento</td></tr>';
+
+      const allVoce = S.transactions.reduce((s, t) => s + t.importo_voce, 0);
+      document.getElementById('tot-voce').textContent = fmtEUR(allVoce);
+      if (S.latestSaldo) {
+        document.getElementById('tot-saldo').textContent = fmtEUR(S.latestSaldo.saldo_contabile);
+        document.getElementById('saldo-date').textContent = fmtDate(S.latestSaldo.data);
+      } else {
+        document.getElementById('tot-saldo').textContent = '—';
+        document.getElementById('saldo-date').textContent = '(nessun saldo)';
+      }
+
+      const catSummary = document.getElementById('cat-summary');
+      const catTotals = {};
+      yearFiltered.forEach(t => {
+        const cat = catName(t);
+        if (!catTotals[cat]) catTotals[cat] = 0;
+        catTotals[cat] += t.importo_voce;
+      });
+      catSummary.innerHTML = Object.entries(catTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, tot]) => {
+          const isActive = cat === S.selectedCategory;
+          return `
+          <div class="kpi-card" style="padding:12px 14px;cursor:pointer;${isActive ? 'outline:2px solid var(--c-primary);outline-offset:-2px' : ''}" onclick="filterByCategory('${cat.replace(/'/g, "\\'")}')">
+            <div class="kpi-label" style="font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat}</div>
+            <div class="kpi-value mono" style="font-size:1.1rem">${fmtEUR(tot)}</div>
+          </div>`;}).join('');
+      renderExpectedPayments();
+    }
+
+    function populateCatSelect(sel, selectedId) {
+      sel.innerHTML = '<option value="">— Nessuna —</option>' +
+        S.categories.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('');
+    }
+
+    function renderExpectedPayments() {
+      const start = new Date(2021, 8, 1); // 1 settembre 2021
+      const now = new Date();
+      const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
+
+      const expected = [
+        { label: 'Affitto bonifico rosa', rate: 450, catMatch: 'bonifico' },
+        { label: 'Affitto contante rosa', rate: 300, catMatch: 'contante' },
+      ];
+
+      // Totali cumulativi su TUTTE le transazioni, per categoria
+      const allCatTotals = {};
+      S.transactions.forEach(t => {
+        const key = catName(t);
+        if (!allCatTotals[key]) allCatTotals[key] = 0;
+        allCatTotals[key] += t.importo_voce;
+      });
+
+      const container = document.getElementById('expected-payments-main');
+      const sideContainer = document.getElementById('expected-payments-side');
+      container.innerHTML = expected.map(item => {
+        const expectedTotal = item.rate * months;
+
+        let actualTotal = 0;
+        const matchedCats = [];
+        Object.entries(allCatTotals).forEach(([cat, tot]) => {
+          if (cat.toLowerCase().includes(item.catMatch)) {
+            actualTotal += tot;
+            matchedCats.push(cat);
+          }
+        });
+
+        const diff = actualTotal - expectedTotal;
+        const pct = expectedTotal > 0 ? Math.round((actualTotal / expectedTotal) * 100) : 0;
+        const isOk = diff >= 0;
+        const isOver = diff > 50;
+        const diffMonths = item.rate > 0 ? Math.abs(diff) / item.rate : 0;
+        const diffMonthsLabel = diffMonths >= 0.05
+          ? ` (${diffMonths % 1 < 0.05 ? Math.round(diffMonths) : diffMonths.toFixed(1)} mens.)`
+          : '';
+
+        let statusColor, bgColor, borderColor, statusLabel;
+        if (isOver) {
+          statusColor = 'var(--c-warning)'; bgColor = '#fffbeb'; borderColor = '#f59e0b'; statusLabel = '↑ Eccesso';
+        } else if (isOk) {
+          statusColor = 'var(--c-success)'; bgColor = '#f0fdf4'; borderColor = '#16a34a'; statusLabel = '✓ In pari';
+        } else {
+          statusColor = 'var(--c-danger)'; bgColor = '#fef2f2'; borderColor = '#dc2626'; statusLabel = '↓ Mancante';
+        }
+
+        const progressPct = Math.min(pct, 100);
+
+        return `
+          <div style="background:${bgColor};border:1.5px solid ${borderColor};border-radius:var(--radius);padding:16px 18px;">
+            <div style="font-size:.72rem;font-weight:700;color:var(--c-muted);text-transform:uppercase;margin-bottom:10px;letter-spacing:.04em">${item.label}</div>
+
+            <div style="font-size:.85rem;color:var(--c-muted);margin-bottom:4px">
+              Atteso <span class="mono" style="font-weight:600;color:var(--c-text)">${fmtEUR(expectedTotal)}</span>
+            </div>
+            <div style="font-size:.8rem;color:var(--c-muted);margin-bottom:12px">
+              ${months} mesi × ${fmtEUR(item.rate)}
+            </div>
+
+            <div style="font-size:.85rem;color:var(--c-muted);margin-bottom:12px">
+              Incassato <span class="mono" style="font-size:1.1rem;font-weight:700;color:${statusColor}">${fmtEUR(actualTotal)}</span>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:.8rem;font-weight:700;color:${statusColor}">${statusLabel}</span>
+              <span class="mono" style="font-size:.85rem;font-weight:700;color:${statusColor}">${diff >= 0 ? '+' : ''}${fmtEUR(diff)}<span style="font-size:.72rem;font-weight:600">${diffMonthsLabel}</span></span>
+            </div>
+
+            <div style="font-size:.68rem;color:var(--c-muted);margin-top:8px;border-top:1px solid ${borderColor};padding-top:8px">
+              ${matchedCats.length
+                ? 'Categorie: ' + matchedCats.join(', ')
+                : '<span style="color:var(--c-danger)">⚠ Nessuna categoria corrispondente trovata</span>'}
+            </div>
+          </div>`;
+      }).join('');
+
+      // IMU card (anno selezionato o tutti)
+      const isAllYears = S.selectedYear === 'all';
+      const imuTxs = S.transactions.filter(t => {
+        const yr = t.anno || new Date(t.data).getFullYear();
+        return (isAllYears || yr === S.selectedYear) && catName(t).toLowerCase().includes('imu');
+      });
+      const imuTotal = imuTxs.reduce((s, t) => s + t.importo_voce, 0);
+      const imuCount = imuTxs.length;
+      const nowD = new Date();
+      const isCurrentYear = !isAllYears && S.selectedYear === nowD.getFullYear();
+      const pastMay15 = isCurrentYear && (nowD >= new Date(nowD.getFullYear(), 4, 15));
+      const imuAlert = isCurrentYear && pastMay15 && imuCount === 0;
+      const imuColor = imuAlert ? 'var(--c-danger)' : imuCount > 0 ? 'var(--c-success)' : 'var(--c-muted)';
+      const imuBg = imuAlert ? '#fef2f2' : imuCount > 0 ? '#f0fdf4' : 'var(--c-surface)';
+      const imuBorder = imuAlert ? '#dc2626' : imuCount > 0 ? '#16a34a' : 'var(--c-border)';
+      sideContainer.innerHTML = `
+        <div style="background:${imuBg};border:1.5px solid ${imuBorder};border-radius:var(--radius);padding:10px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;">
+          <div style="font-size:.7rem;font-weight:700;color:var(--c-muted);text-transform:uppercase;margin-bottom:6px;letter-spacing:.04em">IMU ${isAllYears ? '— Tutti gli anni' : S.selectedYear}</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="mono" style="font-size:1.1rem;font-weight:700;color:${imuColor}">${fmtEUR(imuTotal)}</span>
+            <span style="font-size:.76rem;color:var(--c-muted)">${imuCount} pagament${imuCount === 1 ? 'o' : 'i'}</span>
+          </div>
+          ${imuAlert ? `<div style="font-size:.74rem;font-weight:700;color:var(--c-danger);margin-top:4px">⚠ Nessun pagamento IMU dopo il 15 maggio</div>` : ''}
+          ${!isAllYears && !imuAlert && imuCount === 0 ? `<div style="font-size:.74rem;color:var(--c-muted);margin-top:4px">Nessun pagamento per ${S.selectedYear}</div>` : ''}
+        </div>`;
+
+      // SPESE CONDOMINIO CASA card (anno selezionato o tutti)
+      const condTxs = S.transactions.filter(t => {
+        const yr = t.anno || new Date(t.data).getFullYear();
+        return (isAllYears || yr === S.selectedYear) && catName(t).toLowerCase().includes('condominio');
+      });
+      const condTotal = condTxs.reduce((s, t) => s + t.importo_voce, 0);
+      const condCount = condTxs.length;
+      const condAlert = !isAllYears && condCount === 0;
+      const condColor = condAlert ? 'var(--c-danger)' : condCount > 0 ? 'var(--c-success)' : 'var(--c-muted)';
+      const condBg = condAlert ? '#fef2f2' : condCount > 0 ? '#f0fdf4' : 'var(--c-surface)';
+      const condBorder = condAlert ? '#dc2626' : condCount > 0 ? '#16a34a' : 'var(--c-border)';
+      sideContainer.innerHTML += `
+        <div style="background:${condBg};border:1.5px solid ${condBorder};border-radius:var(--radius);padding:10px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;">
+          <div style="font-size:.7rem;font-weight:700;color:var(--c-muted);text-transform:uppercase;margin-bottom:6px;letter-spacing:.04em">Spese Condominio Casa ${isAllYears ? '— Tutti gli anni' : S.selectedYear}</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="mono" style="font-size:1.1rem;font-weight:700;color:${condColor}">${fmtEUR(condTotal)}</span>
+            <span style="font-size:.76rem;color:var(--c-muted)">${condCount} pagament${condCount === 1 ? 'o' : 'i'}</span>
+          </div>
+          ${condAlert ? `<div style="font-size:.74rem;font-weight:700;color:var(--c-danger);margin-top:4px">⚠ Nessun pagamento registrato</div>` : ''}
+        </div>`;
+    }
+
+    function openModal(id = null) {
+      const form = document.getElementById('tx-form');
+      form.reset();
+      form.id.value = '';
+      document.getElementById('modal-title').textContent = 'Nuovo Movimento';
+      populateCatSelect(form.category_id, '');
+
+      if (id) {
+        const t = S.transactions.find(x => x.id === id);
+        if (t) {
+          form.id.value = t.id;
+          form.data.value = t.data;
+          form.descrizione.value = t.descrizione;
+          populateCatSelect(form.category_id, t.category_id);
+          form.importo_voce.value = t.importo_voce;
+          form.note.value = t.note;
+          document.getElementById('modal-title').textContent = 'Modifica Movimento';
+        }
+      } else {
+        form.data.value = new Date().toISOString().slice(0, 10);
+      }
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.add('hidden');
+    }
+
+    function closeConfirm() {
+      document.getElementById('confirm-overlay').classList.add('hidden');
+    }
+
+    async function deleteTx(id) {
+      const overlay = document.getElementById('confirm-overlay');
+      const btn = document.getElementById('confirm-ok-btn');
+      overlay.classList.remove('hidden');
+      btn.onclick = async () => {
+        closeConfirm();
+        await sb(`cntrs_transactions?id=eq.${id}`, 'DELETE');
+        loadData();
+      };
+    }
+
+    document.getElementById('tx-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const data = Object.fromEntries(fd);
+      const id = data.id;
+      delete data.id;
+
+      data.anno = new Date(data.data).getFullYear();
+      data.user_id = S.session.user.id;
+      data.importo_voce = parseFloat(data.importo_voce);
+      if (!data.category_id) delete data.category_id;
+
+      if (id) {
+        await sb(`cntrs_transactions?id=eq.${id}`, 'PATCH', data);
+      } else {
+        await sb('cntrs_transactions', 'POST', data);
+      }
+      closeModal();
+      loadData();
+    };
+
+    function parseCSV(text, delim) {
+      const rows = [];
+      let i = 0, line = [];
+      let field = '', inQuotes = false;
+      const next = () => { line.push(field.trim()); field = ''; };
+      const nl = () => { next(); if (line.length) rows.push(line); line = []; };
+      while (i < text.length) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"') { inQuotes = false; }
+          else { field += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === delim) { next(); }
+          else if (ch === '\n') { nl(); }
+          else if (ch === '\r') { /* skip */ }
+          else { field += ch; }
+        }
+        i++;
+      }
+      nl();
+      return rows;
+    }
+
+    function itDateToIso(ddmmmyyyy) {
+      if (!ddmmmyyyy) return null;
+      const p = ddmmmyyyy.split('/');
+      if (p.length !== 3) return null;
+      return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+    }
+
+    function parseItNum(s) {
+      if (!s) return 0;
+      return parseFloat(String(s).replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    function guessCategory(causale, desc) {
+      const c = (causale || '').trim();
+      const d = (desc || '').toLowerCase();
+
+      // Causale 048 — bonifici in entrata (Rosa / affitto)
+      if (c === '048') return 'AFFITTO BONIFICO CASA';
+
+      // Causale 008 — uscite: mutuo vs deleghe F23/F24
+      if (c === '008') {
+        if (d.includes('f23') || d.includes('f24')) return 'IMU';
+        return 'RATA MUTUO';
+      }
+
+      // Causale 219 — imposta di bollo
+      if (c === '219') return 'SPESE BANCARIE';
+
+      // Causale 034 — giroconto da Salvatore
+      if (c === '034') return 'AFFITTO CONTANTE ROSA';
+
+      // Causale 018 — competenze / interessi
+      if (c === '018') return 'INTERESSI BANCARIE';
+
+      return 'da attribuire';
+    }
+
+    async function ensureCategory(name) {
+      const existing = S.categories.find(c => c.name.toLowerCase() === name.toLowerCase());
+      if (existing) return existing.id;
+      const fallback = S.categories.find(c => c.name.toLowerCase() === 'da attribuire');
+      if (fallback) return fallback.id;
+      const res = await sb('cntrs_categories', 'POST', { name: 'da attribuire', user_id: S.session.user.id });
+      if (res && res.length) {
+        S.categories.push(res[0]);
+        S.catMap[res[0].id] = res[0].name;
+        return res[0].id;
+      }
+      return null;
+    }
+
+    function findImportConflicts(items) {
+      const byKey = new Map();
+      for (const t of S.transactions) {
+        const key = `${t.data}|${t.importo_voce}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(t);
+      }
+      const autoItems = [];
+      const conflicts = [];
+      for (const item of items) {
+        const key = `${item.data}|${item.importo_voce}`;
+        if (byKey.has(key)) {
+          conflicts.push({ item, matches: byKey.get(key) });
+        } else {
+          autoItems.push(item);
+        }
+      }
+      return { autoItems, conflicts };
+    }
+
+    async function insertTransactions(items) {
+      let imported = 0;
+      for (const item of items) {
+        try {
+          await sb('cntrs_transactions', 'POST', { ...item, user_id: S.session.user.id });
+          imported++;
+        } catch (e) {
+          console.error('Errore import:', item, e);
+        }
+      }
+      return imported;
+    }
+
+    /* ══════════════ IMPORT DALLA BANCA (Enable Banking / PSD2) ══════════════
+       I movimenti arrivano dal conto battezzato «🏠 Casa Rosa» in Finanza → Configurazione →
+       🏦 Banche e Conti: qui non si configura niente, si legge e basta. La Edge Function
+       enable-banking-transactions restituisce i movimenti normalizzati e non scrive nel
+       database — destinazione, categorie e controllo dei doppioni restano qui, dove si sa
+       com'è fatto questo conto. Stesso blocco di conto-risparmio-teresa.html, che lavora sullo
+       stesso schema con le tabelle _terr.
+
+       ⚠️ Perché un conto compaia serve che sia in whitelist nel Control Panel di Enable
+       Banking ("Link accounts"): l'applicazione è in restricted mode e per gli altri conti
+       l'API risponde a mani vuote senza segnalare niente. */
+    const sbFn = async (name, payload) => {
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${tok()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data?.error) throw new Error(data?.error?.message || r.statusText);
+      return data;
+    };
+
+    let _bankImport = null;
+
+    // La causale numerica UniCredit (048, 008, 219…) su cui lavora guessCategory() per l'import
+    // da CSV non passa dall'API PSD2: da lì arrivano il codice ISO 20022 e il testo del
+    // movimento. Si riusano gli stessi NOMI di categoria, riconosciuti dal testo; quello che non
+    // si riconosce finisce in "da attribuire", che è il posto giusto per una cosa incerta.
+    function guessCategoryFromBank(tx) {
+      const t = `${tx.description || ''} ${tx.counterpartyName || ''}`.toLowerCase();
+      const code = (tx.bankTransactionCode || '').toUpperCase();
+      if (/f23|f24|imu|tributi/.test(t)) return 'IMU';
+      if (/mutuo|rata mutu/.test(t)) return 'RATA MUTUO';
+      if (/bollo|commission|spese conto|canone conto/.test(t)) return 'SPESE BANCARIE';
+      if (/interess|competenze/.test(t)) return 'INTERESSI BANCARIE';
+      if (/giroconto/.test(t)) return 'AFFITTO CONTANTE ROSA';
+      if (/affitto|locazione|canone di locazione/.test(t)) return 'AFFITTO BONIFICO CASA';
+      // Un bonifico ricevuto senza altri indizi, su questo conto, è quasi sempre l'affitto.
+      if (tx.amount > 0 && /RCDT/.test(code)) return 'AFFITTO BONIFICO CASA';
+      return 'da attribuire';
+    }
+
+    function bankTxDescription(tx) {
+      const parts = [tx.description, tx.counterpartyName].map(s => (s || '').trim()).filter(Boolean);
+      // Descrizione e controparte spesso si ripetono: due volte lo stesso nome non aiuta.
+      const uniq = parts.filter((p, i) => !parts.slice(0, i).some(q => q.toLowerCase().includes(p.toLowerCase())));
+      return uniq.join(' · ') || tx.bankTransactionCode || 'Movimento';
+    }
+
+    async function openBankImport() {
+      const overlay = document.getElementById('bank-import-overlay');
+      const box = document.getElementById('bank-import-body');
+      overlay.classList.remove('hidden');
+      box.innerHTML = '<p style="color:var(--c-muted);font-size:.85rem">Cerco i conti collegati…</p>';
+      try {
+        const conns = await sb('cm_bank_connections?select=*&order=created_at.desc');
+        // Solo i conti che qualcuno ha destinato a questa pagina: gli altri conti collegati —
+        // Spese Famiglia, il Conto Risparmio di Teresa — qui non c'entrano niente.
+        const usable = (conns || []).filter(c => c.account_id && (c.uses || []).includes('casa_rosa'));
+        if (!usable.length) {
+          box.innerHTML = `
+            <p style="font-size:.85rem;margin-bottom:14px">Nessun conto destinato alla Cassa Casa Rosa.
+            I conti si collegano da <strong>Finanza → Configurazione → 🏦 Banche e Conti</strong>, dove
+            vanno anche spuntati come «🏠 Casa Rosa»; devono inoltre essere in whitelist nel
+            Control Panel di Enable Banking.</p>
+            <div class="hstack gap-8" style="justify-content:flex-end">
+              <button class="btn" onclick="closeBankImport()">Chiudi</button>
+            </div>`;
+          return;
+        }
+        // Si riparte dal giorno dopo l'ultimo movimento già presente: rileggere all'infinito
+        // tutto lo storico serve solo a far ricontrollare cose già viste.
+        const lastDate = S.transactions.map(t => t.data).sort().pop();
+        const defaultFrom = lastDate
+          ? new Date(new Date(lastDate).getTime() + 86400000).toISOString().slice(0, 10)
+          : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+        box.innerHTML = `
+          <p style="font-size:.82rem;color:var(--c-muted);margin-bottom:14px">Legge i movimenti dal conto collegato. Niente viene salvato finché non li confermi.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+            <label style="font-size:.8rem;font-weight:600">Conto
+              <select id="bank-import-conn" class="form-input" style="width:100%;margin-top:4px">
+                ${usable.map(c => `<option value="${c.id}">${c.display_name || c.iban || c.aspsp_name}</option>`).join('')}
+              </select>
+            </label>
+            <label style="font-size:.8rem;font-weight:600">Dal giorno
+              <input type="date" id="bank-import-from" class="form-input" style="width:100%;margin-top:4px" value="${defaultFrom}" />
+            </label>
+          </div>
+          <div class="hstack gap-8" style="justify-content:flex-end">
+            <button class="btn" onclick="closeBankImport()">Annulla</button>
+            <button class="btn btn-primary" onclick="loadBankMovements()">Leggi i movimenti</button>
+          </div>`;
+      } catch (e) {
+        box.innerHTML = `<p style="color:var(--c-danger);font-size:.85rem">Errore: ${e.message}</p>
+          <div class="hstack gap-8" style="justify-content:flex-end;margin-top:14px"><button class="btn" onclick="closeBankImport()">Chiudi</button></div>`;
+      }
+    }
+
+    function closeBankImport() {
+      document.getElementById('bank-import-overlay').classList.add('hidden');
+      document.getElementById('bank-import-body').innerHTML = '';
+      _bankImport = null;
+    }
+
+    async function loadBankMovements() {
+      const box = document.getElementById('bank-import-body');
+      const bankConnectionId = document.getElementById('bank-import-conn').value;
+      const dateFrom = document.getElementById('bank-import-from').value || undefined;
+      box.innerHTML = '<p style="color:var(--c-muted);font-size:.85rem">Leggo i movimenti dalla banca…</p>';
+      try {
+        const res = await sbFn('enable-banking-transactions', { bankConnectionId, dateFrom });
+        const txs = (res.transactions || []).filter(t => t.amount !== 0 && (t.bookingDate || t.valueDate));
+        if (!txs.length) {
+          box.innerHTML = `<p style="font-size:.85rem;margin-bottom:14px">Nessun movimento nel periodo scelto.</p>
+            <div class="hstack gap-8" style="justify-content:flex-end"><button class="btn" onclick="closeBankImport()">Chiudi</button></div>`;
+          return;
+        }
+        // Doppioni: identici (data + importo + descrizione) si escludono da soli, perché
+        // rileggere un periodo già importato è la normalità, non l'eccezione. Stessa data e
+        // stesso importo ma descrizione diversa resta selezionato e segnalato: è un'ambiguità
+        // che deve vederla una persona.
+        const exact = new Set(S.transactions.map(t => `${t.data}|${(+t.importo_voce).toFixed(2)}|${(t.descrizione || '').trim().toLowerCase()}`));
+        const sameDayAmount = new Set(S.transactions.map(t => `${t.data}|${(+t.importo_voce).toFixed(2)}`));
+        const items = txs.map(t => {
+          const data = (t.bookingDate || t.valueDate).slice(0, 10);
+          const descrizione = bankTxDescription(t);
+          const key = `${data}|${t.amount.toFixed(2)}`;
+          return {
+            data, descrizione, importo: t.amount,
+            categoria: guessCategoryFromBank(t),
+            duplicato: exact.has(`${key}|${descrizione.trim().toLowerCase()}`),
+            simile: !exact.has(`${key}|${descrizione.trim().toLowerCase()}`) && sameDayAmount.has(key),
+          };
+        }).sort((a, b) => a.data.localeCompare(b.data));
+        _bankImport = { items, balances: res.balances || [], account: res.account };
+
+        const nuovi = items.filter(i => !i.duplicato).length;
+        box.innerHTML = `
+          <p style="font-size:.82rem;color:var(--c-muted);margin-bottom:12px">
+            ${items.length} movimenti letti da <strong>${res.account?.aspspName || 'banca'}</strong> —
+            ${nuovi} nuovi, ${items.length - nuovi} già presenti (deselezionati).
+            ${res.truncated ? '<br/>⚠️ Elenco troncato: restringi il periodo per vederli tutti.' : ''}
+          </p>
+          <div style="max-height:46vh;overflow-y:auto;margin-bottom:14px">
+            <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+              <thead><tr style="text-align:left;color:var(--c-muted)">
+                <th style="padding:4px"></th><th style="padding:4px">Data</th><th style="padding:4px">Descrizione</th>
+                <th style="padding:4px;text-align:right">Importo</th><th style="padding:4px">Categoria</th>
+              </tr></thead>
+              <tbody>${items.map((it, i) => `
+                <tr style="border-top:1px solid var(--c-border)${it.duplicato ? ';opacity:.55' : ''}">
+                  <td style="padding:4px"><input type="checkbox" data-bank-idx="${i}" ${it.duplicato ? '' : 'checked'} /></td>
+                  <td style="padding:4px;white-space:nowrap">${fmtDate(it.data)}</td>
+                  <td style="padding:4px">${it.descrizione.replace(/</g, '&lt;')}
+                    ${it.duplicato ? '<span style="color:var(--c-muted)"> · già presente</span>' : ''}
+                    ${it.simile ? '<span style="color:var(--c-warning,#F39C12)"> · ⚠️ stessa data e importo di un movimento presente</span>' : ''}</td>
+                  <td style="padding:4px;text-align:right;white-space:nowrap;${it.importo < 0 ? 'color:var(--c-danger)' : ''}">${fmtEUR(it.importo)}</td>
+                  <td style="padding:4px;color:var(--c-muted)">${it.categoria}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+          </div>
+          <div class="hstack gap-8" style="justify-content:flex-end">
+            <button class="btn" onclick="closeBankImport()">Annulla</button>
+            <button class="btn btn-primary" onclick="confirmBankImport()">Importa selezionati</button>
+          </div>`;
+      } catch (e) {
+        box.innerHTML = `<p style="color:var(--c-danger);font-size:.85rem">Errore: ${e.message}</p>
+          <div class="hstack gap-8" style="justify-content:flex-end;margin-top:14px"><button class="btn" onclick="closeBankImport()">Chiudi</button></div>`;
+      }
+    }
+
+    async function confirmBankImport() {
+      if (!_bankImport) return;
+      const scelti = [];
+      document.querySelectorAll('#bank-import-body input[data-bank-idx]').forEach(cb => {
+        if (cb.checked) scelti.push(_bankImport.items[parseInt(cb.dataset.bankIdx, 10)]);
+      });
+      if (!scelti.length) { alert('Nessun movimento selezionato.'); return; }
+      const box = document.getElementById('bank-import-body');
+      box.innerHTML = '<p style="color:var(--c-muted);font-size:.85rem">Importo…</p>';
+      const items = [];
+      for (const it of scelti) {
+        items.push({
+          data: it.data,
+          descrizione: it.descrizione,
+          importo_voce: it.importo,
+          category_id: (await ensureCategory(it.categoria)) || undefined,
+          note: '',
+          anno: parseInt(it.data.slice(0, 4)),
+        });
+      }
+      const imported = await insertTransactions(items);
+
+      // Il saldo vero della banca vale più di qualunque somma calcolata sui movimenti: si
+      // preferisce quello disponibile/contabile e si tiene traccia della data di riferimento.
+      let saldoMsg = '';
+      const bal = (_bankImport.balances || []).find(b => /disp|avai|clbd|closing|itbd/i.test(b.name || '')) || (_bankImport.balances || [])[0];
+      if (bal && bal.amount) {
+        try {
+          await sb('cntrs_saldi', 'POST', {
+            user_id: S.session.user.id,
+            data: (bal.date || new Date().toISOString()).slice(0, 10),
+            saldo_contabile: bal.amount,
+            saldo_disponibile: bal.amount,
+            note: `Letto dalla banca (${_bankImport.account?.aspspName || 'PSD2'})`,
+          });
+          saldoMsg = `\nSaldo aggiornato: ${fmtEUR(bal.amount)}`;
+        } catch (e) {
+          console.error('Errore salvataggio saldo:', e);
+        }
+      }
+      closeBankImport();
+      alert(`✅ Importazione completata!\n\nCaricati: ${imported} movimenti${saldoMsg}`);
+      loadData();
+    }
+
+    let _reviewState = null;
+
+    async function importItemsWithReview(items, saldoMsg) {
+      if (items.length === 0) {
+        alert(`Nessuna transazione valida trovata.${saldoMsg || ''}`);
+        loadData();
+        return;
+      }
+
+      const { autoItems, conflicts } = findImportConflicts(items);
+      const autoImported = autoItems.length ? await insertTransactions(autoItems) : 0;
+
+      if (conflicts.length === 0) {
+        alert(`✅ Importazione completata!\n\nCaricate: ${autoImported}${saldoMsg || ''}`);
+        loadData();
+        return;
+      }
+
+      await loadData();
+      openImportReview(conflicts, autoImported, saldoMsg || '');
+    }
+
+    function openImportReview(conflicts, autoImported, saldoMsg) {
+      _reviewState = { conflicts, autoImported, saldoMsg };
+      const list = document.getElementById('import-review-list');
+      list.innerHTML = conflicts.map((c, i) => `
+        <div class="card" style="padding:10px 14px">
+          <label class="hstack gap-8" style="align-items:flex-start;cursor:pointer">
+            <input type="checkbox" id="review-chk-${i}" style="margin-top:4px" />
+            <div style="flex:1">
+              <div style="font-size:.78rem;color:var(--c-muted);margin-bottom:4px">${fmtDate(c.item.data)} · <span class="mono">${fmtEUR(c.item.importo_voce)}</span></div>
+              <div class="form-row" style="gap:14px">
+                <div>
+                  <div style="font-size:.68rem;text-transform:uppercase;color:var(--c-muted);margin-bottom:2px">Nuovo (dal file)</div>
+                  <div style="font-weight:600">${c.item.descrizione}</div>
+                </div>
+                <div>
+                  <div style="font-size:.68rem;text-transform:uppercase;color:var(--c-muted);margin-bottom:2px">Già presente</div>
+                  <div>${c.matches.map(m => m.descrizione).join('<br>')}</div>
+                </div>
+              </div>
+            </div>
+          </label>
+        </div>
+      `).join('');
+      document.getElementById('import-review-title').textContent =
+        `Verifica ${conflicts.length} transazion${conflicts.length === 1 ? 'e' : 'i'} con stessa data e importo`;
+      document.getElementById('import-review-overlay').classList.remove('hidden');
+    }
+
+    function closeImportReview() {
+      document.getElementById('import-review-overlay').classList.add('hidden');
+      if (_reviewState) {
+        alert(`✅ Importazione completata!\n\nCaricate: ${_reviewState.autoImported}\nIgnorate: ${_reviewState.conflicts.length}${_reviewState.saldoMsg}`);
+      }
+      _reviewState = null;
+      loadData();
+    }
+
+    async function confirmImportReview() {
+      if (!_reviewState) return;
+      const { conflicts, autoImported, saldoMsg } = _reviewState;
+      const selected = conflicts
+        .filter((c, i) => document.getElementById(`review-chk-${i}`)?.checked)
+        .map(c => c.item);
+      document.getElementById('import-review-overlay').classList.add('hidden');
+      const confirmedImported = selected.length ? await insertTransactions(selected) : 0;
+      const skipped = conflicts.length - selected.length;
+      _reviewState = null;
+      alert(`✅ Importazione completata!\n\nCaricate automaticamente: ${autoImported}\nConfermate manualmente: ${confirmedImported}\nIgnorate: ${skipped}${saldoMsg}`);
+      loadData();
+    }
+
+    async function handleCSVImport(file) {
+      const text = await file.text();
+
+      // Detect format: bank CSV uses semicolons and "Data registrazione" header
+      const isBankFormat = text.includes('Data registrazione;') || text.includes('"Data registrazione;');
+      const delim = isBankFormat ? ';' : ',';
+      const rows = parseCSV(text, delim);
+
+      if (rows.length < 2) {
+        alert('File CSV vuoto o senza dati.');
+        return;
+      }
+
+      if (!isBankFormat) {
+        // ── Old comma-separated format ──
+        const hdr = rows[0].map(c => c.toLowerCase().trim());
+        const col = {
+          data: hdr.findIndex(c => c.includes('data registrazione')),
+          descrizione: hdr.findIndex(c => c.includes('descrizione')),
+          importo: hdr.findIndex(c => c.includes('importo')),
+          note: hdr.findIndex(c => c === 'note'),
+        };
+
+        if (col.descrizione === -1 || col.importo === -1) {
+          alert('Intestazioni non trovate. Servono almeno "Descrizione" e "Importo (EUR)".');
+          return;
+        }
+
+        const items = [];
+
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          if (row.length < 2) continue;
+          const desc = row[col.descrizione];
+          if (!desc) continue;
+          const dataStr = itDateToIso(row[col.data]);
+          if (!dataStr) continue;
+          const imp = parseItNum(row[col.importo]);
+          if (imp === 0) continue;
+
+          items.push({
+            data: dataStr,
+            descrizione: desc,
+            importo_voce: imp,
+            category_id: undefined,
+            note: col.note !== -1 ? row[col.note] : '',
+            anno: parseInt(dataStr.slice(0, 4)),
+          });
+        }
+
+        if (items.length === 0) {
+          alert('Nessuna transazione valida trovata nel CSV.');
+          return;
+        }
+
+        await importItemsWithReview(items, '');
+        return;
+      }
+
+      // ── Bank format (semicolons, with preamble) ──
+
+      // 1. Extract saldo disponibile from preamble
+      let saldoDisponibile = 0;
+      for (const row of rows) {
+        const joined = row.join(' ').toLowerCase();
+        const m = joined.match(/saldo disponibile[:\s]*([0-9.,]+)/);
+        if (m) {
+          saldoDisponibile = parseItNum(m[1]);
+          break;
+        }
+      }
+
+      // 2. Find the header row
+      let headerRowIdx = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const joined = rows[i].map(c => c.toLowerCase().trim()).join('|');
+        if (joined.includes('data registrazione') && joined.includes('descrizione') && joined.includes('importo')) {
+          headerRowIdx = i;
+          break;
+        }
+      }
+
+      if (headerRowIdx === -1) {
+        alert('Intestazioni non trovate nel formato banca. Cercata riga con "Data registrazione", "Descrizione", "Importo".');
+        return;
+      }
+
+      const hdr = rows[headerRowIdx].map(c => c.toLowerCase().trim());
+      const col = {
+        data: hdr.findIndex(c => c.includes('data registrazione')),
+        causale: hdr.findIndex(c => c.includes('causale')),
+        descrizione: hdr.findIndex(c => c.includes('descrizione')),
+        importo: hdr.findIndex(c => c.includes('importo')),
+      };
+
+      if (col.descrizione === -1 || col.importo === -1) {
+        alert('Colonne non trovate nel formato banca.');
+        return;
+      }
+
+      const items = [];
+      for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (row.length < 3) continue;
+        const desc = row[col.descrizione];
+        if (!desc) continue;
+        const dataStr = itDateToIso(row[col.data]);
+        if (!dataStr) continue;
+        const imp = parseItNum(row[col.importo]);
+        if (imp === 0) continue;
+
+        const causale = col.causale !== -1 ? row[col.causale] : '';
+        const catName = guessCategory(causale, desc);
+        const category_id = await ensureCategory(catName);
+
+        items.push({
+          data: dataStr,
+          descrizione: desc,
+          importo_voce: imp,
+          category_id: category_id || undefined,
+          note: '',
+          anno: parseInt(dataStr.slice(0, 4)),
+        });
+      }
+
+      if (items.length === 0) {
+        alert('Nessuna transazione valida trovata nel CSV banca.');
+        return;
+      }
+
+      // Also store saldo
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      let saldoMsg = '';
+      if (saldoDisponibile) {
+        try {
+          await sb('cntrs_saldi', 'POST', {
+            user_id: S.session.user.id,
+            data: todayStr,
+            saldo_contabile: saldoDisponibile,
+            saldo_disponibile: saldoDisponibile,
+            note: 'Importato da CSV banca',
+          });
+          saldoMsg = `\nSaldo disponibile salvato: ${fmtEUR(saldoDisponibile)}`;
+        } catch (e) {
+          console.error('Errore salvataggio saldo:', e);
+        }
+      }
+
+      await importItemsWithReview(items, saldoMsg);
+    }
+
+    async function handleXLSXImport(file) {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+      if (rows.length < 2) {
+        alert('File Excel vuoto o senza dati.');
+        return;
+      }
+
+      // 1. Extract saldo disponibile from preamble
+      let saldoDisponibile = 0;
+      for (const row of rows) {
+        const joined = row.map(c => String(c || '')).join(' ').toLowerCase();
+        const m = joined.match(/saldo disponibile[:\s]*([0-9.,]+)/);
+        if (m) {
+          saldoDisponibile = parseItNum(m[1]);
+          break;
+        }
+      }
+
+      // 2. Find the header row
+      let headerRowIdx = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const joined = rows[i].map(c => String(c || '').toLowerCase().trim()).join('|');
+        if (joined.includes('data registrazione') && joined.includes('descrizione') && joined.includes('importo')) {
+          headerRowIdx = i;
+          break;
+        }
+      }
+
+      if (headerRowIdx === -1) {
+        alert('Intestazioni non trovate nel formato Excel. Cercata riga con "Data registrazione", "Descrizione", "Importo".');
+        return;
+      }
+
+      const hdr = rows[headerRowIdx].map(c => String(c || '').toLowerCase().trim());
+      const col = {
+        data: hdr.findIndex(c => c.includes('data registrazione')),
+        causale: hdr.findIndex(c => c.includes('causale')),
+        descrizione: hdr.findIndex(c => c.includes('descrizione')),
+        importo: hdr.findIndex(c => c.includes('importo')),
+      };
+
+      const items = [];
+      for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length < 3) continue;
+
+        let dataStr = '';
+        const rawDate = row[col.data];
+        if (typeof rawDate === 'number') {
+          // Excel date (serial number)
+          dataStr = new Date(Math.round((rawDate - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
+        } else if (typeof rawDate === 'string') {
+          dataStr = itDateToIso(rawDate);
+        }
+
+        if (!dataStr) continue;
+
+        const desc = String(row[col.descrizione] || '');
+        if (!desc) continue;
+
+        const imp = typeof row[col.importo] === 'number' ? row[col.importo] : parseItNum(row[col.importo]);
+        if (imp === 0) continue;
+
+        const causale = col.causale !== -1 ? String(row[col.causale] || '') : '';
+        const catName = guessCategory(causale, desc);
+        const category_id = await ensureCategory(catName);
+
+        items.push({
+          data: dataStr,
+          descrizione: desc,
+          importo_voce: imp,
+          category_id: category_id || undefined,
+          note: '',
+          anno: parseInt(dataStr.slice(0, 4)),
+        });
+      }
+
+      if (items.length === 0) {
+        alert('Nessuna transazione valida trovata nel file Excel.');
+        return;
+      }
+
+      // Also store saldo
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let saldoMsg = '';
+      if (saldoDisponibile) {
+        try {
+          await sb('cntrs_saldi', 'POST', {
+            user_id: S.session.user.id,
+            data: todayStr,
+            saldo_contabile: saldoDisponibile,
+            saldo_disponibile: saldoDisponibile,
+            note: 'Importato da Excel banca',
+          });
+          saldoMsg = `\nSaldo disponibile salvato: ${fmtEUR(saldoDisponibile)}`;
+        } catch (e) {
+          console.error('Errore salvataggio saldo:', e);
+        }
+      }
+
+      await importItemsWithReview(items, saldoMsg);
+    }
+
+    document.getElementById('xlsx-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const label = e.target.previousElementSibling;
+      const oldText = label.textContent;
+      label.textContent = '⏳ Importazione...';
+      label.style.pointerEvents = 'none';
+      try {
+        await handleXLSXImport(file);
+      } catch (err) {
+        alert('Errore importazione Excel: ' + err.message);
+        console.error(err);
+      } finally {
+        label.textContent = oldText;
+        label.style.pointerEvents = '';
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('csv-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const label = e.target.previousElementSibling;
+      const oldText = label.textContent;
+      label.textContent = '⏳ Importazione...';
+      label.style.pointerEvents = 'none';
+      try {
+        await handleCSVImport(file);
+      } catch (err) {
+        alert('Errore importazione: ' + err.message);
+        console.error(err);
+      } finally {
+        label.textContent = oldText;
+        label.style.pointerEvents = '';
+        e.target.value = '';
+      }
+    });
+
+    function filterByCategory(cat) {
+      S.selectedCategory = S.selectedCategory === cat ? null : cat;
+      render();
+    }
+
+    async function addCategory() {
+      const name = prompt('Nome nuova categoria:');
+      if (!name || !name.trim()) return;
+      try {
+        const res = await sb('cntrs_categories', 'POST', { name: name.trim(), user_id: S.session.user.id });
+        await loadData();
+        const sel = document.getElementById('tx-form').category_id;
+        if (res && res.length) populateCatSelect(sel, res[0].id);
+      } catch (e) {
+        alert('Errore: ' + e.message);
+      }
+    }
+
+    document.getElementById('btn-hamburger').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('mobile-nav-overlay').classList.toggle('open');
+    });
+    document.getElementById('mobile-nav-overlay').addEventListener('click', closeMobileNav);
+
+    document.getElementById('year-select').addEventListener('change', (e) => {
+      S.selectedYear = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+      render();
+    });
+
+    document.getElementById('cat-select').addEventListener('change', (e) => {
+      S.selectedCategory = e.target.value || null;
+      render();
+    });
+
+    async function boot() {
+      // 1. Token condiviso da AppSphere launcher (sb_token in localStorage)
+      const sbToken = localStorage.getItem('sb_token');
+      if (sbToken) S.session = await initFromSbToken(sbToken);
+
+      // 2. Sessione propria salvata
+      if (!S.session) {
+        try { S.session = JSON.parse(localStorage.getItem('garsal_session')); } catch {}
+      }
+
+      if (!S.session) {
+        location.href = 'finanza.html';
+        return;
+      }
+
+      // BroadcastChannel AppSphere
+      const _authChannel = new BroadcastChannel('appsphere_auth');
+      _authChannel.onmessage = (e) => {
+        if (!e.data) return;
+        if (e.data.type === 'LOGOUT') {
+          localStorage.removeItem('sb_token');
+          location.href = 'finanza.html';
+        } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+          localStorage.setItem('sb_token', e.data.sbToken);
+          if (S.session) S.session.access_token = e.data.sbToken;
+        }
+      };
+
+      await loadData();
+    }
+
+    boot();
+  
+/* ── Il tasto «indietro» di Android e i popup ──────────────────────────────
+   ⚠️ Dentro un popup l'indietro usciva dalla PAGINA: la WebView non ha niente in cronologia,
+   quindi tornava ad AppSphere buttando via quel che si stava scrivendo. Un popup non è una
+   pagina, ma su Android deve comportarsi come tale — l'indietro è il gesto con cui si chiude
+   qualunque cosa si sia aperta.
+
+   Aprendo un popup si spinge una voce di cronologia; l'indietro la consuma e qui sotto si chiude
+   il popup invece di lasciare la pagina. Chiudendolo col ✕ la voce si consuma da sé, o ogni
+   apri-e-chiudi ne lascerebbe una dietro e dopo cinque popup servirebbero cinque indietro per
+   uscire.
+
+   ⚠️ L'apertura NON si intercetta avvolgendo le funzioni che aprono i popup: in queste pagine
+   sono decine, alcune sono `onclick` scritti nell'HTML e altre non hanno nemmeno un nome. Si
+   guarda invece quando l'overlay diventa visibile — l'unica cosa che tutti i popup hanno in
+   comune, comunque siano stati aperti — e si riconosce dallo stile calcolato, non dal nome della
+   classe, che in queste pagine è ora `hidden`, ora `active`, ora `open`.
+
+   ⚠️ La voce si spinge UNA SOLA VOLTA anche con più popup aperti uno sopra l'altro: sono
+   contenuti nella stessa finestra, non schermate, e due voci vorrebbero dire due indietro per
+   chiudere una cosa sola. L'indietro chiude l'ultimo aperto.
+
+   ⚠️ Il consumo controlla `history.state`: se nel frattempo la pagina ha spinto una voce sua (un
+   cambio di vista) la nostra non è più in cima, e un `history.back()` cieco tornerebbe indietro
+   di una schermata invece di togliere la voce del popup.
+
+   ⚠️ Questo blocco è UGUALE in tutte le app della suite: se lo correggi qui, portalo anche
+   nelle altre (l'elenco dei popup è l'unica cosa che cambia). */
+(function guardiaIndietroPopup(elenco) {
+  const visibile = el => el && getComputedStyle(el).display !== 'none';
+  const aperti = () => elenco.flatMap(p =>
+    [...document.querySelectorAll(p.sel)].filter(visibile).map(el => ({ el, chiudi: p.chiudi })));
+
+  let spinta = false;
+
+  function controlla() {
+    const n = aperti().length;
+    if (n && !spinta) { spinta = true; history.pushState({ __popup: true }, ''); }
+    else if (!n && spinta) {
+      spinta = false;
+      if (history.state && history.state.__popup) history.back();
+    }
+  }
+
+  function avvia() {
+    const osservatore = new MutationObserver(controlla);
+    elenco.forEach(p => document.querySelectorAll(p.sel).forEach(el =>
+      osservatore.observe(el, { attributes: true, attributeFilter: ['class', 'style'] })));
+    controlla();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.addEventListener('popstate', () => {
+    const a = aperti();
+    if (!a.length) return;          // nessun popup: l'indietro fa quel che ha sempre fatto
+    spinta = false;
+    const ultimo = a[a.length - 1];
+    try { ultimo.chiudi(ultimo.el); } catch (err) { console.warn('indietro:', err); }
+  });
+})([
+  { sel: '#modal-overlay',         chiudi: () => closeModal() },
+  { sel: '#confirm-overlay',       chiudi: () => closeConfirm() },
+  { sel: '#bank-import-overlay',   chiudi: () => closeBankImport() },
+  { sel: '#import-review-overlay', chiudi: el => el.classList.add('hidden') },
+]);
+</script>
+</body>
+</html>

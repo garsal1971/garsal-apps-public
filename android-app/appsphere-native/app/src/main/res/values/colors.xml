@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Il fondo dell'icona dell'APK **nativa**: nero. È il segno che
+         distingue le due app sul telefono — WebView su fondo bianco, nativa su
+         fondo nero — che portano lo stesso disegno e si installano insieme
+         (applicationId diversi). -->
+    <color name="ic_launcher_background">#111111</color>
+</resources>

@@ -1,0 +1,4 @@
+# ── Redirect del sito, per Cloudflare Pages ──────────────────────────────────
+# Gemello di `netlify.toml`. Lo 200 è una riscrittura: l'indirizzo resta quello
+# scritto, il contenuto è quello dell'altro file.
+/tests/dashboard  /test-dashboard.html  200

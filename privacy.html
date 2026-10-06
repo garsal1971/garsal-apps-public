@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — AppSphere</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #F9FAFB;
+    color: #1F2937;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #0081C8;
+    flex-shrink: 0;
+  }
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .updated {
+    color: #6B7280;
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 32px 0 10px;
+    color: #1F2937;
+  }
+  p, li {
+    font-size: 15px;
+    color: #374151;
+  }
+  ul {
+    padding-left: 22px;
+    margin: 10px 0;
+  }
+  li { margin-bottom: 6px; }
+  strong { color: #1F2937; }
+  a { color: #0081C8; }
+  .box {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 32px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 4px;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid #E5E7EB;
+    vertical-align: top;
+  }
+  th { color: #6B7280; font-weight: 600; }
+  .back {
+    display: inline-block;
+    margin-bottom: 24px;
+    font-size: 14px;
+    color: #6B7280;
+    text-decoration: none;
+  }
+  .back:hover { color: #0081C8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← AppSphere</a>
+  <div class="box">
+    <header>
+      <div class="dot"></div>
+      <h1>Privacy Policy</h1>
+    </header>
+    <p class="updated">Ultimo aggiornamento: 19 luglio 2026</p>
+
+    <p>AppSphere è una suite di applicazioni web per uso personale e familiare,
+    creata e gestita da un singolo sviluppatore (contatto:
+    <a href="mailto:garsal1971@gmail.com">garsal1971@gmail.com</a>). Non è un
+    prodotto commerciale e non viene offerto a terzi: questa pagina descrive
+    come vengono trattati i dati all'interno della suite, in particolare
+    dell'applicazione <strong>Analisi Costi</strong>, che può collegarsi ai
+    conti correnti dell'utente tramite un aggregatore di open banking (PSD2).</p>
+
+    <h2>Titolare del trattamento</h2>
+    <p>Il titolare è l'unico sviluppatore/utente amministratore della suite,
+    raggiungibile all'indirizzo email sopra indicato.</p>
+
+    <h2>Quali dati vengono trattati</h2>
+    <table>
+      <tr><th>Dato</th><th>Origine</th><th>Finalità</th></tr>
+      <tr><td>Identità account (nome, email, foto profilo)</td><td>Accesso con Google (OAuth)</td><td>Autenticazione all'interno della suite</td></tr>
+      <tr><td>Transazioni bancarie (data, importo, valuta, descrizione, codice merchant)</td><td>Import manuale da file CSV oppure, se l'utente attiva il collegamento bancario, tramite l'aggregatore <strong>Enable Banking</strong> (PSD2/open banking)</td><td>Categorizzazione e analisi delle spese personali/familiari</td></tr>
+      <tr><td>Categorie, regole di categorizzazione, correzioni manuali</td><td>Inserite dall'utente</td><td>Migliorare l'attribuzione automatica delle spese</td></tr>
+      <tr><td>Descrizione della transazione (nome del merchant)</td><td>Derivata dai dati bancari</td><td>Interrogazione facoltativa di servizi di geolocalizzazione/IA per suggerire una categoria</td></tr>
+    </table>
+
+    <h2>Collegamento bancario (Enable Banking / PSD2)</h2>
+    <p>Se l'utente sceglie di collegare un conto corrente, l'autorizzazione
+    avviene direttamente con la propria banca tramite il flusso di consenso
+    PSD2 gestito da <strong>Enable Banking</strong> (aggregatore regolamentato
+    di open banking). AppSphere non riceve né memorizza mai le credenziali
+    bancarie dell'utente: riceve solo le transazioni che la banca autorizza a
+    condividere, tramite un token di accesso limitato nel tempo (validità
+    tipica 90–180 giorni, rinnovabile dall'utente). Il collegamento può essere
+    revocato in qualsiasi momento dall'utente, sia dall'app sia direttamente
+    dalla propria banca.</p>
+
+    <h2>Categorizzazione automatica e servizi terzi</h2>
+    <p>Per suggerire automaticamente una categoria di spesa, la sola
+    <strong>descrizione del merchant</strong> (mai l'importo, la data o dati
+    identificativi del conto) può essere inviata a due servizi terzi:</p>
+    <ul>
+      <li><strong>OpenStreetMap Nominatim</strong> — servizio di geocodifica
+      gratuito, usato per identificare l'attività commerciale associata al
+      nome del merchant.</li>
+      <li><strong>Groq</strong> — servizio di inferenza IA (modello Llama),
+      usato per suggerire la categoria più probabile in base alla descrizione
+      e all'eventuale risultato della geocodifica.</li>
+    </ul>
+    <p>Questi suggerimenti sono sempre proposti come bozza: l'utente li
+    conferma o li corregge manualmente prima che vengano salvati.</p>
+
+    <h2>Dove sono conservati i dati</h2>
+    <p>Tutti i dati della suite (transazioni, categorie, regole, connessioni
+    bancarie) sono conservati su <strong>Supabase</strong> (database
+    PostgreSQL gestito), protetti da autenticazione e da regole di sicurezza
+    a livello di riga (Row Level Security) che garantiscono che ogni utente
+    veda esclusivamente i propri dati.</p>
+
+    <h2>Conservazione e cancellazione</h2>
+    <p>I dati restano archiviati finché l'utente non li elimina. L'utente può
+    richiedere in qualsiasi momento, scrivendo all'indirizzo email sopra
+    indicato, l'esportazione o la cancellazione completa dei propri dati,
+    inclusa la revoca di eventuali collegamenti bancari attivi.</p>
+
+    <h2>Nessuna vendita o condivisione a fini commerciali</h2>
+    <p>I dati non vengono venduti, ceduti o utilizzati per pubblicità. L'uso
+    della suite è strettamente personale/familiare.</p>
+
+    <h2>Contatti</h2>
+    <p>Per qualsiasi domanda su questa informativa o sul trattamento dei
+    propri dati: <a href="mailto:garsal1971@gmail.com">garsal1971@gmail.com</a>.</p>
+  </div>
+</div>
+</body>
+</html>

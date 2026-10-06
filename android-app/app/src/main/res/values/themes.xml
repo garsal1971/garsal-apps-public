@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GarsalApps" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#FF3366</item>
+        <item name="colorPrimaryVariant">#6C5CE7</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:windowBackground">#1F2937</item>
+        <item name="android:statusBarColor">#1F2937</item>
+        <item name="android:navigationBarColor">#1F2937</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

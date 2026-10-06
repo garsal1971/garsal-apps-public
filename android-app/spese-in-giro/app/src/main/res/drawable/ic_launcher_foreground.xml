@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Una bicicletta, e non il marchio a cinque cerchi di AppSphere: Spese in giro è un'app
+  separata, non una delle bolle della suite, e mettere lì quel marchio direbbe il
+  falso in un cassetto delle app dove i nomi si leggono piccoli.
+
+  ⚠️ Il disegno sta dentro il CERCHIO da 36 dp di raggio, che è l'unica parte che
+  un launcher garantisce di non ritagliare. Il punto peggiore sono i due estremi
+  bassi delle ruote — (27,75) e (81,75) — a 34,2 dp dal centro (54,54). Allargando
+  le ruote per riempire di più la maschera quadrata, quella TONDA le taglierebbe —
+  e non si vedrebbe finché non lo si prova su un launcher che la usa.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Ruota posteriore -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#F2E9D8"
+        android:strokeWidth="4"
+        android:pathData="M39,63 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+    <!-- Ruota anteriore -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#F2E9D8"
+        android:strokeWidth="4"
+        android:pathData="M69,63 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+
+    <!-- Il telaio: tubo orizzontale, piantone, obliquo, foderi e forcella -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#5FD3A3"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M48,46 L64,45 M48,46 L52,63 M64,45 L52,63 M52,63 L39,63 M48,46 L39,63 M64,45 L69,63" />
+
+    <!-- Sella e manubrio: due segni corti, che a 48 dp bastano a far leggere «bici» -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#F2E9D8"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M43,44 L52,44 M60,41 L68,41" />
+
+    <!-- I mozzi, in verde: due punti che tengono insieme il disegno -->
+    <path android:fillColor="#5FD3A3" android:pathData="M39,63 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+    <path android:fillColor="#5FD3A3" android:pathData="M69,63 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+</vector>

@@ -1,0 +1,83 @@
+name: YTP — Download Audio
+
+on:
+  repository_dispatch:
+    types: [ytp-download-audio]
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Installa dipendenze
+        run: |
+          pip install yt-dlp
+          pip install https://github.com/coletdjnz/yt-dlp-youtube-oauth2/archive/refs/heads/master.zip
+          sudo apt-get install -y ffmpeg
+
+      - name: Segna come "processing"
+        run: |
+          curl -s -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ytp_playlist_items?id=eq.${{ github.event.client_payload.item_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"audio_status":"processing"}'
+
+      - name: Configura OAuth YouTube
+        run: |
+          mkdir -p /tmp/yt-dlp-cache/youtube-oauth2
+          if [ -n "${{ secrets.YT_OAUTH_TOKEN }}" ]; then
+            echo "${{ secrets.YT_OAUTH_TOKEN }}" | base64 -d > /tmp/yt-dlp-cache/youtube-oauth2/token_data.json
+            echo "Token OAuth configurato"
+          else
+            echo "ATTENZIONE: YT_OAUTH_TOKEN non configurato — download potrebbe fallire"
+          fi
+
+      - name: Download audio via yt-dlp + OAuth2
+        run: |
+          YTID="${{ github.event.client_payload.youtube_id }}"
+          echo "Download: https://www.youtube.com/watch?v=${YTID}"
+
+          yt-dlp \
+            --cache-dir /tmp/yt-dlp-cache \
+            --username oauth2 --password "" \
+            -x --audio-format mp3 --audio-quality 5 \
+            --no-playlist \
+            --extractor-retries 3 \
+            -o "/tmp/dl.%(ext)s" \
+            "https://www.youtube.com/watch?v=${YTID}"
+
+          ls -lh /tmp/dl.mp3
+
+      - name: Upload su Supabase Storage
+        run: |
+          YTID="${{ github.event.client_payload.youtube_id }}"
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/storage/v1/object/ytp-audio/${YTID}.mp3" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: audio/mpeg" \
+            -H "x-upsert: true" \
+            --data-binary @"/tmp/dl.mp3"
+
+      - name: Aggiorna DB — ready
+        run: |
+          YTID="${{ github.event.client_payload.youtube_id }}"
+          AUDIO_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/ytp-audio/${YTID}.mp3"
+          curl -s -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ytp_playlist_items?youtube_id=eq.${YTID}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"audio_url\":\"${AUDIO_URL}\",\"audio_status\":\"ready\"}"
+
+      - name: Aggiorna DB — error (solo se fallisce)
+        if: failure()
+        run: |
+          curl -s -X PATCH \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/ytp_playlist_items?id=eq.${{ github.event.client_payload.item_id }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"audio_status":"error"}'

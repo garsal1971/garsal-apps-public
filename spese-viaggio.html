@@ -1,0 +1,743 @@
+<title>Nota Spese Bologna–Rimini v1.0.0</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     Nota Spese Bologna–Rimini
+     Palette e tipografia: vedi tokens. Tema chiaro di base,
+     scuro ridefinito solo a livello di token (media query + stamp).
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    --ground: #F4F6F3;
+    --surface: #FFFFFF;
+    --surface-2: #EDF0EC;
+    --ink: #15201B;
+    --muted: #5D6B64;
+    --line: #D8DED8;
+    --line-strong: #B9C2BB;
+    --accent: #14634A;
+    --accent-soft: rgba(20, 99, 74, 0.10);
+    --ochre: #8A6212;
+    --ochre-soft: rgba(138, 98, 18, 0.10);
+    --field: #FFFFFF;
+    --shadow: 0 1px 2px rgba(21, 32, 27, .05), 0 8px 24px rgba(21, 32, 27, .05);
+
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0F1412;
+      --surface: #171E1A;
+      --surface-2: #1E2622;
+      --ink: #E9EEE9;
+      --muted: #9AA79F;
+      --line: #2A342E;
+      --line-strong: #3B4841;
+      --accent: #58C69B;
+      --accent-soft: rgba(88, 198, 155, 0.14);
+      --ochre: #D6A54A;
+      --ochre-soft: rgba(214, 165, 74, 0.14);
+      --field: #131A16;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0F1412;
+    --surface: #171E1A;
+    --surface-2: #1E2622;
+    --ink: #E9EEE9;
+    --muted: #9AA79F;
+    --line: #2A342E;
+    --line-strong: #3B4841;
+    --accent: #58C69B;
+    --accent-soft: rgba(88, 198, 155, 0.14);
+    --ochre: #D6A54A;
+    --ochre-soft: rgba(214, 165, 74, 0.14);
+    --field: #131A16;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .foglio {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 32px) 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* ── Intestazione ─────────────────────────────────────────── */
+
+  .testata { display: flex; flex-direction: column; gap: 10px; }
+
+  .tratta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .tratta::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line-strong);
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(30px, 5.5vw, 42px);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .sottotitolo {
+    margin: 0;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  .intestazione-campi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin-top: 6px;
+  }
+
+  /* ── Blocchi ──────────────────────────────────────────────── */
+
+  section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: clamp(16px, 3vw, 24px);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  h2 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px 18px;
+  }
+
+  /* ── Campi ────────────────────────────────────────────────── */
+
+  .campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+
+  .campo > span {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input[type="text"], input[type="date"], select {
+    font: inherit;
+    color: var(--ink);
+    background: var(--field);
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    padding: 9px 10px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .numerico { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  input:focus-visible, select:focus-visible, button:focus-visible, [type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  input::placeholder { color: var(--muted); opacity: .7; }
+
+  /* ── Registro delle voci ──────────────────────────────────── */
+
+  .voci { display: flex; flex-direction: column; }
+
+  .voce {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 16px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: start;
+  }
+
+  .voce:first-of-type { padding-top: 4px; }
+  .voce:last-of-type { border-bottom: 0; padding-bottom: 4px; }
+  .voce.esclusa .dettaglio, .voce.esclusa .nome, .voce.esclusa .importo { opacity: .42; }
+
+  .titolo-voce {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    min-width: 0;
+  }
+
+  .titolo-voce input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--accent);
+    flex: 0 0 auto;
+    cursor: pointer;
+  }
+
+  .nome {
+    font-family: var(--font-display);
+    font-size: 19px;
+    line-height: 1.25;
+  }
+
+  .importo {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 19px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: right;
+    padding-top: 2px;
+  }
+
+  .dettaglio {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 10px;
+    margin: 8px 0 0 27px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .dettaglio .mini {
+    width: 5.5em;
+    padding: 5px 7px;
+    font-size: 14px;
+    text-align: right;
+  }
+
+  .nota {
+    grid-column: 1 / -1;
+    margin: 6px 0 0 27px;
+    color: var(--muted);
+    font-size: 13.5px;
+    max-width: 60ch;
+  }
+
+  .anticipo {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0 27px;
+  }
+
+  .anticipo > span {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .scelta { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 3px; overflow: hidden; }
+  .scelta input { position: absolute; opacity: 0; pointer-events: none; }
+
+  .scelta label {
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--muted);
+    background: var(--surface);
+    border-right: 1px solid var(--line-strong);
+    white-space: nowrap;
+  }
+
+  .scelta label:last-child { border-right: 0; }
+  .scelta input:checked + label { background: var(--accent); color: var(--surface); font-weight: 600; }
+  .scelta input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* ── Ripartizione ─────────────────────────────────────────── */
+
+  .totali { display: flex; flex-direction: column; gap: 0; }
+
+  .riga-totale {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .riga-totale:last-child { border-bottom: 0; }
+  .riga-totale .etichetta { color: var(--muted); }
+  .riga-totale .valore { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+  .riga-totale.forte { border-top: 2px solid var(--ink); border-bottom: 0; margin-top: 4px; padding-top: 14px; }
+  .riga-totale.forte .etichetta { color: var(--ink); font-weight: 600; }
+  .riga-totale.forte .valore { font-size: 22px; }
+
+  .conguaglio {
+    background: var(--ochre-soft);
+    border: 1px solid var(--ochre);
+    border-radius: 3px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .conguaglio.pari { background: var(--accent-soft); border-color: var(--accent); }
+  .conguaglio .esito { font-family: var(--font-display); font-size: 20px; line-height: 1.3; text-wrap: balance; }
+  .conguaglio .spiega { color: var(--muted); font-size: 14px; }
+
+  /* ── Barra comandi ────────────────────────────────────────── */
+
+  .comandi { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  button {
+    font: inherit;
+    font-size: 15px;
+    padding: 10px 18px;
+    border-radius: 3px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  button.primario { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
+  button:hover { border-color: var(--accent); }
+  button.primario:hover { opacity: .9; }
+
+  .versione {
+    display: block;
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    color: var(--muted);
+    opacity: .8;
+  }
+
+  footer {
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    max-width: 62ch;
+  }
+
+  /* ── Stampa ───────────────────────────────────────────────── */
+
+  @media print {
+    body { background: #FFFFFF; color: #000000; }
+    .foglio { max-width: none; padding: 0; gap: 18px; }
+    section { box-shadow: none; border-color: #BBBBBB; break-inside: avoid; }
+    .comandi, .titolo-voce input[type="checkbox"] { display: none; }
+    .voce.esclusa { display: none; }
+    .dettaglio, .anticipo, .nota { margin-left: 0; }
+    .scelta label { border-color: #BBBBBB; }
+    input, select { border-color: transparent; background: transparent; padding-left: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="foglio">
+
+  <header class="testata">
+    <p class="tratta">Bologna → Rimini · A14</p>
+    <h1>Nota spese del viaggio</h1>
+    <p class="sottotitolo">Le spese della giornata, divise a metà fra due persone. Ogni voce dice chi l'ha anticipata: in fondo resta un solo importo da girare, non quattro conti da rifare.</p>
+    <div class="intestazione-campi">
+      <label class="campo" style="flex:1 1 150px">
+        <span>Data</span>
+        <input type="date" id="data">
+      </label>
+      <label class="campo" style="flex:1 1 170px">
+        <span>Prima persona</span>
+        <input type="text" id="nomeA" value="Persona A" autocomplete="off">
+      </label>
+      <label class="campo" style="flex:1 1 170px">
+        <span>Seconda persona</span>
+        <input type="text" id="nomeB" value="Persona B" autocomplete="off">
+      </label>
+    </div>
+  </header>
+
+  <section>
+    <h2>Il tragitto</h2>
+    <div class="griglia">
+      <label class="campo">
+        <span>Chilometri a tratta</span>
+        <input type="text" class="numerico" id="km" value="121" inputmode="decimal" autocomplete="off">
+      </label>
+      <label class="campo">
+        <span>Tratte percorse</span>
+        <select id="tratte">
+          <option value="1">Solo andata</option>
+          <option value="2" selected>Andata e ritorno</option>
+        </select>
+      </label>
+      <div class="campo">
+        <span>Percorrenza totale</span>
+        <p class="numerico" id="kmTotali" style="margin:0;padding:9px 0;font-size:19px;font-weight:600">242 km</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Voci da dividere</h2>
+    <div class="voci">
+
+      <article class="voce" id="voce-casello">
+        <label class="titolo-voce">
+          <input type="checkbox" class="attiva" checked>
+          <span class="nome">Casello autostradale</span>
+        </label>
+        <output class="importo" id="impCasello">€ 0,00</output>
+        <div class="dettaglio">
+          <label><input type="text" class="mini numerico" id="pedaggio" value="8,40" inputmode="decimal" autocomplete="off"> € a tratta</label>
+          <span>×</span>
+          <span><span class="numerico" id="tratteCasello">2</span> tratte</span>
+        </div>
+        <div class="anticipo"><span>Anticipato da</span><div class="scelta" data-voce="casello"></div></div>
+      </article>
+
+      <article class="voce" id="voce-carburante">
+        <label class="titolo-voce">
+          <input type="checkbox" class="attiva" checked>
+          <span class="nome">Carburante</span>
+        </label>
+        <output class="importo" id="impCarburante">€ 0,00</output>
+        <div class="dettaglio">
+          <label><input type="text" class="mini numerico" id="consumo" value="6,5" inputmode="decimal" autocomplete="off"> litri / 100 km</label>
+          <span>×</span>
+          <label><input type="text" class="mini numerico" id="prezzo" value="1,749" inputmode="decimal" autocomplete="off"> € al litro</label>
+          <span>→ <span class="numerico" id="litri">0</span> litri</span>
+        </div>
+        <div class="anticipo"><span>Anticipato da</span><div class="scelta" data-voce="carburante"></div></div>
+      </article>
+
+      <article class="voce" id="voce-usura">
+        <label class="titolo-voce">
+          <input type="checkbox" class="attiva" checked>
+          <span class="nome">Usura del mezzo</span>
+        </label>
+        <output class="importo" id="impUsura">€ 0,00</output>
+        <div class="dettaglio">
+          <label><input type="text" class="mini numerico" id="tariffa" value="0,20" inputmode="decimal" autocomplete="off"> € al km</label>
+          <span>× <span class="numerico" id="kmUsura">242</span> km</span>
+        </div>
+        <p class="nota">Tariffa chilometrica a copertura di ammortamento, gomme, tagliandi e assicurazione: è un costo reale del viaggio anche se nessuno lo paga alla cassa.</p>
+        <div class="anticipo"><span>A carico di</span><div class="scelta" data-voce="usura"></div></div>
+      </article>
+
+      <article class="voce" id="voce-ncc">
+        <label class="titolo-voce">
+          <input type="checkbox" class="attiva" checked>
+          <span class="nome">Servizio NCC</span>
+        </label>
+        <output class="importo" id="impNcc">€ 0,00</output>
+        <div class="dettaglio">
+          <label><input type="text" class="mini numerico" id="ncc" value="0,00" inputmode="decimal" autocomplete="off"> € corrisposti</label>
+          <label style="flex:1 1 200px;min-width:160px">
+            <input type="text" id="nccNota" placeholder="Riferimento della corsa (facoltativo)" style="font-size:14px;padding:5px 7px">
+          </label>
+        </div>
+        <div class="anticipo"><span>Anticipato da</span><div class="scelta" data-voce="ncc"></div></div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Ripartizione</h2>
+    <div class="totali">
+      <div class="riga-totale">
+        <span class="etichetta">Anticipato da <b id="etA">Persona A</b></span>
+        <span class="valore" id="pagatoA">€ 0,00</span>
+      </div>
+      <div class="riga-totale">
+        <span class="etichetta">Anticipato da <b id="etB">Persona B</b></span>
+        <span class="valore" id="pagatoB">€ 0,00</span>
+      </div>
+      <div class="riga-totale">
+        <span class="etichetta">Totale della giornata</span>
+        <span class="valore" id="totale">€ 0,00</span>
+      </div>
+      <div class="riga-totale forte">
+        <span class="etichetta">Quota a testa</span>
+        <span class="valore" id="quota">€ 0,00</span>
+      </div>
+    </div>
+
+    <div class="conguaglio pari" id="conguaglio">
+      <p class="esito" id="esito" style="margin:0">Nessuna spesa inserita.</p>
+      <p class="spiega" id="spiega" style="margin:0">Compila gli importi qui sopra e indica chi ha anticipato ogni voce.</p>
+    </div>
+
+    <div class="comandi">
+      <button type="button" class="primario" id="stampa">Stampa o salva in PDF</button>
+      <button type="button" id="azzera">Azzera la giornata</button>
+    </div>
+  </section>
+
+  <footer>
+    Il conteggio si aggiorna a ogni modifica e resta salvato in questo browser: riaprendo la pagina si ritrova com'era. Le voci senza spunta escono dal totale e non compaiono nella stampa.
+    <span class="versione" id="versione"></span>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    "use strict";
+
+    var APP_VERSION = 'v1.0.0';
+    var BUILD_TIME  = '2026-08-14T01:10:00Z';
+    console.log('%c NOTA SPESE VIAGGIO ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+      'background:#14634A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+      'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+    var VOCI = ["casello", "carburante", "usura", "ncc"];
+    var CHIAVE = "nota-spese-bo-rn";
+
+    var euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+    var numero = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
+
+    function $(id) { return document.getElementById(id); }
+
+    /* I campi accettano la virgola: qui si legge come la scrive chi compila,
+       non come la vorrebbe parseFloat. */
+    function valore(el) {
+      var n = parseFloat(String(el.value).replace(",", "."));
+      return isFinite(n) && n > 0 ? n : 0;
+    }
+
+    /* I tre pulsanti «anticipato da» si costruiscono qui perché le etichette
+       sono i nomi delle due persone, che si possono cambiare in cima. */
+    function costruisciScelte() {
+      VOCI.forEach(function (voce) {
+        var box = document.querySelector('.scelta[data-voce="' + voce + '"]');
+        box.innerHTML = "";
+        [["a", "Persona A"], ["b", "Persona B"], ["-", "Da pagare"]].forEach(function (opzione) {
+          var id = "ant-" + voce + "-" + opzione[0];
+          var input = document.createElement("input");
+          input.type = "radio";
+          input.name = "ant-" + voce;
+          input.id = id;
+          input.value = opzione[0];
+          if (opzione[0] === "a") input.checked = true;
+          var label = document.createElement("label");
+          label.setAttribute("for", id);
+          label.textContent = opzione[1];
+          label.dataset.ruolo = opzione[0];
+          box.appendChild(input);
+          box.appendChild(label);
+        });
+      });
+    }
+
+    function anticipatoDa(voce) {
+      var scelto = document.querySelector('input[name="ant-' + voce + '"]:checked');
+      return scelto ? scelto.value : "-";
+    }
+
+    function nomi() {
+      return {
+        a: $("nomeA").value.trim() || "Persona A",
+        b: $("nomeB").value.trim() || "Persona B"
+      };
+    }
+
+    function attiva(voce) {
+      return $("voce-" + voce).querySelector(".attiva").checked;
+    }
+
+    function calcola() {
+      var n = nomi();
+
+      /* Etichette che seguono i nomi: le due righe del riepilogo e i pulsanti. */
+      $("etA").textContent = n.a;
+      $("etB").textContent = n.b;
+      document.querySelectorAll('.scelta label[data-ruolo="a"]').forEach(function (l) { l.textContent = n.a; });
+      document.querySelectorAll('.scelta label[data-ruolo="b"]').forEach(function (l) { l.textContent = n.b; });
+
+      var tratte = parseInt($("tratte").value, 10) || 1;
+      var kmTotali = valore($("km")) * tratte;
+      $("kmTotali").textContent = numero.format(kmTotali) + " km";
+      $("tratteCasello").textContent = String(tratte);
+      $("kmUsura").textContent = numero.format(kmTotali);
+
+      var litri = kmTotali / 100 * valore($("consumo"));
+      $("litri").textContent = numero.format(litri);
+
+      var importi = {
+        casello: valore($("pedaggio")) * tratte,
+        carburante: litri * valore($("prezzo")),
+        usura: kmTotali * valore($("tariffa")),
+        ncc: valore($("ncc"))
+      };
+
+      var totale = 0, pagato = { a: 0, b: 0 };
+
+      VOCI.forEach(function (voce) {
+        var riquadro = $("voce-" + voce);
+        var acceso = attiva(voce);
+        riquadro.classList.toggle("esclusa", !acceso);
+        var importo = acceso ? importi[voce] : 0;
+        riquadro.querySelector(".importo").textContent = euro.format(importo);
+        totale += importo;
+        var chi = anticipatoDa(voce);
+        if (chi === "a" || chi === "b") pagato[chi] += importo;
+      });
+
+      var quota = totale / 2;
+      $("totale").textContent = euro.format(totale);
+      $("quota").textContent = euro.format(quota);
+      $("pagatoA").textContent = euro.format(pagato.a);
+      $("pagatoB").textContent = euro.format(pagato.b);
+
+      /* Il conguaglio: quanto uno ha messo in più della sua metà. Le voci
+         lasciate su «Da pagare» non sono di nessuno dei due, quindi entrano
+         nel totale ma non spostano il saldo — è il caso dell'usura del mezzo
+         quando la si vuole conteggiare senza girarla a nessuno. */
+      var saldoA = pagato.a - quota;
+      var riquadro = $("conguaglio");
+      var esito = $("esito");
+      var spiega = $("spiega");
+      var scarto = Math.abs(saldoA);
+
+      if (totale === 0) {
+        riquadro.className = "conguaglio pari";
+        esito.textContent = "Nessuna spesa inserita.";
+        spiega.textContent = "Compila gli importi qui sopra e indica chi ha anticipato ogni voce.";
+      } else if (scarto < 0.005) {
+        riquadro.className = "conguaglio pari";
+        esito.textContent = "Siete pari: nessuno deve niente all'altro.";
+        spiega.textContent = "Ognuno ha anticipato la sua metà, " + euro.format(quota) + ".";
+      } else {
+        var debitore = saldoA > 0 ? n.b : n.a;
+        var creditore = saldoA > 0 ? n.a : n.b;
+        riquadro.className = "conguaglio";
+        esito.textContent = debitore + " deve " + euro.format(scarto) + " a " + creditore + ".";
+        spiega.textContent = "Totale " + euro.format(totale) + ", quota a testa " + euro.format(quota) +
+          ": " + creditore + " ha anticipato " + euro.format(saldoA > 0 ? pagato.a : pagato.b) + ".";
+      }
+
+      salva();
+    }
+
+    /* ── Memoria locale ──────────────────────────────────────────
+       Il browser tiene la giornata com'era: riaprendo la pagina non si
+       ricomincia da capo. Niente rete, niente account. */
+
+    var CAMPI = ["data", "nomeA", "nomeB", "km", "tratte", "pedaggio", "consumo", "prezzo", "tariffa", "ncc", "nccNota"];
+
+    function salva() {
+      try {
+        var stato = { campi: {}, attive: {}, anticipi: {} };
+        CAMPI.forEach(function (id) { stato.campi[id] = $(id).value; });
+        VOCI.forEach(function (voce) {
+          stato.attive[voce] = attiva(voce);
+          stato.anticipi[voce] = anticipatoDa(voce);
+        });
+        localStorage.setItem(CHIAVE, JSON.stringify(stato));
+      } catch (e) { /* archiviazione non disponibile: la pagina funziona lo stesso */ }
+    }
+
+    function ripristina() {
+      var grezzo = null;
+      try { grezzo = localStorage.getItem(CHIAVE); } catch (e) { return false; }
+      if (!grezzo) return false;
+      try {
+        var stato = JSON.parse(grezzo);
+        CAMPI.forEach(function (id) {
+          if (stato.campi && typeof stato.campi[id] === "string") $(id).value = stato.campi[id];
+        });
+        VOCI.forEach(function (voce) {
+          if (stato.attive && typeof stato.attive[voce] === "boolean") {
+            $("voce-" + voce).querySelector(".attiva").checked = stato.attive[voce];
+          }
+          var chi = stato.anticipi && stato.anticipi[voce];
+          if (chi) {
+            var radio = document.querySelector('input[name="ant-' + voce + '"][value="' + chi + '"]');
+            if (radio) radio.checked = true;
+          }
+        });
+        return true;
+      } catch (e) { return false; }
+    }
+
+    costruisciScelte();
+    if (!ripristina()) $("data").valueAsDate = new Date();
+
+    document.addEventListener("input", calcola);
+    document.addEventListener("change", calcola);
+
+    $("stampa").addEventListener("click", function () { window.print(); });
+
+    $("azzera").addEventListener("click", function () {
+      if (!window.confirm("Azzerare gli importi di questa giornata? I nomi e i dati del tragitto restano.")) return;
+      ["pedaggio", "ncc"].forEach(function (id) { $(id).value = "0"; });
+      $("nccNota").value = "";
+      VOCI.forEach(function (voce) {
+        $("voce-" + voce).querySelector(".attiva").checked = true;
+        var radio = document.querySelector('input[name="ant-' + voce + '"][value="a"]');
+        if (radio) radio.checked = true;
+      });
+      $("data").valueAsDate = new Date();
+      calcola();
+    });
+
+    var riga = document.getElementById("versione");
+    if (riga) riga.textContent = "Nota spese viaggio " + APP_VERSION + " · build " + BUILD_TIME;
+
+    calcola();
+  })();
+</script>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sovrascrive i valori di src/main per il solo flavor "teresa": stesso codice, nomi diversi
+     sul telefono (launcher, elenco servizi di accessibilità). -->
+<resources>
+    <string name="app_name">Revolut Teresa</string>
+    <string name="accessibility_label">Revolut Teresa — avvisi pagamenti</string>
+    <string name="accessibility_description">Mostra a schermo le transazioni Revolut fatte con la tua carta, per assegnare loro una categoria.</string>
+</resources>

@@ -1,0 +1,2 @@
+[functions.enable-banking-aspsps]
+verify_jwt = false

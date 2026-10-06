@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Le scorciatoie dell'icona: si vedono tenendo premuta l'icona di AppSphere,
+    e ognuna si trascina sulla home come un'icona a sé.
+
+    ⚠️ L'azione dell'intent è il contratto con MainActivity.gestisciScorciatoia
+    (vedi core/Scorciatoia.kt, enum Destinazione): cambiandola qui senza
+    cambiarla là, la scorciatoia apre l'app sulla home e basta, senza errori.
+
+    ⚠️ targetPackage è l'applicationId, scritto a mano: un file xml non legge
+    build.gradle. Se l'applicationId cambia, va cambiato anche qui.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="pasto"
+        android:enabled="true"
+        android:icon="@drawable/ic_scorciatoia_pasto"
+        android:shortcutShortLabel="@string/scorciatoia_pasto_breve"
+        android:shortcutLongLabel="@string/scorciatoia_pasto_lunga">
+        <intent
+            android:action="com.garsal.appsphere.SCORCIATOIA_PASTO"
+            android:targetPackage="com.garsal.appsphere"
+            android:targetClass="com.garsal.appsphere.MainActivity" />
+    </shortcut>
+</shortcuts>

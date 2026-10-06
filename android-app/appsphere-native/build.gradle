@@ -1,0 +1,16 @@
+// Kotlin 2.1.20 e non 2.0.21 come gli altri moduli della repo: supabase-kt 3.1.4
+// è compilata con stdlib 2.1.20 e i suoi metadata non si leggono con un compilatore
+// più vecchio. Le due versioni devono restare agganciate — se si aggiorna supabase-kt
+// va guardata la sua kotlin-stdlib e allineata questa riga.
+plugins {
+    id 'com.android.application'                    version '8.9.1'  apply false
+    id 'org.jetbrains.kotlin.android'               version '2.1.20' apply false
+    id 'org.jetbrains.kotlin.plugin.compose'        version '2.1.20' apply false
+    id 'org.jetbrains.kotlin.plugin.serialization'  version '2.1.20' apply false
+    // Le notifiche push. ⚠️ `apply false` e, nel modulo, applicato SOLO se
+    // google-services.json c'è davvero: quel file nasce sulla console Firebase e
+    // non è in repo finché non lo si mette. Applicandolo comunque, il plugin
+    // fallirebbe la build con «File google-services.json is missing» — cioè
+    // l'APK non si compilerebbe più, notifiche o no.
+    id 'com.google.gms.google-services'             version '4.4.2'  apply false
+}

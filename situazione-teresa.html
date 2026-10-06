@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Situazione Teresa v1.9.4</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <!-- Regole e vista in sola lettura di Spese Famiglia, condivise con altre due pagine -->
+  <script src="spese-famiglia.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'DM Mono', ui-monospace, monospace;
+      --c-bg:        #f4f6fb;
+      --c-surface:   #ffffff;
+      --c-border:    #e2e8f0;
+      --c-text:      #1e293b;
+      --c-muted:     #64748b;
+      --c-primary:   #7c3aed; /* Teresa */
+      --c-primary-h: #6d28d9;
+      --c-success:   #16a34a;
+      --c-danger:    #dc2626;
+      --c-warning:   #d97706;
+      --c-teresa:    #dc2626;
+      --c-salvatore: #16a34a;
+      --radius-sm: 6px;
+      --radius:    12px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+      --shadow:    0 4px 16px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+    }
+    body { font-family: var(--font-sans); background: var(--c-bg); color: var(--c-text); min-height: 100dvh; -webkit-font-smoothing: antialiased; padding-top: 56px; }
+    .hidden { display: none !important; }
+    .mono   { font-family: var(--font-mono); }
+    .pos    { color: var(--c-success); }
+    .neg    { color: var(--c-danger); }
+    .hstack  { display: flex; align-items: center; }
+    .gap-8   { gap: 8px; }
+    .mt-12   { margin-top: 12px; }
+    .mb-20   { margin-bottom: 20px; }
+    .text-muted { color: var(--c-muted); }
+    .text-sm { font-size: .82rem; }
+    .text-lg { font-size: 1.15rem; }
+    .fw-600 { font-weight: 600; }
+    .fw-700 { font-weight: 700; }
+    .text-right { text-align: right; }
+
+    #garsal-top-bar { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #0081C8; display: flex; align-items: center; padding: 0 20px; gap: 10px; z-index: 3000; }
+    #garsal-top-bar-text { font-family: 'Darker Grotesque', sans-serif; font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+    .btn-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 8px; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    .btn-hamburger span { display: block; width: 20px; height: 2px; background: #fff; border-radius: 2px; }
+    #mobile-nav-overlay { display: none; position: fixed; inset: 0; top: 56px; background: rgba(0,0,0,.35); z-index: 98; }
+    #mobile-nav-overlay.open { display: block; }
+
+    /* ── Layout / Navigazione ── */
+    .app-layout { display: flex; min-height: calc(100dvh - 56px); }
+    .sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--c-border); background: var(--c-surface); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+    .nav-item { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: .92rem; font-weight: 600; color: var(--c-muted); cursor: pointer; transition: background .12s, color .12s; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-sans); }
+    .nav-item:hover { background: var(--c-bg); color: var(--c-text); }
+    .nav-item.active { background: #ede9fe; color: var(--c-primary); }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Login ── */
+    #screen-login, #screen-set-password { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100dvh - 56px); padding: 24px; }
+    .login-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 40px; width: 100%; max-width: 400px; text-align: center; }
+    .login-logo { font-size: 48px; margin-bottom: 16px; }
+    .login-card h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .magic-input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .95rem; outline: none; }
+    .btn-magic { width: 100%; padding: 12px; background: var(--c-primary); color: #fff; border: none; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
+    .login-success { margin-top: 16px; color: var(--c-success); font-size: .9rem; }
+    .login-error { margin-top: 16px; color: var(--c-danger); font-size: .9rem; }
+
+    /* ── Main ── */
+    .app-main { flex: 1; min-width: 0; padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+    .section-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); }
+    .kpi-label { font-size: .74rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; margin-bottom: 6px; }
+    .kpi-value { font-size: 1.5rem; font-weight: 700; text-align: right; }
+    .kpi-value.teresa { color: var(--c-teresa); }
+    .kpi-value.salvatore { color: var(--c-salvatore); }
+
+    .card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow-sm); margin-bottom: 24px; }
+    .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .table-wrap { overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .table th { text-align: left; font-size: .72rem; font-weight: 600; color: var(--c-muted); text-transform: uppercase; padding: 0 10px 9px; white-space: nowrap; }
+    .table td { padding: 10px 10px; border-top: 1px solid var(--c-border); }
+    .table tfoot th { padding: 10px 10px; border-top: 2px solid var(--c-text); }
+
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: .72rem; font-weight: 600; white-space: nowrap; }
+    .badge-teresa    { background: #fee2e2; color: #991b1b; }
+    .badge-salvatore { background: #dcfce7; color: #166534; }
+    .badge-bonifico  { background: #eef2ff; color: #3730a3; }
+    .badge-altro     { background: #fef3c7; color: #92400e; }
+    .badge-mensa     { background: #f0f9ff; color: #0369a1; }
+
+    .year-select { padding: 7px 12px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .88rem; outline: none; background: var(--c-surface); cursor: pointer; }
+
+    .table tbody tr.clickable-row { cursor: pointer; }
+    .table tbody tr.clickable-row:hover td { background: #fafbfd; }
+
+    /* Lista movimenti compatta (Conto Spese): sempre su una riga, anche
+       su mobile, invece della tabella che sotto i 640px impila ogni
+       colonna su una riga a sé. */
+    .tx-list { display: flex; flex-direction: column; }
+    .tx-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--c-border); cursor: pointer; }
+    .tx-row:first-child { border-top: none; }
+    .tx-row:hover { background: #fafbfd; }
+    .tx-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .tx-avatar.teresa { background: #fce7f3; }
+    .tx-avatar.salvatore { background: #dbeafe; }
+    .tx-tipo-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+    .tx-date { font-family: var(--font-mono); font-size: .76rem; color: var(--c-muted); flex-shrink: 0; width: 64px; }
+    .tx-importo { font-family: var(--font-mono); font-weight: 700; font-size: .88rem; margin-left: auto; text-align: right; white-space: nowrap; padding-left: 6px; }
+    #detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+    #detail-card { background: var(--c-surface); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; max-width: 460px; max-height: 85dvh; overflow-y: auto; padding: 22px; }
+    #detail-card .detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    #detail-card .detail-title { font-size: 1.05rem; font-weight: 700; }
+    #detail-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--c-muted); padding: 2px 6px; border-radius: var(--radius-sm); }
+    #detail-close:hover { background: var(--c-bg); }
+    .summary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--c-border); font-size: .9rem; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row > span:first-child { color: var(--c-muted); font-size: .78rem; text-transform: uppercase; font-weight: 600; letter-spacing: .03em; }
+
+    .btn { padding: 8px 14px; border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: .85rem; font-weight: 600; cursor: pointer; border: none; transition: background .15s; }
+    .btn-primary { background: var(--c-primary); color: #fff; }
+    .btn-primary:hover { background: var(--c-primary-h); }
+    .btn-outline { background: transparent; border: 1px solid var(--c-border); color: var(--c-text); }
+    .btn-outline:hover { background: var(--c-bg); }
+    .btn-sm { padding: 4px 8px; font-size: .82rem; }
+
+    @media (max-width: 640px) {
+      .app-main { padding: 12px; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .kpi-value { font-size: 1.2rem; }
+      .table-wrap .table thead { display: none; }
+      .table-wrap .table tr { display: block; margin-bottom: 12px; border: 1px solid var(--c-border); border-radius: var(--radius-sm); padding: 12px; }
+      .table-wrap .table td { display: block; border: none; padding: 4px 0; text-align: left; }
+      .table-wrap .table td:before { content: attr(data-label); font-weight: 700; font-size: .7rem; color: var(--c-muted); text-transform: uppercase; display: block; margin-bottom: 2px; }
+      .table-wrap .table td.text-right { text-align: left; }
+      /* La riga dei totali è fatta di th: senza queste due righe si impilerebbe
+         come le altre ma senza l'etichetta che dice quale numero si sta leggendo. */
+      .table-wrap .table tfoot th { display: block; border-top: none; padding: 4px 0; text-align: left; }
+      .table-wrap .table tfoot th:before { content: attr(data-label); font-weight: 700; font-size: .7rem; color: var(--c-muted); text-transform: uppercase; display: block; margin-bottom: 2px; }
+    }
+
+    @media (max-width: 768px) {
+      .btn-hamburger { display: flex; align-items: center; }
+      .sidebar { position: fixed; top: 56px; left: 0; z-index: 99; width: 240px; height: calc(100dvh - 56px); transform: translateX(-100%); transition: transform .25s ease; box-shadow: 4px 0 20px rgba(0,0,0,.12); }
+      .sidebar.open { transform: translateX(0); }
+      #user-info { display: none; }
+    }
+    /* ── Descrizione del prodotto: la ℹ️ e il suo riquadro ──────────────────
+       Gemella del blocco in finanza.html (stesse classi, stesso comportamento):
+       il `title` nativo al tocco non compare, e il riquadro sta in
+       `position: fixed` sul body perché la tabella che scorre di lato non lo
+       ritagli. Se lo cambi di là, cambialo anche qui. */
+    .prod-info { background: none; border: 0; padding: 0 2px; margin-left: 4px; cursor: pointer; font-size: .8em; line-height: 1; opacity: .7; vertical-align: middle; }
+    .prod-info:hover, .prod-info:focus-visible { opacity: 1; }
+    #prod-tip { position: fixed; z-index: 3000; display: none; max-width: min(340px, calc(100vw - 16px)); background: var(--c-text); color: #fff; padding: 10px 12px; border-radius: var(--radius-sm); font-size: .82rem; line-height: 1.45; box-shadow: 0 8px 26px rgba(0,0,0,.28); white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <div id="garsal-top-bar">
+    <button id="btn-hamburger" class="btn-hamburger hidden" aria-label="Apri menu" style="flex-shrink:0;"><span></span><span></span><span></span></button>
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden;">
+      <div id="garsal-top-bar-text" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Situazione Teresa</div>
+    </div>
+    <div id="user-info" class="hidden" style="color:#fff; font-size:12px; font-family:var(--font-mono); flex-shrink:0;"></div>
+    <!-- Niente bottone "Esci": la sessione resta in localStorage e non c'è motivo di uscire da
+         una pagina personale. La funzione logout() resta e viene ancora chiamata da sola quando
+         la sessione scade o l'account non è autorizzato. -->
+  </div>
+
+  <div id="screen-login">
+    <div class="login-card">
+      <div class="login-logo">🌷</div>
+      <h1>Bentornata Teresa</h1>
+      <p class="text-muted text-sm mb-20">Inserisci la tua email per accedere alla tua situazione finanziaria.</p>
+      <form id="login-form">
+        <input type="email" id="login-email" class="magic-input" placeholder="La tua email" required />
+        <input type="password" id="login-password" class="magic-input" placeholder="Password (lascia vuoto per il link via email)" autocomplete="current-password" />
+        <button type="submit" class="btn-magic">Accedi</button>
+      </form>
+      <button type="button" id="btn-setup-password" class="btn btn-outline" style="width:100%; margin-top:8px;">Non hai ancora una password? Impostane una</button>
+      <div id="login-success" class="login-success hidden">✅ Controlla la tua email.</div>
+      <div id="login-error" class="login-error hidden"></div>
+    </div>
+
+    <div class="login-card" id="apk-download-card" style="margin-top:16px;">
+      <div class="card-title" style="margin-bottom:8px;">📱 App Android</div>
+      <p class="text-muted text-sm" style="line-height:1.6; margin-bottom:12px;">
+        Scarica l'app per accedere da telefono senza dover effettuare il login ogni volta:
+        la prima volta inserisci email e password, poi resterai sempre connessa.
+      </p>
+      <a href="https://apk.garsal.men/SituazioneTeresa-latest.apk" download="SituazioneTeresa.apk" class="btn-magic" style="display:inline-flex; align-items:center; justify-content:center; text-decoration:none;">⬇ Scarica APK</a>
+
+      <div style="border-top:1px solid var(--c-border); margin:16px 0 12px;"></div>
+
+      <div class="card-title" style="margin-bottom:8px;">💳 Revolut Teresa</div>
+      <p class="text-muted text-sm" style="line-height:1.6; margin-bottom:12px;">
+        App separata: ti avvisa dei pagamenti fatti con la <strong>tua</strong> carta Revolut e
+        ti fa scegliere la categoria di spesa direttamente dall'avviso, senza aprire nient'altro.
+      </p>
+      <a href="https://apk.garsal.men/SmartBlockerTeresa-latest.apk" download="RevolutTeresa.apk" class="btn-magic" style="display:inline-flex; align-items:center; justify-content:center; text-decoration:none;">⬇ Scarica APK</a>
+    </div>
+  </div>
+
+  <div id="screen-set-password" class="hidden">
+    <div class="login-card">
+      <div class="login-logo">🌷</div>
+      <h1>Imposta una password</h1>
+      <p class="text-muted text-sm mb-20">La userai per accedere più velocemente la prossima volta, anche dall'app: una volta impostata non ti verrà richiesta di nuovo.</p>
+      <form id="set-password-form">
+        <input type="password" id="new-password" class="magic-input" placeholder="Nuova password" required minlength="6" autocomplete="new-password" />
+        <button type="submit" class="btn-magic">Salva password</button>
+      </form>
+      <div id="set-password-error" class="login-error hidden"></div>
+    </div>
+  </div>
+
+  <div id="screen-app" class="hidden">
+    <div id="mobile-nav-overlay"></div>
+    <div class="app-layout">
+      <nav class="sidebar" id="sidebar">
+        <button class="nav-item active" data-view="risparmio">🏡 Conto Risparmio</button>
+        <button class="nav-item" data-view="spese">💰 Conto Spese</button>
+        <button class="nav-item" data-view="portafoglio">📈 Portafoglio</button>
+        <button class="nav-item" data-view="analisi-costi">🧾 Spese Famiglia</button>
+        <!-- Niente data-view: è un download, non una vista — la sessione resta in localStorage,
+             quindi la schermata di login (dove sta l'altro riquadro APK) può non ricomparire per
+             settimane e il collegamento sarebbe di fatto irraggiungibile. -->
+        <a id="apk-sidebar-link" class="nav-item" style="margin-top:auto; text-decoration:none;"
+           href="https://apk.garsal.men/SmartBlockerTeresa-latest.apk" download="RevolutTeresa.apk">💳 App Revolut</a>
+      </nav>
+      <main class="app-main">
+
+      <div id="view-risparmio" class="view active">
+      <div class="hstack gap-8 mb-20" style="justify-content: space-between;">
+        <h2 class="section-title" style="margin-bottom:0">🏡 Conto Risparmio Teresa</h2>
+        <select id="year-select-risparmio" class="year-select"></select>
+      </div>
+
+      <div class="kpi-grid" id="kpi-risparmio">
+        <div class="kpi-card"><div class="kpi-label">Totale Movimenti</div><div class="kpi-value mono" id="risp-tot-voce">€0,00</div></div>
+        <div class="kpi-card"><div class="kpi-label">Saldo al <span id="risp-saldo-date" style="font-weight:400;"></span></div><div class="kpi-value mono" id="risp-tot-saldo">€0,00</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Riepilogo per Categoria</div>
+        <div id="risp-cat-summary" class="kpi-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); margin-bottom:0;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Movimenti</div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Categoria</th>
+                <th class="text-right">Importo</th>
+                <th>Descrizione</th>
+              </tr>
+            </thead>
+            <tbody id="risp-tx-table-body">
+              <tr><td colspan="4" style="text-align:center; padding:40px;" class="text-muted">Caricamento movimenti...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      </div>
+
+      <div id="view-spese" class="view">
+      <div class="hstack gap-8 mb-20" style="justify-content: space-between;">
+        <h2 class="section-title" style="margin-bottom:0">💰 Conto Spese Teresa</h2>
+      </div>
+
+      <div class="kpi-grid" id="kpi-spese-tot">
+        <div class="kpi-card"><div class="kpi-label">Versato Teresa (Tot)</div><div class="kpi-value mono teresa" id="spese-versato-teresa">€0,00</div></div>
+        <div class="kpi-card"><div class="kpi-label">Versato Salvatore (Tot)</div><div class="kpi-value mono salvatore" id="spese-versato-salvatore">€0,00</div></div>
+        <div class="kpi-card"><div class="kpi-label">Totale Speso (Tot)</div><div class="kpi-value mono" id="spese-totale">€0,00</div></div>
+        <div class="kpi-card"><div class="kpi-label" id="spese-diff-label">Saldo Teresa</div><div class="kpi-value mono" id="spese-diff">€0,00</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Riepilogo Storico per Periodi</div>
+        <div id="spese-periodi-cards" class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-bottom:0;"></div>
+      </div>
+
+      <div class="hstack gap-8 mb-20" style="justify-content: space-between;">
+        <h3 class="section-title" style="margin-bottom:0; font-size:1.15rem;">Dettaglio Annuale</h3>
+        <select id="year-select-spese" class="year-select"></select>
+      </div>
+
+      <div class="kpi-grid" id="kpi-spese-anno"></div>
+
+      <div class="card">
+        <div class="card-title">Movimenti</div>
+        <div id="spese-tx-list" class="tx-list">
+          <div style="text-align:center; padding:40px;" class="text-muted">Caricamento movimenti...</div>
+        </div>
+      </div>
+
+      </div>
+
+      <!-- Riempite da pfRender() / caOpen() la prima volta che si aprono: i loro dati non
+           servono alle altre viste e non vale la pena leggerli a ogni avvio. -->
+      <div id="view-portafoglio" class="view"></div>
+
+      <div id="view-analisi-costi" class="view"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <div id="detail-overlay" class="hidden" onclick="if(event.target===this)closeSpeseDetail()">
+    <div id="detail-card"></div>
+  </div>
+
+  <script>
+    const APP_VERSION = 'v1.9.4';
+    const BUILD_TIME  = '2026-09-25T11:02:00Z';
+    console.log('%c SITUAZIONE TERESA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+        'background:#7c3aed;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+        'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+    const SUPABASE_URL = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+    // Accessi ospite configurati nella tabella cm_guest_access
+    // (email → pagina). Il proprietario accede sempre. La vera
+    // protezione dei dati è comunque lato server, via RLS su Supabase.
+    const PAGE_NAME   = 'situazione-teresa.html';
+    const OWNER_EMAIL = 'garsal1971@gmail.com';
+
+    // Verifica se l'utente loggato può usare questa pagina: legge la
+    // propria riga in cm_guest_access (RLS mostra solo le proprie)
+    async function checkPageAccess(session) {
+      const email = (session.user?.email || '').toLowerCase();
+      if (email === OWNER_EMAIL) return true;
+      try {
+        const r = await fetch(
+          `${SUPABASE_URL}/rest/v1/cm_guest_access?select=page&page=eq.${encodeURIComponent(PAGE_NAME)}&limit=1`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` } }
+        );
+        if (!r.ok) return false;
+        return (await r.json()).length > 0;
+      } catch { return false; }
+    }
+
+    let S = {
+      session: null,
+      riservaTx: [],
+      riservaCats: [],
+      riservaCatMap: {},
+      riservaSaldo: null,
+      selectedYearRisparmio: new Date().getFullYear(),
+      selectedCategoryRisparmio: null,
+      speseTx: [],
+      selectedYearSpese: new Date().getFullYear(),
+      selectedPersonaSpese: null,
+    };
+
+    const fmtEUR = v => {
+      if (v == null) return '—';
+      const n = Math.round(v);
+      return (n < 0 ? '-' : '') + Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €';
+    };
+    const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT') : '—';
+
+    const tok = () => S.session?.access_token || SUPABASE_ANON_KEY;
+    const sb = async (path, method = 'GET', body = null) => {
+      const options = {
+        method,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${tok()}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        }
+      };
+      if (body) options.body = JSON.stringify(body);
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, options);
+      if (r.status === 401 && S.session?.refresh_token) {
+        const ns = await refreshSession(S.session);
+        if (ns) {
+          options.headers['Authorization'] = `Bearer ${ns.access_token}`;
+          const r2 = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, options);
+          if (r2.ok) return r2.json();
+        }
+        logout();
+        throw new Error('Sessione scaduta');
+      }
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.message || r.statusText);
+      }
+      return r.json();
+    };
+
+    /* ── Auth ── */
+    async function initFromSbToken(token) {
+      try {
+        const user = await (await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },
+        })).json();
+        if (user?.id) {
+          return { access_token: token, refresh_token: null, expires_at: Date.now() + 3600_000, user };
+        }
+      } catch {}
+      return null;
+    }
+
+    async function refreshSession(session) {
+      if (!session?.refresh_token) return null;
+      try {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST', headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: session.refresh_token }),
+        });
+        if (!r.ok) return null;
+        const d = await r.json();
+        const ns = { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + d.expires_in * 1000, user: d.user };
+        S.session = ns;
+        localStorage.setItem('garsal_session', JSON.stringify(ns));
+        return ns;
+      } catch { return null; }
+    }
+
+    function logout() {
+      localStorage.removeItem('garsal_session');
+      localStorage.removeItem('sb_token');
+      S.session = null;
+      nativeCredsClear();
+      document.getElementById('screen-login').classList.remove('hidden');
+      document.getElementById('screen-app').classList.add('hidden');
+      document.getElementById('user-info').classList.add('hidden');
+      document.getElementById('btn-hamburger').classList.add('hidden');
+    }
+
+    /* ── Credenziali salvate nell'app Android (Android Keystore) ──
+       Il bridge window.AndroidCreds esiste solo dentro la WebView
+       dell'app: nel browser queste funzioni non fanno nulla. */
+    function nativeCredsSave(email, password) {
+      try { window.AndroidCreds?.saveCredentials(email, password); } catch {}
+    }
+    function nativeCredsGet() {
+      try { return window.AndroidCreds ? JSON.parse(window.AndroidCreds.getCredentials() || '{}') : {}; }
+      catch { return {}; }
+    }
+    function nativeCredsClear() {
+      try { window.AndroidCreds?.clearCredentials(); } catch {}
+    }
+
+    async function loginWithPassword(email, password) {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error_description || err.msg || 'Credenziali non valide');
+      }
+      const d = await r.json();
+      return { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + d.expires_in * 1000, user: d.user };
+    }
+
+    // Mostra la dashboard per la sessione corrente (S.session), oppure
+    // fa logout se non è più valida/autorizzata.
+    async function enterApp() {
+      if (S.session.expires_at && Date.now() > S.session.expires_at - 60000) {
+        const ns = await refreshSession(S.session);
+        if (!ns) { logout(); return; }
+      }
+
+      // Questa pagina è riservata al proprietario e agli ospiti
+      // autorizzati in cm_guest_access
+      const allowed = await checkPageAccess(S.session);
+      if (!allowed) {
+        logout();
+        const errEl = document.getElementById('login-error');
+        errEl.textContent = 'Questo account non è autorizzato ad accedere a questa pagina.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('screen-login').classList.add('hidden');
+      document.getElementById('screen-app').classList.remove('hidden');
+      document.getElementById('user-info').textContent = S.session.user.email;
+      document.getElementById('user-info').classList.remove('hidden');
+      document.getElementById('btn-hamburger').classList.remove('hidden');
+      loadData();
+    }
+
+/* Spese Famiglia — la vista in sola lettura sta in spese-famiglia.js, condiviso
+   con finanza.html e cost-analysis.html: qui si chiama caOpen() e basta. */
+
+    /* ══════════════════════════════════════════════════════════════════
+       PORTAFOGLIO CONTO RISPARMIO — vista in sola lettura
+
+       ⚠️ Quantità, costo medio e liquidità vengono dal database
+       (`fnz_posizioni` / `fnz_liquidita`), come in finanza.html: non sono
+       più duplicati qui. Lo stesso vale per le quote del fondo, che dà
+       `fnz_quote_fondi`: nessuna regola di Finanza è più copiata qui.
+
+       ⚠️ Le percentuali di Teresa e Salvatore sono le QUOTE DEL FONDO
+       collegato (versamenti rivalutati con l'indice ISTAT FOI), non
+       `fnz_portfolios.ownership_percentage`: quel campo in Finanza porta
+       già la sola quota del partecipante di riferimento, e usarlo qui la
+       conterebbe due volte. Qui «Tutto» è il portafoglio intero.
+
+       ⚠️ Niente colonna delle tasse: sarebbe una terza copia delle
+       aliquote di `finanza.html`, e su questa pagina nessuno la chiede.
+       ══════════════════════════════════════════════════════════════════ */
+    const PF = {
+      loaded: false,
+      portfolio: null,
+      fund: null,
+      // Posizioni e liquidità dal database (`fnz_posizioni` / `fnz_liquidita`), le
+      // stesse di Finanza: la RLS ospite le restringe al solo Conto Risparmio.
+      posizioni: [],
+      liquidita: null,
+      products: [],
+      prices: {},
+      // La riga di `fnz_quote_fondi` del fondo collegato (null = nessun movimento che conta).
+      quote: null,
+      participants: [],
+      // '' = tutto il portafoglio; altrimenti la chiave del partecipante.
+      // null = non ancora scelta: la sceglie pfLoad al primo caricamento.
+      quota: null,
+    };
+
+    const pfEURc = v => v == null ? '—' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(v);
+    const pfNum  = v => v == null ? '—' : new Intl.NumberFormat('it-IT', { maximumFractionDigits: 6 }).format(v);
+    const pfPct  = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    const pfPnlCls = v => v == null ? '' : v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    // Un elenco di valori dentro un `in.(…)` di PostgREST: le virgolette
+    // servono per i simboli che contengono virgole o spazi, che senza di
+    // loro spezzerebbero l'elenco in due valori.
+    const pfIn = vals => `in.(${vals.map(v => '"' + encodeURIComponent(String(v)) + '"').join(',')})`;
+
+    /* ── Caricamento ────────────────────────────────────────────────── */
+    async function pfLoad() {
+      // La RLS restituisce il solo portafoglio del Conto Risparmio; il
+      // filtro sul nome è la stessa regola scritta in chiaro, così se un
+      // giorno la policy si allargasse la pagina resterebbe su di lui.
+      const portfolios = await sb('fnz_portfolios?select=*&order=created_at.asc');
+      PF.portfolio = portfolios.find(p => /conto\s*risparmio/i.test(p.name || '')) || portfolios[0] || null;
+      if (!PF.portfolio) { PF.loaded = true; return; }
+
+      const pid = PF.portfolio.id;
+      const [posizioni, liquidita, funds] = await Promise.all([
+        sb('rpc/fnz_posizioni', 'POST', {}),
+        sb('rpc/fnz_liquidita', 'POST', {}),
+        sb(`fnz_funds?select=*&linked_portfolio_id=eq.${pid}&order=created_at.asc`),
+      ]);
+      PF.posizioni = (posizioni || []).filter(r => r.scope === 'portfolio' && r.scope_id === pid);
+      PF.liquidita = (liquidita || []).find(r => r.portfolio_id === pid) || null;
+      PF.fund = funds[0] || null;
+
+      const productIds = [...new Set(PF.posizioni.map(r => r.product_id).filter(Boolean))];
+      PF.products = productIds.length ? await sb(`fnz_products?select=*&id=${pfIn(productIds)}`) : [];
+
+      // I prezzi si leggono dalla cache e non dallo storico: è una riga
+      // per simbolo e porta già la chiusura precedente, quindi dice le
+      // stesse cifre di Finanza senza scaricare mesi di quotazioni.
+      const symbols = [...new Set(PF.products.map(p => p.symbol).filter(Boolean))];
+      PF.prices = {};
+      if (symbols.length) {
+        const rows = await sb(`fnz_price_cache?select=*&currency=eq.EUR&symbol=${pfIn(symbols)}`);
+        for (const r of rows) PF.prices[r.symbol] = r;
+      }
+
+      if (PF.fund) {
+        const [quote, participants] = await Promise.all([
+          sb('rpc/fnz_quote_fondi', 'POST', { p_fund_id: PF.fund.id }),
+          sb(`fnz_fund_participants?select=*&fund_id=eq.${PF.fund.id}&order=name.asc`),
+        ]);
+        PF.quote        = (quote || [])[0] || null;
+        PF.participants = participants;
+      }
+
+      // La pagina è la sua, quindi si apre sulla sua parte; il selettore
+      // resta lì per guardare il resto.
+      if (PF.quota === null) {
+        const mia = pfQuote().participants.find(p => /teresa/i.test(pfNomePartecipante(p)));
+        PF.quota = mia ? mia.key : '';
+      }
+      PF.loaded = true;
+    }
+
+    /* ── La descrizione di un prodotto ───────────────────────────────
+       `fnz_products.description` dice che cos'è quello strumento. La ℹ️ c'è
+       **solo dove la descrizione c'è**: un'icona su ogni riga smetterebbe di
+       distinguere le righe che hanno qualcosa da dire. Gemella di
+       `infoProdotto()` / `mostraProdTip()` in finanza.html. */
+    function pfInfoProdotto(prod) {
+      const d = (prod?.description || '').trim();
+      if (!d) return '';
+      return `<button type="button" class="prod-info" data-prod-info data-desc="${caEsc(d)}" aria-label="Descrizione del prodotto" title="Descrizione">ℹ️</button>`;
+    }
+    let pfTipEl = null, pfTipFisso = null;
+    function pfMostraTip(btn) {
+      if (!pfTipEl) { pfTipEl = document.createElement('div'); pfTipEl.id = 'prod-tip'; document.body.appendChild(pfTipEl); }
+      pfTipEl.textContent = btn.dataset.desc || '';
+      // Si misura da fermo in alto a sinistra: dalla posizione di prima sarebbe già
+      // schiacciato contro un bordo, e la misura direbbe un'altezza che non è la sua.
+      pfTipEl.style.cssText = 'display:block;left:0;top:0';
+      const r = btn.getBoundingClientRect(), b = pfTipEl.getBoundingClientRect(), m = 8;
+      const left = Math.max(m, Math.min(r.left + r.width / 2 - b.width / 2, window.innerWidth - b.width - m));
+      const sotto = r.bottom + 6;
+      const top = sotto + b.height > window.innerHeight - m ? Math.max(m, r.top - b.height - 6) : sotto;
+      pfTipEl.style.left = left + 'px';
+      pfTipEl.style.top  = top + 'px';
+    }
+    function pfChiudiTip() { if (pfTipEl) pfTipEl.style.display = 'none'; pfTipFisso = null; }
+    document.addEventListener('mouseover', e => {
+      const b = e.target.closest('[data-prod-info]');
+      if (b && !pfTipFisso) pfMostraTip(b);
+    });
+    document.addEventListener('mouseout', e => {
+      const b = e.target.closest('[data-prod-info]');
+      if (b && !pfTipFisso && !b.contains(e.relatedTarget)) pfChiudiTip();
+    });
+    // Toccandola resta aperto: sul telefono non c'è nessun «esce col mouse».
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-prod-info]');
+      if (!b) { pfChiudiTip(); return; }
+      if (pfTipFisso === b) pfChiudiTip(); else { pfTipFisso = b; pfMostraTip(b); }
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') pfChiudiTip(); });
+    // Il riquadro è in `fixed`: scorrendo resterebbe fermo mentre la ℹ️ se ne va.
+    window.addEventListener('scroll', pfChiudiTip, true);
+    window.addEventListener('resize', pfChiudiTip);
+
+    /* ── Posizioni ──────────────────────────────────────────────────── */
+    /* ⚠️ Quantità, costo medio e liquidità non si calcolano più qui: li danno
+       `fnz_posizioni` / `fnz_liquidita` nel database, le stesse RPC di
+       finanza.html, di index.html e dello snapshot notturno
+       (`20260924140000_fnz_posizioni_liquidita.sql`). Fino alla v1.9.1 questa
+       era la terza copia di `computeHoldings` / `computePortfolioCash`. Qui
+       resta il valore: quantità × prezzo della cache. */
+    function pfHoldings() {
+      return PF.posizioni
+        .map(r => {
+          const product = PF.products.find(p => p.id === r.product_id);
+          if (!product) return null;
+          const qty          = Number(r.qty);
+          const costBasis    = Number(r.cost_basis);
+          const pd           = PF.prices[product.symbol] || null;
+          const currentPrice = pd?.price != null ? parseFloat(pd.price) : null;
+          const currentValue = currentPrice != null ? qty * currentPrice : null;
+          const avgCost      = qty > 0 ? costBasis / qty : 0;
+          // Senza prezzo il valore ripiega sul costo, come in Finanza: la
+          // plusvalenza è allora zero, non un buco riempito a occhio.
+          const valore = currentValue ?? costBasis;
+          return {
+            product, qty, avgCost, costBasis, pd,
+            currentPrice, currentValue, valore,
+            pnl: valore - costBasis,
+            changePct: pd?.change_pct != null ? parseFloat(pd.change_pct) : null,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.valore - a.valore);
+    }
+    /* La liquidità del portafoglio: i soldi versati nel fondo e non ancora
+       investiti, nominali e mai sotto zero — la calcola `fnz_liquidita`. */
+    function pfCash() {
+      return Number(PF.liquidita?.cash ?? 0);
+    }
+
+    /* ── Quote del fondo (rivalutazione ISTAT FOI) ──────────────────── */
+    function pfNomePartecipante(p) {
+      const reg = p.participantId ? PF.participants.find(x => x.id === p.participantId) : null;
+      return reg?.name || p.participant || '(senza nome)';
+    }
+    /* Le quote le calcola `fnz_quote_fondi`, la stessa RPC di finanza.html: fino alla
+       v1.9.3 qui c'era `pfQuote`, copia a mano di `computeFundShares`. Qui si traduce
+       soltanto la riga nei nomi che la vista usa. */
+    function pfQuote() {
+      const q = PF.quote;
+      if (!q) return { referenceYear: null, participants: [], totalNominal: 0, totalAdjusted: 0, hasMissingIndex: false };
+      return {
+        referenceYear: q.reference_year,
+        participants: (q.participants || []).map(p => ({
+          key: p.key, participantId: p.participant_id || null, participant: p.participant,
+          count: p.count, totalNominal: Number(p.total_nominal), totalAdjusted: Number(p.total_adjusted),
+          hasMissingIndex: !!p.has_missing_index, percentage: Number(p.percentage),
+        })),
+        totalNominal: Number(q.total_nominal), totalAdjusted: Number(q.total_adjusted),
+        hasMissingIndex: !!q.has_missing_index,
+      };
+    }
+    /* La frazione con cui si moltiplica ogni importo: 1 su «Tutto», la
+       percentuale del partecipante scelto altrimenti. */
+    function pfOwn(quote) {
+      if (!PF.quota) return 1;
+      const p = quote.participants.find(x => x.key === PF.quota);
+      return p ? p.percentage / 100 : 1;
+    }
+
+    /* ── Vista ──────────────────────────────────────────────────────── */
+    async function pfOpen(container) {
+      if (!container) return;
+      if (!PF.loaded) {
+        container.innerHTML = '<div class="ca-empty">Caricamento portafoglio…</div>';
+        try { await pfLoad(); }
+        catch (e) {
+          container.innerHTML = `<div class="ca-empty">Impossibile caricare il portafoglio.<br>${caEsc(e.message)}</div>`;
+          return;
+        }
+      }
+      pfRender();
+    }
+
+    function pfSetQuota(v) { PF.quota = v; pfRender(); }
+
+    function pfRender() {
+      const container = document.getElementById('view-portafoglio');
+      if (!container) return;
+      if (!PF.portfolio) {
+        container.innerHTML = '<div class="ca-empty">Nessun portafoglio da mostrare.<br>Se dovresti vederne uno, il permesso di lettura non è ancora arrivato fin qui.</div>';
+        return;
+      }
+      const quote    = pfQuote();
+      const own      = pfOwn(quote);
+      const holdings = pfHoldings();
+      const scelto   = PF.quota ? quote.participants.find(p => p.key === PF.quota) : null;
+      const etichetta = scelto ? `quota di ${caEsc(pfNomePartecipante(scelto))}` : 'portafoglio intero';
+
+      const titoli   = holdings.reduce((s, h) => s + h.valore, 0) * own;
+      const cash     = pfCash() * own;
+      const valore   = titoli + cash;
+      const costo    = holdings.reduce((s, h) => s + h.costBasis, 0) * own;
+      // P&L e variazione giornaliera restano sui soli titoli: la liquidità
+      // non guadagna né perde, e sommarla al valore senza sommarla al costo
+      // la farebbe comparire come utile il giorno che entra sul conto.
+      const pnl      = titoli - costo;
+      const pnlPct   = costo > 0 ? (pnl / costo) * 100 : null;
+      const senzaPrezzo = holdings.filter(h => h.currentPrice == null).length;
+
+      const opzioni = [{ v: '', label: '👥 Tutto il portafoglio' }]
+        .concat(quote.participants.map(p => ({
+          v: p.key,
+          label: `${pfNomePartecipante(p)} · ${p.percentage.toFixed(1)}%`,
+        })));
+
+      container.innerHTML = `
+      <div class="hstack gap-8 mb-20" style="justify-content:space-between; flex-wrap:wrap;">
+        <h2 class="section-title" style="margin-bottom:0">📈 ${caEsc(PF.portfolio.name)}</h2>
+        <select id="pf-quota-select" class="year-select" onchange="pfSetQuota(this.value)">
+          ${opzioni.map(o => `<option value="${caEsc(o.v)}"${o.v === PF.quota ? ' selected' : ''}>${caEsc(o.label)}</option>`).join('')}
+        </select>
+      </div>
+
+      <p class="ca-note">
+        Sola consultazione: qui i dati non si modificano. Gli importi mostrati sono
+        <strong>la ${etichetta}</strong>${scelto ? ` (${scelto.percentage.toFixed(1)} % del totale)` : ''};
+        quantità e prezzi restano invece quelli veri, per intero.
+      </p>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Valore</div><div class="kpi-value mono">${fmtEUR(valore)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">di cui liquidità</div><div class="kpi-value mono">${fmtEUR(cash)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Investito</div><div class="kpi-value mono">${fmtEUR(costo)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Guadagno / Perdita</div><div class="kpi-value mono ${pfPnlCls(pnl)}">${fmtEUR(pnl)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Rendimento</div><div class="kpi-value mono ${pfPnlCls(pnlPct)}">${pfPct(pnlPct)}</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Posizioni</div>
+        ${senzaPrezzo ? `<p class="text-muted text-sm mb-20">⚠️ ${senzaPrezzo === 1 ? 'Una posizione non ha' : `${senzaPrezzo} posizioni non hanno`} un prezzo aggiornato: ${senzaPrezzo === 1 ? 'il suo valore è' : 'i loro valori sono'} quello di acquisto.</p>` : ''}
+        ${holdings.length === 0
+          ? '<div class="text-muted text-sm">Nessun titolo in portafoglio: quello che c\'è è tutta liquidità.</div>'
+          : `<div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Titolo</th>
+                <th class="text-right">Quantità</th>
+                <th class="text-right">Costo medio</th>
+                <th class="text-right">Prezzo</th>
+                <th class="text-right">Valore</th>
+                <th class="text-right">P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${holdings.map(h => `
+              <tr>
+                <td data-label="Titolo">
+                  <div class="fw-600">${caEsc(h.product.symbol || '')}</div>
+                  <div class="text-muted text-sm">${caEsc(h.product.name || '')}${pfInfoProdotto(h.product)}</div>
+                </td>
+                <td class="text-right mono" data-label="Quantità">${pfNum(h.qty)}</td>
+                <td class="text-right mono" data-label="Costo medio">${pfEURc(h.avgCost)}</td>
+                <td class="text-right mono ${pfPnlCls(h.changePct)}" data-label="Prezzo">${h.currentPrice != null ? pfEURc(h.currentPrice) : '—'}</td>
+                <td class="text-right mono fw-600" data-label="Valore">${fmtEUR(h.valore * own)}</td>
+                <td class="text-right mono ${pfPnlCls(h.pnl)}" data-label="P&L">${fmtEUR(h.pnl * own)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Quote del fondo</div>
+        ${quote.participants.length === 0
+          ? '<div class="text-muted text-sm">Nessun versamento registrato: le quote non si possono calcolare.</div>'
+          : `<p class="text-muted text-sm mb-20">
+              Le percentuali si calcolano sui versamenti <strong>rivalutati con l'indice ISTAT FOI</strong>
+              al ${quote.referenceYear ?? '—'}, l'anno del primo versamento: mille euro versati allora
+              valgono più di mille euro versati oggi.
+              ${quote.hasMissingIndex ? '<br>⚠️ Per qualche anno l\'indice FOI non è in archivio: quei versamenti entrano solo nel totale nominale, quindi le percentuali sono provvisorie.' : ''}
+            </p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Partecipante</th>
+                  <th class="text-right">Versato</th>
+                  <th class="text-right">Rivalutato</th>
+                  <th class="text-right">Quota</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${quote.participants.map(p => `
+                <tr${p.key === PF.quota ? ' style="background:var(--c-bg)"' : ''}>
+                  <td data-label="Partecipante"><span class="fw-600">${caEsc(pfNomePartecipante(p))}</span>${p.hasMissingIndex ? ' <span class="text-muted text-sm">(FOI incompleto)</span>' : ''}</td>
+                  <td class="text-right mono" data-label="Versato">${fmtEUR(p.totalNominal)}</td>
+                  <td class="text-right mono" data-label="Rivalutato">${fmtEUR(p.totalAdjusted)}</td>
+                  <td class="text-right mono fw-600" data-label="Quota">${p.percentage.toFixed(1)} %</td>
+                </tr>`).join('')}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th data-label="Partecipante">Totale</th>
+                  <th class="text-right mono" data-label="Versato">${fmtEUR(quote.totalNominal)}</th>
+                  <th class="text-right mono" data-label="Rivalutato">${fmtEUR(quote.totalAdjusted)}</th>
+                  <th class="text-right mono" data-label="Quota">100,0 %</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>`}
+      </div>`;
+    }
+
+    /* ── Navigazione tra le sezioni ── */
+    function navigate(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById(`view-${view}`)?.classList.add('active');
+      document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('mobile-nav-overlay').classList.remove('open');
+      // I dati di Spese Famiglia e del Portafoglio si caricano solo quando la vista viene aperta
+      if (view === 'analisi-costi') caOpen(document.getElementById('view-analisi-costi'));
+      if (view === 'portafoglio')   pfOpen(document.getElementById('view-portafoglio'));
+    }
+
+    // Solo le voci con data-view: il collegamento all'APK usa la stessa classe per avere lo
+    // stesso aspetto, ma navigate(undefined) spegnerebbe tutte le viste lasciando la pagina
+    // bianca mentre parte il download.
+    document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => navigate(btn.dataset.view));
+    });
+
+    document.getElementById('btn-hamburger').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('mobile-nav-overlay').classList.toggle('open');
+    });
+    document.getElementById('mobile-nav-overlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('mobile-nav-overlay').classList.remove('open');
+    });
+
+    async function handleAuth() {
+      // 1. Token condiviso da AppSphere launcher (sb_token in localStorage)
+      const sbToken = localStorage.getItem('sb_token');
+      if (sbToken && !S.session) {
+        S.session = await initFromSbToken(sbToken);
+        if (S.session) localStorage.setItem('garsal_session', JSON.stringify(S.session));
+      }
+
+      // 2. Check for session in URL (magic link / recovery link return)
+      const hash = location.hash.substring(1);
+      if (hash.includes('access_token=')) {
+        const params = new URLSearchParams(hash);
+        const at = params.get('access_token');
+        const rt = params.get('refresh_token');
+        const expires_in = params.get('expires_in');
+        const type = params.get('type');
+
+        const user = await (await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${at}` },
+        })).json();
+
+        if (user && user.id) {
+          const sess = { access_token: at, refresh_token: rt, user, expires_at: Date.now() + parseInt(expires_in) * 1000 };
+          location.hash = '';
+
+          // Link "imposta password" (recover): non entrare subito, prima
+          // chiedi la nuova password (la sessione la teniamo in sospeso).
+          if (type === 'recovery') {
+            S.pendingRecoverySession = sess;
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-set-password').classList.remove('hidden');
+            return;
+          }
+
+          S.session = sess;
+          localStorage.setItem('garsal_session', JSON.stringify(S.session));
+          localStorage.setItem('sb_token', at);
+        }
+      } else if (!S.session) {
+        try { S.session = JSON.parse(localStorage.getItem('garsal_session')); } catch {}
+      }
+
+      // 3. Nessuna sessione salvata: se l'app Android ha delle credenziali
+      // in memoria (Android Keystore), prova un login silenzioso.
+      if (!S.session) {
+        const creds = nativeCredsGet();
+        if (creds.email && creds.password) {
+          try {
+            S.session = await loginWithPassword(creds.email, creds.password);
+            localStorage.setItem('garsal_session', JSON.stringify(S.session));
+          } catch { nativeCredsClear(); }
+        }
+      }
+
+      if (S.session) await enterApp();
+    }
+
+    document.getElementById('login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const password = document.getElementById('login-password').value;
+      const btn = e.target.querySelector('button');
+      const errEl = document.getElementById('login-error');
+      const okEl = document.getElementById('login-success');
+      btn.disabled = true;
+
+      // Password compilata → login diretto email+password.
+      // Password vuota → comportamento storico: invia il link via email.
+      if (password) {
+        btn.textContent = 'Accesso in corso...';
+        try {
+          S.session = await loginWithPassword(email, password);
+          localStorage.setItem('garsal_session', JSON.stringify(S.session));
+          nativeCredsSave(email, password);
+          errEl.classList.add('hidden');
+          await enterApp();
+        } catch (err) {
+          errEl.textContent = err.message;
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Accedi';
+        }
+        return;
+      }
+
+      btn.textContent = 'Invio in corso...';
+      try {
+        // create_user:false → questo form non può creare nuovi account;
+        // redirect_to come query param (è ciò che GoTrue legge davvero)
+        const redirectTo = encodeURIComponent(location.origin + location.pathname);
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/otp?redirect_to=${redirectTo}`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, create_user: false }),
+        });
+        if (!r.ok) throw new Error((await r.json()).msg || 'Errore invio email');
+        okEl.classList.remove('hidden');
+        errEl.classList.add('hidden');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Accedi';
+      }
+    };
+
+    document.getElementById('btn-setup-password').onclick = async () => {
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const errEl = document.getElementById('login-error');
+      const okEl = document.getElementById('login-success');
+      if (!email) {
+        errEl.textContent = 'Inserisci prima la tua email qui sopra.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      const btn = document.getElementById('btn-setup-password');
+      btn.disabled = true;
+      try {
+        const redirectTo = encodeURIComponent(location.origin + location.pathname);
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${redirectTo}`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (!r.ok) throw new Error((await r.json()).msg || 'Errore invio email');
+        okEl.classList.remove('hidden');
+        errEl.classList.add('hidden');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    document.getElementById('set-password-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const newPassword = document.getElementById('new-password').value;
+      const btn = e.target.querySelector('button');
+      const errEl = document.getElementById('set-password-error');
+      btn.disabled = true;
+      btn.textContent = 'Salvataggio...';
+      try {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: 'PUT',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${S.pendingRecoverySession.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: newPassword }),
+        });
+        if (!r.ok) throw new Error((await r.json()).msg || 'Errore impostazione password');
+
+        S.session = S.pendingRecoverySession;
+        localStorage.setItem('garsal_session', JSON.stringify(S.session));
+        localStorage.setItem('sb_token', S.session.access_token);
+        nativeCredsSave(S.session.user.email, newPassword);
+
+        document.getElementById('screen-set-password').classList.add('hidden');
+        await enterApp();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salva password';
+      }
+    };
+
+    /* ── Data ── */
+    async function loadData() {
+      try {
+        const [riservaTx, riservaCats, riservaSaldi, speseTx] = await Promise.all([
+          sb('cntrs_transactions_terr?order=data.desc'),
+          sb('cntrs_categories_terr?order=name'),
+          sb('cntrs_saldi_terr?order=created_at.desc&limit=1'),
+          sb('acct_transactions?order=data.desc,created_at.desc'),
+        ]);
+
+        S.riservaTx = riservaTx;
+        S.riservaCats = riservaCats;
+        S.riservaCatMap = Object.fromEntries(riservaCats.map(c => [c.id, c.name]));
+        S.riservaSaldo = riservaSaldi && riservaSaldi.length ? riservaSaldi[0] : null;
+        S.speseTx = speseTx;
+
+        render();
+      } catch (e) {
+        console.error('Errore caricamento:', e);
+      }
+    }
+
+    function render() {
+      renderRisparmio();
+      renderSpese();
+    }
+
+    /* ── Conto Risparmio Teresa ── */
+    function catNameRisparmio(t) {
+      return S.riservaCatMap[t.category_id] || '(nessuna)';
+    }
+
+    function renderRisparmio() {
+      const anni = [...new Set(S.riservaTx.map(t => t.anno || new Date(t.data).getFullYear()))].sort((a, b) => b - a);
+      if (!anni.includes(S.selectedYearRisparmio)) S.selectedYearRisparmio = anni[0] || new Date().getFullYear();
+
+      const sel = document.getElementById('year-select-risparmio');
+      sel.innerHTML = anni.map(a => `<option value="${a}" ${a === S.selectedYearRisparmio ? 'selected' : ''}>${a}</option>`).join('');
+      sel.onchange = (e) => { S.selectedYearRisparmio = parseInt(e.target.value); renderRisparmio(); };
+
+      const current = S.riservaTx.filter(t => (t.anno || new Date(t.data).getFullYear()) === S.selectedYearRisparmio);
+      const prior = S.riservaTx.filter(t => (t.anno || new Date(t.data).getFullYear()) < S.selectedYearRisparmio);
+
+      let filteredCurrent = current;
+      let filteredPrior = prior;
+      if (S.selectedCategoryRisparmio) {
+        filteredCurrent = filteredCurrent.filter(t => catNameRisparmio(t) === S.selectedCategoryRisparmio);
+        filteredPrior = filteredPrior.filter(t => catNameRisparmio(t) === S.selectedCategoryRisparmio);
+      }
+      const priorTot = filteredPrior.reduce((s, t) => s + t.importo_voce, 0);
+
+      const tbody = document.getElementById('risp-tx-table-body');
+      let html = filteredCurrent.map(t => `
+        <tr>
+          <td class="mono text-sm" data-label="Data">${fmtDate(t.data)}</td>
+          <td class="text-muted" data-label="Categoria">${catNameRisparmio(t)}</td>
+          <td class="text-right mono fw-600" data-label="Importo">${fmtEUR(t.importo_voce)}</td>
+          <td data-label="Descrizione">
+            <div class="fw-600">${t.descrizione}</div>
+            ${t.note ? `<div class="text-muted text-sm">${t.note}</div>` : ''}
+          </td>
+        </tr>
+      `).join('');
+
+      if (filteredPrior.length) {
+        html += `
+          <tr style="background:var(--c-bg)">
+            <td class="mono text-sm" data-label="Data"><strong>Saldo anni precedenti</strong></td>
+            <td data-label="Categoria"></td>
+            <td class="text-right mono fw-600" data-label="Importo">${fmtEUR(priorTot)}</td>
+            <td data-label="Descrizione"></td>
+          </tr>`;
+      }
+
+      tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--c-muted)">Nessun movimento per questo anno</td></tr>';
+
+      const allVoce = S.riservaTx.reduce((s, t) => s + t.importo_voce, 0);
+      document.getElementById('risp-tot-voce').textContent = fmtEUR(allVoce);
+
+      if (S.riservaSaldo) {
+        document.getElementById('risp-tot-saldo').textContent = fmtEUR(S.riservaSaldo.saldo_contabile);
+        document.getElementById('risp-saldo-date').textContent = fmtDate(S.riservaSaldo.data);
+      } else {
+        document.getElementById('risp-tot-saldo').textContent = '—';
+        document.getElementById('risp-saldo-date').textContent = '(nessun saldo)';
+      }
+
+      const catTotals = {};
+      current.forEach(t => {
+        const cat = catNameRisparmio(t);
+        catTotals[cat] = (catTotals[cat] || 0) + t.importo_voce;
+      });
+      document.getElementById('risp-cat-summary').innerHTML = Object.entries(catTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, tot]) => {
+          const isActive = cat === S.selectedCategoryRisparmio;
+          return `
+          <div class="kpi-card" style="cursor:pointer;${isActive ? 'outline:2px solid var(--c-primary);outline-offset:-2px' : ''}" onclick="filterByCategoryRisparmio('${cat.replace(/'/g, "\\'")}')">
+            <div class="kpi-label">${cat}</div>
+            <div class="kpi-value mono" style="font-size:1.1rem">${fmtEUR(tot)}</div>
+          </div>`;
+        }).join('') || '<div class="text-muted text-sm">Nessun movimento per questo anno</div>';
+    }
+
+    function filterByCategoryRisparmio(cat) {
+      S.selectedCategoryRisparmio = S.selectedCategoryRisparmio === cat ? null : cat;
+      renderRisparmio();
+    }
+
+    /* ── Conto Spese Teresa ── */
+    function calcolaQuote(anno) {
+      const txs = S.speseTx.filter(t => t.anno === anno);
+      const bonTeresa = txs.filter(t => t.tipo === 'BONIFICO' && t.persona === 'TERESA').reduce((s, t) => s + +t.importo, 0);
+      const bonSalva = txs.filter(t => t.tipo === 'BONIFICO' && t.persona === 'SALVATORE').reduce((s, t) => s + +t.importo, 0);
+      const altTeresa = txs.filter(t => t.tipo === 'ALTRO' && t.persona === 'TERESA').reduce((s, t) => s + +t.importo, 0);
+      const altSalva = txs.filter(t => t.tipo === 'ALTRO' && t.persona === 'SALVATORE').reduce((s, t) => s + +t.importo, 0);
+      const mensa = txs.filter(t => t.tipo === 'MENSA').reduce((s, t) => s + +t.importo, 0);
+      const versatoTeresa = bonTeresa + altTeresa;
+      const versatoSalva = bonSalva + altSalva + mensa;
+      const totaleSpeso = versatoTeresa + versatoSalva;
+      const quotaTeresa = anno <= 2023 ? totaleSpeso * 2 / 5 : totaleSpeso / 3;
+      const quotaSalva = totaleSpeso - quotaTeresa;
+      const diffTeresa = versatoTeresa - quotaTeresa;
+      const diffSalva = versatoSalva - quotaSalva;
+      return { anno, bonTeresa, bonSalva, altTeresa, altSalva, mensa, versatoTeresa, versatoSalva, totaleSpeso, quotaTeresa, quotaSalva, diffTeresa, diffSalva };
+    }
+
+    function getAnniSpese() {
+      return [...new Set(S.speseTx.map(t => t.anno))].sort((a, b) => b - a);
+    }
+
+    function calcolaTotaliGenerali() {
+      const anni = getAnniSpese();
+      const initTot = () => ({ versatoTeresa: 0, versatoSalva: 0, totaleSpeso: 0, quotaTeresa: 0, quotaSalva: 0, diffTeresa: 0 });
+      const p1 = initTot(); // <= 2023
+      const p2 = initTot(); // >= 2024
+      const tot = initTot();
+      for (const a of anni) {
+        const q = calcolaQuote(a);
+        const target = a <= 2023 ? p1 : p2;
+        [target, tot].forEach(t => {
+          t.versatoTeresa += q.versatoTeresa;
+          t.versatoSalva += q.versatoSalva;
+          t.totaleSpeso += q.totaleSpeso;
+          t.quotaTeresa += q.quotaTeresa;
+          t.quotaSalva += q.quotaSalva;
+          t.diffTeresa += q.diffTeresa;
+        });
+      }
+      return { p1, p2, tot };
+    }
+
+    function badgePersonaSpese(p) { return p === 'TERESA' ? '<span class="badge badge-teresa">Teresa</span>' : '<span class="badge badge-salvatore">Salvatore</span>'; }
+    function badgeTipoSpese(t) { return t === 'BONIFICO' ? '<span class="badge badge-bonifico">Bonifico</span>' : t === 'MENSA' ? '<span class="badge badge-mensa">Mensa</span>' : '<span class="badge badge-altro">Altro</span>'; }
+
+    function renderSpese() {
+      const anni = getAnniSpese();
+      if (!S.selectedYearSpese || !anni.includes(S.selectedYearSpese)) S.selectedYearSpese = anni[0] || new Date().getFullYear();
+      const annoSel = S.selectedYearSpese;
+      const q = calcolaQuote(annoSel);
+      const tot = calcolaTotaliGenerali();
+
+      document.getElementById('spese-versato-teresa').textContent = fmtEUR(tot.tot.versatoTeresa);
+      document.getElementById('spese-versato-salvatore').textContent = fmtEUR(tot.tot.versatoSalva);
+      document.getElementById('spese-totale').textContent = fmtEUR(tot.tot.totaleSpeso);
+      document.getElementById('spese-diff-label').textContent = tot.tot.diffTeresa >= 0 ? 'Salvatore Debito' : 'Teresa Debito';
+      const diffEl = document.getElementById('spese-diff');
+      diffEl.textContent = fmtEUR(Math.abs(tot.tot.diffTeresa));
+      diffEl.className = 'kpi-value mono ' + (tot.tot.diffTeresa >= 0 ? 'pos' : 'neg');
+
+      // Card in stile KPI (una per voce) invece di una tabella: più
+      // leggibile sia su desktop sia su mobile, con i 3 periodi in una
+      // mini-griglia interna anziché in colonne di tabella strette.
+      const periodSub = (label, val, cls) => `
+        <div>
+          <div class="text-muted" style="font-size:.66rem;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;line-height:1.3;">${label}</div>
+          <div class="mono fw-600 ${cls}" style="font-size:.92rem;">${val}</div>
+        </div>`;
+      const metricCard = (label, v1, v2, vtot, cls = '') => `
+        <div class="kpi-card">
+          <div class="kpi-label" style="text-align:left;margin-bottom:10px;">${label}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            ${periodSub('Fino al 2023<br>(2/5-3/5)', fmtEUR(v1), cls)}
+            ${periodSub('Dal 2024<br>(1/3-2/3)', fmtEUR(v2), cls)}
+            ${periodSub('Gran Totale', fmtEUR(vtot), cls + ' fw-700')}
+          </div>
+        </div>`;
+      const metricCardSaldo = (label, v1, v2, vtot) => `
+        <div class="kpi-card">
+          <div class="kpi-label" style="text-align:left;margin-bottom:10px;">${label}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            ${periodSub('Fino al 2023<br>(2/5-3/5)', (v1 >= 0 ? '+' : '') + fmtEUR(v1), v1 >= 0 ? 'pos' : 'neg')}
+            ${periodSub('Dal 2024<br>(1/3-2/3)', (v2 >= 0 ? '+' : '') + fmtEUR(v2), v2 >= 0 ? 'pos' : 'neg')}
+            ${periodSub('Gran Totale', (vtot >= 0 ? '+' : '') + fmtEUR(vtot), (vtot >= 0 ? 'pos' : 'neg') + ' fw-700')}
+          </div>
+        </div>`;
+      document.getElementById('spese-periodi-cards').innerHTML =
+        metricCard('Versato Teresa', tot.p1.versatoTeresa, tot.p2.versatoTeresa, tot.tot.versatoTeresa) +
+        metricCard('Versato Salvatore', tot.p1.versatoSalva, tot.p2.versatoSalva, tot.tot.versatoSalva) +
+        metricCard('Totale Speso', tot.p1.totaleSpeso, tot.p2.totaleSpeso, tot.tot.totaleSpeso) +
+        metricCard('Quota Teresa', tot.p1.quotaTeresa, tot.p2.quotaTeresa, tot.tot.quotaTeresa, 'teresa') +
+        metricCard('Quota Salvatore', tot.p1.quotaSalva, tot.p2.quotaSalva, tot.tot.quotaSalva, 'salvatore') +
+        metricCardSaldo('Saldo Teresa', tot.p1.diffTeresa, tot.p2.diffTeresa, tot.tot.diffTeresa);
+
+      const sel = document.getElementById('year-select-spese');
+      sel.innerHTML = anni.map(a => `<option value="${a}" ${a === annoSel ? 'selected' : ''}>${a}</option>`).join('');
+      sel.onchange = (e) => { S.selectedYearSpese = parseInt(e.target.value); renderSpese(); };
+
+      const activeOutline = 'outline:2px solid var(--c-primary);outline-offset:-2px';
+      document.getElementById('kpi-spese-anno').innerHTML = `
+        <div class="kpi-card" style="cursor:pointer;${S.selectedPersonaSpese === 'TERESA' ? activeOutline : ''}" onclick="filterSpesePersona('TERESA')"><div class="kpi-label">Versato Teresa (${annoSel})</div><div class="kpi-value mono teresa">${fmtEUR(q.versatoTeresa)}</div></div>
+        <div class="kpi-card" style="cursor:pointer;${S.selectedPersonaSpese === 'SALVATORE' ? activeOutline : ''}" onclick="filterSpesePersona('SALVATORE')"><div class="kpi-label">Versato Salvatore (${annoSel})</div><div class="kpi-value mono salvatore">${fmtEUR(q.versatoSalva)}</div></div>
+        <div class="kpi-card" style="cursor:pointer;${!S.selectedPersonaSpese ? activeOutline : ''}" onclick="filterSpesePersona(null)"><div class="kpi-label">Speso ${annoSel}</div><div class="kpi-value mono">${fmtEUR(q.totaleSpeso)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">${q.diffTeresa >= 0 ? 'Salvatore Debito' : 'Teresa Debito'}</div><div class="kpi-value mono ${q.diffTeresa >= 0 ? 'pos' : 'neg'}">${fmtEUR(Math.abs(q.diffTeresa))}</div></div>
+      `;
+
+      const txs = S.speseTx.filter(t => t.anno === annoSel && (!S.selectedPersonaSpese || t.persona === S.selectedPersonaSpese));
+      document.getElementById('spese-tx-list').innerHTML = txs.map(t => `
+        <div class="tx-row" onclick="openSpeseDetail('${t.id}')">
+          ${personaIcon(t.persona)}
+          ${tipoIcon(t.tipo)}
+          <span class="tx-date">${fmtDate(t.data)}</span>
+          <span class="tx-importo">${fmtEUR(t.importo)}</span>
+        </div>
+      `).join('') || '<div style="text-align:center;padding:40px;" class="text-muted">Nessun movimento per questo anno</div>';
+    }
+
+    function filterSpesePersona(persona) {
+      S.selectedPersonaSpese = (persona && S.selectedPersonaSpese === persona) ? null : persona;
+      renderSpese();
+    }
+
+    function personaIcon(p) {
+      return p === 'TERESA'
+        ? '<span class="tx-avatar teresa" title="Teresa">👩</span>'
+        : '<span class="tx-avatar salvatore" title="Salvatore">👨</span>';
+    }
+    function tipoIcon(t) {
+      if (t === 'BONIFICO') return '<span class="tx-tipo-icon" title="Bonifico">💳</span>';
+      if (t === 'MENSA') return '<span class="tx-tipo-icon" title="Mensa">🍽️</span>';
+      return '<span class="tx-tipo-icon" title="Altro">🧾</span>';
+    }
+
+    function openSpeseDetail(id) {
+      const t = S.speseTx.find(x => x.id === id);
+      if (!t) return;
+      document.getElementById('detail-card').innerHTML = `
+        <div class="detail-header">
+          <div class="detail-title">Dettaglio movimento</div>
+          <button id="detail-close" onclick="closeSpeseDetail()">✕</button>
+        </div>
+        <div class="summary-row"><span>Persona</span>${badgePersonaSpese(t.persona)}</div>
+        <div class="summary-row"><span>Tipo</span>${badgeTipoSpese(t.tipo)}</div>
+        <div class="summary-row"><span>Data</span><span class="mono">${fmtDate(t.data)}</span></div>
+        <div class="summary-row"><span>Importo</span><span class="mono fw-600">${fmtEUR(t.importo)}</span></div>
+        <div class="summary-row"><span>Causale</span><span>${t.causale || '—'}</span></div>
+        <div class="summary-row"><span>Descrizione</span><span>${t.descrizione || '—'}</span></div>
+      `;
+      document.getElementById('detail-overlay').classList.remove('hidden');
+    }
+
+    function closeSpeseDetail() {
+      document.getElementById('detail-overlay').classList.add('hidden');
+    }
+
+    // Dentro l'app Android i due collegamenti spariscono: la sua WebView non ha un
+    // DownloadListener, quindi toccare un .apk non farebbe assolutamente nulla — meglio nessun
+    // collegamento che uno morto. Gli APK si scaricano aprendo questa pagina dal browser.
+    if (navigator.userAgent.includes('SituazioneTeresaApp')) {
+      document.getElementById('apk-download-card')?.remove();
+      document.getElementById('apk-sidebar-link')?.remove();
+    }
+
+    handleAuth();
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# ── Header del sito, per Cloudflare Pages ────────────────────────────────────
+# Gemello di `netlify.toml`, che resta finché il sito sta su Netlify: Cloudflare
+# non legge quel file, legge questo. ⚠️ Se cambi una regola, cambiala in tutt'e
+# due finché convivono, o i due host serviranno la stessa pagina in due modi.
+
+# HTML mai in cache: l'APK carica la root "/" dentro una WebView e deve sempre
+# ricevere l'ultima versione, altrimenti resta su una vecchia (login rotto).
+# ⚠️ Qui la regola è `/*` e non `/*.html` come su Netlify: che Cloudflare accetti
+# un carattere jolly a metà percorso non l'ho potuto verificare, e sbagliare da
+# questa parte vuol dire pagine in cache — cioè il difetto che questa riga esiste
+# per togliere. Con `/*` il caso peggiore è che non vada in cache qualcosa che
+# potrebbe: si perde velocità, non si rompe niente.
+/*
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+# Le librerie del Forziere: cambiano solo quando le aggiorniamo a mano, quindi
+# restano in cache a lungo — ed è quel che tiene leggera l'apertura della pagina.
+/vendor/*
+  Cache-Control: public, max-age=604800
+
+# `WebAssembly.instantiateStreaming` rifiuta un tipo diverso da application/wasm,
+# e senza 7-Zip l'export .7z non parte.
+/vendor/7zz.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=604800
+
+# Gli App Links di Android leggono questo file e vogliono il tipo giusto.
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+
+# Gli APK si scaricano, non si aprono.
+/releases/*
+  Content-Disposition: attachment

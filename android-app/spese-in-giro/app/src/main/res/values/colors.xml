@@ -1,0 +1,5 @@
+<resources>
+    <color name="avvio">#12211B</color>
+    <!-- Il fondo dell'icona adattiva: verde notte, come la strada all'alba. -->
+    <color name="ic_launcher_background">#12211B</color>
+</resources>

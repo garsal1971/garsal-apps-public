@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calorie → Peso e Calorie</title>
+  <meta name="robots" content="noindex" />
+  <!-- ⚠️ QUESTA PAGINA NON È PIÙ UN'APP: è il rimando che tiene in piedi i vecchi
+       indirizzi. Il diario alimentare vive dal 9 settembre 2026 dentro `weight-quest.html`,
+       insieme a «Ti pisasti?»: erano due pagine che parlavano dello stesso obiettivo — la
+       seconda leggeva `ps_objectives` scritto dalla prima — e la formula che interpola il
+       peso di piano fra due traguardi esisteva in due copie che andavano cambiate insieme.
+
+       ⚠️ Il file RESTA, e non è una dimenticanza. Lo nominano la riga di `cm_apps` che
+       disegna la bolla in home, `PortedApps.kt` dell'APK nativa (che sulla stessa chiave
+       decide quale schermata aprire), i collegamenti scritti in `memo.html` e in
+       `index.html`, e i segnalibri di chi lo apriva. Cancellandolo, tutti quelli
+       finirebbero su un 404 — e la bolla in home sparirebbe senza dire perché.
+
+       ⚠️ Si va a `#diario` e non alla pagina nuda: chi apriva «Calorie» voleva segnare
+       quel che ha mangiato, e lasciarlo sulla pesata gli farebbe cercare un pulsante. Le
+       sette viste hanno un nome leggibile dall'ancora — `vistaDallAncora()` di là.
+
+       ⚠️ `replace` e non `href`: sostituisce questa pagina nella cronologia invece di
+       aggiungercisi. Col semplice `href`, il tasto «indietro» tornerebbe qui e il rimando
+       ripartirebbe da capo — cioè un indietro che non torna indietro.
+
+       ⚠️ Il <meta refresh> c'è ACCANTO al JavaScript e non al posto suo: è il ripiego per
+       il caso in cui gli script non girino, e non fa `replace` — se ne accorge solo chi
+       arriva senza JavaScript, e per lui vale più arrivare che arrivare senza cronologia. -->
+  <meta http-equiv="refresh" content="0; url=weight-quest.html#diario" />
+  <script>location.replace('weight-quest.html' + (location.hash || '#diario'));</script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f4f7f4; color: #1e2b1e;
+           display: flex; align-items: center; justify-content: center; min-height: 100dvh;
+           margin: 0; padding: 24px; text-align: center; }
+    a { color: #16a34a; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <p>Il diario alimentare è dentro <a href="weight-quest.html#diario">⚖️🍽️ Peso e Calorie</a>.</p>
+</body>
+</html>

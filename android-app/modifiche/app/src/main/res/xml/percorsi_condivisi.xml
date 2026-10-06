@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Solo questa cartella della cache privata: è dove finiscono le copie
+         temporanee delle schermate da allegare, e si svuota a ogni
+         condivisione. Un percorso più largo presterebbe all'app scelta molto
+         più di quel che si sta condividendo. -->
+    <cache-path name="condivise" path="condivise/" />
+</paths>

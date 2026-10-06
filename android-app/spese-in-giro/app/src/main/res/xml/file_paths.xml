@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- La foto appena scattata sta nella cache privata dell'app e se ne va con
+         lei: quello che conta finisce nel bucket, non sul telefono. -->
+    <cache-path name="scontrini" path="scontrini/" />
+</paths>

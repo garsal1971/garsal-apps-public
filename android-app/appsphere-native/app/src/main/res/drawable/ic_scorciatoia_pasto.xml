@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Icona della scorciatoia 🍽️ Segna un pasto: forchetta e coltello bianchi su
+    un disco verde, lo stesso verde di Calorie (VerdeCalorie, #16A34A).
+    Disegnata dentro il cerchio di 22 dp di raggio: il launcher la ritaglia
+    tonda, e quel che sporge sparirebbe.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#16A34A"
+        android:pathData="M24,2a22,22 0 1,0 0,44a22,22 0 1,0 0,-44z" />
+    <!-- forchetta: tre rebbi, il collo e il manico -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,11h2v8h1.5v-8h2v8h1.5v-8h2v10c0,2 -1.4,3.4 -3.2,3.8v12.2c0,0.8 -0.7,1.5 -1.5,1.5h-0.6c-0.8,0 -1.5,-0.7 -1.5,-1.5v-12.2c-1.8,-0.4 -3.2,-1.8 -3.2,-3.8z" />
+    <!-- coltello: lama arrotondata e manico -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M31.5,11c2.8,1.5 4.5,5 4.5,10v4h-2.5v12c0,0.8 -0.7,1.5 -1.5,1.5h-0.5c-0.8,0 -1.5,-0.7 -1.5,-1.5v-26z" />
+</vector>

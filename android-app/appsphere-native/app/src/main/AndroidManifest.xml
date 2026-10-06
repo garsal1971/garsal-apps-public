@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- Le notifiche push. Su Android 13+ il permesso si chiede a runtime: senza,
+         `notify` non fa niente e non lo dice, cioè un promemoria che sparisce. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Health Connect — lettura peso, per la sincronizzazione con la bilancia. -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <!-- Il grasso corporeo, per la massa grassa di «Ti pisasti?» (mai fatale). -->
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
+    <!-- Senza questo, HC lascia leggere solo i dati scritti nei 30 giorni prima
+         della concessione: la finestra di 90 giorni torna tagliata e senza
+         errori. Vedi PERMESSI_SALUTE in Salute.kt. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+
+    <!-- Necessario per rilevare Health Connect e per aprire Renpho — stesse tre righe dell'APK WebView. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />       <!-- HC da Play Store (Android 9-13) -->
+        <package android:name="com.android.healthconnect.controller" />     <!-- HC integrato Android 14+ -->
+        <package android:name="com.renpho.health" />                        <!-- Renpho — aperta da «⚖️ Salute» -->
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppSphereNative"
+        android:usesCleartextTraffic="false">
+
+        <!--
+            Il modello OCR di ML Kit non sta nell'APK (vedi build.gradle): lo
+            tiene Google Play Services. Questa riga glielo fa scaricare
+            all'installazione dell'app invece che al primo utilizzo — senza,
+            la prima foto con l'OCR acceso fallirebbe mentre il modello arriva.
+        -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Le scorciatoie dell'icona (tenendola premuta): 🍽️ Segna un pasto.
+                Le gestisce MainActivity.gestisciScorciatoia.
+            -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
+            <!--
+                Schema PROPRIO, diverso dal garsalapps:// dell'APK WebView.
+                Con lo stesso schema Android mostrerebbe il selettore fra le due
+                app a ogni login. Va aggiunto anche fra i Redirect URLs di
+                Supabase (Authentication → URL Configuration), altrimenti il
+                login fallisce con "redirect_to not allowed".
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="garsalnative" android:host="oauth" />
+            </intent-filter>
+
+            <!-- Necessario per apparire nella lista app di Health Connect — come l'APK WebView. -->
+            <intent-filter>
+                <action android:name="androidx.health.connect.client.SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+
+            <!--
+                Riceve i link condivisi (YouTube, Chrome, WhatsApp) e apre Memo
+                con una scheda 🔗 Link già compilata.
+
+                ⚠️ L'intent-filter lo dichiara SOLO questa APK. I due APK
+                (com.garsal.appsphere e com.garsalapps) convivono sullo stesso
+                telefono con lo stesso logo, distinti solo dal fondo nero/bianco:
+                dichiarandolo in tutt'e due, nel menù "Condividi" comparirebbero
+                due voci indistinguibili e toccherebbe indovinare ogni volta.
+                È la stessa ragione per cui hanno due schemi OAuth diversi.
+                Fino alla v1.1.0 lo dichiarava l'APK WebView: la voce si è
+                SPOSTATA qui, non aggiunta.
+
+                android:label sull'intent-filter è quello che Android scrive
+                nel menù "Condividi": dice dove va a finire, mentre il nome
+                dell'app da solo non lo direbbe.
+            -->
+            <intent-filter android:label="Salva in Memo">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            🍽️ La SECONDA icona nel cassetto delle app, «AppSphere pasto»: apre
+            MainActivity (è un alias, non un'Activity nuova) e MainActivity,
+            riconoscendo da quale componente è stata lanciata, porta dritto al
+            ➕ di Calorie dopo lo sblocco con l'impronta. Vedi gestisciScorciatoia.
+
+            ⚠️ Il nome «.SegnaPasto» è un contratto con Destinazione.PASTO in
+            core/Scorciatoia.kt: cambiato in uno solo dei due, l'icona apre
+            AppSphere sulla home senza nessun errore.
+        -->
+        <activity-alias
+            android:name=".SegnaPasto"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="@string/alias_pasto"
+            android:icon="@mipmap/ic_pasto"
+            android:roundIcon="@mipmap/ic_pasto">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
+            Le notifiche push dei promemoria (canale 'android' di
+            cm_notification_rules), accanto a quelle di Telegram.
+
+            ⚠️ Tutto questo blocco funziona solo con google-services.json in
+            `app/`: senza, FirebaseApp non si inizializza, il servizio non viene
+            mai svegliato e le push restano spente — l'app, per il resto, gira
+            uguale. Vedi `Push.disponibile()`.
+        -->
+        <service
+            android:name=".notifiche.PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- L'icona e il colore che Firebase usa quando una notifica la disegna
+             lui: qui non succede (i messaggi sono di soli dati), ma se un
+             giorno arrivasse una `notification` payload senza queste due righe
+             comparirebbe il quadrato grigio di sistema. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notifica" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="promemoria" />
+
+        <!-- I pulsanti della notifica: ✅ Fatto, ⏸ 1 ora, e le altre scelte. -->
+        <receiver
+            android:name=".notifiche.AzioniNotifica"
+            android:exported="false" />
+
+        <!-- Il dialogo con gli altri rinvii. Trasparente e fuori dai recenti:
+             non è una schermata dell'app, è un pulsante che chiede «quanto?». -->
+        <activity
+            android:name=".notifiche.RinvioActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!--
+            activity-alias richiesto da Android 14+ per apparire in Health Connect.
+            HC usa VIEW_PERMISSION_USAGE + HEALTH_PERMISSIONS per trovare le app compatibili.
+            Senza questo, AppSphere nativa non compare mai nella lista "Le tue app per la salute".
+        -->
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- URL privacy policy richiesto da Health Connect -->
+        <meta-data
+            android:name="health_privacy_policy_url"
+            android:value="https://garsal.men/" />
+
+        <!--
+            Serve alla fotocamera per le foto di Memo: lo scatto va scritto in
+            un file nostro, e senza un FileProvider l'uri che passeremmo
+            all'app fotocamera sarebbe un `file://` che da Android 7 fa
+            crashare l'app chiamata (FileUriExposedException).
+
+            L'autorità porta l'applicationId, che qui è diverso da quello
+            dell'APK WebView: due FileProvider con la stessa autorità sullo
+            stesso telefono impediscono l'installazione della seconda app.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

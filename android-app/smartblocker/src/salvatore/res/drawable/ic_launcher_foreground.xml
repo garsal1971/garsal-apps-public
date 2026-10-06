@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smart Blocker (profilo salvatore): il marchio AppSphere col lucchetto.
+
+     I cinque cerchi sono la **copia identica** di
+     `appsphere-native/.../ic_launcher_foreground.xml`, colori e coordinate
+     compresi: il marchio vive in più posti e vanno cambiati insieme (vedi
+     CLAUDE.md, «Il marchio vive in tre posti»). Quello che distingue quest'app
+     nel cassetto è il lucchetto, non un disegno diverso.
+
+     ⚠️ Solo il flavor `salvatore`. Il flavor `teresa` tiene la sua icona
+     (`main/res/mipmap-*/ic_launcher.png`): sono due app diverse su due
+     telefoni diversi, e Revolut Teresa non è un blocco schermo.
+
+     ⚠️ Niente esce dal **cerchio di sicurezza da 36 dp** dell'icona adattiva.
+     Per i quattro cerchi esterni è r·(1+√2) = 33.8 dp; per il lucchetto il
+     punto peggiore è l'angolo alto-destro dell'arco, (78, 28) → 35.4 dp dal
+     centro. Nella foto di riferimento il lucchetto sporgeva dall'angolo:
+     lì lo taglierebbe la maschera tonda, quindi qui è rientrato — e per
+     rientrare copre il cerchio rosso e sfiora il blu, che è il prezzo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- arancio, in alto a sinistra -->
+    <path
+        android:fillColor="#DE8026"
+        android:pathData="M40.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- rosso, in alto a destra -->
+    <path
+        android:fillColor="#CA372E"
+        android:pathData="M68.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- verde, in basso a sinistra -->
+    <path
+        android:fillColor="#32974C"
+        android:pathData="M40.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- viola, in basso a destra -->
+    <path
+        android:fillColor="#824FA5"
+        android:pathData="M68.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- blu, al centro e sopra ai quattro -->
+    <path
+        android:fillColor="#067BC0"
+        android:pathData="M54.0,54.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- ── Il lucchetto ────────────────────────────────────────────────────
+         Ogni pezzo è disegnato due volte: prima un alone scuro un filo più
+         grande, poi il metallo sopra. Senza l'alone il grigio chiaro sul
+         cerchio rosso non stacca, e a 48 dp nel cassetto il lucchetto si
+         legge come una macchia. -->
+
+    <!-- arco: alone -->
+    <path
+        android:fillColor="#22262A"
+        android:pathData="M60,44 L60,37 A9,9 0 0 1 78,37 L78,44 L73,44 L73,37 A4,4 0 0 0 65,37 L65,44 Z" />
+    <!-- arco: metallo, più scuro del corpo perché sta dietro -->
+    <path
+        android:fillColor="#B9BEC6"
+        android:pathData="M61,44 L61,37 A8,8 0 0 1 77,37 L77,44 L74,44 L74,37 A5,5 0 0 0 64,37 L64,44 Z" />
+
+    <!-- corpo: alone -->
+    <path
+        android:fillColor="#22262A"
+        android:pathData="M63,35.5 L75,35.5 A4.5,4.5 0 0 1 79.5,40 L79.5,50 A4.5,4.5 0 0 1 75,54.5 L63,54.5 A4.5,4.5 0 0 1 58.5,50 L58.5,40 A4.5,4.5 0 0 1 63,35.5 Z" />
+    <!-- corpo: metallo -->
+    <path
+        android:fillColor="#E4E7EB"
+        android:pathData="M63.5,36.5 L74.5,36.5 A4,4 0 0 1 78.5,40.5 L78.5,49.5 A4,4 0 0 1 74.5,53.5 L63.5,53.5 A4,4 0 0 1 59.5,49.5 L59.5,40.5 A4,4 0 0 1 63.5,36.5 Z" />
+
+    <!-- buco della serratura -->
+    <path
+        android:fillColor="#3A4048"
+        android:pathData="M69,43.5 m-2.8,0 a2.8,2.8 0 1,0 5.6,0 a2.8,2.8 0 1,0 -5.6,0" />
+    <path
+        android:fillColor="#3A4048"
+        android:pathData="M67.6,45.2 L70.4,45.2 L71.2,50.3 L66.8,50.3 Z" />
+</vector>

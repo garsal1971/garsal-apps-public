@@ -1,0 +1,15 @@
+-- «Quanti al massimo ogni giorno» per la frequenza 'count_window'.
+--
+-- La finestra chiede N spunte in M giorni; questa colonna dice quante se ne
+-- possono segnare nello **stesso giorno**. Di partenza 1 — cioè un pallino per
+-- giorno, che è il caso normale — e alzandola si possono riempire più pallini
+-- nella stessa giornata (il totale resta N ≤ M, i pallini sono M).
+--
+-- ⚠️ Serve perché senza un tetto le N spunte si potrebbero fare tutte in un
+-- pomeriggio, che è l'opposto di quel che «N volte in M giorni» chiede. È il
+-- numero che decide quando il + si spegne.
+--
+-- ⚠️ NULLABLE come `times_target`/`window_days`: ha senso solo per questa
+-- frequenza, e su daily/weekly resta NULL. `hb_habits` non nasce da nessuna
+-- migration, quindi `if not exists`.
+alter table hb_habits add column if not exists max_per_day integer;

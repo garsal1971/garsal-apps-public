@@ -1,0 +1,31 @@
+# Carica su R2 tutte le APK che stanno in `releases/`.
+#
+# ⚠️ Serve a DUE cose, ed è la ragione per cui è a mano e non su push:
+#   1. la **semina**: il giorno del trasloco su Cloudflare il bucket è vuoto e
+#      le APK già in archivio nessuno le ricompila — senza questo giro
+#      `apk.garsal.men` risponderebbe 404 su tutto finché ogni app non viene
+#      toccata;
+#   2. il **rimedio**: se il caricamento dentro una build fallisce, la scheda
+#      `-latest.json` sul sito annuncia una versione che non si scarica. Qui si
+#      rimette in pari senza dover ricompilare niente.
+#
+# Non gira da sé: su push le APK le carica la build che le ha appena fatte
+# (`scripts/apk-su-r2.sh`, chiamato da ognuno degli otto workflow), e rifarle
+# tutte a ogni commit sarebbe ~190 MB per niente.
+name: Carica le APK su R2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  carica:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Carica releases/*.apk su apk.garsal.men
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash scripts/apk-su-r2.sh releases/*.apk

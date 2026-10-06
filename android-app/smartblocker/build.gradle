@@ -1,0 +1,79 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.garsal.smartblocker'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.garsal.smartblocker"
+        minSdk 26
+        targetSdk 36
+        versionCode 40
+        versionName "1.6.3"
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Due telefoni, un solo codice sorgente. Le differenze passano tutte da BuildConfig:
+    //  · salvatore → app completa (task, sfide Ta Firi, Analisi Costi), token letto da Supabase
+    //    con get_smart_block_token(); applicationId invariato, quindi si aggiorna sul posto.
+    //  · teresa    → solo le notifiche Revolut della SUA carta. Il token non si legge da
+    //    Supabase (quella RPC restituisce l'unico token di Salvatore, LIMIT 1 senza filtro):
+    //    è una costante compilata qui, che la Edge Function revolut-auto-categorize scrive in
+    //    metadata.device_token della riga destinata a lei. Non è un segreto e non protegge
+    //    nulla — la policy smart_block_anon_select lascia leggere tutte le righe smart_block a
+    //    chiunque abbia la anon key: serve solo a indirizzare la notifica al telefono giusto.
+    //    ONLY_APP è la seconda rete: qualsiasi riga che non sia 'cost_analysis' viene ignorata,
+    //    così un blocco task/sfida non può finire sul suo telefono nemmeno per errore.
+    flavorDimensions "profilo"
+    productFlavors {
+        salvatore {
+            dimension "profilo"
+            buildConfigField "String", "PROFILE", '"salvatore"'
+            buildConfigField "String", "FIXED_DEVICE_TOKEN", '""'
+            buildConfigField "String", "ONLY_APP", '""'
+            // Il nome della scheda `-latest.json` pubblicata dal workflow accanto
+            // all'APK: due flavor, due pacchetti, due schede. Sta qui e non in una
+            // costante perché è l'unica cosa che cambia fra i due dentro
+            // `Aggiornamento.kt` — un `if (PROFILE == …)` sarebbe una terza
+            // differenza da tenere allineata a mano.
+            buildConfigField "String", "RELEASE_BASE", '"SmartBlocker-latest"'
+        }
+        teresa {
+            dimension "profilo"
+            applicationIdSuffix ".teresa"
+            buildConfigField "String", "PROFILE", '"teresa"'
+            buildConfigField "String", "FIXED_DEVICE_TOKEN", '"teresa-smartblock"'
+            buildConfigField "String", "ONLY_APP", '"cost_analysis"'
+            buildConfigField "String", "RELEASE_BASE", '"SmartBlockerTeresa-latest"'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+}

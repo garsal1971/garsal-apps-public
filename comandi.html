@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guida — garsal-apps</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #DBEAFE; color: #1E293B;
+  min-height: 100vh;
+  padding-top: 160px;
+}
+
+/* ── BARRA FISSA ─────────────────────────────────────────────────────────── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; padding: 10px 14px;
+  background: #BFDBFE; border-bottom: 1px solid #93C5FD;
+}
+
+/* ── PANNELLO TEST ───────────────────────────────────────────────────────── */
+.panel {
+  background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 10px;
+  padding: 10px 12px;
+}
+.panel-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: #1D4ED8; margin-bottom: 8px;
+}
+
+.td-status {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 7px;
+  font-size: 12px; font-weight: 500; margin-bottom: 7px;
+}
+.td-status.idle    { background: #DBEAFE; color: #475569; border: 1px solid #93C5FD; }
+.td-status.running { background: #172554; color: #93c5fd; border: 1px solid #1e40af; }
+.td-status.done-ok { background: #052e16; color: #86efac; border: 1px solid #166534; }
+.td-status.done-ko { background: #2d0707; color: #fca5a5; border: 1px solid #991b1b; }
+.td-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.td-dot.pulse { animation: tdp 1s ease-in-out infinite; }
+@keyframes tdp { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.td-run-link {
+  display: flex; align-items: center; gap: 6px;
+  background: #172554; border: 1px solid #1e40af; border-radius: 7px;
+  padding: 6px 10px; color: #93c5fd; font-size: 11px;
+  text-decoration: none; margin-bottom: 7px;
+}
+.td-run-link:hover { opacity: .85; }
+
+.td-btns { display: flex; gap: 6px; }
+.td-btn {
+  flex: 1; padding: 8px 6px; border: none; border-radius: 7px;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity .15s;
+}
+.td-btn:disabled { opacity: .4; cursor: not-allowed; }
+.td-btn-primary { background: #6366f1; color: #fff; }
+.td-btn-sm { background: #BFDBFE; color: #1D4ED8; font-size: 11px; font-weight: 500; border: 1px solid #93C5FD; }
+
+.td-token-box {
+  margin-bottom: 7px; padding: 8px; background: #EFF6FF;
+  border: 1px solid #93C5FD; border-radius: 7px; font-size: 11px; color: #334155;
+}
+.td-token-box code {
+  background: #DBEAFE; color: #1D4ED8; padding: 2px 5px;
+  border-radius: 3px; font-size: 10px;
+}
+.td-token-box textarea {
+  width: 100%; margin-top: 5px; background: #fff;
+  border: 1px solid #93C5FD; border-radius: 5px;
+  color: #1e293b; font-size: 10px; padding: 5px; resize: none;
+  font-family: monospace;
+}
+
+/* ── PANNELLO APK ────────────────────────────────────────────────────────── */
+.apk-panel {
+  background: linear-gradient(135deg, #14532D 0%, #064E3B 100%);
+  border: 1px solid #16A34A; border-radius: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.apk-panel-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: #34D399; margin-bottom: 6px;
+}
+.apk-title { font-size: 13px; font-weight: 700; color: #D1FAE5; margin-bottom: 2px; }
+.apk-sub   { font-size: 10px; color: #6EE7B7; margin-bottom: 8px; line-height: 1.4; }
+.apk-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #16A34A; color: #fff; font-size: 13px; font-weight: 700;
+  padding: 9px 16px; border-radius: 7px; text-decoration: none;
+  transition: background .15s; white-space: nowrap;
+}
+.apk-btn:hover { background: #15803D; }
+
+/* ── PANNELLO APK SMART BLOCKER ──────────────────────────────────────────── */
+.apk-panel-blocker {
+  background: linear-gradient(135deg, #2D1B69 0%, #1E0F4E 100%);
+  border: 1px solid #6C5CE7; border-radius: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.apk-panel-blocker .apk-panel-label { color: #A78BFA; }
+.apk-panel-blocker .apk-title       { color: #EDE9FE; }
+.apk-panel-blocker .apk-sub         { color: #C4B5FD; }
+.apk-btn-blocker {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #6C5CE7; color: #fff; font-size: 13px; font-weight: 700;
+  padding: 9px 16px; border-radius: 7px; text-decoration: none;
+  transition: background .15s; white-space: nowrap;
+}
+.apk-btn-blocker:hover { background: #5A4BD1; }
+
+/* ── PANNELLO APK SOS ────────────────────────────────────────────────────── */
+/* Rosso: è il colore del bottone stesso, e nell'elenco degli APK distingue a
+   colpo d'occhio l'app che blocca il telefono da quelle che lo avvisano. */
+.apk-panel-sos {
+  background: linear-gradient(135deg, #5A0F1C 0%, #2B0A11 100%);
+  border: 1px solid #EE334E; border-radius: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.apk-panel-sos .apk-panel-label { color: #FCA5A5; }
+.apk-panel-sos .apk-title       { color: #FEE2E2; }
+.apk-panel-sos .apk-sub         { color: #FCA5A5; }
+.apk-btn-sos {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #EE334E; color: #fff; font-size: 13px; font-weight: 700;
+  padding: 9px 16px; border-radius: 7px; text-decoration: none;
+  transition: background .15s; white-space: nowrap;
+}
+.apk-btn-sos:hover { background: #C81E38; }
+
+/* ── PANNELLO APK SPESE IN GIRO ─────────────────────────────────────────────────── */
+/* Verde salita: è il colore dell'app, che con le altre non ha niente a che
+   fare — «Spese in giro» non è una bolla di AppSphere, è un'APK a sé che si apre col
+   codice di un viaggio. */
+.apk-panel-spese {
+  background: linear-gradient(135deg, #0F4536 0%, #0A241C 100%);
+  border: 1px solid #0F6E4F; border-radius: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.apk-panel-spese .apk-panel-label { color: #86EFAC; }
+.apk-panel-spese .apk-title       { color: #DCFCE7; }
+.apk-panel-spese .apk-sub         { color: #86EFAC; }
+.apk-btn-spese {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #0F6E4F; color: #fff; font-size: 13px; font-weight: 700;
+  padding: 9px 16px; border-radius: 7px; text-decoration: none;
+  transition: background .15s; white-space: nowrap;
+}
+.apk-btn-spese:hover { background: #0B5239; }
+
+/* ── PANNELLO APK APPSPHERE NATIVA ───────────────────────────────────────── */
+/* Blu dei cerchi olimpici (#0081C8): è l'identità di AppSphere, e distingue
+   a colpo d'occhio l'APK nativo dal verde di AppSfera Web (WebView) — i due si
+   installano insieme e vanno saputi tenere separati. */
+.apk-panel-native {
+  background: linear-gradient(135deg, #0C4A6E 0%, #082F49 100%);
+  border: 1px solid #0081C8; border-radius: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.apk-panel-native .apk-panel-label { color: #7DD3FC; }
+.apk-panel-native .apk-title       { color: #E0F2FE; }
+.apk-panel-native .apk-sub         { color: #BAE6FD; }
+.apk-btn-native {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #0081C8; color: #fff; font-size: 13px; font-weight: 700;
+  padding: 9px 16px; border-radius: 7px; text-decoration: none;
+  transition: background .15s; white-space: nowrap;
+}
+.apk-btn-native:hover { background: #026DA8; }
+
+/* ── AREA ISTRUZIONI ─────────────────────────────────────────────────────── */
+.instructions {
+  max-width: 860px; margin: 0 auto; padding: 20px 14px 40px;
+}
+
+/* stili per il contenuto istruzioni */
+.section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: #64748B; margin: 24px 0 10px;
+}
+.card {
+  background: #1E293B; border: 1px solid #334155; border-radius: 10px;
+  margin-bottom: 10px; overflow: hidden;
+}
+.card-header { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; }
+.badge {
+  min-width: 46px; height: 22px; border-radius: 5px; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; letter-spacing: .05em;
+}
+.badge.info  { background: #1E3A5F; color: #93C5FD; border: 1.5px solid #1D4ED8; }
+.badge.setup { background: #312E81; color: #A5B4FC; border: 1.5px solid #4338CA; }
+.card-body { flex: 1; }
+.card-title { font-size: 14px; font-weight: 600; color: #F1F5F9; line-height: 1.4; }
+.card-desc  { font-size: 12px; color: #64748B; margin-top: 6px; line-height: 1.65; }
+.card-desc code { font-family: monospace; background: #0B1423; color: #BAE6FD; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.steps { border-top: 1px solid #334155; }
+.step {
+  display: flex; gap: 12px; padding: 10px 16px;
+  border-bottom: 1px solid #0F172A; font-size: 12.5px; color: #CBD5E1; line-height: 1.6;
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  min-width: 22px; height: 22px; border-radius: 50%; background: #334155;
+  color: #94A3B8; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+}
+.step code { font-family: 'Courier New',monospace; background: #0B1423; color: #BAE6FD; padding: 1px 6px; border-radius: 3px; font-size: 11.5px; }
+.step b { color: #F1F5F9; }
+.code-block { position: relative; padding: 14px 16px; background: #0B1423; border-top: 1px solid #334155; }
+.code-block pre { font-family: 'Courier New',monospace; font-size: 12px; line-height: 1.75; color: #BAE6FD; white-space: pre-wrap; word-break: break-all; padding-right: 72px; }
+.copy-btn {
+  position: absolute; top: 10px; right: 12px;
+  background: #334155; border: 1px solid #475569; color: #CBD5E1;
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 5px;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.copy-btn:hover  { background: #475569; color: #fff; }
+.copy-btn.copied { background: #064E3B; color: #34D399; border-color: #065F46; }
+.tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 4px; }
+.tag.web    { background: #1E3A5F44; color: #93C5FD; border: 1px solid #1E3A5F; }
+.tag.github { background: #1F2937; color: #D1D5DB; border: 1px solid #374151; }
+.tag.once   { background: #78350F44; color: #FCD34D; border: 1px solid #78350F; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     BARRA FISSA — non modificare
+════════════════════════════════════════════════════════ -->
+<div class="topbar">
+
+  <!-- Sinistra: User Test -->
+  <div class="panel">
+    <div class="panel-label">🧪 User Test</div>
+    <div class="td-status idle" id="tdStatus">
+      <span class="td-dot" id="tdDot"></span>
+      <span id="tdStatusText">In attesa</span>
+    </div>
+    <a id="tdRunLink" style="display:none;" class="td-run-link" href="#" target="_blank">
+      🔗 <span id="tdRunLinkText">Apri GitHub Actions</span>
+    </a>
+    <div id="tdTokenBox" class="td-token-box" style="display:none;">
+      Sessione non trovata — apri Console (F12) su <a href="https://garsal.men" target="_blank" style="color:#93c5fd;">garsal.men</a> ed esegui:
+      <code>localStorage.getItem('sb_token')</code>, poi incolla qui:<br>
+      <textarea id="tdTokenInput" rows="2" placeholder="eyJ..."></textarea>
+      <button class="td-btn td-btn-primary" onclick="tdUseToken()" style="width:100%;margin-top:5px;padding:7px;">▶ Avvia con token</button>
+    </div>
+    <div class="td-btns">
+      <button class="td-btn td-btn-primary" id="tdRunBtn" onclick="tdRunTests()">▶ Avvia Test</button>
+      <button class="td-btn td-btn-sm" onclick="tdCheckLatest()">↻ Stato</button>
+    </div>
+  </div>
+
+  <!-- Destra: APK panels -->
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="apk-panel">
+      <div>
+        <div class="apk-panel-label">📱 Android APK</div>
+        <div class="apk-title">AppSfera Web</div>
+        <div class="apk-sub" id="gaSub">Build aggiornata automaticamente</div>
+      </div>
+      <a class="apk-btn" id="gaBtn" href="https://apk.garsal.men/GarsalApps-latest.apk" download="AppSferaWeb.apk">
+        ⬇ Scarica APK
+      </a>
+    </div>
+
+    <div class="apk-panel-native">
+      <div>
+        <div class="apk-panel-label">⚛️ Android APK</div>
+        <div class="apk-title">AppSphere nativa</div>
+        <div class="apk-sub" id="anSub">Kotlin/Compose · si affianca a AppSfera Web</div>
+      </div>
+      <a class="apk-btn-native" id="anBtn" href="https://apk.garsal.men/AppSphereNative-latest.apk" download="AppSphereNative.apk">
+        ⬇ Scarica APK
+      </a>
+    </div>
+
+    <div class="apk-panel-blocker">
+      <div>
+        <div class="apk-panel-label">🔐 Android APK</div>
+        <div class="apk-title">Smart Blocker</div>
+        <div class="apk-sub" id="sbSub">Blocco schedulato 08:00 · 22:00</div>
+      </div>
+      <a class="apk-btn-blocker" id="sbBtn" href="https://apk.garsal.men/SmartBlocker-latest.apk" download="SmartBlocker.apk">
+        ⬇ Scarica APK
+      </a>
+    </div>
+
+    <div class="apk-panel-blocker">
+      <div>
+        <div class="apk-panel-label">💳 Android APK</div>
+        <div class="apk-title">Revolut Teresa</div>
+        <div class="apk-sub" id="stSub">Solo pagamenti con la carta di Teresa</div>
+      </div>
+      <a class="apk-btn-blocker" id="stBtn" href="https://apk.garsal.men/SmartBlockerTeresa-latest.apk" download="RevolutTeresa.apk">
+        ⬇ Scarica APK
+      </a>
+    </div>
+
+    <div class="apk-panel-sos">
+      <div>
+        <div class="apk-panel-label">🆘 Android APK</div>
+        <div class="apk-title">SOS</div>
+        <div class="apk-sub" id="soSub">Bottone rosso · countdown che blocca il telefono</div>
+      </div>
+      <a class="apk-btn-sos" id="soBtn" href="https://apk.garsal.men/Sos-latest.apk" download="Sos.apk">
+        ⬇ Scarica APK
+      </a>
+    </div>
+
+    <div class="apk-panel-spese">
+      <div>
+        <div class="apk-panel-label">🚲 Android APK</div>
+        <div class="apk-title">Spese in giro</div>
+        <div class="apk-sub" id="sgSub">Le spese di un viaggio in bici, divise fra due</div>
+      </div>
+      <a class="apk-btn-spese" id="sgBtn" href="https://apk.garsal.men/SpeseInGiro-latest.apk" download="SpeseInGiro.apk">
+        ⬇ Scarica APK
+      </a>
+    </div>
+  </div>
+
+</div>
+<!-- fine barra fissa -->
+
+
+<!-- ══════════════════════════════════════════════════════
+     AREA ISTRUZIONI — sostituire il contenuto ad ogni modifica
+════════════════════════════════════════════════════════ -->
+<div class="instructions">
+
+  <div class="section-title">⚛️ AppSphere nativa — prima installazione</div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="badge setup">SETUP</div>
+      <div class="card-body">
+        <div class="card-title">Redirect URL su Supabase — senza questo il login non torna nell'app</div>
+        <div class="card-desc">
+          Supabase Dashboard → <b>Authentication → URL Configuration → Redirect URLs</b> →
+          aggiungere <code>https://garsal.men/oauth-callback-native.html</code>.<br>
+          <strong>Non</strong> <code>garsalnative://oauth</code>: quello è lo schema con cui la
+          pagina-ponte rilancia l'app, e Supabase non lo vede mai. Chrome
+          <strong>blocca il salto automatico</strong> da una pagina di login a uno schema custom,
+          quindi il login deve atterrare su una pagina <code>https</code> che rimanda all'app col
+          tap dell'utente — è lo stesso giro che AppSfera Web fa da
+          <code>oauth-callback.html</code>.<br>
+          Se l'elenco ha già una regola con <code>*</code> su <code>garsal.men</code> è
+          coperto così com'è; se manca, il login finisce sul sito e non torna mai nell'app.
+        </div>
+        <div class="tags">
+          <span class="tag once">una tantum</span>
+          <span class="tag web">supabase prod</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="badge setup">APK</div>
+      <div class="card-body">
+        <div class="card-title">Si installa <em>accanto</em> a AppSfera Web, non al posto suo</div>
+        <div class="card-desc">
+          <code>applicationId</code> diverso (<code>com.garsal.appsphere</code> contro
+          <code>com.garsalapps</code>): i due APK convivono sullo stesso telefono e leggono lo
+          stesso database.<br>
+          La home nativa mostra <strong>solo le app già portate in Kotlin</strong> — oggi
+          Spuntiamola, Obiettivi ed Events Log. Per tutto il resto (Tasks, Finanza, Spese Famiglia…)
+          si continua ad aprire AppSfera Web.<br>
+          <b>La prova che conta</b>: spunta un giorno su Spuntiamola dal nativo, poi apri
+          <code>spuntiamola.html</code> nel browser — deve esserci, <em>con la stessa emoji</em>.
+        </div>
+        <div class="tags">
+          <span class="tag once">prima installazione</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">🔐 Smart Block — Setup completo (una-tantum)</div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="badge setup">SQL</div>
+      <div class="card-body">
+        <div class="card-title">Smart Block — DDL + Device Token</div>
+        <div class="card-desc">
+          Eseguire <strong>una sola volta</strong> nel <b>SQL Editor di Supabase (prod)</b>.<br>
+          Aggiunge <code>'smart_block'</code> al CHECK di <code>cm_notification_rules.channel</code>,
+          le RLS per il client Android, il device token e la funzione di lettura per l'app.
+        </div>
+        <div class="tags">
+          <span class="tag once">una tantum</span>
+          <span class="tag web">supabase prod</span>
+        </div>
+      </div>
+    </div>
+    <div class="code-block" id="sb-smart-block-ddl">
+      <button class="copy-btn" onclick="copyCode('sb-smart-block-ddl', this)">Copia</button>
+      <pre>-- ── 1. cm_notification_rules.channel: aggiunge 'smart_block' ──────
+ALTER TABLE cm_notification_rules
+    DROP CONSTRAINT IF EXISTS cm_notification_rules_channel_check;
+
+ALTER TABLE cm_notification_rules
+    ADD CONSTRAINT cm_notification_rules_channel_check
+        CHECK (channel IN ('telegram', 'browser', 'push', 'smart_block'));
+
+-- ── 2. cm_notification_queue: RLS per client Android (anon key) ────
+DROP POLICY IF EXISTS "smart_block_anon_select" ON cm_notification_queue;
+DROP POLICY IF EXISTS "smart_block_anon_update" ON cm_notification_queue;
+
+CREATE POLICY "smart_block_anon_select"
+    ON cm_notification_queue FOR SELECT TO anon
+    USING (channel = 'smart_block');
+
+CREATE POLICY "smart_block_anon_update"
+    ON cm_notification_queue FOR UPDATE TO anon
+    USING  (channel = 'smart_block')
+    WITH CHECK (channel = 'smart_block' AND status IN ('sent', 'failed'));
+
+-- ── 3. Device token in cm_user_notification_settings ───────────────
+ALTER TABLE cm_user_notification_settings
+    ADD COLUMN IF NOT EXISTS smart_block_device_token text;
+
+INSERT INTO cm_user_notification_settings (user_id, smart_block_device_token)
+SELECT id, gen_random_uuid()
+FROM   auth.users
+LIMIT  1
+ON CONFLICT (user_id) DO UPDATE
+SET smart_block_device_token = COALESCE(
+    cm_user_notification_settings.smart_block_device_token,
+    EXCLUDED.smart_block_device_token
+);
+
+-- ── 4. Funzione read-only per app Android (anon key) ───────────────
+CREATE OR REPLACE FUNCTION public.get_smart_block_token()
+RETURNS text LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    SELECT smart_block_device_token FROM cm_user_notification_settings LIMIT 1;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_smart_block_token()    TO anon;
+GRANT EXECUTE ON FUNCTION public.task_complete(uuid, date)  TO anon;
+
+-- Mostra il token generato
+SELECT smart_block_device_token FROM cm_user_notification_settings;</pre>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top:24px;">
+    <div class="section-title">🔍 Verifica Smart Block</div>
+    <p style="font-size:0.85rem;color:#666;margin-bottom:8px;">Controlla token, regole e coda:</p>
+    <div class="code-block" id="sb-smart-block-verify">
+      <button class="copy-btn" onclick="copyCode('sb-smart-block-verify', this)">Copia</button>
+      <pre>-- Token impostato
+SELECT user_id, smart_block_device_token FROM cm_user_notification_settings;
+
+-- Regole smart_block (device_token nel JSON)
+SELECT id, entity_title, reminder_presets->>'device_token' AS token,
+       reminder_presets->>'smart_block_fire_at' AS fire_at
+FROM   cm_notification_rules
+WHERE  channel = 'smart_block';
+
+-- Coda smart_block per stato
+SELECT status, count(*)
+FROM   cm_notification_queue
+WHERE  channel = 'smart_block'
+GROUP  BY status;
+
+-- Funzioni anon accessibili
+SELECT routine_name FROM information_schema.routines
+WHERE  routine_name IN ('get_smart_block_token', 'task_complete')
+AND    routine_schema = 'public';</pre>
+    </div>
+  </div>
+
+</div>
+<!-- fine istruzioni -->
+
+
+<script>
+// ── Quale versione sto scaricando ─────────────────────────────────────────────
+// Il file si chiama sempre `<nome>-latest.apk`: senza questo blocco il
+// pulsante non dice niente su cosa c'è dentro, e scaricare la build di ieri al
+// posto di quella appena pubblicata è indistinguibile da un aggiornamento
+// riuscito — finché l'app non rifà lo stesso difetto che era appena stato
+// chiuso. La scheda la scrive il workflow accanto all'APK.
+// Il `?v=` non serve al server: serve a impedire che il browser riproponga il
+// pacchetto già scaricato quando l'indirizzo è identico.
+async function mostraVersione(idSub, idBtn, nomeFile, coda) {
+  var sub = document.getElementById(idSub);
+  var btn = document.getElementById(idBtn);
+  if (!sub || !btn) return;
+  try {
+    var res = await fetch('/releases/' + nomeFile + '.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var b = await res.json();
+    var mb = (b.bytes / 1048576).toFixed(1).replace('.', ',');
+    var d  = new Date(b.builtAt);
+    var data = isNaN(d) ? '' : ' · ' + d.toLocaleDateString('it-IT') + ' ' +
+               d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    sub.innerHTML = '<b>v' + b.version + '</b> (build ' + b.versionCode + ')' + data +
+                    ' · ' + mb + ' MB<br>' + coda;
+    // ⚠️ La scheda sta sul sito, il pacchetto su R2: Cloudflare Pages rifiuta
+    // i file oltre i 25 MiB e il file troppo grosso non fallisce da solo — fallisce
+    // l'intero deploy — quindi le APK sono tutte fuori dal sito.
+    btn.href = 'https://apk.garsal.men/' + nomeFile + '.apk?v=' + encodeURIComponent(b.version);
+    btn.title = 'SHA-256: ' + b.sha256;
+  } catch (e) {
+    // Meglio dirlo che lasciar credere che la versione mostrata sia quella
+    // vera: qui sotto non c'è nessun numero, e il pulsante resta com'era.
+    sub.textContent = 'Versione non leggibile (' + e.message + ') · ' + coda;
+  }
+}
+
+mostraVersione('anSub', 'anBtn', 'AppSphereNative-latest', 'Kotlin/Compose · si affianca a AppSfera Web');
+mostraVersione('gaSub', 'gaBtn', 'GarsalApps-latest', 'WebView · dentro l\'app: ☰ → 📱 Versione app');
+// Due flavor dello stesso codice, due APK con applicationId diversi: quindi due
+// schede distinte e non una sola letta due volte — il pacchetto di Teresa non si
+// installa sopra a quello di Salvatore, e viceversa.
+mostraVersione('sbSub', 'sbBtn', 'SmartBlocker-latest', 'Blocco schedulato 08:00 · 22:00 · dentro l\'app: ☰ → 📱 Versione app');
+mostraVersione('stSub', 'stBtn', 'SmartBlockerTeresa-latest', 'Solo pagamenti con la carta di Teresa · dentro l\'app: ☰ → 📱 Versione app');
+mostraVersione('soSub', 'soBtn', 'Sos-latest', 'Bottone rosso · dentro l\'app: ⚙️ → 📱 Versione app');
+mostraVersione('sgSub', 'sgBtn', 'SpeseInGiro-latest', 'Spese di viaggio in due · dentro l\'app: ⚙️ → 📱 Versione app');
+
+function copyCode(blockId, btn) {
+  var pre = document.getElementById(blockId).querySelector('pre');
+  navigator.clipboard.writeText(pre ? pre.innerText : '').then(function() {
+    btn.textContent = '✓ Copiato'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copia'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── Test Dashboard ────────────────────────────────────────────────────────────
+const TD_REPO     = 'garsal1971/garsal-apps';
+const TD_WORKFLOW = 'user-tests.yml';
+const TD_GH_API   = 'https://api.github.com';
+const TD_PAT      = ['github_pat_11ANXAHXQ','0k3xBxlTrh8t2_fkSeWUHPqBZnOuJd','95Ks8k83nk3teLDGUfTjzGmkgavL4LPPCHT09Cil0af'].join('');
+const TD_SB_KEY   = 'sb_token';
+let tdPollTimer   = null;
+
+async function tdFetch(path, opts = {}) {
+  const res = await fetch(TD_GH_API + path, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + TD_PAT, 'Accept': 'application/vnd.github+json',
+               'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers || {}) }
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || 'HTTP ' + res.status); }
+  return res.status === 204 ? null : res.json();
+}
+
+function tdSetStatus(cls, text) {
+  document.getElementById('tdStatus').className = 'td-status ' + cls;
+  document.getElementById('tdDot').className = 'td-dot' + (cls === 'running' ? ' pulse' : '');
+  document.getElementById('tdStatusText').textContent = text;
+}
+
+function tdGetSession() {
+  return localStorage.getItem(TD_SB_KEY) || localStorage.getItem('td_saved_session');
+}
+
+async function tdRunTests() {
+  const s = tdGetSession();
+  if (!s || s === 'null') {
+    document.getElementById('tdTokenBox').style.display = 'block';
+    document.getElementById('tdRunBtn').style.display = 'none';
+    return;
+  }
+  await tdDispatch(s);
+}
+
+async function tdUseToken() {
+  const val = document.getElementById('tdTokenInput').value.trim();
+  if (!val) { alert('Incolla prima il token.'); return; }
+  localStorage.setItem('td_saved_session', val);
+  document.getElementById('tdTokenBox').style.display = 'none';
+  document.getElementById('tdRunBtn').style.display = 'block';
+  await tdDispatch(val);
+}
+
+async function tdDispatch(sbSession) {
+  document.getElementById('tdRunBtn').disabled = true;
+  tdSetStatus('running', 'Avvio workflow...');
+  try {
+    await tdFetch('/repos/' + TD_REPO + '/actions/workflows/' + TD_WORKFLOW + '/dispatches', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: 'master', inputs: { sb_session: sbSession } })
+    });
+  } catch(e) {
+    tdSetStatus('done-ko', '✗ ' + e.message);
+    document.getElementById('tdRunBtn').disabled = false;
+    return;
+  }
+  await new Promise(r => setTimeout(r, 4000));
+  tdSetStatus('running', 'In esecuzione...');
+  tdPollTimer = setInterval(tdCheckLatest, 6000);
+  tdCheckLatest();
+}
+
+async function tdCheckLatest() {
+  try {
+    const data = await tdFetch('/repos/' + TD_REPO + '/actions/workflows/' + TD_WORKFLOW + '/runs?per_page=1');
+    if (!data || !data.workflow_runs.length) return;
+    const run = data.workflow_runs[0];
+    const link = document.getElementById('tdRunLink');
+    link.href = run.html_url;
+    document.getElementById('tdRunLinkText').textContent = 'Run #' + run.run_number + ' — ' + (run.status === 'completed' ? run.conclusion : run.status);
+    link.style.display = 'flex';
+    if (run.status === 'completed') {
+      clearInterval(tdPollTimer);
+      const ok = run.conclusion === 'success';
+      tdSetStatus(ok ? 'done-ok' : 'done-ko', ok ? '✓ Completati' : '✗ Falliti');
+      document.getElementById('tdRunBtn').disabled = false;
+    } else {
+      tdSetStatus('running', 'Run #' + run.run_number + '...');
+    }
+  } catch(e) { console.error(e); }
+}
+
+tdCheckLatest();
+</script>
+</body>
+</html>

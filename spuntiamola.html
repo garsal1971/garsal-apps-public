@@ -1,0 +1,3056 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ Spuntiamola v1.3.4</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF3366;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --border: #E5E7EB;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Darker Grotesque', sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 45%, #6C5CE7 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--dark);
+            overflow-x: hidden;
+            padding-top: 56px;
+        }
+
+        /* ── TOP BAR ── */
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: #0081C8;
+            display: flex; align-items: center; padding: 0 20px; gap: 10px;
+            z-index: 3000;
+        }
+        #garsal-top-bar-text {
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px;
+        }
+        .topbar-spacer { flex: 1; }
+
+        .app-version {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.62rem;
+            color: rgba(255,255,255,0.8);
+            background: rgba(0,0,0,0.18);
+            padding: 4px 9px;
+            border-radius: 99px;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 8px; }
+
+        .btn-icon {
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform .15s, background .15s;
+        }
+        .btn-icon:hover { background: rgba(255,255,255,0.32); transform: translateY(-2px); }
+        .btn-icon:active { transform: scale(0.94); }
+
+        .main {
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 18px 14px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.96);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+
+        /* ── HERO ── */
+        .hero { text-align: center; }
+
+        .hero-goal {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+
+        .hero-number {
+            font-size: 5rem;
+            font-weight: 900;
+            line-height: 0.95;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-label {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-top: 2px;
+        }
+
+        .hero-range {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        /* ── PROGRESS ── */
+        .progress-wrap { margin-top: 18px; }
+
+        .progress-bar {
+            height: 16px;
+            background: #EDF0F3;
+            border-radius: 99px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), #38ef7d);
+            border-radius: 99px;
+            width: 0%;
+            transition: width .5s cubic-bezier(.34,1.56,.64,1);
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-top: 7px;
+        }
+
+        /* ── STATS ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .stat {
+            background: #F7F8FA;
+            border-radius: 14px;
+            padding: 12px 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--dark);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        /* ── CTA ── */
+        .btn-today {
+            width: 100%;
+            margin-top: 18px;
+            padding: 16px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--success), #0aa)  ;
+            color: white;
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0,184,148,0.4);
+            transition: transform .15s, box-shadow .15s;
+        }
+        .btn-today:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,184,148,0.5); }
+        .btn-today:active { transform: scale(0.98); }
+        .btn-today:disabled {
+            background: #D8DDE3;
+            color: #98A2AE;
+            box-shadow: none;
+            cursor: default;
+            transform: none;
+        }
+
+        /* ── AVVISO "OGGI NON SPUNTATO" ── */
+        .todo-banner {
+            margin-top: 14px;
+            background: linear-gradient(135deg, #FFF6E5, #FFEFD6);
+            border: 2px dashed var(--warning);
+            border-radius: 16px;
+            padding: 13px 16px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+        .todo-banner.show { display: flex; }
+        .todo-emoji { font-size: 1.9rem; line-height: 1; flex-shrink: 0; }
+        .todo-text  { font-size: 1.05rem; font-weight: 700; color: #8A5A00; line-height: 1.25; }
+
+        /* ── TOAST — il messaggio simpatico, 2,5 secondi ──
+           Sta al centro dello schermo e occupa circa metà dell'area:
+           impossibile non vederlo. Resta pointer-events:none, così
+           non blocca nulla mentre è a video. */
+        .toast {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.86);
+            width: clamp(320px, 60vw, 900px);
+            min-height: 52vh;
+            background: rgba(24,30,40,0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: white;
+            padding: 36px 32px;
+            border-radius: 30px;
+            box-shadow: 0 26px 80px rgba(0,0,0,0.45);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 22px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s, transform .3s cubic-bezier(.34,1.4,.64,1);
+            z-index: 3200;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+        .toast-emoji { font-size: 7rem; line-height: 1; flex-shrink: 0; }
+        .toast-text  { font-size: 2.6rem; font-weight: 800; line-height: 1.15; }
+
+        .toast.big { background: linear-gradient(135deg, #6C5CE7, #FF3366); }
+        .toast.big .toast-emoji { font-size: 8rem; }
+        .toast.big .toast-text  { font-size: 3rem; }
+
+        /* chiusura andata così così: il messaggio consola, non festeggia */
+        .toast.dolce { background: linear-gradient(135deg, #22364A, #3E5C76); }
+        .toast.dolce .toast-emoji { font-size: 7.5rem; }
+        .toast.dolce .toast-text  { font-size: 2.4rem; font-weight: 700; }
+
+        /* giornata chiave: il messaggio più importante di tutti */
+        .toast.chiave {
+            background: linear-gradient(135deg, #F7971E, #FFD200 55%, #FF3366);
+            color: #2A1A00;
+            box-shadow: 0 26px 90px rgba(255,180,0,0.6);
+        }
+        .toast.chiave .toast-emoji { font-size: 8.5rem; }
+        .toast.chiave .toast-text  { font-size: 3.2rem; font-weight: 900; }
+
+        /* ── STATO SINCRONIZZAZIONE ── */
+        .sync-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.62rem;
+            padding: 4px 9px;
+            border-radius: 99px;
+            background: rgba(0,0,0,0.2);
+            color: rgba(255,255,255,0.8);
+            white-space: nowrap;
+        }
+        .sync-badge.offline { background: rgba(231,76,60,0.85); color: #fff; }
+
+        /* ── AUTH ── */
+        #authOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,20,28,0.9);
+            z-index: 5000;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            padding: 24px;
+        }
+        .auth-box { max-width: 340px; }
+        .auth-icon { font-size: 3rem; margin-bottom: 12px; }
+        .auth-title { font-size: 1.7rem; font-weight: 900; margin-bottom: 6px; }
+        .auth-desc { font-size: 1rem; opacity: 0.75; font-weight: 600; line-height: 1.4; }
+
+        /* ── CALENDARIO ── */
+        .cal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .legend {
+            display: flex;
+            gap: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--muted);
+            flex-wrap: wrap;
+        }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .legend i {
+            width: 11px; height: 11px; border-radius: 4px; display: inline-block;
+            border: 1px solid var(--border);
+        }
+        .lg-done   { background: var(--success); border-color: var(--success) !important; }
+        .lg-today  { background: #FFF; border: 2px solid var(--secondary) !important; }
+        .lg-missed { background: #FFE3E3; border-color: #F5B5B5 !important; }
+        .lg-future { background: #F2F4F7; }
+
+        .month-block { margin-bottom: 18px; }
+        .month-block:last-child { margin-bottom: 0; }
+
+        .month-name {
+            font-size: 0.82rem;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .month-name::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .month-count {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--muted);
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+            gap: 6px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            border-radius: 11px;
+            border: 1.5px solid var(--border);
+            background: #F2F4F7;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: transform .12s, background .2s, border-color .2s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .day:hover { transform: translateY(-2px); border-color: var(--secondary); }
+        .day:active { transform: scale(0.92); }
+
+        .day-num {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .day-mark { font-size: 1.15rem; line-height: 1; }
+
+        .day.done {
+            background: linear-gradient(135deg, #E4FBF2, #D3F8E8);
+            border-color: var(--success);
+        }
+        .day.done .day-num { color: var(--success); }
+
+        .day.missed { background: #FFE9E9; border-color: #F5C2C2; }
+        .day.missed .day-num { color: var(--danger); }
+
+        .day.today {
+            border: 2.5px solid var(--secondary);
+            box-shadow: 0 0 0 3px rgba(108,92,231,0.16);
+        }
+        .day.today .day-num { color: var(--secondary); font-weight: 700; }
+
+        .day.weekend .day-num { opacity: 0.55; }
+
+        /* ── GIORNATA CHIAVE ── */
+        .day.chiave {
+            border: 2.5px solid #F7971E;
+            background: linear-gradient(135deg, #FFF7E0, #FFE9B0);
+            box-shadow: 0 0 0 3px rgba(247,151,30,0.16);
+        }
+        .day.chiave .day-num { color: #B26A00; font-weight: 700; }
+        .day.chiave::after {
+            content: '★';
+            position: absolute;
+            top: -6px;
+            right: -3px;
+            font-size: 0.8rem;
+            color: #F7971E;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .day.chiave.done {
+            background: linear-gradient(135deg, #FFE9B0, #FFD166);
+            border-color: #E8890B;
+        }
+        .day.chiave.done .day-num { color: #8A5000; }
+        /* una giornata chiave passata e non spuntata resta comunque dorata */
+        .day.chiave.missed { background: linear-gradient(135deg, #FFF0E0, #FFD9C0); }
+
+        .day.pop { animation: pop .45s cubic-bezier(.34,1.56,.64,1); }
+        @keyframes pop {
+            0%   { transform: scale(1); }
+            45%  { transform: scale(1.32) rotate(-7deg); }
+            100% { transform: scale(1); }
+        }
+
+        /* ── EMPTY ── */
+        .empty {
+            text-align: center;
+            padding: 26px 16px;
+            color: var(--muted);
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .empty-emoji { font-size: 2.6rem; display: block; margin-bottom: 8px; }
+
+        /* ── MODALE ── */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(20,25,35,0.55);
+            backdrop-filter: blur(3px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 3100;
+        }
+        .overlay.show { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 22px;
+            width: 100%;
+            max-width: 440px;
+            max-height: 92vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp .3s cubic-bezier(.34,1.4,.64,1);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(24px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 900;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .field { margin-bottom: 15px; }
+
+        .field label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+
+        .field input[type="text"],
+        .field input[type="date"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.92rem;
+            color: var(--dark);
+            background: #F9FAFB;
+            transition: border-color .2s;
+        }
+        .field input:focus { outline: none; border-color: var(--secondary); background: white; }
+
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .field-hint {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-top: 5px;
+            font-weight: 600;
+        }
+
+        /* ── L'UMORE DELLA STECCA ──
+           Due schede affiancate invece di un interruttore: non sono «acceso /
+           spento» ma due letture opposte della stessa griglia, e ciascuna ha
+           bisogno di una riga che spieghi quale. Sotto i 420 px vanno una
+           sopra l'altra — coi caratteri di sistema grandi due colonne di testo
+           si sfilacciano, ognuna andando a capo un numero diverso di volte. */
+        .mood-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        @media (max-width: 420px) { .mood-grid { grid-template-columns: 1fr; } }
+
+        .mood-opt {
+            padding: 12px 12px 13px;
+            background: #F9FAFB;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+            min-height: 0;
+        }
+        .mood-opt:hover { border-color: #CBD2DA; }
+        .mood-opt.on { border-color: var(--secondary); background: #F3F1FF; }
+        .mood-opt-emoji { font-size: 1.5rem; line-height: 1.1; }
+        .mood-opt-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-top: 4px;
+        }
+        .mood-opt-sub {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin-top: 3px;
+            line-height: 1.35;
+        }
+
+        /* L'umore in cima alla card: dice con che voce sta parlando l'app.
+           ⚠️ La .card è bianca, non colorata: un badge chiaro su chiaro qui
+           sparisce — il fondo tinto e il testo scuro sono quel che lo rende
+           leggibile, non una decorazione. */
+        .hero-mood {
+            display: inline-block;
+            margin-bottom: 10px;
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            background: #EEF0F4;
+            color: var(--dark);
+            border: 2px solid var(--border);
+        }
+        .hero-mood.vuoto { display: none; }
+
+        .stecca-mood {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--muted);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            background: #F9FAFB;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .toggle-label { font-size: 1rem; font-weight: 700; color: var(--dark); }
+        .toggle-sub { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-top: 2px; }
+
+        .switch {
+            width: 46px;
+            height: 26px;
+            border-radius: 99px;
+            background: #CBD2DA;
+            position: relative;
+            flex-shrink: 0;
+            transition: background .2s;
+        }
+        .switch::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 20px; height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform .2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .switch.on { background: var(--success); }
+        .switch.on::after { transform: translateX(20px); }
+
+        /* ── GIORNATE CHIAVE NELLE IMPOSTAZIONI ── */
+        .key-add {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            align-items: stretch;
+        }
+        /* il bottone va a capo: così data e nome hanno spazio per respirare */
+        .key-add-btn { grid-column: 1 / -1; }
+        .key-add input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--dark);
+            background: #F9FAFB;
+            min-width: 0;
+        }
+        .key-add input:focus { outline: none; border-color: var(--secondary); background: white; }
+        .key-add-btn { padding: 11px 16px; font-size: 1rem; }
+
+        .key-list { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+
+        .key-item {
+            display: flex;
+            align-items: center;
+            /* l'avviso va a capo su una riga sua: dentro .key-item-label, che
+               è nowrap con l'ellissi, verrebbe tagliato dal bordo */
+            flex-wrap: wrap;
+            gap: 10px;
+            background: linear-gradient(135deg, #FFF7E0, #FFEFC7);
+            border: 1.5px solid #F5CE7A;
+            border-radius: 12px;
+            padding: 9px 12px;
+        }
+        /* una chiave che il periodo, accorciandosi, ha lasciato fuori */
+        .key-item.fuori {
+            background: linear-gradient(135deg, #FDECEA, #FADBD8);
+            border-color: #E9A79F;
+        }
+        .key-item.fuori .key-item-date { color: #A83227; }
+        .key-item-warn {
+            flex-basis: 100%;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #A83227;
+            line-height: 1.35;
+        }
+        .key-item-date {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #B26A00;
+            flex-shrink: 0;
+        }
+        .key-item-label {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark);
+            /* ⚠️ La base in `rem` cresce col testo di sistema: sotto quella
+               soglia l'etichetta va a capo su una riga sua invece di essere
+               schiacciata dalla data, che è nowrap. A 200 % «Gita in barca»
+               si leggeva «G..». */
+            flex: 1 1 8rem;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .key-item-del {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .key-item-del:hover { background: rgba(231,76,60,0.12); }
+
+        .key-empty {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--muted);
+            padding: 8px 2px;
+        }
+
+        /* ── LE STECCHE CHIUSE (archivio) ── */
+        .stecche-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .stecca {
+            border: 1.5px solid var(--border);
+            border-radius: 16px;
+            padding: 13px 15px;
+            background: linear-gradient(135deg, #FBFCFE, #F4F7FA);
+        }
+        .stecca-top {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 3px;
+        }
+        .stecca-emoji { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+        .stecca-goal {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--dark);
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .stecca-seal {
+            font-size: 1.25rem;
+            line-height: 1;
+            flex-shrink: 0;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.18));
+        }
+        .stecca-del {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-size: 1.05rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 4px 7px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            opacity: 0.55;
+        }
+        .stecca-del:hover { background: rgba(231,76,60,0.12); opacity: 1; }
+        .stecca-meta {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+        .stecca-sat-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 9px;
+        }
+        .stecca-sat-bar {
+            flex: 1;
+            height: 9px;
+            background: #E7EBF0;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+        .stecca-sat-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #E74C3C, #F39C12 45%, #00B894);
+        }
+        .stecca-sat-num {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--dark);
+            flex-shrink: 0;
+        }
+        .stecca-note {
+            margin-top: 9px;
+            padding: 9px 12px;
+            background: white;
+            border-left: 3px solid var(--secondary);
+            border-radius: 0 10px 10px 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+            line-height: 1.35;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* ── CHIUSURA DELLA STECCA ── */
+        .close-step { display: none; }
+        .close-step.on { display: block; }
+
+        .close-head {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .close-head-emoji { font-size: 3.2rem; line-height: 1; }
+        .close-head-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--dark);
+            margin-top: 4px;
+        }
+        .close-head-sub {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--muted);
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+
+        /* l'ultima spunta: un bersaglio grosso, si preme una volta sola */
+        .final-check {
+            width: 100%;
+            padding: 26px 16px;
+            border: 3px dashed var(--success);
+            border-radius: 20px;
+            background: linear-gradient(135deg, #EAFBF4, #DAF7EA);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: transform .18s cubic-bezier(.34,1.5,.64,1), background .25s, border-color .25s;
+        }
+        .final-check:hover { transform: translateY(-3px); }
+        .final-check:active { transform: scale(0.96); }
+        .final-check-mark { font-size: 4.2rem; line-height: 1; }
+        .final-check-text {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #067A5F;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .final-check.fatta {
+            border-style: solid;
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--success), #38ef7d);
+            animation: pop .5s cubic-bezier(.34,1.56,.64,1);
+        }
+        .final-check.fatta .final-check-text { color: white; }
+
+        /* barra della soddisfazione */
+        .sat-value {
+            text-align: center;
+            font-size: 4.4rem;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .sat-caption {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-top: 2px;
+            min-height: 1.6em;
+        }
+        .sat-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 14px;
+            margin: 18px 0 6px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #E74C3C, #F39C12 45%, #00B894);
+            outline: none;
+            cursor: pointer;
+        }
+        .sat-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid var(--secondary);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+            cursor: grab;
+        }
+        .sat-slider::-moz-range-thumb {
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid var(--secondary);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+            cursor: grab;
+        }
+        .sat-ends {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--muted);
+        }
+
+        .field textarea {
+            width: 100%;
+            min-height: 110px;
+            resize: vertical;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark);
+            background: #F9FAFB;
+            transition: border-color .2s;
+        }
+        .field textarea:focus { outline: none; border-color: var(--secondary); background: white; }
+
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+        .btn {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 13px;
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .15s, filter .15s;
+        }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+        .btn:active { transform: scale(0.97); }
+        /* ⚠️ Senza questo un .btn spento è identico a uno acceso: si preme,
+           non succede niente, e si legge come un tocco andato a vuoto. Vale
+           per tutti — «Chiudi la stecca», «Cancella il traguardo», Aggiungi. */
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+        .btn:disabled:hover  { transform: none; filter: none; }
+        .btn:disabled:active { transform: none; }
+
+        .btn-primary { background: var(--secondary); color: white; }
+        .btn-ghost   { background: #EEF0F3; color: var(--dark); }
+        .btn-danger  { background: #FDECEC; color: var(--danger); }
+
+        .danger-zone {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+        }
+
+        /* ── CONFETTI ── */
+        .confetti-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 3300;
+            overflow: hidden;
+        }
+        .confetto {
+            position: absolute;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* ── FUOCHI D'ARTIFICIO (giornate chiave) ── */
+        .fw-part {
+            position: fixed;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+            will-change: transform, opacity;
+            animation: fw-fly var(--dur, 1.3s) cubic-bezier(.15,.7,.4,1) forwards;
+        }
+        @keyframes fw-fly {
+            0%   { transform: translate(var(--x), var(--y)) scale(0.3); opacity: 1; }
+            70%  { opacity: 1; }
+            100% {
+                transform: translate(calc(var(--x) + var(--dx)),
+                                     calc(var(--y) + var(--dy))) scale(var(--s, 1));
+                opacity: 0;
+            }
+        }
+
+        .fw-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .fw-star { font-size: 22px; line-height: 1; }
+
+        /* il lampo al centro dello scoppio */
+        .fw-flash {
+            position: fixed;
+            width: 90px;
+            height: 90px;
+            margin: -45px 0 0 -45px;
+            border-radius: 50%;
+            pointer-events: none;
+            background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,220,120,0.6) 40%, transparent 70%);
+            animation: fw-flash .55s ease-out forwards;
+        }
+        @keyframes fw-flash {
+            0%   { transform: scale(0.2); opacity: 1; }
+            100% { transform: scale(2.4); opacity: 0; }
+        }
+
+        .app-footer {
+            text-align: center;
+            padding: 18px;
+            color: rgba(255,255,255,0.85);
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 560px) {
+            .hero-number { font-size: 3.8rem; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .days-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
+            .field-row { grid-template-columns: 1fr; }
+            .key-add { grid-template-columns: 1fr; }
+            #garsal-top-bar { padding: 0 14px; }
+            .toast { width: 92vw; min-height: 52vh; padding: 26px 20px; gap: 16px; }
+            .toast-emoji { font-size: 4.6rem; }
+            .toast-text  { font-size: 1.85rem; }
+            .toast.big .toast-emoji,
+            .toast.chiave .toast-emoji { font-size: 5.2rem; }
+            .toast.big .toast-text,
+            .toast.chiave .toast-text { font-size: 2.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+    <div class="topbar-spacer"></div>
+    <div class="header-right">
+        <span class="sync-badge" id="syncBadge" title="Stato sincronizzazione">···</span>
+        <span class="app-version" id="versionBadge">v1.3.2</span>
+        <button class="btn-icon" id="btnSettings" title="Impostazioni">⚙️</button>
+    </div>
+</div>
+
+<div class="main">
+
+    <!-- HERO -->
+    <div class="card hero">
+        <div class="hero-mood vuoto" id="heroMood"></div>
+        <div class="hero-goal" id="heroGoal">Traguardo</div>
+        <div class="hero-number" id="heroNumber">—</div>
+        <div class="hero-label" id="heroLabel">giorni che mancano</div>
+        <div class="hero-range" id="heroRange"></div>
+
+        <div class="progress-wrap">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-meta">
+                <span id="progressLeft">0 spuntati</span>
+                <span id="progressRight">0%</span>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="statDone">0</div>
+                <div class="stat-label">Spuntati</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statLeft">0</div>
+                <div class="stat-label" id="statLeftLabel">Mancano</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statStreak">0</div>
+                <div class="stat-label">Serie</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-label">Totali</div>
+            </div>
+        </div>
+
+        <button class="btn-today" id="btnToday">Spunta oggi!</button>
+
+        <div class="todo-banner" id="todoBanner">
+            <div class="todo-emoji">⏳</div>
+            <div class="todo-text" id="todoText">La spunta di oggi non l'hai ancora fatta!</div>
+        </div>
+    </div>
+
+    <!-- CALENDARIO -->
+    <div class="card">
+        <div class="cal-head">
+            <div class="card-title">🗓️ I giorni</div>
+            <div class="legend">
+                <span><i class="lg-done"></i>fatto</span>
+                <span><i class="lg-today"></i>oggi</span>
+                <span><i class="lg-missed"></i>saltato</span>
+                <span><i class="lg-future"></i>da fare</span>
+            </div>
+        </div>
+        <div id="calendar"></div>
+    </div>
+
+    <!-- LE STECCHE CHIUSE -->
+    <div class="card">
+        <div class="cal-head">
+            <div class="card-title">🏅 Le stecche chiuse</div>
+            <div class="legend"><span id="steccheCount"></span></div>
+        </div>
+        <div id="steccheList"></div>
+    </div>
+
+</div>
+
+<footer class="app-footer">
+    Spuntiamola <span id="versionFooter">v1.3.2</span> &nbsp;·&nbsp; un giorno alla volta ✌️
+</footer>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+    <div class="toast-emoji" id="toastEmoji">🎉</div>
+    <div class="toast-text" id="toastText"></div>
+</div>
+
+<!-- AUTH OVERLAY -->
+<div id="authOverlay">
+    <div class="auth-box">
+        <div class="auth-icon">✅</div>
+        <div class="auth-title">Spuntiamola</div>
+        <div class="auth-desc">Apri questa app da AppSphere per accedere.</div>
+    </div>
+</div>
+
+<!-- MODALE IMPOSTAZIONI -->
+<div class="overlay" id="settingsOverlay">
+    <div class="modal">
+        <div class="modal-title">⚙️ Impostazioni</div>
+
+        <!-- L'umore viene prima di tutto: decide come si legge la griglia,
+             e quindi anche come si chiamano i due campi qui sotto. -->
+        <div class="field">
+            <label>Che stecca è?</label>
+            <div class="mood-grid">
+                <!-- emoji, nome e sottotitolo li riempie renderMood() da MOODS:
+                     scritti qui a mano sarebbero una seconda copia dei testi,
+                     che diverge il giorno che una delle due cambia. -->
+                <div class="mood-opt" id="moodAttesa" data-mood="attesa">
+                    <div class="mood-opt-emoji"></div>
+                    <div class="mood-opt-title"></div>
+                    <div class="mood-opt-sub"></div>
+                </div>
+                <div class="mood-opt" id="moodBeiGiorni" data-mood="bei_giorni">
+                    <div class="mood-opt-emoji"></div>
+                    <div class="mood-opt-title"></div>
+                    <div class="mood-opt-sub"></div>
+                </div>
+            </div>
+            <div class="field-hint" id="moodHint"></div>
+        </div>
+
+        <div class="field">
+            <label for="inGoal" id="lblGoal">Cosa stai aspettando?</label>
+            <input type="text" id="inGoal" maxlength="60" placeholder="Es. Le ferie in Sicilia">
+        </div>
+
+        <div class="field">
+            <label for="inEmoji" id="lblEmoji">Emoji del traguardo</label>
+            <input type="text" id="inEmoji" maxlength="4" placeholder="🏖️">
+            <div class="field-hint">Compare accanto al conto alla rovescia.</div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="inStart">Dal giorno</label>
+                <input type="date" id="inStart">
+            </div>
+            <div class="field">
+                <label for="inEnd">Al giorno</label>
+                <input type="date" id="inEnd">
+            </div>
+        </div>
+
+        <div class="toggle-row" id="toggleWeekend">
+            <div>
+                <div class="toggle-label">Salta sabato e domenica</div>
+                <div class="toggle-sub">Conta solo i giorni feriali</div>
+            </div>
+            <div class="switch" id="switchWeekend"></div>
+        </div>
+
+        <div class="field">
+            <label>⭐ Giornate chiave</label>
+            <div class="key-add">
+                <input type="date" id="inKeyDate">
+                <input type="text" id="inKeyLabel" maxlength="40" placeholder="Cosa succede? (facoltativo)">
+                <button type="button" class="btn btn-ghost key-add-btn" id="btnAddKey" disabled>Aggiungi</button>
+            </div>
+            <div class="field-hint">
+                <strong>Sono facoltative</strong>: la stecca si salva anche senza. Quando ne spunti
+                una parte un'esplosione di stelle e fuochi d'artificio.
+            </div>
+            <div class="key-list" id="keyList"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-ghost" id="btnCancel">Annulla</button>
+            <button class="btn btn-primary" id="btnSave">Salva</button>
+        </div>
+
+        <div class="danger-zone">
+            <button class="btn btn-danger" id="btnReset" style="width:100%">🧹 Cancella tutte le spunte</button>
+            <!-- Cancellare il traguardo è un'altra cosa dal chiuderlo: qui non
+                 resta niente in archivio. Compare solo se un traguardo c'è. -->
+            <div id="deleteGoalRow" style="margin-top:10px;display:none">
+                <button class="btn btn-danger" id="btnDeleteGoal" style="width:100%">🗑️ Cancella il traguardo</button>
+                <div class="field-hint" style="margin-top:6px">
+                    Butta via traguardo, periodo, spunte e giornate chiave. Non finisce
+                    fra le stecche chiuse: per conservarne la memoria usa 🏁 Chiudi la stecca.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODALE CHIUSURA DELLA STECCA — tre passi: l'ultima spunta,
+     la soddisfazione, la nota. Solo dopo si archivia. -->
+<div class="overlay" id="closeOverlay">
+    <div class="modal">
+
+        <!-- 1. L'ULTIMA SPUNTA -->
+        <div class="close-step on" id="closeStep1">
+            <div class="close-head">
+                <div class="close-head-emoji" id="closeEmoji">🏁</div>
+                <div class="close-head-title" id="closeTitle">Ci siamo!</div>
+                <div class="close-head-sub" id="closeSub">Il periodo è finito.</div>
+            </div>
+            <div class="final-check" id="finalCheck">
+                <div class="final-check-mark" id="finalCheckMark">☑️</div>
+                <div class="final-check-text">L'ultima spunta</div>
+            </div>
+            <div class="field-hint" style="text-align:center;margin-top:12px">
+                Premila: è quella che chiude la stecca.
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="btnCloseLater">Più tardi</button>
+            </div>
+        </div>
+
+        <!-- 2. SODDISFAZIONE -->
+        <div class="close-step" id="closeStep2">
+            <div class="close-head">
+                <div class="close-head-emoji">📊</div>
+                <div class="close-head-title" id="satTitle">Quanto sei soddisfatto?</div>
+                <div class="close-head-sub">Da 1 a 100, senza pensarci troppo.</div>
+            </div>
+            <div class="sat-value" id="satValue">70</div>
+            <div class="sat-caption" id="satCaption"></div>
+            <input type="range" class="sat-slider" id="satSlider" min="1" max="100" value="70">
+            <div class="sat-ends"><span>1 · per niente</span><span>100 · moltissimo</span></div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="btnSatNext">Avanti →</button>
+            </div>
+        </div>
+
+        <!-- 3. LA NOTA -->
+        <div class="close-step" id="closeStep3">
+            <div class="close-head">
+                <div class="close-head-emoji">✍️</div>
+                <div class="close-head-title">Due parole</div>
+                <div class="close-head-sub" id="notaSub">Com'è andata? Resta scritta nell'archivio.</div>
+            </div>
+            <div class="field">
+                <label for="inNota">La nota (facoltativa)</label>
+                <textarea id="inNota" maxlength="600"
+                          placeholder="Cosa ti porti dietro da questa stecca?"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="btnNotaBack">← Indietro</button>
+                <button class="btn btn-primary" id="btnChiudiStecca">Chiudi la stecca 🏁</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="confetti-layer" id="confettiLayer"></div>
+
+<script>
+var APP_VERSION = 'v1.3.4';
+var BUILD_TIME  = '2026-09-14T10:30:00Z';
+console.log('%c ✅ SPUNTIAMOLA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#00B894;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+document.getElementById('versionBadge').textContent  = APP_VERSION;
+document.getElementById('versionFooter').textContent = APP_VERSION;
+
+// ============================================================
+// SUPABASE
+// ============================================================
+var _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+var _IS_DEV = _DEV_HOSTS.indexOf(window.location.hostname) !== -1
+           || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3)
+           || (window.location.hostname.endsWith('.netlify.app')
+              && window.location.hostname.startsWith('dev--'));
+
+var SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+var SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+var sb            = null;
+var sbAccessToken = null;
+var currentUserId = null;
+
+// ============================================================
+// STATE
+// Il DB è la fonte di verità; localStorage resta come cache, così
+// all'apertura la griglia c'è già mentre la rete fa il suo giro.
+// ============================================================
+var LS = {
+    goal:    'sp_goal',
+    emoji:   'sp_emoji',
+    mood:    'sp_mood',
+    start:   'sp_startDate',
+    end:     'sp_endDate',
+    weekend: 'sp_skipWeekend',
+    checks:  'sp_checks',
+    keyDays: 'sp_keyDays',
+    stecche: 'sp_stecche',
+    // periodo per cui la chiusura è già stata proposta da sola: si chiede
+    // una volta, poi il pulsante resta lì per chi ci ripensa
+    asked:   'sp_closeAsked'
+};
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+// Le etichette delle giornate chiave le scrive l'utente e finiscono
+// dentro HTML: vanno sempre passate di qui.
+function escapeAttr(str) {
+    return String(str).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function defaultEnd() {
+    var d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function loadArrCache(chiave, nome) {
+    try {
+        var raw = localStorage.getItem(chiave);
+        var arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+        console.warn(nome + ' in cache illeggibili, riparto da zero', e);
+        return [];
+    }
+}
+
+function loadObjCache(chiave, nome) {
+    try {
+        var raw = localStorage.getItem(chiave);
+        var obj = raw ? JSON.parse(raw) : {};
+        return (obj && typeof obj === 'object') ? obj : {};
+    } catch (e) {
+        console.warn(nome + ' in cache illeggibili, riparto da zero', e);
+        return {};
+    }
+}
+
+var S = {
+    goal:        localStorage.getItem(LS.goal)    || 'Il traguardo',
+    emoji:       localStorage.getItem(LS.emoji)   || '🎯',
+    // 'attesa' | 'bei_giorni' — con che voce parla l'app: vedi MOODS
+    mood:        moodValido(localStorage.getItem(LS.mood)),
+    startDate:   localStorage.getItem(LS.start)   || todayISO(),
+    endDate:     localStorage.getItem(LS.end)     || defaultEnd(),
+    skipWeekend: localStorage.getItem(LS.weekend) === '1',
+    // checks: { 'YYYY-MM-DD': '🎉' } — l'emoji assegnata a quel giorno
+    checks:      loadObjCache(LS.checks, 'Spunte'),
+    // keyDays: { 'YYYY-MM-DD': 'Partenza!' } — le giornate che contano
+    keyDays:     loadObjCache(LS.keyDays, 'Giornate chiave'),
+    // stecche: l'archivio delle stecche già chiuse, dalla più recente
+    stecche:     loadArrCache(LS.stecche, 'Stecche chiuse'),
+    // true quando il periodo esiste davvero (in DB o in cache locale)
+    configured:  !!localStorage.getItem(LS.start)
+};
+
+// In cache va solo quello che serve a disegnare la card: la fotografia
+// del periodo (checks e key_days) sta nel DB e nessuno la rilegge da qui,
+// mentre a furia di stecche riempirebbe da sola il localStorage.
+function salvaCacheStecche() {
+    try {
+        var leggere = S.stecche.map(function(s) {
+            var c = {};
+            ['id','goal','emoji','mood','start_date','end_date','skip_weekend','total_days',
+             'done_days','final_emoji','satisfaction','note','closed_at']
+                .forEach(function(k) { c[k] = s[k]; });
+            return c;
+        });
+        localStorage.setItem(LS.stecche, JSON.stringify(leggere));
+    } catch (e) {
+        console.warn('Archivio stecche non messo in cache:', e);
+    }
+}
+
+function salvaCache() {
+    // Stecca chiusa e nessun periodo nuovo: la cache va svuotata, o al
+    // prossimo avvio dbLoad ricaricherebbe sul DB il periodo appena archiviato
+    // scambiandolo per dati locali da salvare.
+    if (!S.configured) {
+        [LS.goal, LS.emoji, LS.mood, LS.start, LS.end, LS.weekend, LS.checks, LS.keyDays]
+            .forEach(function(k) { localStorage.removeItem(k); });
+        salvaCacheStecche();
+        return;
+    }
+    localStorage.setItem(LS.goal,    S.goal);
+    localStorage.setItem(LS.emoji,   S.emoji);
+    localStorage.setItem(LS.mood,    S.mood);
+    localStorage.setItem(LS.start,   S.startDate);
+    localStorage.setItem(LS.end,     S.endDate);
+    localStorage.setItem(LS.weekend, S.skipWeekend ? '1' : '0');
+    localStorage.setItem(LS.checks,  JSON.stringify(S.checks));
+    localStorage.setItem(LS.keyDays, JSON.stringify(S.keyDays));
+    salvaCacheStecche();
+}
+
+// ============================================================
+// L'UMORE DELLA STECCA — due voci per la stessa griglia
+//
+// Lo stesso conto alla rovescia si fa in due situazioni opposte. Si aspetta
+// qualcosa: allora il tempo che passa è impazienza, e ogni giorno spuntato è
+// un ostacolo tolto di mezzo. Oppure ci si sta dentro — una vacanza, una
+// visita, un periodo che finirà — e allora il tempo che passa non avvicina
+// niente, porta via: l'ultimo giorno non è un arrivo, è un addio.
+//
+// La griglia, le spunte, i traguardi e la chiusura restano identici: cambia
+// solo con che voce l'app li commenta. Per questo l'umore è una tabella di
+// testi e non due rami di codice — aggiungerne un terzo un giorno sarebbe
+// una voce qui dentro, non un `if` sparso per la pagina.
+//
+// ⚠️ La scelta sta sulla STECCA (`sp_settings.mood`) e non sull'utente: si
+// aspettano le ferie e nel frattempo le si vive, e le due cose convivono
+// senza essere la stessa.
+// ============================================================
+// Un umore che non conosciamo non ripiega su niente di sensato — le frasi
+// verrebbero da una tabella che non esiste — quindi si torna sempre a quello
+// che l'app sapeva fare prima che questa colonna esistesse.
+//
+// ⚠️ L'elenco è scritto qui dentro e non in una costante accanto a MOODS:
+// questa funzione la chiama anche l'inizializzazione di S, che gira PRIMA
+// che quelle var siano assegnate — la dichiarazione è issata, il valore no,
+// e con `MOODS` o un `MOOD_IDS` esterno la pagina morirebbe all'avvio con
+// un «undefined» prima ancora di disegnare la griglia.
+function moodValido(m) {
+    return (m === 'attesa' || m === 'bei_giorni') ? m : 'attesa';
+}
+
+var MOODS = {
+
+    // ── ATTESA — il tempo che passa avvicina qualcosa ──────────────
+    attesa: {
+        emoji: '⏳',
+        nome:  'Attesa',
+        badge: '⏳ Attesa',
+        // che stecca è, sulla scheda che si sceglie
+        sub:   'Aspetti qualcosa. Ogni giorno spuntato è un giorno in meno '
+             + 'da aspettare.',
+        // cosa cambia scegliendolo, sotto le due schede
+        hint:  'Le frasi e i traguardi parlano di quanto manca: ogni spunta '
+             + 'è un giorno tolto di mezzo.',
+        labelGoal:       'Cosa stai aspettando?',
+        placeholderGoal: 'Es. Le ferie in Sicilia',
+        labelEmoji:      'Emoji del traguardo',
+        // il conto alla rovescia sotto il numero grande
+        heroLabel: function(n) { return n === 1 ? 'giorno che manca' : 'giorni che mancano'; },
+        statLeft: 'Mancano',
+        bannerEmoji: '⏳',
+        bannerTesto: function(data) { return 'Oggi (' + data + ') non l\'hai ancora spuntato!'; },
+        toastDespunta: 'Spunta tolta. Ci hai ripensato?',
+        // la cerimonia di chiusura
+        closeTitolo:  'Ci siamo!',
+        soddDomanda:  'Quanto sei soddisfatto?',
+        notaSub:      'Com\'è andata? Resta scritta nell\'archivio.',
+        notaPlaceholder: 'Cosa ti porti dietro da questa stecca?',
+        dopoArchivio: 'Stecca archiviata! Che cosa aspettiamo adesso?',
+        // al 100 % il traguardo è raggiunto davvero: fuochi
+        fuochiAl100: true,
+
+        frasi: [
+            "Grande! ...anche se non dipende da te. 😄",
+            "E uno! Il traguardo trema. 😏",
+            "Giorno archiviato. Prossimo!",
+            "Un altro se n'è andato. Ciao ciao! 👋",
+            "Bravo, hai aspettato benissimo. 🏅",
+            "Complimenti: è passato un giorno. Merito tuo? Mah. 🤷",
+            "Spuntato. La matematica non mente. 🧮",
+            "Questo giorno non tornerà. Meglio così!",
+            "Piano piano si arriva ovunque. 🐢",
+            "Hai battuto il calendario. Di nuovo.",
+            "Un giorno in meno, zero rimpianti.",
+            "Il tempo passa, tu spunti. Squadra perfetta.",
+            "Chi spunta, arriva. Regola numero uno. 📏",
+            "Fatto! Ora puoi anche riposarti.",
+            "Sei una macchina da spunte. 🤖",
+            "Il calendario ti teme, ormai.",
+            "Ancora uno? Ancora uno. 💪",
+            "Segnato! La strada si accorcia.",
+            "Oggi c'eri. È già tantissimo.",
+            "Un mattoncino in più nel muro. 🧱",
+            "Spunta fatta, coscienza a posto. 😌",
+            "Il conto alla rovescia ringrazia.",
+            "Costanza batte entusiasmo. Sempre. 🔁",
+            "Nessuno ti toglie questo giorno.",
+            "Eccellente. Continua così, campione! 🏆",
+            "Un altro giorno domato. 🦁",
+            "Questa spunta profuma di libertà. 🌬️",
+            "Che soddisfazione, eh? 😎",
+            "Piccolo passo, grande direzione. 🚶",
+            "Spuntato con stile. ✨",
+            "Fatto. Si torna a vivere. 🎈"
+        ],
+
+        emojiSpunta: [
+            '✅','🎉','⭐','🔥','💪','🚀','🌟','🏆','😎','🍀',
+            '🎯','⚡','🥳','👏','💎','🌈','🦾','🧨','🎊','☀️'
+        ],
+
+        traguardi: [
+            { perc: 25,  emoji: '🌱', testo: 'Un quarto fatto! Il difficile è cominciare.' },
+            { perc: 50,  emoji: '⛰️', testo: 'Metà strada! Da qui si vede il traguardo.' },
+            { perc: 75,  emoji: '🔥', testo: 'Tre quarti! Ormai è in discesa.' },
+            { perc: 100, emoji: '🏁', testo: 'FINITO! Li hai spuntati tutti. Campione!' }
+        ],
+
+        msgChiusura: [
+            { max: 20,  emoji: '🫂', classe: 'dolce',
+              testo: 'Non è andata come volevi. Però ci sei arrivato in fondo, e quello non te lo toglie nessuno.' },
+            { max: 40,  emoji: '💪', classe: 'dolce',
+              testo: 'Poteva andare meglio, è vero. Ma l\'hai chiusa lo stesso: chiuderla era la parte difficile.' },
+            { max: 60,  emoji: '👍', classe: 'big',
+              testo: 'Nel complesso ci sta! Una stecca chiusa è una stecca chiusa.' },
+            { max: 80,  emoji: '🎉', classe: 'big',
+              testo: 'Bella soddisfazione! Te la sei guadagnata un giorno alla volta.' },
+            { max: 95,  emoji: '🏆', classe: 'chiave',
+              testo: 'Grandissimo! Questa è di quelle da ricordare.' },
+            { max: 100, emoji: '🎆', classe: 'chiave',
+              testo: 'PERFETTA! Meglio di così non si poteva chiudere. Che spettacolo!' }
+        ]
+    },
+
+    // ── BEI GIORNI — il tempo che passa porta via qualcosa ─────────
+    bei_giorni: {
+        emoji: '🌅',
+        nome:  'Bei giorni',
+        badge: '🌅 Bei giorni',
+        sub:   'Ci sei dentro. Ogni giorno spuntato è un bel giorno che se '
+             + 'ne va.',
+        hint:  'Le frasi e i traguardi parlano di quel che finisce: ogni '
+             + 'spunta è un bel giorno che se ne va.',
+        labelGoal:       'Cosa stai vivendo?',
+        placeholderGoal: 'Es. Le due settimane a Terrasini',
+        labelEmoji:      'Emoji di questi giorni',
+        heroLabel: function(n) { return n === 1 ? 'giorno che resta' : 'giorni che restano'; },
+        statLeft: 'Restano',
+        bannerEmoji: '🌅',
+        bannerTesto: function(data) {
+            return 'Oggi (' + data + ') non l\'hai ancora spuntato: non lasciarlo passare così.';
+        },
+        toastDespunta: 'Spunta tolta. Te lo riprendi? 🌿',
+        closeTitolo:  'È finita.',
+        soddDomanda:  'Quanto sono stati belli?',
+        notaSub:      'Cosa ti resta di questi giorni? Va nell\'archivio.',
+        notaPlaceholder: 'Cosa ti porti dietro da questi giorni?',
+        dopoArchivio: 'Stecca archiviata. E adesso? Si torna ad aspettare qualcosa.',
+        // ⚠️ Al 100 % qui non c'è niente da festeggiare: è il giorno in cui
+        // finisce. I coriandoli restano — è comunque un saluto — ma i fuochi
+        // d'artificio sopra un addio suonerebbero come una presa in giro.
+        fuochiAl100: false,
+
+        frasi: [
+            "Un giorno bello, e adesso è tuo per sempre. 🤍",
+            "Segnato. Peccato solo che sia già passato.",
+            "Uno in meno da vivere. Falli valere. 🌿",
+            "Bello, vero? Domani ce n'è ancora.",
+            "Questo giorno non torna. Ma c'è stato. ✨",
+            "Spuntato, con un po' di magone. 🥲",
+            "Archiviato fra le cose belle. 📦",
+            "Il calendario si accorcia. Che peccato. 🍂",
+            "Un altro pezzo di bello se n'è andato.",
+            "Godilo finché dura. Sta durando. ☀️",
+            "Giorno pieno. Di quelli che si ricordano.",
+            "Se ne va uno dei buoni. 🌙",
+            "Un giorno in meno, e sì: dispiace un po'.",
+            "Fatto. E ne resta ancora un po'. 🌻",
+            "Che bello essere stati qui, oggi.",
+            "Spunta dolceamara. Le migliori. 🍯",
+            "Il tempo corre proprio quando è bello, eh?",
+            "Questo te lo porti dietro. 🎒",
+            "Un giorno da tenere. Segnato. 📌",
+            "Anche oggi è stato dei nostri. 🤝",
+            "Piano, che finisce. 🐌",
+            "Uno in meno. Ma che meraviglia. 🌊",
+            "Il bello passa. Passa bene, però.",
+            "Segnato. Domani ancora, per fortuna.",
+            "Un giorno così vale doppio. ⭐",
+            "Ci siamo stati. È già molto. 🕊️",
+            "Fine giornata, cuore pieno. 💛",
+            "Un altro da mettere da parte. 🫙",
+            "Non era un giorno qualunque. Spuntato.",
+            "Se ne va, ma resta. Funziona così. 🌱"
+        ],
+
+        emojiSpunta: [
+            '🤍','🌅','🌿','☀️','🍃','🌙','✨','🕊️','🌻','🐚',
+            '🍂','💛','🌊','🎐','🫧','🌸','🧡','🌤️','⛱️','📸'
+        ],
+
+        traguardi: [
+            { perc: 25,  emoji: '🌤️', testo: 'Un quarto se n\'è andato. Rallenta: è adesso che è bello.' },
+            { perc: 50,  emoji: '⏳', testo: 'Metà. Da qui in poi comincia a finire.' },
+            { perc: 75,  emoji: '🍂', testo: 'Tre quarti. Ne restano pochi: falli contare.' },
+            { perc: 100, emoji: '🌙', testo: 'È finita. Sono stati giorni belli, e li hai vissuti tutti.' }
+        ],
+
+        msgChiusura: [
+            { max: 20,  emoji: '🫂', classe: 'dolce',
+              testo: 'Dovevano essere bei giorni e non lo sono stati. Capita, e non è colpa tua.' },
+            { max: 40,  emoji: '🍃', classe: 'dolce',
+              testo: 'Non proprio come te li immaginavi. Qualcosa di buono però te lo porti dietro.' },
+            { max: 60,  emoji: '🌤️', classe: 'big',
+              testo: 'Giorni normali, nel complesso. E i giorni normali sono la gran parte della vita.' },
+            { max: 80,  emoji: '🌻', classe: 'big',
+              testo: 'Sono stati bei giorni. Adesso finiscono, ed è giusto dispiacersi un po\'.' },
+            { max: 95,  emoji: '🌅', classe: 'chiave',
+              testo: 'Che periodo. Di quelli che si raccontano. Finisce, ma non se ne va.' },
+            { max: 100, emoji: '🤍', classe: 'chiave',
+              testo: 'Indimenticabile. Non si poteva chiedere di meglio — ed è per questo che adesso fa un po\' male.' }
+        ]
+    }
+};
+
+// L'umore della stecca in corso. Tutto quel che si legge a schermo passa
+// di qui: nessuna delle due voci è scritta a mano da nessun'altra parte.
+function mood() { return MOODS[moodValido(S.mood)]; }
+
+var CONFETTI_COLORS = ['#FF3366','#6C5CE7','#00B894','#F39C12','#2563EB','#FFD700','#38ef7d'];
+
+function fraseRandom() {
+    var f = mood().frasi;
+    return f[Math.floor(Math.random() * f.length)];
+}
+
+function emojiRandom() {
+    var e = mood().emojiSpunta;
+    return e[Math.floor(Math.random() * e.length)];
+}
+
+// ============================================================
+// FUOCHI D'ARTIFICIO — riservati alle giornate chiave
+// Ogni scoppio è un lampo al centro più una raggiera di scintille
+// e stelle che partono da lì e ricadono un po' verso il basso.
+// ============================================================
+var STELLE = ['★', '✦', '✧', '⭐', '✨', '🌟', '💫'];
+var FW_COLORS = ['#FFD700','#FF3366','#6C5CE7','#00E5A0','#FF8A00','#41C7FF','#FF5FD2','#FFFFFF'];
+
+function scoppio(cx, cy) {
+    var layer = document.getElementById('confettiLayer');
+
+    var flash = document.createElement('div');
+    flash.className = 'fw-flash';
+    flash.style.left = cx + 'px';
+    flash.style.top  = cy + 'px';
+    layer.appendChild(flash);
+    setTimeout(function() { flash.remove(); }, 600);
+
+    var n = 42;
+    for (var i = 0; i < n; i++) {
+        var el = document.createElement('div');
+        // una scintilla su tre è una stella disegnata, il resto sono puntini
+        var isStella = (i % 3 === 0);
+        el.className = 'fw-part ' + (isStella ? 'fw-star' : 'fw-dot');
+
+        var colore = FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)];
+        if (isStella) {
+            el.textContent = STELLE[Math.floor(Math.random() * STELLE.length)];
+            el.style.color = colore;
+        } else {
+            el.style.background = colore;
+            el.style.boxShadow = '0 0 8px ' + colore;
+        }
+
+        // raggiera: angolo regolare + un po' di disordine, raggio variabile
+        var ang  = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+        var raggio = 90 + Math.random() * 150;
+        var dx = Math.cos(ang) * raggio;
+        // la gravità tira giù: le scintille finiscono più in basso di dove sono partite
+        var dy = Math.sin(ang) * raggio + 70 + Math.random() * 60;
+
+        el.style.setProperty('--x',  cx + 'px');
+        el.style.setProperty('--y',  cy + 'px');
+        el.style.setProperty('--dx', dx.toFixed(1) + 'px');
+        el.style.setProperty('--dy', dy.toFixed(1) + 'px');
+        el.style.setProperty('--s',  (0.2 + Math.random() * 0.5).toFixed(2));
+        el.style.setProperty('--dur', (1.1 + Math.random() * 0.7).toFixed(2) + 's');
+
+        layer.appendChild(el);
+        (function(el) { setTimeout(function() { el.remove(); }, 2200); })(el);
+    }
+}
+
+// quanti = numero di scoppi (6 come sempre), passo = ritmo in millisecondi
+function fuochiArtificio(quanti, passo) {
+    var W = window.innerWidth, H = window.innerHeight;
+    var n = quanti || 6;
+    // primo scoppio al centro, poi altri sparsi nella metà alta dello schermo
+    var punti = [[W / 2, H * 0.34]];
+    for (var i = 1; i < n; i++) {
+        punti.push([W * (0.12 + Math.random() * 0.76), H * (0.13 + Math.random() * 0.46)]);
+    }
+    punti.forEach(function(p, i) {
+        setTimeout(function() { scoppio(p[0], p[1]); }, i * (passo || 320));
+    });
+}
+
+// Lo spettacolo di chiusura: tanto più lungo quanto più si è soddisfatti,
+// ma qualche fuoco parte comunque — una stecca chiusa è una stecca chiusa.
+function fuochiFinali(sodd) {
+    var scoppi = 8 + Math.round(sodd / 100 * 16);   // da 8 a 24
+    fuochiArtificio(scoppi, 240);
+    // gran finale: tre scoppi ravvicinati quando i primi sono esauriti
+    var W = window.innerWidth, H = window.innerHeight;
+    setTimeout(function() {
+        [[W * 0.28, H * 0.3], [W * 0.5, H * 0.22], [W * 0.72, H * 0.3]]
+            .forEach(function(p, i) {
+                setTimeout(function() { scoppio(p[0], p[1]); }, i * 130);
+            });
+    }, scoppi * 240 + 200);
+}
+
+// ============================================================
+// TOAST — il messaggio che compare per un paio di secondi
+// ============================================================
+var toastTimer = null;
+
+function toast(emoji, testo, opts) {
+    opts = opts || {};
+    var el = document.getElementById('toast');
+    document.getElementById('toastEmoji').textContent = emoji;
+    document.getElementById('toastText').textContent  = testo;
+    el.classList.toggle('big', !!opts.big);
+    el.classList.toggle('chiave', !!opts.chiave);
+    el.classList.toggle('dolce', !!opts.dolce);
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.classList.remove('show'); },
+                            opts.durata || 2500);
+}
+
+// ============================================================
+// DATE HELPERS — sempre su stringhe ISO, mai conversioni UTC
+// ============================================================
+function parseISO(iso) {
+    var p = iso.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+}
+
+function toISO(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function addDays(iso, n) {
+    var d = parseISO(iso);
+    d.setDate(d.getDate() + n);
+    return toISO(d);
+}
+
+function fmtIT(iso) {
+    var p = iso.split('-');
+    return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+var MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+            'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+// Elenco dei giorni del periodo, filtrando il weekend se richiesto
+function giorniDelPeriodo() {
+    var out = [];
+    if (!S.configured || !S.startDate || !S.endDate) return out;
+    if (parseISO(S.endDate) < parseISO(S.startDate)) return out;
+
+    var cur = S.startDate;
+    var guard = 0;
+    while (parseISO(cur) <= parseISO(S.endDate) && guard < 4000) {
+        var dow = parseISO(cur).getDay();
+        if (!(S.skipWeekend && (dow === 0 || dow === 6))) out.push(cur);
+        cur = addDays(cur, 1);
+        guard++;
+    }
+    return out;
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function decodeJWT(token) {
+    try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); }
+    catch (e) { return null; }
+}
+
+function initWithToken(token) {
+    if (sb) return;
+    sbAccessToken = token;
+    localStorage.setItem('sb_token', token);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+    var payload = decodeJWT(token);
+    currentUserId = payload && payload.sub ? payload.sub : null;
+    console.log('✅ Supabase autenticato (Spuntiamola ' + APP_VERSION + ')');
+    document.getElementById('authOverlay').style.display = 'none';
+    startApp();
+}
+
+function handleAuthError(error) {
+    if (!error) return false;
+    var msg = (error.message || '').toLowerCase();
+    var isAuth = error.status === 401
+        || msg.indexOf('jwt expired') !== -1 || msg.indexOf('invalid jwt') !== -1
+        || msg.indexOf('not authenticated') !== -1 || msg.indexOf('pgjwt') !== -1;
+    if (!isAuth) return false;
+    sb = null; sbAccessToken = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return true;
+}
+
+window.addEventListener('message', function(e) {
+    if (!e.data) return;
+    if (e.data.type === 'SB_TOKEN' && e.data.token) {
+        console.log('✅ SB_TOKEN ricevuto dal launcher (Spuntiamola)');
+        initWithToken(e.data.token);
+    }
+});
+
+var _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = function(e) {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null; sbAccessToken = null;
+        localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        var t = e.data.sbToken;
+        localStorage.setItem('sb_token', t);
+        sbAccessToken = t;
+        if (sb) {
+            sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                auth:   { persistSession: false, autoRefreshToken: false },
+                global: { headers: { Authorization: 'Bearer ' + t } }
+            });
+        }
+    }
+};
+
+// ============================================================
+// SINCRONIZZAZIONE
+// ============================================================
+function setSync(stato, testo) {
+    var el = document.getElementById('syncBadge');
+    el.textContent = testo;
+    el.classList.toggle('offline', stato === 'offline');
+}
+
+// Carica periodo e spunte dal DB. Se il DB non ha ancora nulla ma in
+// locale c'è un periodo, quei dati vengono caricati sul DB una volta sola.
+async function dbLoad() {
+    if (!sb) return;
+    setSync('sync', '↻ sync…');
+    try {
+        var st = await sb.from('sp_settings').select('*').maybeSingle();
+        if (st.error && st.error.code !== 'PGRST116') throw st.error;
+
+        if (st.data) {
+            S.goal        = st.data.goal;
+            S.emoji       = st.data.emoji;
+            // le stecche aperte prima di questa colonna sono attese: è quel
+            // che erano davvero, l'app sapeva parlare in un modo solo
+            S.mood        = moodValido(st.data.mood);
+            S.startDate   = st.data.start_date;
+            S.endDate     = st.data.end_date;
+            S.skipWeekend = !!st.data.skip_weekend;
+            S.configured  = true;
+
+            var ck = await sb.from('sp_checks').select('day,emoji');
+            if (ck.error) throw ck.error;
+            S.checks = {};
+            (ck.data || []).forEach(function(r) { S.checks[r.day] = r.emoji || '✅'; });
+
+            var kd = await sb.from('sp_key_days').select('day,label');
+            if (kd.error) throw kd.error;
+            S.keyDays = {};
+            (kd.data || []).forEach(function(r) { S.keyDays[r.day] = r.label || ''; });
+        } else if (localStorage.getItem(LS.start)) {
+            // primo accesso dopo l'aggiornamento: porto in cloud i dati locali
+            console.log('↑ Primo sync: carico sul DB il periodo salvato in locale');
+            await dbSaveSettings();
+            var giorniLocali = Object.keys(S.checks);
+            if (giorniLocali.length) {
+                var righe = giorniLocali.map(function(g) {
+                    return { day: g, emoji: S.checks[g] };
+                });
+                var up = await sb.from('sp_checks')
+                                 .upsert(righe, { onConflict: 'user_id,day' });
+                if (up.error) throw up.error;
+            }
+            var chiaviLocali = Object.keys(S.keyDays);
+            if (chiaviLocali.length) {
+                var righeKd = chiaviLocali.map(function(g) {
+                    return { user_id: currentUserId, day: g, label: S.keyDays[g] || '' };
+                });
+                var upKd = await sb.from('sp_key_days')
+                                   .upsert(righeKd, { onConflict: 'user_id,day' });
+                if (upKd.error) throw upKd.error;
+            }
+            toast('☁️', 'Spunte caricate sul cloud: ora sono su tutti i dispositivi.',
+                  { durata: 4000 });
+        } else {
+            S.configured = false;
+        }
+
+        // l'archivio si carica sempre: esiste anche quando non c'è
+        // nessun periodo in corso — anzi, è proprio il caso normale
+        // subito dopo aver chiuso una stecca
+        var stk = await sb.from('sp_stecche')
+                          .select('*')
+                          .order('closed_at', { ascending: false });
+        if (stk.error) throw stk.error;
+        S.stecche = stk.data || [];
+
+        salvaCache();
+        setSync('ok', '☁ ok');
+    } catch (e) {
+        if (handleAuthError(e)) return;
+        console.warn('Sync non riuscito, uso i dati locali:', e);
+        setSync('offline', '⚠ offline');
+    }
+    render();
+}
+
+async function dbSaveSettings() {
+    if (!sb) return false;
+    var riga = {
+        user_id:      currentUserId,
+        goal:         S.goal,
+        emoji:        S.emoji,
+        mood:         moodValido(S.mood),
+        start_date:   S.startDate,
+        end_date:     S.endDate,
+        skip_weekend: S.skipWeekend
+    };
+    var res = await sb.from('sp_settings').upsert(riga, { onConflict: 'user_id' });
+    if (res.error) throw res.error;
+    return true;
+}
+
+async function dbAddCheck(iso, emoji) {
+    if (!sb) return;
+    var res = await sb.from('sp_checks')
+                      .upsert({ user_id: currentUserId, day: iso, emoji: emoji },
+                              { onConflict: 'user_id,day' });
+    if (res.error) throw res.error;
+}
+
+async function dbRemoveCheck(iso) {
+    if (!sb) return;
+    var res = await sb.from('sp_checks').delete().eq('day', iso);
+    if (res.error) throw res.error;
+}
+
+// Allinea sp_key_days a quanto scelto nelle impostazioni: aggiunge le
+// nuove, toglie quelle rimosse, lascia stare il resto.
+async function dbSyncKeyDays(nuove, vecchie) {
+    if (!sb) return;
+    var daAggiungere = Object.keys(nuove).filter(function(g) {
+        return vecchie[g] === undefined || vecchie[g] !== nuove[g];
+    });
+    var daTogliere = Object.keys(vecchie).filter(function(g) {
+        return nuove[g] === undefined;
+    });
+
+    if (daAggiungere.length) {
+        var righe = daAggiungere.map(function(g) {
+            return { user_id: currentUserId, day: g, label: nuove[g] || '' };
+        });
+        var up = await sb.from('sp_key_days').upsert(righe, { onConflict: 'user_id,day' });
+        if (up.error) throw up.error;
+    }
+    if (daTogliere.length) {
+        var del = await sb.from('sp_key_days').delete().in('day', daTogliere);
+        if (del.error) throw del.error;
+    }
+}
+
+// Archivia la stecca e libera il campo per la prossima.
+// Qui non si fa l'ottimismo con rollback usato per le spunte: prima si
+// scrive l'archivio e solo dopo si cancellano spunte, giornate chiave e
+// periodo. Nell'ordine inverso una rete che cade cancellerebbe il periodo
+// senza averne salvato la memoria — cioè esattamente il difetto che questa
+// funzione esiste per togliere.
+async function dbCloseStecca(riga) {
+    if (!sb) throw new Error('Non sei connesso: la stecca non si può archiviare.');
+
+    var ins = await sb.from('sp_stecche').insert(riga).select().single();
+    if (ins.error) throw ins.error;
+
+    var delChecks = await sb.from('sp_checks').delete().eq('user_id', currentUserId);
+    if (delChecks.error) throw delChecks.error;
+
+    var delKeys = await sb.from('sp_key_days').delete().eq('user_id', currentUserId);
+    if (delKeys.error) throw delKeys.error;
+
+    var delSet = await sb.from('sp_settings').delete().eq('user_id', currentUserId);
+    if (delSet.error) throw delSet.error;
+
+    return ins.data;
+}
+
+// Butta via il traguardo in corso senza archiviarlo: periodo, spunte e
+// giornate chiave. È l'uscita per un traguardo sbagliato o abbandonato —
+// chi vuole conservarne la memoria passa da dbCloseStecca().
+// Si cancella prima sul DB e solo dopo in locale: al contrario, una rete
+// che cade lascerebbe l'app senza periodo e il DB con il suo, che dbLoad()
+// rimetterebbe a posto alla prossima apertura.
+async function dbDeleteGoal() {
+    if (!sb) throw new Error('Non sei connesso: il traguardo non si può cancellare.');
+
+    var delChecks = await sb.from('sp_checks').delete().eq('user_id', currentUserId);
+    if (delChecks.error) throw delChecks.error;
+
+    var delKeys = await sb.from('sp_key_days').delete().eq('user_id', currentUserId);
+    if (delKeys.error) throw delKeys.error;
+
+    var delSet = await sb.from('sp_settings').delete().eq('user_id', currentUserId);
+    if (delSet.error) throw delSet.error;
+}
+
+// Toglie dall'archivio una stecca già chiusa. Anche qui prima il DB:
+// sparita dall'elenco senza essere sparita dal database, tornerebbe da sé
+// alla prossima apertura e sembrerebbe che la cancellazione non funzioni.
+async function dbDeleteStecca(id) {
+    if (!sb) throw new Error('Non sei connesso: la stecca non si può cancellare.');
+    var del = await sb.from('sp_stecche').delete().eq('id', id);
+    if (del.error) throw del.error;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+    var giorni = giorniDelPeriodo();
+    var oggi   = todayISO();
+
+    var spuntati = giorni.filter(function(g) { return S.checks[g]; }).length;
+    var totali   = giorni.length;
+    var mancano  = giorni.filter(function(g) { return !S.checks[g] && g >= oggi; }).length;
+    var perc     = totali ? Math.round(spuntati / totali * 100) : 0;
+
+    var m = mood();
+
+    // ⚠️ Il badge compare solo quando una stecca c'è: senza periodo direbbe
+    // con che voce parlerebbe l'app di una cosa che non esiste ancora.
+    var badge = document.getElementById('heroMood');
+    badge.textContent = m.badge;
+    badge.classList.toggle('vuoto', !S.configured);
+
+    document.getElementById('heroGoal').textContent   = S.emoji + ' ' + S.goal;
+    document.getElementById('heroNumber').textContent = totali ? mancano : '—';
+    // «mancano» e «restano» sono lo stesso numero letto nei due versi
+    document.getElementById('heroLabel').textContent  =
+        !totali ? 'imposta il periodo per iniziare' : m.heroLabel(mancano);
+    document.getElementById('heroRange').textContent  = totali
+        ? 'dal ' + fmtIT(S.startDate) + ' al ' + fmtIT(S.endDate)
+          + (S.skipWeekend ? ' · solo feriali' : '')
+        : '';
+
+    document.getElementById('progressFill').style.width  = perc + '%';
+    document.getElementById('progressLeft').textContent  = spuntati + ' di ' + totali + ' spuntati';
+    document.getElementById('progressRight').textContent = perc + '%';
+
+    document.getElementById('statDone').textContent   = spuntati;
+    document.getElementById('statLeft').textContent   = mancano;
+    // stesso numero, due letture: ciò che manca da aspettare o ciò che resta
+    document.getElementById('statLeftLabel').textContent = m.statLeft;
+    document.getElementById('statStreak').textContent = calcolaSerie(giorni);
+    document.getElementById('statTotal').textContent  = totali;
+
+    // BOTTONE + AVVISO "oggi non spuntato"
+    var btn = document.getElementById('btnToday');
+    var oggiNelPeriodo = giorni.indexOf(oggi) !== -1;
+    var daFareOggi = oggiNelPeriodo && !S.checks[oggi];
+
+    if (!totali) {
+        btn.textContent = 'Imposta il periodo ⚙️';
+        btn.disabled = false;
+        btn.onclick = apriImpostazioni;
+    } else if (steccaDaChiudere(giorni)) {
+        // finita: da qui non si spunta più, si chiude
+        btn.textContent = '🏁 Chiudi la stecca';
+        btn.disabled = false;
+        btn.onclick = apriChiusura;
+    } else if (!oggiNelPeriodo) {
+        btn.textContent = parseISO(oggi) > parseISO(S.endDate)
+            ? 'Periodo concluso 🏁'
+            : 'Oggi non è nel periodo';
+        btn.disabled = true;
+        btn.onclick = null;
+    } else if (S.checks[oggi]) {
+        btn.textContent = 'Oggi è già spuntato ' + S.checks[oggi];
+        btn.disabled = true;
+        btn.onclick = null;
+    } else {
+        btn.textContent = 'Spunta oggi!';
+        btn.disabled = false;
+        btn.onclick = function() { toggleGiorno(oggi); };
+    }
+
+    var banner = document.getElementById('todoBanner');
+    banner.classList.toggle('show', daFareOggi);
+    if (daFareOggi) {
+        var chiaveOggi = S.keyDays[oggi] !== undefined;
+        banner.querySelector('.todo-emoji').textContent = chiaveOggi ? '⭐' : m.bannerEmoji;
+        document.getElementById('todoText').textContent = chiaveOggi
+            ? 'Oggi è una GIORNATA CHIAVE'
+              + (S.keyDays[oggi] ? ' — ' + S.keyDays[oggi] : '') + ' e non l\'hai spuntata!'
+            : m.bannerTesto(fmtIT(oggi));
+    }
+
+    renderCalendario(giorni, oggi);
+    renderStecche();
+}
+
+// Una stecca è da chiudere quando non c'è più niente da spuntare: o sono
+// stati spuntati tutti i giorni, o l'ultimo giorno del periodo è passato.
+function steccaDaChiudere(giorni) {
+    if (!giorni.length) return false;
+    var tuttiFatti = giorni.every(function(g) { return S.checks[g]; });
+    return tuttiFatti || parseISO(todayISO()) > parseISO(S.endDate);
+}
+
+function renderStecche() {
+    var box   = document.getElementById('steccheList');
+    var conta = document.getElementById('steccheCount');
+
+    if (!S.stecche.length) {
+        conta.textContent = '';
+        box.innerHTML = '<div class="empty"><span class="empty-emoji">📭</span>'
+            + 'Ancora nessuna stecca chiusa.<br>'
+            + 'Quando arrivi in fondo a un periodo, resta archiviata qui.</div>';
+        return;
+    }
+
+    conta.textContent = S.stecche.length + (S.stecche.length === 1 ? ' stecca' : ' stecche');
+
+    box.innerHTML = '<div class="stecche-list">' + S.stecche.map(function(s) {
+        var tot  = s.total_days || 0;
+        var fatt = s.done_days  || 0;
+        var perc = tot ? Math.round(fatt / tot * 100) : 0;
+        var sodd = s.satisfaction || 0;
+        var chiusa = (s.closed_at || '').slice(0, 10);
+        // con che voce è stata vissuta: senza, riaprendo l'archivio non si
+        // saprebbe più se erano giorni aspettati o giorni vissuti
+        var voce = MOODS[moodValido(s.mood)];
+
+        return '<div class="stecca">'
+             + '<div class="stecca-top">'
+             +   '<span class="stecca-emoji">' + escapeAttr(s.emoji || '🎯') + '</span>'
+             +   '<span class="stecca-goal">' + escapeAttr(s.goal || 'Senza nome') + '</span>'
+             +   '<span class="stecca-seal" title="l\'ultima spunta">'
+             +     escapeAttr(s.final_emoji || '🏁') + '</span>'
+             +   '<button type="button" class="stecca-del" data-id="'
+             +     escapeAttr(s.id || '') + '" title="Cancella questa stecca">🗑️</button>'
+             + '</div>'
+             + '<div class="stecca-meta">'
+             +   'dal ' + fmtIT(s.start_date) + ' al ' + fmtIT(s.end_date)
+             +   (s.skip_weekend ? ' · solo feriali' : '')
+             +   '<br>' + fatt + ' di ' + tot + ' spuntati · ' + perc + '%'
+             +   (chiusa ? ' · chiusa il ' + fmtIT(chiusa) : '')
+             +   '<br><span class="stecca-mood">' + voce.badge + '</span>'
+             + '</div>'
+             + '<div class="stecca-sat-row">'
+             +   '<div class="stecca-sat-bar">'
+             +     '<div class="stecca-sat-fill" style="width:' + sodd + '%"></div></div>'
+             +   '<span class="stecca-sat-num">' + sodd + '/100</span>'
+             + '</div>'
+             + (s.note
+                  ? '<div class="stecca-note">' + escapeAttr(s.note) + '</div>'
+                  : '')
+             + '</div>';
+    }).join('') + '</div>';
+
+    Array.prototype.forEach.call(box.querySelectorAll('.stecca-del'), function(b) {
+        b.addEventListener('click', function() { cancellaStecca(b.dataset.id, b); });
+    });
+}
+
+// Cancella una stecca dall'archivio. La riga appena chiusa può essere in
+// elenco senza id (l'insert non ha restituito la riga): senza id non si sa
+// quale cancellare, e cancellarla solo di qui la farebbe tornare al reload.
+async function cancellaStecca(id, btn) {
+    if (!id) {
+        toast('⚠️', 'Questa stecca non è ancora sincronizzata: ricarica la pagina e riprova.',
+              { durata: 3500 });
+        return;
+    }
+
+    var i = -1;
+    S.stecche.forEach(function(s, k) { if (s.id === id) i = k; });
+    if (i === -1) return;
+
+    var stecca = S.stecche[i];
+    if (!confirm('Cancellare la stecca «' + (stecca.goal || 'senza nome') + '»?\n\n'
+                 + 'Spunte, soddisfazione e nota spariscono per sempre.')) return;
+
+    btn.disabled = true;
+    try {
+        await dbDeleteStecca(id);
+    } catch (e) {
+        btn.disabled = false;
+        if (handleAuthError(e)) return;
+        console.warn('Stecca non cancellata:', e);
+        toast('⚠️', 'Non sono riuscito a cancellare la stecca. Riprova.', { durata: 3500 });
+        return;
+    }
+
+    S.stecche.splice(i, 1);
+    salvaCache();
+    render();
+    toast('🗑️', 'Stecca cancellata.');
+}
+
+// Serie = giorni consecutivi spuntati che finiscono oggi (o all'ultimo giorno passato)
+function calcolaSerie(giorni) {
+    var oggi = todayISO();
+    var passati = giorni.filter(function(g) { return g <= oggi; });
+    var serie = 0;
+    for (var i = passati.length - 1; i >= 0; i--) {
+        if (S.checks[passati[i]]) serie++;
+        else break;
+    }
+    return serie;
+}
+
+function renderCalendario(giorni, oggi) {
+    var box = document.getElementById('calendar');
+
+    if (!giorni.length) {
+        box.innerHTML = '<div class="empty"><span class="empty-emoji">🤷</span>'
+            + 'Nessun giorno da spuntare.<br>Apri le impostazioni ⚙️ e scegli il periodo.</div>';
+        return;
+    }
+
+    var blocchi = [];
+    var correnteKey = null;
+    giorni.forEach(function(g) {
+        var key = g.slice(0, 7);
+        if (key !== correnteKey) {
+            correnteKey = key;
+            blocchi.push({ key: key, giorni: [] });
+        }
+        blocchi[blocchi.length - 1].giorni.push(g);
+    });
+
+    box.innerHTML = blocchi.map(function(b) {
+        var p = b.key.split('-');
+        var fatti = b.giorni.filter(function(g) { return S.checks[g]; }).length;
+
+        var celle = b.giorni.map(function(g) {
+            var cls = ['day'];
+            var dow = parseISO(g).getDay();
+            if (dow === 0 || dow === 6) cls.push('weekend');
+            if (S.checks[g])            cls.push('done');
+            else if (g < oggi)          cls.push('missed');
+            if (g === oggi)             cls.push('today');
+            if (S.keyDays[g] !== undefined) cls.push('chiave');
+
+            var marchio = S.checks[g]
+                ? '<span class="day-mark">' + S.checks[g] + '</span>'
+                : '';
+            var numero = '<span class="day-num">' + (+g.slice(8, 10)) + '</span>';
+
+            var titolo = fmtIT(g);
+            if (S.keyDays[g] !== undefined) {
+                titolo = '⭐ ' + titolo + (S.keyDays[g] ? ' — ' + S.keyDays[g] : '');
+            }
+
+            return '<div class="' + cls.join(' ') + '" data-date="' + g + '" title="' + escapeAttr(titolo) + '">'
+                 + marchio + numero + '</div>';
+        }).join('');
+
+        return '<div class="month-block">'
+             + '<div class="month-name">' + MESI[+p[1] - 1] + ' ' + p[0]
+             + ' <span class="month-count">' + fatti + '/' + b.giorni.length + '</span></div>'
+             + '<div class="days-grid">' + celle + '</div>'
+             + '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(box.querySelectorAll('.day'), function(el) {
+        el.addEventListener('click', function() { toggleGiorno(el.dataset.date); });
+    });
+}
+
+// ============================================================
+// SPUNTA / DE-SPUNTA
+// L'interfaccia si aggiorna subito, il DB dopo: se la scrittura
+// fallisce si torna indietro e si avvisa, così non resta una
+// spunta finta che al prossimo caricamento sparisce.
+// ============================================================
+async function toggleGiorno(iso) {
+    if (S.checks[iso]) {
+        var vecchia = S.checks[iso];
+        delete S.checks[iso];
+        salvaCache();
+        render();
+        toast('🤔', mood().toastDespunta, { durata: 2000 });
+        try {
+            await dbRemoveCheck(iso);
+        } catch (e) {
+            if (!handleAuthError(e)) {
+                console.warn('Rimozione non sincronizzata:', e);
+                S.checks[iso] = vecchia;
+                salvaCache();
+                render();
+                toast('⚠️', 'Non sono riuscito a togliere la spunta. Riprova.', { durata: 3500 });
+            }
+        }
+        return;
+    }
+
+    var eChiave = S.keyDays[iso] !== undefined;
+    var emoji = eChiave ? '🌟' : emojiRandom();
+    S.checks[iso] = emoji;
+    salvaCache();
+    render();
+
+    animaCella(iso);
+
+    if (eChiave) {
+        // giornata chiave: fuochi d'artificio e messaggio dedicato
+        var etichetta = S.keyDays[iso];
+        toast('🎆', etichetta
+                ? 'GIORNATA CHIAVE — ' + etichetta + '!'
+                : 'GIORNATA CHIAVE spuntata!',
+              { durata: 5000, chiave: true });
+        fuochiArtificio();
+        festeggia(150);
+    } else {
+        toast(emoji, fraseRandom());
+        festeggia(45);
+    }
+
+    var giorni   = giorniDelPeriodo();
+    var spuntati = giorni.filter(function(g) { return S.checks[g]; }).length;
+    // il messaggio del traguardo aspetta che quello della spunta abbia finito
+    controllaTraguardi(spuntati, giorni.length, eChiave ? 5200 : 2600);
+
+    try {
+        await dbAddCheck(iso, emoji);
+    } catch (e) {
+        if (!handleAuthError(e)) {
+            console.warn('Spunta non sincronizzata:', e);
+            delete S.checks[iso];
+            salvaCache();
+            render();
+            toast('⚠️', 'Spunta non salvata: controlla la connessione.', { durata: 3500 });
+        }
+    }
+}
+
+function animaCella(iso) {
+    var el = document.querySelector('.day[data-date="' + iso + '"]');
+    if (!el) return;
+    el.classList.add('pop');
+    setTimeout(function() { el.classList.remove('pop'); }, 500);
+}
+
+// Traguardi intermedi: 25 / 50 / 75 / 100 %. I testi stanno in MOODS,
+// perché metà strada vuol dire due cose opposte a seconda della stecca:
+// «da qui si vede il traguardo» oppure «da qui comincia a finire».
+function controllaTraguardi(spuntati, totali, ritardo) {
+    if (!totali) return;
+    var m     = mood();
+    var perc  = spuntati / totali * 100;
+    var prima = (spuntati - 1) / totali * 100;
+    m.traguardi.forEach(function(t) {
+        if (prima < t.perc && perc >= t.perc) {
+            setTimeout(function() {
+                toast(t.emoji, t.testo, { durata: 4500, big: true });
+                festeggia(t.perc === 100 ? 160 : 110);
+                if (t.perc === 100) {
+                    // ⚠️ I fuochi al 100 % dipendono dall'umore: su una stecca di
+                    // bei giorni l'ultimo giorno è un addio, e festeggiarlo con
+                    // i fuochi suonerebbe come una presa in giro.
+                    if (m.fuochiAl100) fuochiArtificio();
+                    // spuntati tutti: la chiusura si propone da sola,
+                    // appena il messaggio del traguardo ha finito
+                    segnaChiusuraProposta();
+                    setTimeout(apriChiusura, 5000);
+                }
+            }, ritardo || 2600);
+        }
+    });
+}
+
+function festeggia(quanti) {
+    var layer = document.getElementById('confettiLayer');
+    for (var i = 0; i < quanti; i++) {
+        (function(i) {
+            setTimeout(function() {
+                var el = document.createElement('div');
+                el.className = 'confetto';
+                var size = Math.random() * 9 + 6;
+                el.style.cssText = [
+                    'left:' + (Math.random() * 100) + 'vw',
+                    'top:-14px',
+                    'width:' + size + 'px',
+                    'height:' + size + 'px',
+                    'background:' + CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+                    'border-radius:' + (Math.random() > 0.5 ? '50%' : '2px'),
+                    'animation-duration:' + (Math.random() * 1.8 + 1.6) + 's'
+                ].join(';');
+                layer.appendChild(el);
+                setTimeout(function() { el.remove(); }, 4000);
+            }, i * 22);
+        })(i);
+    }
+}
+
+// ============================================================
+// IMPOSTAZIONI
+// ============================================================
+var overlay    = document.getElementById('settingsOverlay');
+var swWeekend  = document.getElementById('switchWeekend');
+var tmpWeekend = false;
+// come le giornate chiave, l'umore si sceglie su una copia: "Annulla" deve
+// poter buttare via anche questo
+var tmpMood    = 'attesa';
+// Le giornate chiave si modificano su una copia: "Annulla" deve poter
+// buttare via tutto, "Salva" applica sia il periodo sia le giornate.
+var tmpKeyDays = {};
+
+// Le due schede dell'umore e le etichette che ne discendono: cambiando
+// stecca cambia anche la domanda che il primo campo pone — «cosa stai
+// aspettando?» non ha senso per dei giorni che stai già vivendo.
+function renderMood() {
+    var m = MOODS[moodValido(tmpMood)];
+    ['moodAttesa', 'moodBeiGiorni'].forEach(function(id) {
+        var el = document.getElementById(id);
+        var v  = MOODS[moodValido(el.dataset.mood)];
+        el.classList.toggle('on', el.dataset.mood === tmpMood);
+        el.querySelector('.mood-opt-emoji').textContent = v.emoji;
+        el.querySelector('.mood-opt-title').textContent = v.nome;
+        el.querySelector('.mood-opt-sub').textContent   = v.sub;
+    });
+    document.getElementById('moodHint').textContent   = m.hint;
+    document.getElementById('lblGoal').textContent    = m.labelGoal;
+    document.getElementById('lblEmoji').textContent   = m.labelEmoji;
+    document.getElementById('inGoal').placeholder     = m.placeholderGoal;
+}
+
+['moodAttesa', 'moodBeiGiorni'].forEach(function(id) {
+    document.getElementById(id).addEventListener('click', function() {
+        tmpMood = this.dataset.mood;
+        renderMood();
+    });
+});
+
+function apriImpostazioni() {
+    tmpMood = moodValido(S.mood);
+    renderMood();
+    document.getElementById('inGoal').value  = S.goal;
+    document.getElementById('inEmoji').value = S.emoji;
+    document.getElementById('inStart').value = S.startDate;
+    document.getElementById('inEnd').value   = S.endDate;
+    tmpWeekend = S.skipWeekend;
+    swWeekend.classList.toggle('on', tmpWeekend);
+
+    tmpKeyDays = {};
+    Object.keys(S.keyDays).forEach(function(g) { tmpKeyDays[g] = S.keyDays[g]; });
+    document.getElementById('inKeyDate').value  = '';
+    document.getElementById('inKeyLabel').value = '';
+    aggiornaLimitiKeyDate();
+    aggiornaBtnAddKey();
+    renderKeyList();
+
+    // niente traguardo, niente da cancellare: alla prima apertura queste
+    // impostazioni sono un foglio bianco
+    document.getElementById('deleteGoalRow').style.display =
+        S.configured ? 'block' : 'none';
+
+    overlay.classList.add('show');
+}
+
+function renderKeyList() {
+    var box = document.getElementById('keyList');
+    var giorni = Object.keys(tmpKeyDays).sort();
+
+    if (!giorni.length) {
+        box.innerHTML = '<div class="key-empty">Nessuna giornata chiave. '
+                      + 'Aggiungine una qui sopra.</div>';
+        return;
+    }
+
+    box.innerHTML = giorni.map(function(g) {
+        // ⚠️ Una chiave entra sempre dentro il periodo, ma il periodo si può
+        // accorciare dopo: quella riga resta salvata e nella griglia sparisce.
+        // Qui si dice, invece di lasciarla scoprire dal fatto che non succede
+        // niente il giorno che dovrebbe.
+        var fuori = perchePuoNonEsserci(g);
+        return '<div class="key-item' + (fuori ? ' fuori' : '') + '">'
+             + '<span class="key-item-date">' + fmtIT(g) + '</span>'
+             + '<span class="key-item-label">'
+             + (tmpKeyDays[g] ? escapeAttr(tmpKeyDays[g]) : '<em>senza nome</em>')
+             + '</span>'
+             + '<button type="button" class="key-item-del" data-date="' + g
+             + '" title="Togli">✕</button>'
+             + (fuori ? '<div class="key-item-warn">⚠️ Fuori dal periodo: '
+                      + 'nella griglia questo giorno non c\'è.</div>' : '')
+             + '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(box.querySelectorAll('.key-item-del'), function(b) {
+        b.addEventListener('click', function() {
+            delete tmpKeyDays[b.dataset.date];
+            renderKeyList();
+        });
+    });
+}
+
+// ⚠️ Una giornata chiave fuori dal periodo si salva, si vede nell'elenco qui
+// sotto e poi NON C'È: la griglia disegna i giorni di giorniDelPeriodo(), e
+// quel giorno lì dentro non compare — non si può spuntare, e i fuochi non
+// partiranno mai. Non si accorge nessuno finché non si va a cercarla.
+//
+// Il periodo si legge dai CAMPI del form e non da S: qui si sta ancora
+// scegliendo, e il periodo salvato è quello di prima (o non esiste affatto).
+// Torna una stringa col motivo, o null se la data va bene.
+function perchePuoNonEsserci(data) {
+    var start = document.getElementById('inStart').value;
+    var end   = document.getElementById('inEnd').value;
+    if (!start || !end) return 'Scegli prima il periodo della stecca.';
+    if (parseISO(end) < parseISO(start)) return 'Il periodo non è valido: sistemalo prima.';
+
+    if (data < start || data > end) {
+        return 'Il ' + fmtIT(data) + ' è fuori dal periodo della stecca ('
+             + fmtIT(start) + ' → ' + fmtIT(end) + '), quindi nella griglia '
+             + 'quel giorno non ci sarebbe e non lo potresti spuntare.';
+    }
+    // stessa conseguenza, altra causa: col weekend saltato il sabato e la
+    // domenica non sono giorni della stecca
+    var dow = parseISO(data).getDay();
+    if (tmpWeekend && (dow === 0 || dow === 6)) {
+        return 'Il ' + fmtIT(data) + ' è un ' + (dow === 0 ? 'domenica' : 'sabato')
+             + ', e questa stecca salta i fine settimana: nella griglia quel '
+             + 'giorno non ci sarebbe.';
+    }
+    return null;
+}
+
+// Il calendarietto del campo si apre già sul periodo: steccare la data
+// giusta è meglio che spiegare dopo perché quella scelta non va.
+function aggiornaLimitiKeyDate() {
+    var campo = document.getElementById('inKeyDate');
+    var start = document.getElementById('inStart').value;
+    var end   = document.getElementById('inEnd').value;
+    if (start) campo.min = start; else campo.removeAttribute('min');
+    if (end)   campo.max = end;   else campo.removeAttribute('max');
+}
+
+// ⚠️ Il tasto sta spento finché non c'è una data, invece di rispondere con
+// un alert('Errore: …'). È un btn-primary uguale al Salva che sta due righe
+// sotto: premuto per sbaglio al posto di quello, quell'errore si legge come
+// «non mi fa salvare se non metto una giornata chiave» — e le giornate
+// chiave sono facoltative.
+function aggiornaBtnAddKey() {
+    document.getElementById('btnAddKey').disabled =
+        !document.getElementById('inKeyDate').value;
+}
+
+document.getElementById('inKeyDate').addEventListener('input', aggiornaBtnAddKey);
+document.getElementById('inStart').addEventListener('change', aggiornaLimitiKeyDate);
+document.getElementById('inEnd').addEventListener('change', aggiornaLimitiKeyDate);
+
+document.getElementById('btnAddKey').addEventListener('click', function() {
+    var data = document.getElementById('inKeyDate').value;
+    var lab  = document.getElementById('inKeyLabel').value.trim();
+    if (!data) return;
+
+    var motivo = perchePuoNonEsserci(data);
+    if (motivo) { alert(motivo); return; }
+
+    tmpKeyDays[data] = lab;
+    document.getElementById('inKeyDate').value  = '';
+    document.getElementById('inKeyLabel').value = '';
+    aggiornaBtnAddKey();
+    renderKeyList();
+});
+
+function chiudiImpostazioni() { overlay.classList.remove('show'); }
+
+document.getElementById('btnSettings').addEventListener('click', apriImpostazioni);
+document.getElementById('btnCancel').addEventListener('click', chiudiImpostazioni);
+
+overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) chiudiImpostazioni();
+});
+
+document.getElementById('toggleWeekend').addEventListener('click', function() {
+    tmpWeekend = !tmpWeekend;
+    swWeekend.classList.toggle('on', tmpWeekend);
+});
+
+document.getElementById('btnSave').addEventListener('click', async function() {
+    var goal  = document.getElementById('inGoal').value.trim();
+    var emoji = document.getElementById('inEmoji').value.trim();
+    var start = document.getElementById('inStart').value;
+    var end   = document.getElementById('inEnd').value;
+
+    if (!start || !end) {
+        alert('Errore: servono sia la data di inizio che quella di fine.');
+        return;
+    }
+    if (parseISO(end) < parseISO(start)) {
+        alert('Errore: la data finale è prima di quella iniziale.');
+        return;
+    }
+
+    var giorniTot = Math.round((parseISO(end) - parseISO(start)) / 86400000) + 1;
+    if (giorniTot > 1500) {
+        alert('Errore: il periodo è troppo lungo (massimo 1500 giorni).');
+        return;
+    }
+
+    var prima = {
+        goal: S.goal, emoji: S.emoji, mood: S.mood, startDate: S.startDate,
+        endDate: S.endDate, skipWeekend: S.skipWeekend,
+        configured: S.configured, keyDays: S.keyDays
+    };
+
+    var nuoveChiavi = {};
+    Object.keys(tmpKeyDays).forEach(function(g) { nuoveChiavi[g] = tmpKeyDays[g]; });
+
+    S.goal        = goal || 'Il traguardo';
+    S.emoji       = emoji || '🎯';
+    S.mood        = moodValido(tmpMood);
+    S.startDate   = start;
+    S.endDate     = end;
+    S.skipWeekend = tmpWeekend;
+    S.configured  = true;
+    S.keyDays     = nuoveChiavi;
+
+    salvaCache();
+    chiudiImpostazioni();
+    render();
+
+    try {
+        await dbSaveSettings();
+        await dbSyncKeyDays(nuoveChiavi, prima.keyDays);
+        setSync('ok', '☁ ok');
+    } catch (e) {
+        if (!handleAuthError(e)) {
+            console.warn('Impostazioni non sincronizzate:', e);
+            S.goal = prima.goal; S.emoji = prima.emoji; S.mood = prima.mood;
+            S.startDate = prima.startDate; S.endDate = prima.endDate;
+            S.skipWeekend = prima.skipWeekend; S.configured = prima.configured;
+            S.keyDays = prima.keyDays;
+            salvaCache();
+            render();
+            toast('⚠️', 'Impostazioni non salvate: controlla la connessione.', { durata: 3500 });
+        }
+    }
+});
+
+document.getElementById('btnReset').addEventListener('click', async function() {
+    if (!confirm('Cancellare tutte le spunte? Il periodo impostato resta com\'è.')) return;
+
+    var backup = S.checks;
+    S.checks = {};
+    salvaCache();
+    chiudiImpostazioni();
+    render();
+
+    try {
+        if (sb) {
+            var res = await sb.from('sp_checks').delete().eq('user_id', currentUserId);
+            if (res.error) throw res.error;
+        }
+        toast('🧹', 'Spunte cancellate. Si riparte!');
+    } catch (e) {
+        if (!handleAuthError(e)) {
+            console.warn('Cancellazione non sincronizzata:', e);
+            S.checks = backup;
+            salvaCache();
+            render();
+            toast('⚠️', 'Non sono riuscito a cancellare le spunte. Riprova.', { durata: 3500 });
+        }
+    }
+});
+
+// Cancella il traguardo in corso: sparisce tutto, senza passare
+// dall'archivio. Chi vuole tenerne memoria usa 🏁 Chiudi la stecca.
+document.getElementById('btnDeleteGoal').addEventListener('click', async function() {
+    if (!S.configured) return;
+
+    var btn    = this;
+    var giorni = giorniDelPeriodo();
+    var fatti  = giorni.filter(function(g) { return S.checks[g]; }).length;
+    var chiavi = Object.keys(S.keyDays).length;
+
+    if (!confirm('Cancellare il traguardo «' + S.goal + '»?\n\n'
+                 + 'Spariscono il periodo, ' + fatti + (fatti === 1 ? ' spunta' : ' spunte')
+                 + ' e ' + chiavi + (chiavi === 1 ? ' giornata chiave' : ' giornate chiave') + '.\n'
+                 + 'Non finisce fra le stecche chiuse: è come se non ci fosse mai stato.')) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Cancello…';
+    try {
+        await dbDeleteGoal();
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '🗑️ Cancella il traguardo';
+        if (handleAuthError(e)) return;
+        console.warn('Traguardo non cancellato:', e);
+        alert('Errore: il traguardo non è stato cancellato ('
+              + (e.message || 'connessione assente') + '). Riprova.');
+        return;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '🗑️ Cancella il traguardo';
+
+    // campo libero, come dopo una stecca chiusa: si riparte da zero e
+    // le impostazioni non devono riproporre il traguardo appena buttato
+    S.goal        = 'Il traguardo';
+    S.emoji       = '🎯';
+    S.mood        = 'attesa';
+    S.startDate   = todayISO();
+    S.endDate     = defaultEnd();
+    S.skipWeekend = false;
+    S.checks      = {};
+    S.keyDays     = {};
+    S.configured  = false;
+    localStorage.removeItem(LS.asked);
+    salvaCache();
+    chiudiImpostazioni();
+    render();
+
+    toast('🗑️', 'Traguardo cancellato. Quando vuoi se ne imposta un altro.',
+          { durata: 3500 });
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && overlay.classList.contains('show')) chiudiImpostazioni();
+});
+
+// ============================================================
+// CHIUSURA DELLA STECCA
+// Tre passi in fila: l'ultima spunta (il gesto che chiude), la barra
+// della soddisfazione da 1 a 100, la nota. Poi la stecca finisce
+// nell'archivio e il campo resta libero per la prossima.
+// ============================================================
+var closeOverlay = document.getElementById('closeOverlay');
+
+// quel che si raccoglie strada facendo, azzerato ad ogni apertura
+var chiusura = { sodd: 70, emojiFinale: null, quando: null };
+
+var SODD_ETICHETTE = [
+    { max: 15,  testo: 'Per niente. 😔' },
+    { max: 30,  testo: 'Poco.' },
+    { max: 45,  testo: 'Insomma…' },
+    { max: 60,  testo: 'Nella media.' },
+    { max: 75,  testo: 'Bene! 🙂' },
+    { max: 90,  testo: 'Molto bene! 😄' },
+    { max: 100, testo: 'Alla grande! 🤩' }
+];
+
+function perFascia(elenco, valore) {
+    for (var i = 0; i < elenco.length; i++) {
+        if (valore <= elenco[i].max) return elenco[i];
+    }
+    return elenco[elenco.length - 1];
+}
+
+function vaiAlPasso(n) {
+    [1, 2, 3].forEach(function(i) {
+        document.getElementById('closeStep' + i).classList.toggle('on', i === n);
+    });
+}
+
+function apriChiusura() {
+    var giorni = giorniDelPeriodo();
+    if (!steccaDaChiudere(giorni)) return;
+
+    var fatti = giorni.filter(function(g) { return S.checks[g]; }).length;
+
+    chiusura = { sodd: 70, emojiFinale: null, quando: null };
+
+    var m = mood();
+    document.getElementById('closeTitle').textContent = m.closeTitolo;
+    document.getElementById('satTitle').textContent   = m.soddDomanda;
+    document.getElementById('notaSub').textContent    = m.notaSub;
+    document.getElementById('inNota').placeholder     = m.notaPlaceholder;
+
+    document.getElementById('closeEmoji').textContent = S.emoji || '🏁';
+    document.getElementById('closeSub').innerHTML =
+        escapeAttr(S.goal) + '<br>'
+        + fatti + ' giorni spuntati su ' + giorni.length
+        + ' · dal ' + fmtIT(S.startDate) + ' al ' + fmtIT(S.endDate);
+
+    var fc = document.getElementById('finalCheck');
+    fc.classList.remove('fatta');
+    fc.style.pointerEvents = '';
+    document.getElementById('finalCheckMark').textContent = '☑️';
+
+    document.getElementById('satSlider').value  = 70;
+    document.getElementById('satValue').textContent = '70';
+    document.getElementById('satCaption').textContent = perFascia(SODD_ETICHETTE, 70).testo;
+    document.getElementById('inNota').value = '';
+
+    vaiAlPasso(1);
+    closeOverlay.classList.add('show');
+}
+
+function chiudiChiusura() { closeOverlay.classList.remove('show'); }
+
+// 1 — l'ultima spunta
+document.getElementById('finalCheck').addEventListener('click', function() {
+    if (this.classList.contains('fatta')) return;
+    chiusura.emojiFinale = emojiRandom();
+    chiusura.quando = new Date().toISOString();
+
+    this.classList.add('fatta');
+    this.style.pointerEvents = 'none';
+    document.getElementById('finalCheckMark').textContent = chiusura.emojiFinale;
+    festeggia(50);
+
+    setTimeout(function() { vaiAlPasso(2); }, 800);
+});
+
+document.getElementById('btnCloseLater').addEventListener('click', chiudiChiusura);
+
+// 2 — la soddisfazione
+document.getElementById('satSlider').addEventListener('input', function() {
+    chiusura.sodd = parseInt(this.value, 10) || 1;
+    document.getElementById('satValue').textContent = chiusura.sodd;
+    document.getElementById('satCaption').textContent =
+        perFascia(SODD_ETICHETTE, chiusura.sodd).testo;
+});
+
+document.getElementById('btnSatNext').addEventListener('click', function() {
+    vaiAlPasso(3);
+    setTimeout(function() { document.getElementById('inNota').focus(); }, 120);
+});
+
+document.getElementById('btnNotaBack').addEventListener('click', function() { vaiAlPasso(2); });
+
+// 3 — la nota, e poi l'archivio
+document.getElementById('btnChiudiStecca').addEventListener('click', async function() {
+    var btn    = this;
+    var giorni = giorniDelPeriodo();
+    var fatti  = giorni.filter(function(g) { return S.checks[g]; }).length;
+    var sodd   = chiusura.sodd;
+    // l'umore con cui la stecca è stata vissuta, preso finché S ce l'ha
+    var voce   = mood();
+
+    var riga = {
+        user_id:        currentUserId,
+        goal:           S.goal,
+        emoji:          S.emoji,
+        mood:           moodValido(S.mood),
+        start_date:     S.startDate,
+        end_date:       S.endDate,
+        skip_weekend:   S.skipWeekend,
+        total_days:     giorni.length,
+        done_days:      fatti,
+        final_emoji:    chiusura.emojiFinale || '🏁',
+        final_check_at: chiusura.quando,
+        satisfaction:   sodd,
+        note:           document.getElementById('inNota').value.trim(),
+        checks:         S.checks,
+        key_days:       S.keyDays
+    };
+
+    btn.disabled = true;
+    btn.textContent = 'Archivio…';
+
+    var salvata;
+    try {
+        salvata = await dbCloseStecca(riga);
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Chiudi la stecca 🏁';
+        if (handleAuthError(e)) return;
+        console.warn('Stecca non archiviata:', e);
+        alert('Errore: la stecca non è stata archiviata ('
+              + (e.message || 'connessione assente') + '). Riprova.');
+        return;
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Chiudi la stecca 🏁';
+
+    S.stecche.unshift(salvata || riga);
+    S.checks     = {};
+    S.keyDays    = {};
+    S.configured = false;          // campo libero: si riparte quando si vuole
+    localStorage.removeItem(LS.asked);
+    salvaCache();
+    chiudiChiusura();
+    render();
+
+    festeggiaChiusura(sodd, voce);
+});
+
+// ⚠️ L'umore arriva come parametro e non da mood(): questa funzione gira
+// dopo che la stecca è stata archiviata, quando S descrive già il campo
+// libero. Chi chiude ce l'ha ancora sotto mano, e salutare dei bei giorni
+// con la voce dell'attesa sarebbe il modo peggiore di finirli.
+function festeggiaChiusura(sodd, voce) {
+    var m = perFascia(voce.msgChiusura, sodd);
+    toast(m.emoji, m.testo, {
+        durata: 7000,
+        big:    m.classe === 'big',
+        chiave: m.classe === 'chiave',
+        dolce:  m.classe === 'dolce'
+    });
+    festeggia(70 + sodd);
+    fuochiFinali(sodd);
+    // finito lo spettacolo, la domanda ovvia: e adesso cosa aspettiamo?
+    setTimeout(function() {
+        toast('🎯', voce.dopoArchivio, { durata: 3500 });
+        setTimeout(apriImpostazioni, 3600);
+    }, 9000);
+}
+
+closeOverlay.addEventListener('click', function(e) {
+    // solo prima dell'ultima spunta: dopo c'è una nota da non buttare via
+    if (e.target === closeOverlay
+        && document.getElementById('closeStep1').classList.contains('on')) {
+        chiudiChiusura();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape'
+        && closeOverlay.classList.contains('show')
+        && document.getElementById('closeStep1').classList.contains('on')) {
+        chiudiChiusura();
+    }
+});
+
+// ============================================================
+// AVVIO
+// ============================================================
+console.log('%c✅ Spuntiamola ' + APP_VERSION, 'color:#00B894;font-size:16px;font-weight:bold;');
+console.log('%cbuild: ' + BUILD_TIME, 'color:#888;font-size:11px;');
+console.log('%cambiente: ' + (_IS_DEV ? '🧪 Development' : '🚀 Production'), 'color:#888;font-size:11px;');
+
+// La chiusura si propone da sola una volta per periodo: chi dice "più tardi"
+// non se la ritrova addosso ad ogni apertura, il pulsante 🏁 resta lì.
+function chiaveChiusura() { return S.startDate + '→' + S.endDate; }
+
+function chiusuraGiaProposta() {
+    return localStorage.getItem(LS.asked) === chiaveChiusura();
+}
+
+function segnaChiusuraProposta() {
+    localStorage.setItem(LS.asked, chiaveChiusura());
+}
+
+async function startApp() {
+    render();          // subito, con la cache locale
+    await dbLoad();    // poi il DB corregge il tiro
+
+    // prima apertura in assoluto: nessun periodo, apro le impostazioni
+    if (!S.configured) {
+        setTimeout(apriImpostazioni, 400);
+        return;
+    }
+
+    // periodo finito mentre l'app era chiusa: la stecca chiede di essere chiusa
+    if (steccaDaChiudere(giorniDelPeriodo()) && !chiusuraGiaProposta()) {
+        segnaChiusuraProposta();
+        setTimeout(apriChiusura, 900);
+    }
+}
+
+window.addEventListener('load', function() {
+    var stored = localStorage.getItem('sb_token');
+    if (stored) initWithToken(stored);
+    else {
+        render();
+        document.getElementById('authOverlay').style.display = 'flex';
+    }
+});
+</script>
+
+</body>
+</html>
