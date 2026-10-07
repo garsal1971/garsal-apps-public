@@ -30,6 +30,14 @@ data class RilevazioniDaChiedere(
     val ultime: Map<String, ObRilevazione>,
 )
 
+/** Un'esecuzione aperta per correggerla, con le rilevazioni di quel giorno. */
+data class EsecuzioneDaCorreggere(
+    val esecuzione: ObEsecuzione,
+    val azione: ObAzione?,
+    val metriche: List<ObMetrica>,
+    val rilevazioni: Map<String, ObRilevazione>,
+)
+
 data class PianoState(
     val azioni: List<ObAzione> = emptyList(),
     val obiettivi: List<ObObiettivo> = emptyList(),
@@ -41,7 +49,25 @@ data class PianoState(
     val errore: String? = null,
     val messaggio: String? = null,
     val daRilevare: RilevazioniDaChiedere? = null,
+    /** `null` = finestra delle esecuzioni chiusa. */
+    val esecuzioni: List<ObEsecuzione>? = null,
+    val daCorreggere: EsecuzioneDaCorreggere? = null,
 ) {
+    fun azioneDi(id: String?): ObAzione? = azioni.firstOrNull { it.id == id }
+
+    /**
+     * Le esecuzioni che si possono annullare: l'ultima di ogni azione, mai su un
+     * workflow (la RPC lo rifiuterebbe comunque). La lista arriva dalla più
+     * nuova, quindi la prima di un'azione è la sua ultima.
+     */
+    fun annullabili(): Set<String> =
+        esecuzioni.orEmpty()
+            .filter { it.azioneId != null }
+            .distinctBy { it.azioneId }
+            .filter { azioneDi(it.azioneId)?.workflow != true }
+            .map { it.id }
+            .toSet()
+
     fun obiettivoDi(id: String?): ObObiettivo? = obiettivi.firstOrNull { it.id == id }
     fun prioritaDi(id: String?): CmPriorita? = priorita.firstOrNull { it.id == id }
 
@@ -270,6 +296,107 @@ class PianoViewModel : ViewModel() {
             } else {
                 _state.value.copy(messaggio = "❌ " + errori.joinToString(" · "))
             }
+        }
+    }
+
+    // ── Le esecuzioni: correggere e annullare ───────────────────────────────
+
+    fun apriEsecuzioni() {
+        viewModelScope.launch {
+            try {
+                _state.value = _state.value.copy(esecuzioni = PianoRepository.esecuzioni())
+            } catch (e: Exception) {
+                Log.w(TAG, "esecuzioni non lette", e)
+                _state.value = _state.value.copy(messaggio = "❌ " + (e.message ?: "errore"))
+            }
+        }
+    }
+
+    fun chiudiEsecuzioni() {
+        _state.value = _state.value.copy(esecuzioni = null)
+    }
+
+    /**
+     * ⚠️ Lo fa la RPC `ob_action_undo`: riportare indietro la prossima
+     * occorrenza è ciclo di vita, come completare e saltare.
+     */
+    fun annulla(e: ObEsecuzione) {
+        viewModelScope.launch {
+            try {
+                val r = PianoRepository.annulla(e.id)
+                _state.value = _state.value.copy(
+                    messaggio = when {
+                        !r.ok -> "❌ " + (r.errore ?: "errore")
+                        r.promemoriaPersi -> "↩️ Annullata · l'azione era conclusa: i promemoria si rimettono dal web"
+                        else -> "↩️ Esecuzione annullata"
+                    },
+                )
+                if (r.ok) {
+                    ricaricaAzioni()
+                    _state.value = _state.value.copy(esecuzioni = PianoRepository.esecuzioni())
+                }
+            } catch (ex: Exception) {
+                Log.w(TAG, "annullamento non riuscito", ex)
+                _state.value = _state.value.copy(messaggio = "❌ " + (ex.message ?: "errore"))
+            }
+        }
+    }
+
+    fun apriCorrezione(e: ObEsecuzione) {
+        viewModelScope.launch {
+            val metriche = e.azioneId?.let { _state.value.metricheDiAzione(it) }.orEmpty()
+            val rilevazioni = e.giornoRilevazioni?.let { g ->
+                runCatching { PianoRepository.rilevazioniDel(g, metriche.map { it.id }) }.getOrNull()
+            }.orEmpty()
+            _state.value = _state.value.copy(
+                daCorreggere = EsecuzioneDaCorreggere(e, _state.value.azioneDi(e.azioneId), metriche, rilevazioni),
+            )
+        }
+    }
+
+    fun chiudiCorrezione() {
+        _state.value = _state.value.copy(daCorreggere = null)
+    }
+
+    /**
+     * Istante, esito e punti con un update diretto (come nel web: non è ciclo di
+     * vita), le rilevazioni da `ob_record_measurement`, che sullo stesso giorno
+     * corregge invece di aggiungere.
+     */
+    fun salvaCorrezione(
+        nuovoIstante: String,
+        esito: String,
+        punti: Int,
+        valori: Map<String, Double>,
+        nota: String,
+        giudizi: Map<String, String>,
+    ) {
+        val c = _state.value.daCorreggere ?: return
+        viewModelScope.launch {
+            val errori = mutableListOf<String>()
+            try {
+                PianoRepository.correggi(c.esecuzione, nuovoIstante, esito, punti)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(messaggio = "❌ " + (e.message ?: "errore"))
+                return@launch
+            }
+            val giorno = c.esecuzione.giornoRilevazioni
+            if (giorno != null) valori.forEach { (metricaId, valore) ->
+                val nome = c.metriche.firstOrNull { it.id == metricaId }?.name ?: metricaId
+                try {
+                    val r = ObiettiviRepository.registraRilevazione(metricaId, valore, giorno, nota, giudizi[metricaId])
+                    if (!r.ok) errori += "$nome: ${r.error ?: "errore"}"
+                } catch (e: Exception) {
+                    errori += "$nome: ${e.message ?: "errore"}"
+                }
+            }
+            _state.value = _state.value.copy(
+                daCorreggere = if (errori.isEmpty()) null else c,
+                messaggio = if (errori.isEmpty()) "✏️ Esecuzione corretta" else "❌ " + errori.joinToString(" · "),
+                esecuzioni = runCatching { PianoRepository.esecuzioni() }.getOrDefault(_state.value.esecuzioni),
+                ultimeRilevazioni = runCatching { ObiettiviRepository.ultimeRilevazioni() }
+                    .getOrDefault(_state.value.ultimeRilevazioni),
+            )
         }
     }
 
