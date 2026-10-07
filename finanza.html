@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.8</title>
+  <title>GarsalFinanza v1.27.9</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -613,7 +613,7 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.8';
+const APP_VERSION = 'v1.27.9';
 const APP_BUILD   = '2026-10-06T22:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
@@ -3821,6 +3821,12 @@ function renderPrevidenza() {
         <button class="btn btn-outline btn-sm" data-action="new-pension-contribution">+ Periodo</button>
       </div>
       <p class="text-muted text-sm mb-12">${(S.pensionContrib || []).length} periodi registrati · ${totSettimane.toFixed(3).replace('.', ',')} settimane utili in tutto</p>
+      ${(() => {
+        // L'INPS conta 52 settimane per anno, quindi un mese sono 52/12 settimane.
+        const mesi = Math.round(totSettimane * 12 / 52);
+        const anni = Math.floor(mesi / 12), resto = mesi % 12;
+        return `<p class="text-muted text-sm mb-12">≈ ${mesi} mesi · ${anni} ann${anni === 1 ? 'o' : 'i'}${resto ? ` e ${resto} mes${resto === 1 ? 'e' : 'i'}` : ''} <span title="52 settimane = 1 anno, come conta l'INPS">(52 settimane = 1 anno)</span></p>`;
+      })()}
       ${renderPensionContribTable(S.pensionContrib || [])}
     </div>
   `);
