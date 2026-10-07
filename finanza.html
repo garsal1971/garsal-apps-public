@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.7</title>
+  <title>GarsalFinanza v1.27.8</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -613,7 +613,7 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.7';
+const APP_VERSION = 'v1.27.8';
 const APP_BUILD   = '2026-10-06T22:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
@@ -1811,16 +1811,26 @@ function renderPatrimonioChart() {
 }
 /* ══════════════ RENDERERS ══════════════════════════════════════ */
 function renderProgressione() {
-  // Con lo switch su «uno per mese» resta lo snapshot del giorno più grande di ogni mese:
-  // l'elenco è già dal più recente, quindi il primo che si incontra per ogni AAAA-MM è
-  // l'ultimo del mese. Il grafico qui sopra legge comunque S.dashboardSnapshots per intero.
+  // Con lo switch su «uno per mese» resta, per ogni mese, lo snapshot col TOTALE PORTAFOGLI
+  // più alto. L'elenco è dal più recente e si sostituisce solo su un valore strettamente
+  // maggiore, quindi a parità vince il giorno più recente; un mese senza nessun totale
+  // portafogli tiene l'ultimo giorno (un valore assente non concorre: non è zero).
+  // Il grafico qui sopra legge comunque S.dashboardSnapshots per intero.
+  const num = v => (v == null || v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
   const tutti = S.dashboardSnapshots.slice().sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
-  const visti = new Set();
-  const snaps = !S.snapMensili ? tutti
-    : tutti.filter(s => { const m = s.snapshot_date.slice(0, 7); if (visti.has(m)) return false; visti.add(m); return true; });
+  let snaps = tutti;
+  if (S.snapMensili) {
+    const perMese = new Map();
+    tutti.forEach(s => {
+      const m = s.snapshot_date.slice(0, 7);
+      const cur = perMese.get(m);
+      const v = num(s.portafogli_totali);
+      if (!cur || (v != null && (num(cur.portafogli_totali) == null || v > num(cur.portafogli_totali)))) perMese.set(m, s);
+    });
+    snaps = [...perMese.values()];
+  }
   // Il migliore di ogni colonna, fra le righe mostrate: il più alto, tranne i debiti dove
   // è il più basso. Un valore assente non concorre (un portafoglio senza dato non è zero).
-  const num = v => (v == null || v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
   const migliore = (campo, piuBasso) => {
     const vals = snaps.map(x => num(x[campo])).filter(v => v != null);
     return vals.length ? (piuBasso ? Math.min(...vals) : Math.max(...vals)) : null;
