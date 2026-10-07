@@ -29,6 +29,8 @@ data class ObMetrica(
      * `automisurazione` — misuri un numero, da `baseline` a `target`
      * `test` — il punteggio di un test esterno, scala fissa `min_value` 1 .. `max_value` 100,
      *          con un giudizio scritto per ogni rilevazione
+     * `gofluent` — il livello del test GoFluent, scala fissa 1..12 (vedi [GoFluentLivelli]),
+     *          scelto da una tendina, col giudizio come il test
      *
      * ⚠️ Le due coppie si escludono a vicenda (vincolo `ob_metrics_scala_per_tipo`):
      * quella del tipo che non è vale sempre null. Per leggere gli estremi
@@ -51,12 +53,28 @@ data class ObMetrica(
 ) {
     /** Da dove a dove va la metrica: la copia Kotlin di `ob_metric_scale`. */
     val scala: Pair<Double, Double>
-        get() = if (kind == "autovalutazione" || kind == "test") {
+        get() = if (kind == "autovalutazione" || kind == "test" || kind == "gofluent") {
             (minValue ?: 0.0) to (maxValue ?: 0.0)
         } else {
             (baseline ?: 0.0) to (target ?: 0.0)
         }
 }
+
+/**
+ * I livelli del test GoFluent, dal più basso al più alto: in archivio il
+ * livello è la sua posizione (PRE-A1 = 1 … C2 = 12). È il gemello di
+ * `GOFLUENT_LIVELLI` in obiettivi.html, e l'ordine È il dato: spostare un
+ * livello cambierebbe il significato delle rilevazioni già salvate.
+ */
+val GoFluentLivelli = listOf("PRE-A1", "A1", "A1+", "A2", "A2+", "B1", "B1+", "B2", "B2+", "C1", "C1+", "C2")
+
+/** Il valore come si legge: il livello per GoFluent, il numero per le altre metriche. */
+fun ObMetrica.testoValore(v: Double): String =
+    if (kind == "gofluent") GoFluentLivelli.getOrNull(v.toInt() - 1) ?: v.toString()
+    else if (v == Math.rint(v)) v.toLong().toString() else v.toString()
+
+/** Le metriche che portano il giudizio scritto accanto al valore. */
+val ObMetrica.haGiudizio: Boolean get() = kind == "test" || kind == "gofluent"
 
 @Serializable
 data class ObMilestone(
