@@ -2397,6 +2397,25 @@ Aggiungendo una fonte nuova: il prezzo va restituito e passato a `pushPrice()`, 
 `rows` a mano — e prima di fidarsi di un campo JSON conviene guardare **cosa misura**, non come
 si chiama.
 
+### ⚡ get-prices v5.21.0: fonte ricordata, simboli in parallelo
+
+- **`fnz_price_cache.source` / `source_ref`** (`20261007220000_fnz_price_cache_fonte.sql`):
+  la fonte che ha dato l'ultimo prezzo e l'identificativo usato lì (ticker Yahoo trovato
+  dall'ISIN, simbolo Twelve Data risolto, mercato Euronext). Al giro dopo
+  `provaFonteRicordata()` prova **prima quella e da sola**; se non risponde si rifà la catena
+  completa nello stesso ordine di sempre, e la fonte che vince diventa la nuova ricordata.
+  ⚠️ Non vale per il ticker Yahoo fissato a mano (che resta in testa comunque), le crypto e i
+  BTP di rendimentibtp.it (scaricati in blocco). ⚠️ `source_ref` dipende dall'ISIN: **cambiando
+  l'ISIN di un prodotto, azzera `source` della sua riga di cache**, o si continuerebbe a
+  chiedere il vecchio ticker (resta a fare da rete solo il controllo del 50 %).
+- **`CONCORRENZA` = 4 simboli insieme**; ogni `fetch` esterna ha un tetto di 12 s (`fetchT`).
+- ⚠️ **Twelve Data va a turni (`tdTurno`), non a pause**: ogni chiamata a TD (quote,
+  symbol_search, cambio valuta) prenota il suo posto a 8 s dall'ultima, in modo sincrono,
+  quindi il limite di 8/minuto regge anche coi simboli in parallelo. Una chiamata nuova a TD
+  deve passare di lì.
+- Se le due colonne mancano (migration non applicata) la funzione lo scrive in `fn_logs` e
+  lavora senza, come prima.
+
 ### ⚠️ Header PSU obbligatori per alcune banche
 
 Il catalogo `/aspsps` di Enable Banking dichiara per ogni banca un `required_psu_headers`:
