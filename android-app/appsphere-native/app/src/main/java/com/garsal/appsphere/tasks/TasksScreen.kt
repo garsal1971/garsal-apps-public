@@ -70,6 +70,7 @@ fun TasksScreen(
     var giornoAperto by remember { mutableStateOf<LocalDate?>(null) }
     var daEliminare by remember { mutableStateOf<TsTask?>(null) }
     var daSaltare by remember { mutableStateOf<TsTask?>(null) }
+    var daNascondere by remember { mutableStateOf<TsTask?>(null) }
 
     inCompilazione?.let { (bozza, id) ->
         TaskForm(
@@ -136,6 +137,8 @@ fun TasksScreen(
                             onCompleta = { vm.completa(it.id) },
                             onFallisci = { vm.fallisci(it.id) },
                             onSalta = { daSaltare = it },
+                            onNascondi = { daNascondere = it },
+                            onMostra = { vm.nascondi(it.id, null) },
                         )
 
                         Vista.GESTIONE -> VistaGestione(
@@ -250,6 +253,13 @@ fun TasksScreen(
             task = task,
             onAnnulla = { daSaltare = null },
             onConferma = { giorni -> vm.salta(task.id, giorni); daSaltare = null },
+        )
+    }
+
+    daNascondere?.let { task ->
+        DialogoNascondi(
+            onAnnulla = { daNascondere = null },
+            onConferma = { giorni -> vm.nascondi(task.id, giorni); daNascondere = null },
         )
     }
 
@@ -444,6 +454,50 @@ private fun DialogoSalta(task: TsTask, onAnnulla: () -> Unit, onConferma: (Int) 
                 enabled = numero != null && numero >= 1,
                 onClick = { numero?.let(onConferma) },
             ) { Text("Sposta") }
+        },
+        dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla") } },
+    )
+}
+
+/**
+ * 🙈 Per quanti giorni togliere un task dagli SCADUTI: 7 di partenza, oggi
+ * compreso, come `nascondiTask()` in `tasks.html`. Non sposta la scadenza e
+ * non tocca i promemoria: lo dice, perché «nascondi» si potrebbe leggere come
+ * «rimanda».
+ */
+@Composable
+private fun DialogoNascondi(onAnnulla: () -> Unit, onConferma: (Int) -> Unit) {
+    var giorni by remember { mutableStateOf("7") }
+    val numero = giorni.toIntOrNull()
+
+    AlertDialog(
+        onDismissRequest = onAnnulla,
+        title = { Text("Nascondere per quanti giorni?") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = giorni,
+                    onValueChange = { giorni = it.filter { c -> c.isDigit() }.take(3) },
+                    label = { Text("Giorni") },
+                    singleLine = true,
+                )
+                Text(
+                    text = numero?.takeIf { it >= 1 }?.let {
+                        "Fra gli scaduti torna il " + dataItaliana(
+                            LocalDate.now().plusDays(it.toLong()).toString()
+                        ) + ". Scadenza e promemoria non cambiano."
+                    } ?: "Serve un numero di giorni.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Palette.muted,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = numero != null && numero >= 1,
+                onClick = { numero?.let(onConferma) },
+            ) { Text("Nascondi") }
         },
         dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla") } },
     )

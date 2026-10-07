@@ -99,8 +99,24 @@ data class TasksState(
 
     private val programmati: List<TsTask> get() = attivi.filter { it.tipo != "free_repeat" }
 
-    val scaduti: List<TsTask>
+    private val tuttiScaduti: List<TsTask>
         get() = programmati.filter { it.giornoDiRiferimento?.isBefore(oggi) == true }
+
+    /** Un task è 🙈 nascosto finché `nascosto_fino` è oggi o dopo (`isNascosto` nel web). */
+    private fun nascostoOggi(t: TsTask): Boolean =
+        giornoDa(t.nascostoFino)?.let { !it.isBefore(oggi) } == true
+
+    val scaduti: List<TsTask>
+        get() = tuttiScaduti.filterNot(::nascostoOggi)
+
+    /**
+     * 🙈 NASCOSTI: gli scaduti tolti per qualche giorno col pulsante Nascondi,
+     * dal primo che riappare. Dal giorno dopo `nascosto_fino` tornano da sé
+     * fra gli SCADUTI. Non c'entrano con `show_in_panoramica` (👁️ NON IN
+     * PANORAMICA), che è per sempre.
+     */
+    val scadutiNascosti: List<TsTask>
+        get() = tuttiScaduti.filter(::nascostoOggi).sortedBy { it.nascostoFino }
 
     /**
      * «Oggi» è il giorno esatto, non «da oggi in giù»: è la stessa regola di
@@ -148,7 +164,7 @@ data class TasksState(
         get() = task.filter { it.stato in TsTask.STATI_IN_CALENDARIO && !it.inPanoramica }
 
     val panoramicaVuota: Boolean
-        get() = scaduti.isEmpty() && diOggi.isEmpty() && prossimi.isEmpty() &&
+        get() = scaduti.isEmpty() && scadutiNascosti.isEmpty() && diOggi.isEmpty() && prossimi.isEmpty() &&
             liberi.isEmpty() && nascosti.isEmpty()
 
     /**
@@ -361,6 +377,26 @@ class TasksViewModel : ViewModel() {
     fun salta(id: String, giorni: Int) = agisci("Saltato") { TasksRepository.salta(id, giorni) }
 
     fun fallisci(id: String) = agisci("Segnato come fallito") { TasksRepository.fallisci(id) }
+
+    /** 🙈 Nascondi per [giorni] giorni, oggi compreso; `null` = 👁 Mostra subito. */
+    fun nascondi(id: String, giorni: Int?) {
+        viewModelScope.launch {
+            try {
+                val fino = giorni?.let { LocalDate.now().plusDays(it.toLong() - 1) }
+                TasksRepository.nascondiFino(id, fino)
+                _state.value = _state.value.copy(
+                    messaggio = fino?.let { "🙈 Nascosto fino al ${dataItaliana(it.toString())}" }
+                        ?: "👁 Di nuovo fra gli scaduti"
+                )
+                ricaricaTask()
+            } catch (e: Exception) {
+                Log.w(TAG, "nascondi non riuscito", e)
+                _state.value = _state.value.copy(
+                    messaggio = "Non riuscito: ${e.message ?: "connessione assente"}"
+                )
+            }
+        }
+    }
 
     private fun agisci(fatto: String, azione: suspend () -> TasksRepository.Esito) {
         viewModelScope.launch {
