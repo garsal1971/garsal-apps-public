@@ -1,9 +1,9 @@
 {
   "app": "Smart Blocker",
-  "version": "1.6.3",
-  "versionCode": 40,
-  "builtAt": "2026-10-06T10:11:16Z",
-  "commit": "e96cab3aacc3698215d5a4e3664440e4f6e4aac9",
-  "bytes": 19788266,
-  "sha256": "2fc787f766c8ac23db98af018da021342896942d0e75f36d0f4501c8f746039c"
+  "version": "1.6.4",
+  "versionCode": 41,
+  "builtAt": "2026-10-07T11:02:12Z",
+  "commit": "af78bcbd0ee22be262e5d238c027f7b0ba012cd4",
+  "bytes": 19788382,
+  "sha256": "a726f2dc286f622eb661bc871b3caacc51eb27a376c034088de108b9abc765dc"
 }
