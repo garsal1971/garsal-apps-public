@@ -122,8 +122,8 @@ fun ObiettiviScreen(
         RilevazioneDialog(
             metrica = metrica,
             onAnnulla = { metricaDaRilevare = null },
-            onConferma = { valore, giorno, nota ->
-                vm.registra(metrica, valore, giorno, nota)
+            onConferma = { valore, giorno, nota, giudizio ->
+                vm.registra(metrica, valore, giorno, nota, giudizio)
                 metricaDaRilevare = null
             },
         )
@@ -334,25 +334,29 @@ private fun segnoMilestone(stato: String) = when (stato) {
  * metrica: un voto fuori scala lo rifiuterebbe comunque `ob_record_measurement`,
  * ma di qui non si può nemmeno comporre. Un'**automisurazione** ha un campo
  * numerico. La descrizione — come votare, o cosa si misura — è sempre in vista:
- * se cambia il metro la serie storica non è più confrontabile.
+ * se cambia il metro la serie storica non è più confrontabile. Un **test di
+ * valutazione** ha la casella del punteggio (1-100) e quella del giudizio.
  */
 @Composable
 private fun RilevazioneDialog(
     metrica: ObMetrica,
     onAnnulla: () -> Unit,
-    onConferma: (Double, LocalDate, String) -> Unit,
+    onConferma: (Double, LocalDate, String, String?) -> Unit,
 ) {
     val voto = metrica.kind == "autovalutazione"
+    val test = metrica.kind == "test"
     val minimo = metrica.minValue ?: 1.0
     val massimo = metrica.maxValue ?: 10.0
 
     var punteggio by remember { mutableStateOf(((minimo + massimo) / 2).roundToInt()) }
     var valore by remember { mutableStateOf("") }
     var nota by remember { mutableStateOf("") }
+    var giudizio by remember { mutableStateOf("") }
     var giorno by remember { mutableStateOf(LocalDate.now().toString()) }
 
     val giornoValido = runCatching { LocalDate.parse(giorno) }.isSuccess
-    val valoreValido = voto || valore.trim().toDoubleOrNull() != null
+    val numero = valore.trim().replace(',', '.').toDoubleOrNull()
+    val valoreValido = voto || (numero != null && (!test || numero in minimo..massimo))
 
     AlertDialog(
         onDismissRequest = onAnnulla,
@@ -364,7 +368,7 @@ private fun RilevazioneDialog(
             ) {
                 metrica.descrizione?.takeIf { it.isNotBlank() }?.let {
                     Text(
-                        (if (voto) "Come votare: " else "Cosa si misura: ") + it,
+                        (if (voto) "Come votare: " else if (test) "Quale test: " else "Cosa si misura: ") + it,
                         style = MaterialTheme.typography.bodySmall,
                         color = Palette.muted,
                         modifier = Modifier
@@ -402,11 +406,24 @@ private fun RilevazioneDialog(
                     OutlinedTextField(
                         value = valore,
                         onValueChange = { valore = it },
-                        label = { Text("Valore ${metrica.unit.orEmpty()}".trim()) },
+                        label = {
+                            Text(
+                                if (test) "Punteggio (${minimo.roundToInt()}-${massimo.roundToInt()})"
+                                else "Valore ${metrica.unit.orEmpty()}".trim()
+                            )
+                        },
                         singleLine = true,
-                        isError = valore.isNotBlank() && valore.trim().toDoubleOrNull() == null,
+                        isError = valore.isNotBlank() && !valoreValido,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (test) {
+                        OutlinedTextField(
+                            value = giudizio,
+                            onValueChange = { giudizio = it },
+                            label = { Text("Giudizio del test") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
 
                 OutlinedTextField(
@@ -430,9 +447,10 @@ private fun RilevazioneDialog(
                 enabled = giornoValido && valoreValido,
                 onClick = {
                     onConferma(
-                        if (voto) punteggio.toDouble() else valore.trim().toDouble(),
+                        if (voto) punteggio.toDouble() else numero!!,
                         LocalDate.parse(giorno),
                         nota,
+                        if (test) giudizio.trim().ifEmpty { null } else null,
                     )
                 },
             ) { Text("Registra") }

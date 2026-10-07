@@ -71,6 +71,7 @@ class ObiettiviViewModel : ViewModel() {
         valore: Double,
         giorno: LocalDate,
         nota: String,
+        giudizio: String? = null,
     ) {
         viewModelScope.launch {
             try {
@@ -79,6 +80,7 @@ class ObiettiviViewModel : ViewModel() {
                     valore = valore,
                     giorno = giorno,
                     nota = nota,
+                    giudizio = giudizio,
                 )
                 if (!esito.ok) {
                     _state.value = _state.value.copy(

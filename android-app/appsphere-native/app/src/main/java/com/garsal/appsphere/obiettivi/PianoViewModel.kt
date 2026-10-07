@@ -238,7 +238,12 @@ class PianoViewModel : ViewModel() {
      * zero» sono due cose diverse. Un errore su una non butta via le altre: la
      * finestra resta aperta e dice quali non sono passate.
      */
-    fun salvaRilevazioni(valori: Map<String, Double>, nota: String) {
+    fun salvaRilevazioni(
+        valori: Map<String, Double>,
+        nota: String,
+        /** Il giudizio scritto dei soli `test`, per metrica. */
+        giudizi: Map<String, String> = emptyMap(),
+    ) {
         val richiesta = _state.value.daRilevare ?: return
         if (valori.isEmpty()) { rilevazioniChiuse(); return }
         viewModelScope.launch {
@@ -252,6 +257,7 @@ class PianoViewModel : ViewModel() {
                         valore = valore,
                         giorno = richiesta.giorno,
                         nota = nota,
+                        giudizio = giudizi[metricaId],
                     )
                     if (esito.ok) fatte++ else errori += "$nome: ${esito.error ?: "errore"}"
                 } catch (e: Exception) {

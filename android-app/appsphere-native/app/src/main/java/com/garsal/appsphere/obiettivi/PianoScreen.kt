@@ -190,7 +190,7 @@ fun PianoScreen(
         DialogoRilevazioni(
             richiesta = richiesta,
             onAnnulla = vm::rilevazioniChiuse,
-            onSalva = { valori, nota -> vm.salvaRilevazioni(valori, nota) },
+            onSalva = { valori, nota, giudizi -> vm.salvaRilevazioni(valori, nota, giudizi) },
         )
     }
 }
@@ -507,8 +507,9 @@ private fun DialogoWorkflow(azione: ObAzione, onChiudi: () -> Unit) {
 private fun DialogoRilevazioni(
     richiesta: RilevazioniDaChiedere,
     onAnnulla: () -> Unit,
-    onSalva: (Map<String, Double>, String) -> Unit,
+    onSalva: (Map<String, Double>, String, Map<String, String>) -> Unit,
 ) {
+    val giudizi = remember(richiesta.azioneId) { mutableStateMapOf<String, String>() }
     val saltate = remember(richiesta.azioneId) { mutableStateMapOf<String, Boolean>() }
     val valori = remember(richiesta.azioneId) {
         mutableStateMapOf<String, String>().apply {
@@ -566,6 +567,15 @@ private fun DialogoRilevazioni(
                         if (!salta) CampoMisura(metrica, valori[metrica.id].orEmpty()) {
                             valori[metrica.id] = it
                         }
+                        // il test di valutazione porta anche il giudizio scritto
+                        if (!salta && metrica.kind == "test") {
+                            OutlinedTextField(
+                                value = giudizi[metrica.id].orEmpty(),
+                                onValueChange = { giudizi[metrica.id] = it },
+                                label = { Text("Giudizio del test") },
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            )
+                        }
                     }
                 }
 
@@ -585,7 +595,11 @@ private fun DialogoRilevazioni(
                         valori[m.id]?.replace(',', '.')?.toDoubleOrNull()?.let { m.id to it }
                     }
                     .toMap()
-                onSalva(daScrivere, nota.trim())
+                val giudiziDaScrivere = giudizi
+                    .filterKeys { it in daScrivere }
+                    .mapValues { it.value.trim() }
+                    .filterValues { it.isNotEmpty() }
+                onSalva(daScrivere, nota.trim(), giudiziDaScrivere)
             }) { Text("Registra") }
         },
         dismissButton = { TextButton(onClick = onAnnulla) { Text("Non adesso") } },

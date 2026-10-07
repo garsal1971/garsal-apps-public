@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.11.4</title>
+    <title>Obiettivi v1.12.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -938,6 +938,7 @@
                 <select class="form-select" id="mKind" onchange="onKindChange()">
                     <option value="autovalutazione">Autovalutazione — ti dai un voto</option>
                     <option value="automisurazione">Automisurazione — misuri un numero</option>
+                    <option value="test">Test di valutazione — punteggio da 1 a 100</option>
                 </select>
                 <div class="form-hint" id="kindHint"></div>
             </div>
@@ -955,6 +956,12 @@
                 <input type="number" step="any" class="form-input" id="mMax" value="10">
                 <div class="form-hint">Il voto più alto: è il traguardo, il 100%.</div>
             </div>
+        </div>
+
+        <!-- il test di valutazione: scala fissa, non si chiede niente -->
+        <div class="form-group" id="mTestRow">
+            <div class="desc-box"><span class="desc-label">Scala</span>da 1 a 100, fissa. Il 100 è il traguardo pieno.
+                A ogni test registri il punteggio e il giudizio scritto che lo accompagna.</div>
         </div>
 
         <!-- da dove a dove: solo per l'automisurazione -->
@@ -1340,8 +1347,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.11.4';
-var BUILD_TIME  = '2026-10-06T21:40:00Z';
+var APP_VERSION = 'v1.12.0';
+var BUILD_TIME  = '2026-10-07T10:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1568,7 +1575,11 @@ const STATUS_LABEL = {
 };
 
 const ROLE_LABEL = { primary: 'risultato', control: 'controllo', leading: 'sforzo' };
-const KIND_LABEL = { autovalutazione: 'autovalutazione', automisurazione: 'automisurazione' };
+const KIND_LABEL = { autovalutazione: 'autovalutazione', automisurazione: 'automisurazione', test: 'test di valutazione' };
+
+// La scala del test di valutazione: fissa, ed è la stessa che pretende il
+// vincolo ob_metrics_scala_per_tipo.
+const TEST_MIN = 1, TEST_MAX = 100;
 
 function metricsOf(objId)    { return metrics.filter(m => m.objective_id === objId); }
 function measuresOf(metId)   { return measurements.filter(m => m.metric_id === metId); }
@@ -1589,11 +1600,11 @@ function actionsOfMetric(metricId) {
 function childrenOf(objId)   { return objectives.filter(o => o.parent_id === objId); }
 function primaryOf(objId)    { return metricsOf(objId).find(m => m.role === 'primary') || null; }
 
-// Da dove a dove va una metrica. I due tipi lo dicono in colonne diverse —
-// l'autovalutazione con la scala, l'automisurazione con partenza e obiettivo —
+// Da dove a dove va una metrica. I tipi lo dicono in colonne diverse —
+// autovalutazione e test con la scala, l'automisurazione con partenza e obiettivo —
 // e questa è l'unica funzione che lo sa: è la copia della RPC ob_metric_scale.
 function scaleOf(metric) {
-    return metric.kind === 'autovalutazione'
+    return (metric.kind === 'autovalutazione' || metric.kind === 'test')
         ? { da: Number(metric.min_value), a: Number(metric.max_value) }
         : { da: Number(metric.baseline),  a: Number(metric.target)    };
 }
@@ -1972,17 +1983,23 @@ function openMetricEditor(objId, metricId) {
 function onKindChange() {
     const kind = document.getElementById('mKind').value;
     const voto = kind === 'autovalutazione';
+    const test = kind === 'test';
 
     document.getElementById('mScaleRow').style.display      = voto ? '' : 'none';
-    document.getElementById('mBaseTargetRow').style.display = voto ? 'none' : '';
-    document.getElementById('mUnitGroup').style.display     = voto ? 'none' : '';
+    document.getElementById('mTestRow').style.display       = test ? '' : 'none';
+    document.getElementById('mBaseTargetRow').style.display = (voto || test) ? 'none' : '';
+    document.getElementById('mUnitGroup').style.display     = (voto || test) ? 'none' : '';
 
-    document.getElementById('mDescLabel').textContent = voto ? 'Come votare' : 'Cosa si misura';
+    document.getElementById('mDescLabel').textContent = voto ? 'Come votare' : test ? 'Quale test' : 'Cosa si misura';
     document.getElementById('mDesc').placeholder = voto
         ? 'es. 1 = non ho aperto bocca in tutto il giorno · 10 = ho sostenuto una conversazione senza cercare le parole'
+        : test
+        ? 'es. Test di livello GoFluent, sezione speaking + listening, rifatto ogni mese.'
         : 'es. Mi registro mentre descrivo a voce per 3 minuti la mia giornata di ieri. Conto le pause sopra i 3 secondi.';
     document.getElementById('mDescHint').textContent = voto
         ? 'Che cosa vuol dire votare basso e che cosa votare alto. Ricompare a ogni voto: senza, fra un mese ti daresti un 7 con un metro diverso da oggi.'
+        : test
+        ? 'Quale test e come lo fai. Ricompare a ogni rilevazione: se cambia il test, i punteggi non si confrontano più.'
         : 'Come si misura, nel dettaglio. Ricompare a ogni rilevazione: se cambi metodo di misura la serie storica non vale più.';
 
     renderMetricFormHints();
@@ -2001,7 +2018,8 @@ function renderMetricFormHints() {
 
     const kindHints = {
         autovalutazione: 'Ti dai un voto dentro una scala che scegli tu. È ciò che rende misurabile un obiettivo senza numeri ovvi.',
-        automisurazione: 'Misuri un numero vero: kg, minuti, pause, lezioni fatte. Il traguardo è il valore obiettivo.'
+        automisurazione: 'Misuri un numero vero: kg, minuti, pause, lezioni fatte. Il traguardo è il valore obiettivo.',
+        test:            'Il punteggio di un test esterno, da 1 a 100, con il giudizio scritto che lo accompagna.'
     };
     document.getElementById('kindHint').textContent = kindHints[kind];
 }
@@ -2022,7 +2040,12 @@ async function saveMetric() {
     // Ogni tipo compila le sue colonne e azzera quelle dell'altro: lasciarci
     // dentro i valori del tipo di prima farebbe rifiutare il salvataggio dal
     // vincolo, e a schermo sembrerebbe un errore senza causa.
-    if (kind === 'autovalutazione') {
+    if (kind === 'test') {
+        Object.assign(payload, {
+            min_value: TEST_MIN, max_value: TEST_MAX,
+            baseline: null, target: null, unit: null
+        });
+    } else if (kind === 'autovalutazione') {
         const min = document.getElementById('mMin').value;
         const max = document.getElementById('mMax').value;
         if (min === '' || max === '')       { showToast('Servono minimo e massimo'); return; }
@@ -2251,6 +2274,7 @@ function graficoMetrica(m) {
         return `<div class="trend-metric">${testa}
             <div class="trend-single">${fmtNum(r.value)}
                 <span class="trend-single-date">il ${fmtDate(r.measured_on)}</span></div>
+            ${r.giudizio ? `<div class="form-hint">Giudizio: ${esc(r.giudizio)}</div>` : ''}
             <div class="form-hint">Una sola rilevazione: per una curva ne servono almeno due.</div></div>`;
     }
 
@@ -2295,7 +2319,7 @@ function graficoMetrica(m) {
 
         ${val.map((v, i) => `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="4"
              fill="${C_LINE}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke">
-             <title>${fmtDate(righe[i].measured_on)}: ${fmtNum(v)}${m.unit ? ' ' + esc(m.unit) : ''}</title>
+             <title>${fmtDate(righe[i].measured_on)}: ${fmtNum(v)}${m.unit ? ' ' + esc(m.unit) : ''}${righe[i].giudizio ? ' — ' + esc(righe[i].giudizio) : ''}</title>
            </circle>`).join('')}
 
         <text x="${x0 - 6}" y="${y0 + 4}" class="trend-tick" text-anchor="end">${fmtNum(hi)}</text>
@@ -2311,10 +2335,11 @@ function graficoMetrica(m) {
         <summary>i ${righe.length} valori</summary>
         <div class="trend-scroll">
         <table class="trend-table">
-            <thead><tr><th>Giorno</th><th>Valore</th><th>Nota</th></tr></thead>
+            <thead><tr><th>Giorno</th><th>Valore</th>${m.kind === 'test' ? '<th>Giudizio</th>' : ''}<th>Nota</th></tr></thead>
             <tbody>${righe.slice().reverse().map(r => `<tr>
                 <td>${fmtDate(r.measured_on)}</td>
                 <td class="num">${fmtNum(r.value)}</td>
+                ${m.kind === 'test' ? `<td>${esc(r.giudizio || '—')}</td>` : ''}
                 <td>${esc(r.note || '')}</td></tr>`).join('')}</tbody>
         </table>
         </div>
@@ -2889,6 +2914,7 @@ function chiediRilevazioni(actionId, occorrenza) {
         const { da, a: fine } = scaleOf(m);
         const ultima = measuresOf(m.id).slice(-1)[0];
         const voto   = m.kind === 'autovalutazione';
+        const test   = m.kind === 'test';
         const val    = ultima ? Number(ultima.value)
                               : (voto ? Math.round((da + fine) / 2) : '');
         return `
@@ -2898,8 +2924,14 @@ function chiediRilevazioni(actionId, occorrenza) {
                 <span class="chip meas-skip" onclick="toggleSaltaMetrica(this)">non adesso</span>
             </div>
             ${m.descrizione ? `<div class="desc-box" style="margin:0.3rem 0 0.5rem;">
-                <span class="desc-label">${voto ? 'Come votare' : 'Cosa si misura'}</span>${esc(m.descrizione)}</div>` : ''}
-            ${voto
+                <span class="desc-label">${voto ? 'Come votare' : test ? 'Quale test' : 'Cosa si misura'}</span>${esc(m.descrizione)}</div>` : ''}
+            ${test
+                ? `<input type="number" step="1" min="${da}" max="${fine}" class="form-input meas-input"
+                          value="${ultima ? val : ''}" placeholder="punteggio da ${fmtNum(da)} a ${fmtNum(fine)}">
+                   <textarea class="form-textarea meas-giudizio" rows="2" style="margin-top:0.4rem;"
+                          placeholder="Il giudizio del test, es. B2 – Upper Intermediate, migliorata la pronuncia"></textarea>
+                   <div class="form-hint">Punteggio da ${fmtNum(da)} a ${fmtNum(fine)}; il giudizio è facoltativo.</div>`
+            : voto
                 ? `<input type="range" min="${da}" max="${fine}" step="1" value="${val}"
                           class="meas-input" oninput="this.closest('.meas-multi').querySelector('.meas-multi-val').textContent = this.value;">
                    <div class="vote-scale"><span>${fmtNum(da)}</span>
@@ -2918,6 +2950,8 @@ function toggleSaltaMetrica(el) {
     riga.classList.toggle('saltata');
     el.classList.toggle('on');
     riga.querySelector('.meas-input').disabled = riga.classList.contains('saltata');
+    const giud = riga.querySelector('.meas-giudizio');
+    if (giud) giud.disabled = riga.classList.contains('saltata');
 }
 
 // Ogni metrica passa da ob_record_measurement, una chiamata per metrica: è
@@ -2940,7 +2974,8 @@ async function salvaRilevazioniAzione() {
             p_metric_id:   riga.dataset.metric,
             p_value:       Number(valore),
             p_measured_on: giorno,
-            p_note:        nota
+            p_note:        nota,
+            p_giudizio:    riga.querySelector('.meas-giudizio')?.value.trim() || null
         });
         if (error)     { if (handleAuthError(error)) return; errori.push(nome + ': ' + error.message); }
         else if (!data?.ok) errori.push(nome + ': ' + (data?.error || 'errore'));
