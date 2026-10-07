@@ -27,6 +27,8 @@ data class ObMetrica(
     /**
      * `autovalutazione` — ti dai un voto dentro la scala `min_value`..`max_value`
      * `automisurazione` — misuri un numero, da `baseline` a `target`
+     * `test` — il punteggio di un test esterno, scala fissa `min_value` 1 .. `max_value` 100,
+     *          con un giudizio scritto per ogni rilevazione
      *
      * ⚠️ Le due coppie si escludono a vicenda (vincolo `ob_metrics_scala_per_tipo`):
      * quella del tipo che non è vale sempre null. Per leggere gli estremi
@@ -49,7 +51,7 @@ data class ObMetrica(
 ) {
     /** Da dove a dove va la metrica: la copia Kotlin di `ob_metric_scale`. */
     val scala: Pair<Double, Double>
-        get() = if (kind == "autovalutazione") {
+        get() = if (kind == "autovalutazione" || kind == "test") {
             (minValue ?: 0.0) to (maxValue ?: 0.0)
         } else {
             (baseline ?: 0.0) to (target ?: 0.0)

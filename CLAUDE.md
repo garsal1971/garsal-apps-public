@@ -2091,12 +2091,23 @@ obiettivo**, vincolo `uq_ob_metrics_one_primary`), **`control`** (secondo riscon
 |---|---|---|
 | `autovalutazione` | `min_value`, `max_value` (di norma 1-10) | `baseline`, `target`, `unit` |
 | `automisurazione` | `baseline`, `target`, `unit` | `min_value`, `max_value` |
+| `test` | `min_value` = 1, `max_value` = 100 (fissi) | `baseline`, `target` |
 
 Il vincolo `ob_metrics_scala_per_tipo` lo impone: senza, una metrica potrebbe portare una scala
 *e* un target, e quale dei due comanda sarebbe una scelta arbitraria dentro il codice. Gli estremi
 si leggono quindi **da un posto solo** — la RPC `ob_metric_scale`, ricalcata in `scaleOf()`
 (`obiettivi.html`) e in `ObMetrica.scala` (nativo) — e l'avanzamento resta la stessa formula per
 tutt'e due: `(corrente − da) / (a − da)`.
+
+⚠️ **Il `test` di valutazione** (`20261007100000_ob_metriche_test_valutazione.sql`, web v1.12.0,
+APK 1.0.111) è il punteggio di un test esterno — es. GoFluent — su una scala **fissa** 1-100 che il
+form non chiede, più un **giudizio scritto per ogni rilevazione** in `ob_measurements.giudizio`
+(NULL = nessun giudizio). Colonna a sé e non `note`, che nella finestra delle rilevazioni è una
+sola per tutte le metriche dell'azione. La scala sta in `min_value`/`max_value` come quella
+dell'autovalutazione, quindi `ob_metric_scale`, `scaleOf()` e `ObMetrica.scala` la leggono dallo
+stesso ramo; `ob_record_measurement` ha il parametro `p_giudizio` (DEFAULT NULL) e rifiuta un
+punteggio fuori scala anche sul test. ⚠️ Nato per sbaglio sulla repo vecchia e deployato da lì il
+7 ottobre 2026 (la migration era quindi già applicata quando è arrivata qui).
 
 `ob_metrics.descrizione` è **come votare** per un'autovalutazione (*1 = …, 10 = …*) e **cosa si
 misura** per un'automisurazione, e viene riproposta a ogni rilevazione: se cambia il metro la serie
