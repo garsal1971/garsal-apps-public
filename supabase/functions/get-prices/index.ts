@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "5.21.0"; // simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
+const VERSION = "5.22.0"; // bilancio di tempo (niente 504), cambi da Yahoo; simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -45,8 +45,21 @@ const CONCORRENZA = 4;
 // tenere ferma la catena fino al timeout della Edge Function.
 const FETCH_TIMEOUT_MS = 12_000;
 
+// Il gateway di Supabase chiude la richiesta dopo 150 s senza risposta (504
+// IDLE_TIMEOUT), e con lei la funzione: i prezzi presi fin lì restano, ma Finanza
+// vede un errore. Quindi un bilancio di tempo:
+// - dopo TEMPO_NUOVI_MS non si comincia più nessun simbolo; quelli rimasti li fa il
+//   giro dopo, perché i simboli aggiornati da poco vengono saltati (CACHE_TTL_MS);
+// - entro TEMPO_MAX_MS deve chiudersi anche quel che è in corso: ogni fetch ha come
+//   tetto il tempo che resta, e un turno di Twelve Data che cadrebbe oltre non si
+//   prenota (la chiamata fallisce e la catena passa alla fonte dopo).
+const TEMPO_NUOVI_MS = 105_000;
+const TEMPO_MAX_MS = 130_000;
+let scadenza = Infinity; // istante limite della richiesta in corso, fissato dall'handler
+
 function fetchT(url: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  const resta = Math.max(1_000, Math.min(FETCH_TIMEOUT_MS, scadenza - Date.now()));
+  return fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(resta) });
 }
 
 // Twelve Data, piano gratuito: 8 chiamate al minuto. Prima c'era una pausa fissa
@@ -58,6 +71,7 @@ let tdProssimo = 0;
 async function tdTurno(): Promise<void> {
   const ora = Date.now();
   const quando = Math.max(ora, tdProssimo);
+  if (quando > scadenza - 2_000) throw new Error("tempo esaurito: Twelve Data rimandato al prossimo giro");
   tdProssimo = quando + TD_GAP_MS;
   if (quando > ora) await delay(quando - ora);
 }
@@ -889,6 +903,7 @@ async function resolveIsinToSymbol(
 serve(async (req) => {
   const requestId = crypto.randomUUID();
   const startTime = Date.now();
+  scadenza = startTime + TEMPO_MAX_MS;
   const dbEntries: DbEntry[] = [];
 
   log("INFO", "=== Request started ===", { requestId, method: req.method });
@@ -1428,7 +1443,7 @@ serve(async (req) => {
       // blocchi di cinque come prima: un timeout a metà non butta i prezzi già presi.
       const coda = [...toFetch];
       await Promise.all(Array.from({ length: Math.min(CONCORRENZA, coda.length) }, async () => {
-        while (coda.length > 0) {
+        while (coda.length > 0 && Date.now() - startTime < TEMPO_NUOVI_MS) {
           const symbol = coda.shift()!;
           await elabora(symbol);
           if (rows.length >= 5) await flushRows();
@@ -1436,6 +1451,11 @@ serve(async (req) => {
       }));
 
       await flushRows();
+
+      if (coda.length > 0) {
+        log("WARN", `Tempo esaurito, rimandati al prossimo giro: ${coda.join(", ")}`, { requestId });
+        dbLog(dbEntries, "WARN", "Tempo esaurito, simboli rimandati al prossimo giro", { count: coda.length, rimandati: coda }, requestId);
+      }
 
       if (fetchedSymbols.size === 0) {
         log("WARN", "No prices fetched", { requestId, toFetch });
@@ -1502,6 +1522,24 @@ async function getConversionRate(
 
   const pair = `${src}/${tgt}`;
   if (rateCache.has(pair)) return rateCache.get(pair)!;
+
+  // Prima Yahoo (`USDEUR=X`): gratis e fuori dai turni di Twelve Data, che a ogni
+  // conversione costava una chiamata e 8 s di attesa. TD resta come ripiego.
+  try {
+    const res = await fetchT(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(`${src}${tgt}=X`)}?interval=1d&range=1d`,
+      { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", "Accept": "application/json" } },
+    );
+    if (res.ok) {
+      const meta = (await res.json())?.chart?.result?.[0]?.meta;
+      const rate = parseNumber(meta?.regularMarketPrice ?? meta?.chartPreviousClose);
+      if (rate !== null && rate > 0 && ((meta?.currency as string) ?? tgt).toUpperCase() === tgt) {
+        rateCache.set(pair, rate);
+        log("INFO", `Rate ${pair} = ${rate} (Yahoo)`, { requestId });
+        return rate;
+      }
+    }
+  } catch { /* si prova Twelve Data */ }
 
   try {
     await tdTurno();
