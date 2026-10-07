@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "5.20.0"; // fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
+const VERSION = "5.21.0"; // simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -35,6 +35,32 @@ const MAX_PRICE_DEVIATION = 0.5;
 // vecchia di tre giorni vuol dire che da tre giorni non si scrive niente — cioè
 // che siamo esattamente nel caso da sbloccare.
 const PREV_PRICE_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+// Quanti simboli si lavorano insieme. Le fonti di scraping non hanno limiti
+// dichiarati, ma un tetto basso evita di presentarsi a JustETF o a Yahoo con
+// decine di richieste nello stesso secondo.
+const CONCORRENZA = 4;
+
+// Tetto di attesa per ogni chiamata esterna: un sito che non risponde non deve
+// tenere ferma la catena fino al timeout della Edge Function.
+const FETCH_TIMEOUT_MS = 12_000;
+
+function fetchT(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+}
+
+// Twelve Data, piano gratuito: 8 chiamate al minuto. Prima c'era una pausa fissa
+// di 8 s dopo ogni simbolo che lo aveva chiamato, anche quando l'ultima chiamata
+// era di molto prima. Ora ogni chiamata a TD prenota il suo turno: il posto si
+// riserva in modo sincrono, quindi vale anche con più simboli in parallelo.
+const TD_GAP_MS = 8_000;
+let tdProssimo = 0;
+async function tdTurno(): Promise<void> {
+  const ora = Date.now();
+  const quando = Math.max(ora, tdProssimo);
+  tdProssimo = quando + TD_GAP_MS;
+  if (quando > ora) await delay(quando - ora);
+}
 
 // ── Logging ────────────────────────────────────────────────────────────────
 
@@ -96,25 +122,31 @@ async function fetchRendimentiBtpPrices(
     "https://www.rendimentibtp.it/btp-green/",
   ];
 
-  for (const url of pages) {
+  // Le pagine si scaricano insieme, ma si fondono nell'ordine dell'elenco: a parità
+  // di ISIN vince la pagina che viene dopo, come quando si scaricavano in fila.
+  const pageMaps = await Promise.all(pages.map(async (url) => {
     const pageKey = url.replace("https://www.rendimentibtp.it", "") || "/";
     try {
-      const res = await fetch(url, { headers });
+      const res = await fetchT(url, { headers });
       if (!res.ok) {
         log("WARN", `rendimentibtp.it ${url} HTTP ${res.status}`, { requestId });
         pageStats[pageKey] = `HTTP ${res.status}`;
-        continue;
+        return null;
       }
       const html = await res.text();
       const pageMap = parseRendimentiBtpHtml(html);
-      for (const [isin, price] of pageMap) prices.set(isin, price);
       log("INFO", `rendimentibtp.it ${url}: ${pageMap.size} BTPs`, { requestId });
       pageStats[pageKey] = pageMap.size;
+      return pageMap;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log("WARN", `rendimentibtp.it fetch error: ${url}`, { requestId, error: msg });
       pageStats[pageKey] = `error: ${msg}`;
+      return null;
     }
+  }));
+  for (const pageMap of pageMaps) {
+    if (pageMap) for (const [isin, price] of pageMap) prices.set(isin, price);
   }
 
   log("INFO", `rendimentibtp.it total: ${prices.size} BTPs`, {
@@ -129,9 +161,10 @@ async function fetchRendimentiBtpPrices(
 // Uses the Euronext AJAX detail endpoint — returns an HTML fragment, no auth required.
 // Price is in: <span id="header-instrument-price">102,34</span>
 async function fetchBorsaItalianaPrice(
-  isin: string, requestId: string, dbEntries: DbEntry[],
-): Promise<number | null> {
-  const mics = ["MOTX", "ETFP", "MTAA"];
+  isin: string, requestId: string, dbEntries: DbEntry[], soloMic?: string,
+): Promise<{ price: number; mic: string } | null> {
+  // Con `soloMic` (il mercato che ha risposto l'ultima volta) si prova quello e basta.
+  const mics = soloMic ? [soloMic] : ["MOTX", "ETFP", "MTAA"];
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml",
@@ -142,7 +175,7 @@ async function fetchBorsaItalianaPrice(
   for (const mic of mics) {
     try {
       const url = `https://live.euronext.com/en/ajax/getDetailedQuote/${isin}-${mic}`;
-      const res = await fetch(url, { headers });
+      const res = await fetchT(url, { headers });
       if (!res.ok) {
         dbLog(dbEntries, "WARN", `Euronext ${mic} HTTP ${res.status} for ${isin}`, { isin, mic, status: res.status }, requestId);
         continue;
@@ -160,7 +193,7 @@ async function fetchBorsaItalianaPrice(
       if (price > 0) {
         log("INFO", `Borsa Italiana (${mic}): ${isin} → ${price}`, { requestId });
         dbLog(dbEntries, "INFO", `Fetched from Euronext ${mic}`, { isin, mic, price }, requestId);
-        return price;
+        return { price, mic };
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -238,7 +271,7 @@ async function fetchInvestingComPrice(
   };
 
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetchT(url, { headers });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `Investing.com HTTP ${res.status} for ${isin}`, { isin, url, status: res.status }, requestId);
       return null;
@@ -302,7 +335,7 @@ async function fetchGoogleFinancePrice(
   };
 
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetchT(url, { headers });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `Google Finance HTTP ${res.status} for ${symbol}`, { symbol, url, status: res.status }, requestId);
       return null;
@@ -382,7 +415,7 @@ async function fetchJustEtfHtmlPrice(
   };
 
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetchT(url, { headers });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `JustETF HTML HTTP ${res.status} for ${isin}`, { isin, status: res.status }, requestId);
       return null;
@@ -480,7 +513,7 @@ async function fetchJustEtfHtmlPrice(
 async function fetchYahooFinanceByIsin(
   isin: string, requestId: string, dbEntries: DbEntry[],
   apiKey: string, rateCache: Map<string, number>,
-): Promise<number | null> {
+): Promise<{ price: number; ySymbol: string } | null> {
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/json",
@@ -490,7 +523,7 @@ async function fetchYahooFinanceByIsin(
   try {
     // Step 1: search ISIN
     const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(isin)}&quotesCount=5&newsCount=0&enableFuzzyQuery=false`;
-    const searchRes = await fetch(searchUrl, { headers });
+    const searchRes = await fetchT(searchUrl, { headers });
     if (!searchRes.ok) {
       dbLog(dbEntries, "WARN", `Yahoo Finance search HTTP ${searchRes.status} for ${isin}`, { isin, status: searchRes.status }, requestId);
       return null;
@@ -508,10 +541,30 @@ async function fetchYahooFinanceByIsin(
     const eurExchanges = ["MIL", "PAR", "GER", "AMS", "VIE"];
     const best = quotes.find((q) => eurExchanges.includes(q.exchange)) ?? quotes[0];
     const ySymbol = best.symbol;
+    const price = await fetchYahooQuoteEur(ySymbol, isin, requestId, dbEntries, apiKey, rateCache);
+    return price === null ? null : { price, ySymbol };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    dbLog(dbEntries, "WARN", `Yahoo Finance fetch error for ${isin}`, { isin, error: msg }, requestId);
+    return null;
+  }
+}
 
-    // Step 2: get quote
+// Il prezzo di un ticker Yahoo già noto, convertito in EUR se quota in altra valuta.
+// È il secondo passo di `fetchYahooFinanceByIsin`, e si chiama da solo quando il
+// ticker trovato dall'ISIN è già stato salvato in `fnz_price_cache.source_ref`.
+async function fetchYahooQuoteEur(
+  ySymbol: string, isin: string, requestId: string, dbEntries: DbEntry[],
+  apiKey: string, rateCache: Map<string, number>,
+): Promise<number | null> {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+  try {
     const quoteUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?interval=1d&range=1d`;
-    const quoteRes = await fetch(quoteUrl, { headers });
+    const quoteRes = await fetchT(quoteUrl, { headers });
     if (!quoteRes.ok) {
       dbLog(dbEntries, "WARN", `Yahoo Finance quote HTTP ${quoteRes.status} for ${ySymbol}`, { isin, symbol: ySymbol, status: quoteRes.status }, requestId);
       return null;
@@ -549,7 +602,7 @@ async function fetchYahooFinanceByIsin(
     return price;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    dbLog(dbEntries, "WARN", `Yahoo Finance fetch error for ${isin}`, { isin, error: msg }, requestId);
+    dbLog(dbEntries, "WARN", `Yahoo Finance quote error for ${ySymbol}`, { isin, symbol: ySymbol, error: msg }, requestId);
     return null;
   }
 }
@@ -566,7 +619,7 @@ async function fetchYahooFinanceByTicker(
   };
   try {
     const quoteUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yTicker)}?interval=1d&range=1d`;
-    const res = await fetch(quoteUrl, { headers });
+    const res = await fetchT(quoteUrl, { headers });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `Yahoo Finance direct HTTP ${res.status} for ${yTicker}`, { yTicker, status: res.status }, requestId);
       return null;
@@ -612,7 +665,7 @@ async function fetchSoldiOnlinePrice(
   };
 
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetchT(url, { headers });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `SoldiOnline HTTP ${res.status} for ${isin}`, { isin, status: res.status }, requestId);
       return null;
@@ -679,7 +732,7 @@ async function searchCoinGeckoId(
 ): Promise<string | null> {
   try {
     const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`;
-    const res = await fetch(searchUrl, { headers: COINGECKO_HEADERS });
+    const res = await fetchT(searchUrl, { headers: COINGECKO_HEADERS });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `CoinGecko search HTTP ${res.status} for ${symbol}`, { symbol, status: res.status }, requestId);
       return null;
@@ -721,11 +774,11 @@ async function fetchCryptoPricesBatch(
   const priceUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=eur&include_24hr_change=true`;
 
   try {
-    let res = await fetch(priceUrl, { headers: COINGECKO_HEADERS });
+    let res = await fetchT(priceUrl, { headers: COINGECKO_HEADERS });
     if (res.status === 429) {
       dbLog(dbEntries, "WARN", `CoinGecko 429 sul batch, retry dopo backoff`, { ids }, requestId);
       await delay(5000);
-      res = await fetch(priceUrl, { headers: COINGECKO_HEADERS });
+      res = await fetchT(priceUrl, { headers: COINGECKO_HEADERS });
     }
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `CoinGecko batch HTTP ${res.status}`, { ids, status: res.status }, requestId);
@@ -758,7 +811,7 @@ async function fetchCoinbaseSpotPrice(
 ): Promise<number | null> {
   try {
     const url = `https://api.coinbase.com/v2/prices/${encodeURIComponent(symbol.toUpperCase())}-${TARGET_CURRENCY}/spot`;
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const res = await fetchT(url, { headers: { "Accept": "application/json" } });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `Coinbase HTTP ${res.status} for ${symbol}`, { symbol, status: res.status }, requestId);
       return null;
@@ -786,8 +839,9 @@ type QuoteOutcome =
 
 async function fetchTwelveDataQuote(symbol: string, apiKey: string): Promise<QuoteOutcome> {
   try {
+    await tdTurno();
     const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`;
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const res = await fetchT(url, { headers: { "Accept": "application/json" } });
     if (!res.ok) return { ok: false, status: res.status, message: await res.text() };
     const result = await res.json();
     if (result.status === "error") return { ok: false, status: 200, message: result.message ?? "error" };
@@ -802,8 +856,9 @@ async function resolveIsinToSymbol(
   isin: string, apiKey: string, requestId: string, dbEntries: DbEntry[],
 ): Promise<string | null> {
   try {
+    await tdTurno();
     const url = `https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(isin)}&outputsize=5&apikey=${apiKey}`;
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const res = await fetchT(url, { headers: { "Accept": "application/json" } });
     if (!res.ok) {
       dbLog(dbEntries, "WARN", `ISIN symbol_search HTTP ${res.status} for ${isin}`, { isin, status: res.status }, requestId);
       return null;
@@ -932,24 +987,51 @@ serve(async (req) => {
         (s) => typeMap[s] === "bond" && (isinMap[s] ?? "").startsWith("IT") && !s.startsWith("BTPI"),
       );
       let btpPrices: Map<string, number> | null = null;
-      if (needsBtpSource) {
-        const { prices: fetched, pageStats } = await fetchRendimentiBtpPrices(requestId);
-        btpPrices = fetched;
-        dbLog(dbEntries, "INFO", "Loaded rendimentibtp.it", { count: btpPrices.size, pageStats }, requestId);
-      }
-
       // Pre-carica in una sola richiesta i prezzi di tutte le crypto da aggiornare.
+      // Le due pre-letture non dipendono l'una dall'altra e partono insieme.
       const cryptoSymbols = toFetch.filter((s) => typeMap[s] === "crypto");
-      const cryptoBatch = await fetchCryptoPricesBatch(cryptoSymbols, requestId, dbEntries);
+      const [btpLoad, cryptoBatch] = await Promise.all([
+        needsBtpSource ? fetchRendimentiBtpPrices(requestId) : Promise.resolve(null),
+        fetchCryptoPricesBatch(cryptoSymbols, requestId, dbEntries),
+      ]);
+      if (btpLoad) {
+        btpPrices = btpLoad.prices;
+        dbLog(dbEntries, "INFO", "Loaded rendimentibtp.it", { count: btpPrices.size, pageStats: btpLoad.pageStats }, requestId);
+      }
 
       // Ultimo prezzo noto, a prescindere dal TTL: è il metro del controllo di
       // plausibilità. `cached` qui non basta — contiene solo le righe ancora fresche,
       // cioè per definizione i simboli che *non* stiamo aggiornando.
-      const { data: lastKnown } = await supabase
+      // Si legge anche la fonte che ha dato l'ultimo prezzo (`source`, `source_ref`):
+      // al giro dopo si prova per prima. Se le due colonne non ci sono ancora (migration
+      // non applicata) si rilegge senza: il metro della plausibilità non può mancare
+      // per colpa di una colonna di comodo.
+      const conColonne = await supabase
           .from("fnz_price_cache")
-          .select("symbol, price, updated_at")
+          .select("symbol, price, updated_at, source, source_ref")
           .in("symbol", toFetch)
           .eq("currency", TARGET_CURRENCY);
+      let lastKnown = conColonne.data as Record<string, unknown>[] | null;
+      const lastKnownError = conColonne.error;
+      let conFonte = true;
+      if (lastKnownError) {
+        conFonte = false;
+        dbLog(dbEntries, "WARN", "Colonne source/source_ref non lette", { message: lastKnownError.message }, requestId);
+        const senzaColonne = await supabase
+            .from("fnz_price_cache")
+            .select("symbol, price, updated_at")
+            .in("symbol", toFetch)
+            .eq("currency", TARGET_CURRENCY);
+        lastKnown = senzaColonne.data as Record<string, unknown>[] | null;
+      }
+      const fonteRicordata = new Map<string, { source: string; ref: string | null }>();
+      for (const r of lastKnown ?? []) {
+        if (typeof r.source === "string" && r.source) {
+          fonteRicordata.set(r.symbol as string, {
+            source: r.source, ref: typeof r.source_ref === "string" && r.source_ref ? r.source_ref : null,
+          });
+        }
+      }
       const prevPrice = new Map<string, number>();
       const tooOld = Date.now() - PREV_PRICE_MAX_AGE_MS;
       for (const r of lastKnown ?? []) {
@@ -1021,6 +1103,8 @@ serve(async (req) => {
           prev_close: null, change_amt: null, change_pct: null,
           currency: TARGET_CURRENCY, market_state: null,
           updated_at: new Date().toISOString(),
+          // Anche NULL: PostgREST vuole le stesse chiavi su tutte le righe di un upsert.
+          source: null, source_ref: null,
           ...extra,
         });
         return true;
@@ -1033,9 +1117,11 @@ serve(async (req) => {
       const flushRows = async () => {
         if (rows.length === 0) return;
         const batch = rows.splice(0, rows.length);
+        const daScrivere = conFonte ? batch
+          : batch.map(({ source: _s, source_ref: _r, ...r }) => r);
         const { error: upsertError } = await supabase
             .from("fnz_price_cache")
-            .upsert(batch, { onConflict: "symbol,currency" })
+            .upsert(daScrivere, { onConflict: "symbol,currency" })
             .select();
         if (upsertError) {
           log("ERROR", "Cache upsert failed", { requestId, message: upsertError.message });
@@ -1048,9 +1134,120 @@ serve(async (req) => {
         }
       };
 
-      for (let i = 0; i < toFetch.length; i++) {
-        if (rows.length >= 5) await flushRows();
-        const symbol = toFetch[i];
+      // Il prezzo di una risposta Twelve Data già arrivata: conversione in EUR e
+      // `pushPrice`. Sta qui perché la usano due strade — la catena e la fonte
+      // ricordata — e due copie della stessa conversione divergono.
+      const daTwelveData = async (
+        symbol: string, result: Record<string, unknown>, tdRef: string,
+      ): Promise<boolean> => {
+        let price = parseFloat((result.close ?? result.price ?? "0") as string);
+        const previousClose = parseFloat((result.previous_close ?? "0") as string) || null;
+        const changeAmount = parseFloat((result.change ?? "0") as string) || null;
+        const changePct = parseFloat((result.percent_change ?? "0") as string) || null;
+        let sourceCurrency = ((result.currency as string) || "USD").toUpperCase();
+
+        // GBX = British pence; normalise to GBP before EUR conversion
+        if (sourceCurrency === "GBX") {
+          price = price / 100;
+          sourceCurrency = "GBP";
+        }
+
+        if (!(price > 0)) {
+          log("WARN", `Invalid price for ${symbol}`, { requestId, price });
+          dbLog(dbEntries, "WARN", `Invalid price for ${symbol}`, { price }, requestId);
+          return false;
+        }
+        const conversionRate = await getConversionRate(sourceCurrency, TARGET_CURRENCY, TWELVE_DATA_API_KEY, requestId, rateCache);
+        if (!conversionRate) {
+          log("WARN", `Currency conversion failed for ${symbol}`, { requestId, sourceCurrency });
+          dbLog(dbEntries, "WARN", `Currency conversion failed`, { symbol, sourceCurrency }, requestId);
+          return false;
+        }
+        const pushed = pushPrice(symbol, price * conversionRate, {
+          prev_close: previousClose === null ? null : roundMoney(previousClose * conversionRate),
+          change_amt: changeAmount === null ? null : roundMoney(changeAmount * conversionRate),
+          change_pct: changePct,
+          market_state: result.exchange_timezone ? "REGULAR" : null,
+          source: "td", source_ref: tdRef,
+        });
+        if (pushed) {
+          log("INFO", `${symbol} → ${roundMoney(price * conversionRate)} EUR (${tdRef})`, { requestId });
+          dbLog(dbEntries, "INFO", `Fetched ${symbol}`, {
+            price: roundMoney(price * conversionRate), resolvedAs: tdRef, changePct,
+          }, requestId);
+        }
+        return pushed;
+      };
+
+      // Google Finance, con la conversione di valuta. Come sopra: due strade, una copia.
+      const daGoogle = async (symbol: string): Promise<boolean> => {
+        const gfResult = await fetchGoogleFinancePrice(symbol, requestId, dbEntries);
+        if (gfResult === null) return false;
+        let gfPrice = gfResult.price;
+        if (gfResult.currency !== TARGET_CURRENCY) {
+          const rate = await getConversionRate(gfResult.currency, TARGET_CURRENCY, TWELVE_DATA_API_KEY, requestId, rateCache);
+          if (!rate) {
+            dbLog(dbEntries, "WARN", `GF currency conversion failed`, { symbol, currency: gfResult.currency }, requestId);
+            return false;
+          }
+          gfPrice = roundMoney(gfResult.price * rate);
+        }
+        if (!pushPrice(symbol, gfPrice, { market_state: "REGULAR", source: "google" })) return false;
+        dbLog(dbEntries, "INFO", `Fetched ${symbol} from Google Finance`, { price: gfPrice, exchange: GOOGLE_FINANCE_SYMBOL_MAP[symbol].exchange }, requestId);
+        return true;
+      };
+
+      // La fonte che ha dato l'ultimo prezzo, provata per prima e da sola, con
+      // l'identificativo che allora ha funzionato (il ticker Yahoo o Twelve Data
+      // trovato dall'ISIN, il mercato Euronext): niente ricerca da rifare. Se non
+      // risponde si torna alla catena completa, nello stesso ordine di sempre.
+      // Non vale per tre casi, che sono già in testa o già scaricati in blocco:
+      // il ticker Yahoo fissato a mano, le crypto e i BTP di rendimentibtp.it.
+      const provaFonteRicordata = async (symbol: string): Promise<boolean> => {
+        const ricordo = fonteRicordata.get(symbol);
+        if (!ricordo) return false;
+        if (YAHOO_FINANCE_TICKER_MAP[symbol] || typeMap[symbol] === "crypto") return false;
+        const isin = isinMap[symbol];
+        const { source, ref } = ricordo;
+        switch (source) {
+          case "soldionline": {
+            if (!isin) return false;
+            const p = await fetchSoldiOnlinePrice(isin, requestId, dbEntries);
+            return p !== null && pushPrice(symbol, p, { source });
+          }
+          case "justetf": {
+            if (!isin) return false;
+            const p = await fetchJustEtfHtmlPrice(isin, requestId, dbEntries);
+            return p !== null && pushPrice(symbol, p, { source });
+          }
+          case "investing": {
+            if (!isin || !INVESTING_COM_URLS[isin]) return false;
+            const p = await fetchInvestingComPrice(isin, requestId, dbEntries);
+            return p !== null && pushPrice(symbol, p, { source });
+          }
+          case "yahoo_isin": {
+            if (!ref) return false;
+            const p = await fetchYahooQuoteEur(ref, isin ?? "", requestId, dbEntries, TWELVE_DATA_API_KEY, rateCache);
+            return p !== null && pushPrice(symbol, p, { source, source_ref: ref });
+          }
+          case "euronext": {
+            if (!isin || !ref) return false;
+            const r = await fetchBorsaItalianaPrice(isin, requestId, dbEntries, ref);
+            return r !== null && pushPrice(symbol, r.price, { source, source_ref: r.mic });
+          }
+          case "td": {
+            if (!ref) return false;
+            const outcome = await fetchTwelveDataQuote(ref, TWELVE_DATA_API_KEY);
+            return outcome.ok && await daTwelveData(symbol, outcome.result, ref);
+          }
+          case "google":
+            return GOOGLE_FINANCE_SYMBOL_MAP[symbol] ? await daGoogle(symbol) : false;
+          default:
+            return false;
+        }
+      };
+
+      const elabora = async (symbol: string): Promise<void> => {
         const isin = isinMap[symbol];
         const assetType = typeMap[symbol] ?? "";
         const isBTPi = symbol.startsWith("BTPI");
@@ -1073,10 +1270,15 @@ serve(async (req) => {
         const tickerFissato = !!YAHOO_FINANCE_TICKER_MAP[symbol]
             && !TWELVE_DATA_SYMBOL_OVERRIDES[symbol];
 
-        let madeApiCall = false;
         let resolvedAs = symbol;
 
         try {
+          // Step 0: la fonte che ha risposto l'ultima volta
+          if (await provaFonteRicordata(symbol)) {
+            dbLog(dbEntries, "INFO", `Fetched ${symbol} dalla fonte ricordata`, fonteRicordata.get(symbol), requestId);
+            return;
+          }
+
           // Step 1: TD diretto — solo per azioni (e tipi sconosciuti senza ISIN)
           let outcome: QuoteOutcome;
           if (useIsinDirectly || tickerFissato) {
@@ -1085,7 +1287,6 @@ serve(async (req) => {
             const tdSymbol = TWELVE_DATA_SYMBOL_OVERRIDES[symbol] ?? symbol;
             if (tdSymbol !== symbol) resolvedAs = tdSymbol;
             outcome = await fetchTwelveDataQuote(tdSymbol, TWELVE_DATA_API_KEY);
-            madeApiCall = true;
           }
 
           // Step 2: catena fallback basata su ISIN e tipo strumento
@@ -1099,9 +1300,9 @@ serve(async (req) => {
           // nel pomeriggio.
           if (!outcome.ok && YAHOO_FINANCE_TICKER_MAP[symbol]) {
             const yfDirectPrice = await fetchYahooFinanceByTicker(YAHOO_FINANCE_TICKER_MAP[symbol], requestId, dbEntries);
-            if (yfDirectPrice !== null && pushPrice(symbol, yfDirectPrice)) {
+            if (yfDirectPrice !== null && pushPrice(symbol, yfDirectPrice, { source: "yahoo_ticker", source_ref: YAHOO_FINANCE_TICKER_MAP[symbol] })) {
               dbLog(dbEntries, "INFO", `Fetched ${symbol} from Yahoo Finance (ticker fissato)`, { yTicker: YAHOO_FINANCE_TICKER_MAP[symbol], price: yfDirectPrice }, requestId);
-              continue;
+              return;
             }
           }
 
@@ -1114,12 +1315,12 @@ serve(async (req) => {
               source = "Coinbase";
             }
             if (cryptoPrice !== null) {
-              pushPrice(symbol, cryptoPrice, { market_state: "REGULAR" });
+              pushPrice(symbol, cryptoPrice, { market_state: "REGULAR", source: source.toLowerCase() });
               dbLog(dbEntries, "INFO", `Fetched ${symbol} from ${source}`, { price: cryptoPrice }, requestId);
             } else {
               dbLog(dbEntries, "WARN", `Nessun prezzo per ${symbol}: CoinGecko e Coinbase falliti`, { symbol }, requestId);
             }
-            continue;
+            return;
           }
 
           if (!outcome.ok && isin) {
@@ -1127,18 +1328,18 @@ serve(async (req) => {
             // 2a. BTPi → SoldiOnline come prima fonte
             if (isBTPi) {
               const soPrice = await fetchSoldiOnlinePrice(isin, requestId, dbEntries);
-              if (soPrice !== null && pushPrice(symbol, soPrice)) {
+              if (soPrice !== null && pushPrice(symbol, soPrice, { source: "soldionline" })) {
                 dbLog(dbEntries, "INFO", `Fetched ${symbol} from SoldiOnline`, { isin, price: soPrice }, requestId);
-                continue;
+                return;
               }
             }
 
             // 2b. BTP standard → rendimentibtp.it
             if (!isBTPi && isBond && isin.startsWith("IT") && btpPrices !== null) {
               const btpPrice = btpPrices.get(isin);
-              if (btpPrice !== undefined && pushPrice(symbol, btpPrice)) {
+              if (btpPrice !== undefined && pushPrice(symbol, btpPrice, { source: "rendimentibtp" })) {
                 dbLog(dbEntries, "INFO", `Fetched ${symbol} from rendimentibtp.it`, { isin, price: btpPrice }, requestId);
-                continue;
+                return;
               }
               if (btpPrice === undefined) {
                 dbLog(dbEntries, "WARN", `${symbol} not in rendimentibtp.it`, { isin, btpCount: btpPrices.size }, requestId);
@@ -1148,48 +1349,47 @@ serve(async (req) => {
             // 2c. ETF → JustETF (scraping della scheda HTML), poi Yahoo Finance come backup
             if (isEtf) {
               const jePrice = await fetchJustEtfHtmlPrice(isin, requestId, dbEntries);
-              if (jePrice !== null && pushPrice(symbol, jePrice)) {
+              if (jePrice !== null && pushPrice(symbol, jePrice, { source: "justetf" })) {
                 dbLog(dbEntries, "INFO", `Fetched ${symbol} from JustETF`, { isin, price: jePrice }, requestId);
-                continue;
+                return;
               }
-              const yfPrice = await fetchYahooFinanceByIsin(isin, requestId, dbEntries, TWELVE_DATA_API_KEY, rateCache);
-              if (yfPrice !== null && pushPrice(symbol, yfPrice)) {
-                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Yahoo Finance`, { isin, price: yfPrice }, requestId);
-                continue;
+              const yf = await fetchYahooFinanceByIsin(isin, requestId, dbEntries, TWELVE_DATA_API_KEY, rateCache);
+              if (yf !== null && pushPrice(symbol, yf.price, { source: "yahoo_isin", source_ref: yf.ySymbol })) {
+                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Yahoo Finance`, { isin, price: yf.price, ySymbol: yf.ySymbol }, requestId);
+                return;
               }
             }
 
             // 2d. Investing.com — per qualsiasi tipo strumento con URL noto nella mappa
             if (INVESTING_COM_URLS[isin]) {
               const icPrice = await fetchInvestingComPrice(isin, requestId, dbEntries);
-              if (icPrice !== null && pushPrice(symbol, icPrice)) {
+              if (icPrice !== null && pushPrice(symbol, icPrice, { source: "investing" })) {
                 dbLog(dbEntries, "INFO", `Fetched ${symbol} from Investing.com`, { isin, price: icPrice }, requestId);
-                continue;
+                return;
               }
             }
 
             // 2e. Yahoo Finance by ISIN — per azioni quando TD richiede piano a pagamento
             if (isStock) {
-              const yfPrice = await fetchYahooFinanceByIsin(isin, requestId, dbEntries, TWELVE_DATA_API_KEY, rateCache);
-              if (yfPrice !== null && pushPrice(symbol, yfPrice)) {
-                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Yahoo Finance (stock)`, { isin, price: yfPrice }, requestId);
-                continue;
+              const yf = await fetchYahooFinanceByIsin(isin, requestId, dbEntries, TWELVE_DATA_API_KEY, rateCache);
+              if (yf !== null && pushPrice(symbol, yf.price, { source: "yahoo_isin", source_ref: yf.ySymbol })) {
+                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Yahoo Finance (stock)`, { isin, price: yf.price, ySymbol: yf.ySymbol }, requestId);
+                return;
               }
             }
 
             // 2f. Euronext AJAX — bond su MOTX, ETF su ETFP (non per azioni)
             if (!isStock) {
-              const biPrice = await fetchBorsaItalianaPrice(isin, requestId, dbEntries);
-              if (biPrice !== null && pushPrice(symbol, biPrice)) {
-                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Borsa Italiana`, { isin, price: biPrice }, requestId);
-                continue;
+              const bi = await fetchBorsaItalianaPrice(isin, requestId, dbEntries);
+              if (bi !== null && pushPrice(symbol, bi.price, { source: "euronext", source_ref: bi.mic })) {
+                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Borsa Italiana`, { isin, price: bi.price, mic: bi.mic }, requestId);
+                return;
               }
             }
 
             // 2g. TD symbol_search via ISIN — per azioni con ISIN e qualsiasi rimanente
             const resolved = await resolveIsinToSymbol(isin, TWELVE_DATA_API_KEY, requestId, dbEntries);
             if (resolved) {
-              madeApiCall = true;
               const outcome2 = await fetchTwelveDataQuote(resolved, TWELVE_DATA_API_KEY);
               if (outcome2.ok) {
                 outcome = outcome2;
@@ -1203,24 +1403,7 @@ serve(async (req) => {
 
           // 2h. Google Finance — per azioni con exchange noto nella mappa (anche senza ISIN)
           if (!outcome.ok && GOOGLE_FINANCE_SYMBOL_MAP[symbol]) {
-            const gfResult = await fetchGoogleFinancePrice(symbol, requestId, dbEntries);
-            if (gfResult !== null) {
-              let gfPrice = gfResult.price;
-              if (gfResult.currency !== TARGET_CURRENCY) {
-                const rate = await getConversionRate(gfResult.currency, TARGET_CURRENCY, TWELVE_DATA_API_KEY, requestId, rateCache);
-                if (rate) {
-                  gfPrice = roundMoney(gfResult.price * rate);
-                } else {
-                  dbLog(dbEntries, "WARN", `GF currency conversion failed`, { symbol, currency: gfResult.currency }, requestId);
-                  if (i < toFetch.length - 1) await delay(8000);
-                  continue;
-                }
-              }
-              if (pushPrice(symbol, gfPrice, { market_state: "REGULAR" })) {
-                dbLog(dbEntries, "INFO", `Fetched ${symbol} from Google Finance`, { price: gfPrice, exchange: GOOGLE_FINANCE_SYMBOL_MAP[symbol].exchange }, requestId);
-                continue;
-              }
-            }
+            if (await daGoogle(symbol)) return;
           }
 
           // Step 3: process final outcome
@@ -1229,55 +1412,28 @@ serve(async (req) => {
             log("WARN", outcome.status === 429 ? `Rate limit for ${symbol}` : `No quote for ${symbol}`,
                 { requestId, ...warnData });
             dbLog(dbEntries, "WARN", `No quote for ${symbol}`, warnData, requestId);
-            if (i < toFetch.length - 1 && madeApiCall) await delay(8000);
-            continue;
+            return;
           }
 
-          const result = outcome.result;
-          let price = parseFloat((result.close ?? result.price ?? "0") as string);
-          const previousClose = parseFloat((result.previous_close ?? "0") as string) || null;
-          const changeAmount = parseFloat((result.change ?? "0") as string) || null;
-          const changePct = parseFloat((result.percent_change ?? "0") as string) || null;
-          let sourceCurrency = ((result.currency as string) || "USD").toUpperCase();
-
-          // GBX = British pence; normalise to GBP before EUR conversion
-          if (sourceCurrency === "GBX") {
-            price = price / 100;
-            sourceCurrency = "GBP";
-          }
-
-          if (price > 0) {
-            const conversionRate = await getConversionRate(sourceCurrency, TARGET_CURRENCY, TWELVE_DATA_API_KEY, requestId, rateCache);
-            if (!conversionRate) {
-              log("WARN", `Currency conversion failed for ${symbol}`, { requestId, sourceCurrency });
-              dbLog(dbEntries, "WARN", `Currency conversion failed`, { symbol, sourceCurrency }, requestId);
-              if (i < toFetch.length - 1 && madeApiCall) await delay(8000);
-              continue;
-            }
-            const pushed = pushPrice(symbol, price * conversionRate, {
-              prev_close: previousClose === null ? null : roundMoney(previousClose * conversionRate),
-              change_amt: changeAmount === null ? null : roundMoney(changeAmount * conversionRate),
-              change_pct: changePct,
-              market_state: result.exchange_timezone ? "REGULAR" : null,
-            });
-            if (pushed) {
-              log("INFO", `${symbol} → ${roundMoney(price * conversionRate)} EUR (${resolvedAs})`, { requestId });
-              dbLog(dbEntries, "INFO", `Fetched ${symbol}`, {
-                price: roundMoney(price * conversionRate), resolvedAs, changePct,
-              }, requestId);
-            }
-          } else {
-            log("WARN", `Invalid price for ${symbol}`, { requestId, price });
-            dbLog(dbEntries, "WARN", `Invalid price for ${symbol}`, { price }, requestId);
-          }
-
-          if (i < toFetch.length - 1 && madeApiCall) await delay(8000);
+          await daTwelveData(symbol, outcome.result, resolvedAs);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           log("ERROR", `Error fetching ${symbol}`, { requestId, error: msg });
           dbLog(dbEntries, "ERROR", `Error fetching ${symbol}`, { error: msg }, requestId);
         }
-      }
+      };
+
+      // Più simboli insieme, CONCORRENZA alla volta. Le chiamate a Twelve Data restano
+      // in fila comunque, perché passano tutte da `tdTurno()`. La cache si scrive a
+      // blocchi di cinque come prima: un timeout a metà non butta i prezzi già presi.
+      const coda = [...toFetch];
+      await Promise.all(Array.from({ length: Math.min(CONCORRENZA, coda.length) }, async () => {
+        while (coda.length > 0) {
+          const symbol = coda.shift()!;
+          await elabora(symbol);
+          if (rows.length >= 5) await flushRows();
+        }
+      }));
 
       await flushRows();
 
@@ -1348,8 +1504,9 @@ async function getConversionRate(
   if (rateCache.has(pair)) return rateCache.get(pair)!;
 
   try {
+    await tdTurno();
     const url = `https://api.twelvedata.com/currency_conversion?symbol=${encodeURIComponent(pair)}&amount=1&apikey=${apiKey}`;
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const res = await fetchT(url, { headers: { "Accept": "application/json" } });
     if (!res.ok) return null;
     const result = await res.json();
     if (result.status === "error") return null;
