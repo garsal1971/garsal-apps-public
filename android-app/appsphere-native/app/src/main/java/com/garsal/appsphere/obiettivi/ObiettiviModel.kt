@@ -96,6 +96,8 @@ data class ObRilevazione(
     @SerialName("measured_on") val measuredOn: String,
     val value: Double,
     val note: String? = "",
+    /** Il giudizio scritto di un test (letto solo dove serve: le ultime non lo chiedono). */
+    val giudizio: String? = null,
 )
 
 /**

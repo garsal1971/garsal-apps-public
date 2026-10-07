@@ -7,6 +7,7 @@ import com.garsal.appsphere.tasks.numero
 import com.garsal.appsphere.tasks.testo
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
@@ -90,6 +91,10 @@ data class ObAzione(
     val ultimaVolta: String?,
     val stepFatti: Int,
     val stepTotali: Int,
+    /** I punti dell'azione: servono a riscrivere quelli di un'esecuzione corretta. */
+    val puntiSuccesso: Int = 0,
+    val puntiRitardo: Int = 0,
+    val puntiSalto: Int = 0,
 ) {
     /** Com'è finita lo dice lo storico; lo stato dice solo **se** è finita. */
     val viva: Boolean get() = stato != "terminated"
@@ -138,6 +143,9 @@ data class ObAzione(
                 ultimaVolta = testo(o, "last_completed_date"),
                 stepFatti = stati.count { it == "completed" || it == "failed" },
                 stepTotali = stati.size,
+                puntiSuccesso = numero(o, "success_points") ?: 0,
+                puntiRitardo = numero(o, "late_points") ?: 0,
+                puntiSalto = numero(o, "skip_points") ?: 0,
             )
         }
 
@@ -158,6 +166,54 @@ data class ObAzione(
          * di là dalla v1.8.0.
          */
         val PUO_SALTARE = setOf("recurring", "simple_recurring", "multiple", "single")
+    }
+}
+
+/**
+ * Un'esecuzione: una riga di `ob_action_history` che non sia la chiusura
+ * `terminated` (quella è la gemella, scritta nello stesso istante).
+ */
+data class ObEsecuzione(
+    val id: String,
+    val azioneId: String?,
+    val titolo: String,
+    val esito: String,
+    val punti: Int,
+    /** L'istante come l'ha scritto il database: serve a ritrovare la gemella. */
+    val istante: String,
+    val programmata: LocalDate?,
+) {
+    val eseguita: LocalDate? get() = giornoLocale(istante)
+    val ora: String get() = oraLocale(istante)
+
+    /** Il giorno delle rilevazioni di quella volta, come `giornoRilevazioni()` nel web. */
+    val giornoRilevazioni: LocalDate? get() = programmata ?: eseguita
+
+    companion object {
+        fun da(o: JsonObject): ObEsecuzione? {
+            val id = testo(o, "id") ?: return null
+            val esito = testo(o, "action") ?: return null
+            val istante = testo(o, "timestamp") ?: return null
+            return ObEsecuzione(
+                id = id,
+                azioneId = testo(o, "action_id"),
+                titolo = testo(o, "action_title") ?: "(senza titolo)",
+                esito = esito,
+                punti = numero(o, "points") ?: 0,
+                istante = istante,
+                programmata = testo(o, "occurrence_date")?.let {
+                    runCatching { LocalDate.parse(it.take(10)) }.getOrNull()
+                },
+            )
+        }
+
+        /** Le stesse etichette di `ACTION_LABEL` in `obiettivi.html`. */
+        val ETICHETTA_ESITO = mapOf(
+            "completed" to "✅ completata",
+            "completed_late" to "🐌 completata in ritardo",
+            "skipped" to "⏭ saltata",
+            "failed" to "❌ fallita",
+        )
     }
 }
 
@@ -192,6 +248,62 @@ object PianoRepository {
                 ObCollegamentoMetrica(azione, metrica)
             }
     }
+
+    /** Le esecuzioni più recenti, dalla più nuova: le chiusure `terminated` no. */
+    suspend fun esecuzioni(quante: Long = 40): List<ObEsecuzione> = withContext(Dispatchers.IO) {
+        db.from("ob_action_history").select(Columns.ALL) {
+            filter { neq("action", "terminated") }
+            order("timestamp", Order.DESCENDING)
+            limit(quante)
+        }.decodeList<JsonObject>().mapNotNull { ObEsecuzione.da(it) }
+    }
+
+    /**
+     * Annulla l'ultima esecuzione: lo fa la RPC `ob_action_undo`, che riporta
+     * l'azione al giorno programmato. Qui non si calcola niente.
+     */
+    suspend fun annulla(esecuzioneId: String): Annullamento = withContext(Dispatchers.IO) {
+        val r = db.rpc("ob_action_undo", buildJsonObject { put("p_history_id", esecuzioneId) })
+            .decodeAs<JsonObject>()
+        Annullamento(
+            ok = booleano(r, "ok") ?: false,
+            errore = testo(r, "error"),
+            promemoriaPersi = booleano(r, "promemoria_persi") ?: false,
+        )
+    }
+
+    data class Annullamento(val ok: Boolean, val errore: String?, val promemoriaPersi: Boolean)
+
+    /**
+     * Corregge una riga di storico: istante, esito e punti. ⚠️ La gemella
+     * `terminated` (stessa azione, stesso istante) si sposta per prima,
+     * cercandola col vecchio istante: dopo non si ritroverebbe più. È la copia
+     * di `salvaModificaEsecuzione()` in `obiettivi.html`.
+     */
+    suspend fun correggi(e: ObEsecuzione, nuovoIstante: String, esito: String, punti: Int) {
+        withContext(Dispatchers.IO) {
+            val azione = e.azioneId
+            if (azione != null) {
+                db.from("ob_action_history").update(buildJsonObject { put("timestamp", nuovoIstante) }) {
+                    filter { eq("action", "terminated"); eq("action_id", azione); eq("timestamp", e.istante) }
+                }
+            }
+            db.from("ob_action_history").update(buildJsonObject {
+                put("timestamp", nuovoIstante)
+                put("action", esito)
+                put("points", punti)
+            }) { filter { eq("id", e.id) } }
+        }
+    }
+
+    /** Le rilevazioni di un giorno, per le metriche date. */
+    suspend fun rilevazioniDel(giorno: LocalDate, metriche: List<String>): Map<String, ObRilevazione> =
+        withContext(Dispatchers.IO) {
+            if (metriche.isEmpty()) emptyMap()
+            else db.from("ob_measurements").select(Columns.raw("metric_id,measured_on,value,note,giudizio")) {
+                filter { eq("measured_on", giorno.toString()); isIn("metric_id", metriche) }
+            }.decodeList<ObRilevazione>().associateBy { it.metricId }
+        }
 
     suspend fun completa(id: String, oggi: LocalDate): Esito = rpc("ob_action_complete") {
         put("p_action_id", id)
