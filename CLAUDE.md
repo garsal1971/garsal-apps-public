@@ -2110,9 +2110,10 @@ punteggio fuori scala anche sul test. ⚠️ Nato per sbaglio sulla repo vecchia
 7 ottobre 2026 (la migration era quindi già applicata quando è arrivata qui).
 
 Il **`gofluent`** (`20261007120000_ob_metriche_gofluent.sql`, web v1.13.0, APK 1.0.112) è il
-livello del test GoFluent, scelto da una **tendina** fra dodici gradini — PRE-A1 · A1 · A1+ · A2 ·
-A2+ · B1 · B1+ · B2 · B2+ · C1 · C1+ · C2 — e archiviato come **posizione** (PRE-A1 = 1 … C2 = 12)
-in una scala fissa `min_value` 1 / `max_value` 12: barra e semaforo restano la stessa formula.
+livello del test GoFluent, scelto da una **tendina** fra ventuno gradini — A1.1–A1.4 · A2.1–A2.4 ·
+B1.1–B1.4 · B2.1–B2.4 · C1.1–C1.4 · C2 — e archiviato come **posizione** (A1.1 = 1 … C2 = 21)
+in una scala fissa `min_value` 1 / `max_value` 21 (erano dodici gradini con PRE-A1 e i «+»:
+`20261007180000_ob_gofluent_21_livelli.sql` ha riportato rilevazioni e milestone sui livelli nuovi): barra e semaforo restano la stessa formula.
 L'etichetta la scrivono le app (`GOFLUENT_LIVELLI` / `fmtVal()` nel web, `GoFluentLivelli` /
 `testoValore()` in `ObiettiviModel.kt`), e porta il `giudizio` come il test. ⚠️ **L'ordine dei
 livelli è il dato**: spostarne uno cambierebbe il significato delle rilevazioni già salvate.

@@ -29,7 +29,7 @@ data class ObMetrica(
      * `automisurazione` — misuri un numero, da `baseline` a `target`
      * `test` — il punteggio di un test esterno, scala fissa `min_value` 1 .. `max_value` 100,
      *          con un giudizio scritto per ogni rilevazione
-     * `gofluent` — il livello del test GoFluent, scala fissa 1..12 (vedi [GoFluentLivelli]),
+     * `gofluent` — il livello del test GoFluent, scala fissa 1..21 (vedi [GoFluentLivelli]),
      *          scelto da una tendina, col giudizio come il test
      *
      * ⚠️ Le due coppie si escludono a vicenda (vincolo `ob_metrics_scala_per_tipo`):
@@ -62,11 +62,15 @@ data class ObMetrica(
 
 /**
  * I livelli del test GoFluent, dal più basso al più alto: in archivio il
- * livello è la sua posizione (PRE-A1 = 1 … C2 = 12). È il gemello di
+ * livello è la sua posizione (A1.1 = 1 … C2 = 21). È il gemello di
  * `GOFLUENT_LIVELLI` in obiettivi.html, e l'ordine È il dato: spostare un
  * livello cambierebbe il significato delle rilevazioni già salvate.
  */
-val GoFluentLivelli = listOf("PRE-A1", "A1", "A1+", "A2", "A2+", "B1", "B1+", "B2", "B2+", "C1", "C1+", "C2")
+val GoFluentLivelli = listOf(
+    "A1.1", "A1.2", "A1.3", "A1.4", "A2.1", "A2.2", "A2.3", "A2.4",
+    "B1.1", "B1.2", "B1.3", "B1.4", "B2.1", "B2.2", "B2.3", "B2.4",
+    "C1.1", "C1.2", "C1.3", "C1.4", "C2",
+)
 
 /** Il valore come si legge: il livello per GoFluent, il numero per le altre metriche. */
 fun ObMetrica.testoValore(v: Double): String =

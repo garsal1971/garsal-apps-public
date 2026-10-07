@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.14.0</title>
+    <title>Obiettivi v1.14.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -937,7 +937,7 @@
                     <option value="autovalutazione">Autovalutazione — ti dai un voto</option>
                     <option value="automisurazione">Automisurazione — misuri un numero</option>
                     <option value="test">Test di valutazione — punteggio da 1 a 100</option>
-                    <option value="gofluent">Test GoFluent — livello da PRE-A1 a C2</option>
+                    <option value="gofluent">Test GoFluent — livello da A1.1 a C2</option>
                 </select>
                 <div class="form-hint" id="kindHint"></div>
             </div>
@@ -963,10 +963,10 @@
                 A ogni test registri il punteggio e il giudizio scritto che lo accompagna.</div>
         </div>
 
-        <!-- il test GoFluent: i dodici livelli, fissi -->
+        <!-- il test GoFluent: i ventuno livelli, fissi -->
         <div class="form-group" id="mGoFluentRow">
             <div class="desc-box"><span class="desc-label">Scala</span>i livelli GoFluent, fissi:
-                PRE-A1 · A1 · A1+ · A2 · A2+ · B1 · B1+ · B2 · B2+ · C1 · C1+ · C2. Il C2 è il traguardo pieno.
+                A1.1–A1.4 · A2.1–A2.4 · B1.1–B1.4 · B2.1–B2.4 · C1.1–C1.4 · C2. Il C2 è il traguardo pieno.
                 A ogni test scegli il livello e scrivi, se vuoi, il giudizio che lo accompagna.</div>
         </div>
 
@@ -1358,8 +1358,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.14.0';
-var BUILD_TIME  = '2026-10-07T13:00:00Z';
+var APP_VERSION = 'v1.14.1';
+var BUILD_TIME  = '2026-10-07T18:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1603,12 +1603,12 @@ const TEST_MIN = 1, TEST_MAX = 100;
 const NOTIF_APP = 'objectives';
 
 // I livelli del test GoFluent, dal più basso al più alto: in archivio il
-// livello è la sua POSIZIONE (PRE-A1 = 1 … C2 = 12), così barra, semaforo e
+// livello è la sua POSIZIONE (A1.1 = 1 … C2 = 21), così barra, semaforo e
 // grafici restano la stessa formula delle altre metriche. ⚠️ L'ordine è il
 // dato: spostare o inserire un livello cambierebbe il significato di tutte le
-// rilevazioni già salvate. La scala 1-12 è la stessa che pretende il vincolo
+// rilevazioni già salvate. La scala 1-21 è la stessa che pretende il vincolo
 // ob_metrics_scala_per_tipo, e GoFluentLivelli in ObiettiviModel.kt è il gemello.
-const GOFLUENT_LIVELLI = ['PRE-A1', 'A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C1+', 'C2'];
+const GOFLUENT_LIVELLI = ['A1.1', 'A1.2', 'A1.3', 'A1.4', 'A2.1', 'A2.2', 'A2.3', 'A2.4', 'B1.1', 'B1.2', 'B1.3', 'B1.4', 'B2.1', 'B2.2', 'B2.3', 'B2.4', 'C1.1', 'C1.2', 'C1.3', 'C1.4', 'C2'];
 const SCALA_FISSA = { test: [TEST_MIN, TEST_MAX], gofluent: [1, GOFLUENT_LIVELLI.length] };
 
 // Il valore di una metrica come si legge: il livello per GoFluent, il numero per le altre.
@@ -2063,7 +2063,7 @@ function renderMetricFormHints() {
         autovalutazione: 'Ti dai un voto dentro una scala che scegli tu. È ciò che rende misurabile un obiettivo senza numeri ovvi.',
         automisurazione: 'Misuri un numero vero: kg, minuti, pause, lezioni fatte. Il traguardo è il valore obiettivo.',
         test:            'Il punteggio di un test esterno, da 1 a 100, con il giudizio scritto che lo accompagna.',
-        gofluent:        'Il livello del test GoFluent (PRE-A1 … C2), scelto da una tendina, con il giudizio scritto che lo accompagna.'
+        gofluent:        'Il livello del test GoFluent (A1.1 … C2), scelto da una tendina, con il giudizio scritto che lo accompagna.'
     };
     document.getElementById('kindHint').textContent = kindHints[kind];
 }
