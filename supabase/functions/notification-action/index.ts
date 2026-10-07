@@ -260,6 +260,23 @@ async function completa(riga: RigaCoda): Promise<{ ok: boolean; errore?: string 
     }
   }
 
+  // Le azioni di Obiettivi: come le Piante, dal nucleo col proprietario della riga.
+  if (cu.app === 'objectives' && riga.entity_id) {
+    const { data, error } = await sb.rpc('ob_action_complete_core', {
+      p_action_id: riga.entity_id,
+      p_user:      riga.user_id,
+      p_today:     s.data,
+    })
+    if (error) {
+      console.error('[notif-action] ob_action_complete_core:', error)
+      return { ok: false, errore: error.message ?? String(error) }
+    }
+    const esito = data as { ok?: boolean; error?: string } | null
+    if (esito?.ok === false) {
+      return { ok: false, errore: esito.error ?? 'completamento non riuscito' }
+    }
+  }
+
   // Le abitudini: la riga in hb_completions l'ha già scritta l'insert qui
   // sopra, e questa RPC ne ricava streak, jolly e punti.
   if (cu.app === 'habits') {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.13.0</title>
+    <title>Obiettivi v1.14.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -413,6 +413,8 @@
             background: var(--input-bg); cursor: pointer; user-select: none;
         }
         .chip.on { background: var(--secondary); border-color: var(--secondary); color: #fff; }
+        .notif-check { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0.35rem; font-weight: 600; }
+        .notif-check input { width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
         .chip .chip-x { margin-left: 0.4rem; opacity: 0.7; }
         .date-adder {
             display: grid; grid-template-columns: 1fr auto; gap: 0.5rem;
@@ -768,10 +770,6 @@
                 <div class="filter-group">
                     <label class="form-label">Priorità</label>
                     <select class="form-select" id="fltPriority" onchange="renderActionsPage()"></select>
-                </div>
-                <div class="filter-group">
-                    <label class="form-label">Categoria</label>
-                    <select class="form-select" id="fltCategory" onchange="renderActionsPage()"></select>
                 </div>
                 <div class="filter-group">
                     <label class="form-label">Metrica</label>
@@ -1179,11 +1177,6 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">Categorie</label>
-            <div class="chip-row" id="aCategories"></div>
-        </div>
-
-        <div class="form-group">
             <label class="form-label">Metriche che questa azione dovrebbe muovere</label>
             <div class="chip-row" id="aMetrics"></div>
             <div class="form-hint">
@@ -1220,6 +1213,16 @@
                 <label class="form-label">Step fallito</label>
                 <input type="number" class="form-input" id="aPtStepKo" value="-3">
             </div>
+        </div>
+
+        <div class="section-title">🔔 Promemoria</div>
+        <div id="aNotifBox">
+            <div class="form-hint" id="aNotifHint" style="margin-bottom:0.4rem;">Ogni canale si accende da sé, coi suoi anticipi.</div>
+            <label class="notif-check"><input type="checkbox" id="nTg" onchange="renderNotifChips()"> 📱 Telegram</label>
+            <div class="chip-row" id="nTgPresets"></div>
+            <label class="notif-check"><input type="checkbox" id="nAn" onchange="renderNotifChips()"> 📲 Telefono (AppSphere nativa)</label>
+            <div class="chip-row" id="nAnPresets"></div>
+            <label class="notif-check"><input type="checkbox" id="nSb"> 🔐 Smart Block (blocca il telefono all'ora dell'azione)</label>
         </div>
 
         <div class="modal-actions">
@@ -1355,8 +1358,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.13.0';
-var BUILD_TIME  = '2026-10-07T12:00:00Z';
+var APP_VERSION = 'v1.14.0';
+var BUILD_TIME  = '2026-10-07T13:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1389,7 +1392,10 @@ let measurements = [];   // ob_measurements
 let actions      = [];   // ob_actions
 let actionHistory = [];  // ob_action_history
 let actionMetrics = [];  // ob_action_metrics — quali metriche muove un'azione
-let categories   = [];   // cm_categories (condivise con Tasks)
+let notifRules   = [];   // cm_notification_rules con app = 'objectives', una riga per canale
+let notifPresets = [];   // cm_reminder_presets: gli anticipi che si possono scegliere
+let presetTg     = new Set();   // anticipi scelti nell'editor, per canale
+let presetAn     = new Set();
 let priorities   = [];   // cm_priorities (condivise con Tasks)
 let progress     = {};   // { objective_id: risultato RPC }
 
@@ -1408,7 +1414,6 @@ let misurandoAzione   = null;   // azione appena chiusa, di cui si rilevano le m
 let misurandoGiorno   = null;   // il giorno in cui è stata chiusa: la data della rilevazione
 let wfActionId        = null;
 let wfSteps           = [];   // step in modifica dentro l'editor
-let actCategories     = [];   // categorie scelte nell'editor
 let actMetrics        = [];   // metriche collegate scelte nell'editor
 let yearlyDates       = [];   // 'DD-MM' del tipo annuale
 let multiDates        = [];   // 'YYYY-MM-DD' del tipo multiplo
@@ -1494,7 +1499,7 @@ async function startApp() {
 }
 
 async function loadAll() {
-    const [o, m, ms, meas, act, hist, amet, cat, pri] = await Promise.all([
+    const [o, m, ms, meas, act, hist, amet, pri, nr, np] = await Promise.all([
         sb.from('ob_objectives').select('*').order('sort_order').order('due_date'),
         sb.from('ob_metrics').select('*').order('sort_order'),
         sb.from('ob_milestones').select('*').order('due_date'),
@@ -1502,16 +1507,19 @@ async function loadAll() {
         sb.from('ob_actions').select('*').order('sort_order'),
         sb.from('ob_action_history').select('*').order('timestamp', { ascending: false }),
         sb.from('ob_action_metrics').select('*'),
-        sb.from('cm_categories').select('*'),
-        sb.from('cm_priorities').select('*').order('value', { ascending: false })
+        sb.from('cm_priorities').select('*').order('value', { ascending: false }),
+        sb.from('cm_notification_rules').select('id, entity_id, channel, reminder_presets').eq('app', NOTIF_APP),
+        sb.from('cm_reminder_presets').select('int_id, label, offset_minutes, sort_order').eq('active', true).order('sort_order')
     ]);
 
     for (const r of [o, m, ms, meas, act, hist, amet]) {
         if (r.error) { if (handleAuthError(r.error)) return; console.error(r.error); showToast('❌ ' + r.error.message); return; }
     }
-    // Categorie e priorità sono condivise e non stanno in nessuna migration: se
-    // mancano l'app resta usabile senza, invece di non aprirsi affatto.
-    if (cat.error) console.warn('cm_categories non leggibile:', cat.error.message);
+    // Le priorità sono condivise e non stanno in nessuna migration: se mancano
+    // l'app resta usabile senza, invece di non aprirsi affatto. Lo stesso per
+    // regole e preset dei promemoria, che non sono di questa app.
+    if (nr.error) console.warn('regole promemoria:', nr.error.message);
+    if (np.error) console.warn('preset promemoria:', np.error.message);
     if (pri.error) console.warn('cm_priorities non leggibile:', pri.error.message);
 
     objectives    = o.data    || [];
@@ -1521,7 +1529,8 @@ async function loadAll() {
     actions       = act.data  || [];
     actionHistory = hist.data || [];
     actionMetrics = amet.data || [];
-    categories    = cat.data  || [];
+    notifRules    = nr.error ? [] : (nr.data || []);
+    notifPresets  = np.error ? [] : (np.data || []);
     priorities    = pri.data  || [];
 
     await loadProgress();
@@ -1588,6 +1597,10 @@ const KIND_LABEL = { autovalutazione: 'autovalutazione', automisurazione: 'autom
 // La scala del test di valutazione: fissa, ed è la stessa che pretende il
 // vincolo ob_metrics_scala_per_tipo.
 const TEST_MIN = 1, TEST_MAX = 100;
+
+// L'app con cui le azioni scrivono le loro regole in cm_notification_rules: la
+// leggono fill-notification-queue, notification-action e Smart Blocker.
+const NOTIF_APP = 'objectives';
 
 // I livelli del test GoFluent, dal più basso al più alto: in archivio il
 // livello è la sua POSIZIONE (PRE-A1 = 1 … C2 = 12), così barra, semaforo e
@@ -2513,7 +2526,6 @@ function actionDay(a) { return localDay(a.next_occurrence_date || a.start_date);
 
 function actionIsAlive(a) { return a.status !== 'terminated'; }
 
-function categoryById(id) { return categories.find(c => c.id === id) || null; }
 function priorityById(id) { return priorities.find(p => p.id === id) || null; }
 
 // ── filtri ────────────────────────────────────────────────────────────────
@@ -2531,8 +2543,6 @@ function fillActionFilters() {
         Object.keys(TYPE_LABEL).map(t => `<option value="${t}">${TYPE_LABEL[t]}</option>`).join(''));
     keep('fltPriority', '<option value="">tutte</option>' +
         priorities.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join(''));
-    keep('fltCategory', '<option value="">tutte</option>' +
-        categories.map(c => `<option value="${c.id}">${esc((c.icon || '') + ' ' + c.name)}</option>`).join(''));
     keep('fltMetric', '<option value="">tutte</option>' +
         metrics.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join(''));
 }
@@ -2542,7 +2552,6 @@ function filteredActions() {
     const obj  = document.getElementById('fltObj')?.value || '';
     const typ  = document.getElementById('fltType')?.value || '';
     const pri  = document.getElementById('fltPriority')?.value || '';
-    const cat  = document.getElementById('fltCategory')?.value || '';
     const met  = document.getElementById('fltMetric')?.value || '';
     const stat = document.getElementById('fltStatus')?.value ?? 'vive';
 
@@ -2550,7 +2559,6 @@ function filteredActions() {
         if (obj && a.objective_id !== obj) return false;
         if (typ && a.type !== typ) return false;
         if (pri && a.priority_id !== pri) return false;
-        if (cat && !(a.categories || []).includes(cat)) return false;
         if (met && !actionMetrics.some(l => l.action_id === a.id && l.metric_id === met)) return false;
         if (stat === 'vive' && !actionIsAlive(a)) return false;
         if (stat === 'terminated' && actionIsAlive(a)) return false;
@@ -2707,7 +2715,7 @@ function renderActionsPage() {
 function renderActionCard(a, opts) {
     const obj  = objectives.find(o => o.id === a.objective_id);
     const pri  = priorityById(a.priority_id);
-    const cats = (a.categories || []).map(categoryById).filter(Boolean);
+    const canali = canaliDi(a);
     const mets = metricsOfAction(a.id);
     const libera = a.type === 'free_repeat';
     const day  = libera ? null : actionDay(a);
@@ -2742,13 +2750,13 @@ function renderActionCard(a, opts) {
                 ${TYPE_LABEL[a.type] || esc(a.type)}${stepInfo}
                 ${day ? ' · <span class="' + (late ? 'act-late' : '') + '">' + fmtDate(day) + (ora ? ' ' + ora : '') + '</span>' : ''}
                 ${libera ? (a.last_completed_date ? ' · ultima: ' + fmtDate(localDay(a.last_completed_date)) : ' · mai fatta') : ''}
+                ${canali ? ' · <span title="promemoria">' + canali + '</span>' : ''}
                 ${opts.showObjective && obj ? ' · ' + esc(obj.title) : ''}
                 ${vivo ? '' : ' · ' + (esitoDi(a.id) || 'conclusa')}
             </div>
             ${a.description ? `<div class="act-desc">${esc(a.description)}</div>` : ''}
-            ${(pri || cats.length || mets.length) ? `<div class="act-tags">
+            ${(pri || mets.length) ? `<div class="act-tags">
                 ${pri ? `<span class="act-tag" style="background:${esc(pri.color || '#6C5CE7')}">🎯 ${esc(pri.name)}</span>` : ''}
-                ${cats.map(c => `<span class="act-tag" style="background:${esc(c.color || '#6B7280')}">${esc((c.icon || '') + ' ' + c.name)}</span>`).join('')}
                 ${mets.map(m => `<span class="act-tag act-tag-metric">📈 ${esc(m.name)}</span>`).join('')}
             </div>` : ''}
         </div>
@@ -3188,13 +3196,21 @@ function openActionEditor(objId, actionId) {
     document.getElementById('aPtStepOk').value = wfp.step_success ?? 5;
     document.getElementById('aPtStepKo').value = wfp.step_failure ?? -3;
 
-    actCategories = [...(a?.categories || [])];
+    // I promemoria: la riga di cm_notification_rules BASTA a dire che il canale
+    // è acceso (come in Tasks e in Piante), e i suoi preset dicono gli anticipi.
+    const tg = a ? regolaDi(a.id, 'telegram') : null;
+    const an = a ? regolaDi(a.id, 'android') : null;
+    document.getElementById('nTg').checked = !!tg;
+    document.getElementById('nAn').checked = !!an;
+    document.getElementById('nSb').checked = !!(a && regolaDi(a.id, 'smart_block'));
+    presetTg = new Set(tg ? presetsDi(tg) : [primoPreset()].filter(x => x != null));
+    presetAn = new Set(an ? presetsDi(an) : [primoPreset()].filter(x => x != null));
     actMetrics    = a ? metricsOfAction(a.id).map(m => m.id) : [];
     yearlyDates   = [...(a?.recurring_dates || [])];
     multiDates    = [...(a?.multiple_dates || [])];
     wfSteps       = a?.workflow_steps ? JSON.parse(JSON.stringify(a.workflow_steps)) : [];
 
-    renderCategoryChips();
+    renderNotifChips();
     renderMetricChips();
     renderDowChips(a?.recurring_days_of_week || []);
     renderDomChips(a?.recurring_day_of_month || []);
@@ -3226,6 +3242,14 @@ function onActionTypeChange() {
 
     document.getElementById('aTypeHint').textContent = TYPE_HINT[t] || '';
     if (t === 'recurring') onActionFreqChange();
+
+    // Senza una data non c'è nessun istante a cui suonare.
+    const box = document.getElementById('aNotifBox');
+    box.style.opacity = t === 'free_repeat' ? 0.45 : 1;
+    box.querySelectorAll('input').forEach(i => i.disabled = t === 'free_repeat');
+    document.getElementById('aNotifHint').textContent = t === 'free_repeat'
+        ? 'Un\'azione a libera ripetizione non ha una data: non c\'è niente a cui far suonare un promemoria.'
+        : 'Ogni canale si accende da sé, coi suoi anticipi.';
 }
 
 function onActionFreqChange() {
@@ -3256,16 +3280,39 @@ function renderDomChips(scelti) {
     }
     document.getElementById('aDom').innerHTML = html;
 }
-function renderCategoryChips() {
-    document.getElementById('aCategories').innerHTML = categories.length
-        ? categories.map(c => `<span class="chip ${actCategories.includes(c.id) ? 'on' : ''}"
-              onclick="toggleActCategory('${c.id}', this)">${esc((c.icon || '') + ' ' + c.name)}</span>`).join('')
-        : '<div class="form-hint">Nessuna categoria: si creano da AppSphere → Dati Comuni.</div>';
+// ── promemoria ────────────────────────────────────────────────────────────
+function regolaDi(actionId, canale) {
+    return notifRules.find(r => String(r.entity_id) === String(actionId) && r.channel === canale) || null;
 }
-function toggleActCategory(id, el) {
-    const i = actCategories.indexOf(id);
-    if (i >= 0) actCategories.splice(i, 1); else actCategories.push(id);
-    el.classList.toggle('on');
+function presetsDi(r) {
+    const rp = typeof r.reminder_presets === 'string' ? JSON.parse(r.reminder_presets) : (r.reminder_presets || {});
+    return (rp.reminders || []).map(Number);
+}
+function canaliDi(a) {
+    const c = notifRules.filter(r => String(r.entity_id) === String(a.id)).map(r => r.channel);
+    return [c.includes('telegram') ? '📱' : '', c.includes('android') ? '📲' : '', c.includes('smart_block') ? '🔐' : ''].join('');
+}
+// L'anticipo proposto di partenza è quello più vicino all'ora (0 minuti, se c'è).
+function primoPreset() {
+    if (!notifPresets.length) return null;
+    return [...notifPresets].sort((a, b) => Math.abs(a.offset_minutes) - Math.abs(b.offset_minutes))[0].int_id;
+}
+function renderNotifChips() {
+    const chips = (set, boxId, acceso) => {
+        const box = document.getElementById(boxId);
+        box.style.display = acceso ? '' : 'none';
+        box.innerHTML = notifPresets.length
+            ? notifPresets.map(p => `<span class="chip ${set.has(p.int_id) ? 'on' : ''}"
+                  onclick="togglePreset('${boxId}', ${p.int_id})">${esc(p.label)}</span>`).join('')
+            : '<div class="form-hint">Preset dei promemoria non disponibili.</div>';
+    };
+    chips(presetTg, 'nTgPresets', document.getElementById('nTg').checked);
+    chips(presetAn, 'nAnPresets', document.getElementById('nAn').checked);
+}
+function togglePreset(boxId, id) {
+    const set = boxId === 'nTgPresets' ? presetTg : presetAn;
+    if (set.has(id)) set.delete(id); else set.add(id);
+    renderNotifChips();
 }
 
 // Si offrono le metriche del **solo** obiettivo scelto: una metrica di un altro
@@ -3402,7 +3449,6 @@ async function saveAction() {
         type,
         status:      document.getElementById('aStatus').value,
         priority_id: document.getElementById('aPriority').value || null,
-        categories:  actCategories,
         start_date:  inizio,
         success_points: parseInt(document.getElementById('aPtSuccess').value) || 0,
         // ⚠️ La colonna resta (`ob_action_fail` esiste ancora nel database), ma
@@ -3487,9 +3533,77 @@ async function saveAction() {
     const errMet = await salvaCollegamentiMetriche(res.data.id);
     if (errMet) { showToast('❌ ' + errMet); return; }
 
+    const avvisi = await sincronizzaRegole(res.data.id, payload);
+
     closeModal('actionModal');
-    showToast('✅ Azione salvata');
+    showToast('✅ Azione salvata' + (avvisi ? ' · ' + avvisi : ''), avvisi ? 4000 : undefined);
     await loadAll();
+}
+
+// I promemoria hanno la forma di quelli dei task (reminders + due_at), con
+// app = 'objectives': fill-notification-queue mette nella coda il completamento
+// { app: 'objectives' }, che notification-action traduce in ob_action_complete.
+// ⚠️ Dopo ogni ✅ o ⏭ la nuova scadenza la scrive la RPC su tutti i canali: da
+// qui le regole si toccano solo salvando il form — è la stessa divisione di
+// sincronizzaRegole() in piante.html, che va cambiata insieme a questa.
+async function sincronizzaRegole(actionId, payload) {
+    const obj = objectives.find(o => o.id === payload.objective_id);
+    const entityTitle = obj ? `${payload.title} — ${obj.title}` : payload.title;
+    const dueAt = payload.next_occurrence_date;
+    // Una libera ripetizione non ha una data, e un'azione conclusa non ha più una
+    // prossima volta: in tutt'e due i casi i promemoria si tolgono.
+    const senzaData = payload.type === 'free_repeat' || !dueAt || payload.status === 'terminated';
+    const avvisi = [];
+
+    const togli = async (canale) => {
+        const { error } = await sb.from('cm_notification_rules').delete()
+            .eq('app', NOTIF_APP).eq('entity_id', actionId).eq('user_id', currentUserId).eq('channel', canale);
+        if (error) avvisi.push(`❌ ${canale}: ${error.message}`);
+    };
+    const scrivi = async (canale, presets) => {
+        const { data: esistente } = await sb.from('cm_notification_rules').select('id')
+            .eq('app', NOTIF_APP).eq('entity_id', actionId).eq('user_id', currentUserId).eq('channel', canale).maybeSingle();
+        const rule = {
+            user_id: currentUserId, app: NOTIF_APP, entity_id: actionId, entity_type: 'task',
+            entity_title: entityTitle, reminder_presets: presets, notification_spec: {}, channel: canale, enabled: true,
+        };
+        const { error } = esistente?.id
+            ? await sb.from('cm_notification_rules').update(rule).eq('id', esistente.id)
+            : await sb.from('cm_notification_rules').insert(rule);
+        if (error) avvisi.push(`❌ ${canale}: ${error.message}`);
+    };
+
+    const tgOn = document.getElementById('nTg').checked, anOn = document.getElementById('nAn').checked;
+    const tg  = !senzaData && tgOn ? [...presetTg] : [];
+    const an  = !senzaData && anOn ? [...presetAn] : [];
+    const sbk = !senzaData && document.getElementById('nSb').checked;
+
+    // ⚠️ `telegram_complete_button` anche sul canale del telefono: è il segnale
+    // da cui fill-notification-queue scrive il completamento nella coda, e senza
+    // la notifica sul telefono non avrebbe il ✅ Fatto.
+    if (tg.length) await scrivi('telegram', { reminders: tg, due_at: dueAt, telegram_complete_button: true });
+    else await togli('telegram');
+    if (an.length) await scrivi('android', { reminders: an, due_at: dueAt, telegram_complete_button: true });
+    else await togli('android');
+    if (sbk) await scrivi('smart_block', { reminders: [], due_at: dueAt });
+    else await togli('smart_block');
+
+    if (!senzaData && ((tgOn && !tg.length) || (anOn && !an.length)))
+        avvisi.push('⚠️ canale acceso senza anticipi: spento');
+    if (tg.length || an.length || sbk) {
+        avvisi.push('🔔 ' + [tg.length ? '📱' : '', an.length ? '📲' : '', sbk ? '🔐' : ''].join(''));
+        triggerFillQueue();
+    }
+    return avvisi.join(' · ');
+}
+
+// Il cron gira ogni sei ore: un promemoria per stasera non può aspettarlo.
+async function triggerFillQueue() {
+    try {
+        await fetch(`${SUPABASE_URL}/functions/v1/fill-notification-queue`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${sbAccessToken}`, 'apikey': SUPABASE_KEY }
+        });
+    } catch (e) { console.warn('fill-notification-queue:', e.message); }
 }
 
 // ⚠️ I collegamenti si **riscrivono da capo** a ogni salvataggio — si cancellano
