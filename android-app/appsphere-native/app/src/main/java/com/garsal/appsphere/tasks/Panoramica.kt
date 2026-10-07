@@ -61,6 +61,8 @@ fun VistaPanoramica(
     onCompleta: (TsTask) -> Unit,
     onFallisci: (TsTask) -> Unit,
     onSalta: (TsTask) -> Unit,
+    onNascondi: (TsTask) -> Unit,
+    onMostra: (TsTask) -> Unit,
 ) {
     if (stato.panoramicaVuota) {
         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -69,14 +71,14 @@ fun VistaPanoramica(
         return
     }
 
-    val azioni = AzioniScheda(onApri, onCompleta, onFallisci, onSalta)
-    val larghezzaPulsanti = larghezzaPulsanti(listOf(COMPLETA, FALLISCI, SALTA))
+    val azioni = AzioniScheda(onApri, onCompleta, onFallisci, onSalta, onNascondi, onMostra)
+    val larghezzaPulsanti = larghezzaPulsanti(listOf(COMPLETA, FALLISCI, SALTA, NASCONDI, MOSTRA))
 
     LazyColumn(
         contentPadding = PaddingValues(10.dp, 6.dp, 10.dp, 88.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        sezione("⚠️ SCADUTI", stato.scaduti, Palette.danger, stato, azioni, larghezzaPulsanti)
+        sezione("⚠️ SCADUTI", stato.scaduti, Palette.danger, stato, azioni, larghezzaPulsanti, Modo.SCADUTO)
         sezione("🎯 OGGI", stato.diOggi, Palette.primary, stato, azioni, larghezzaPulsanti)
         sezione("📅 PROSSIMI", stato.prossimi, Palette.warning, stato, azioni, larghezzaPulsanti)
         sezioneRaggruppata(
@@ -95,6 +97,9 @@ fun VistaPanoramica(
             seVuota = "Nessuna categoria configurata per la dashboard. " +
                 "Si attiva da tasks.html → Categorie.",
         )
+        // 🙈 NASCOSTI: gli scaduti tolti per qualche giorno, come nel web sta
+        // subito prima di NON IN PANORAMICA.
+        sezione("🙈 NASCOSTI", stato.scadutiNascosti, Palette.muted, stato, azioni, larghezzaPulsanti, Modo.NASCOSTO)
         sezioneRaggruppata(
             titolo = "👁️ NON IN PANORAMICA",
             gruppi = stato.nascostiPerCategoria,
@@ -109,13 +114,18 @@ fun VistaPanoramica(
     }
 }
 
-/** Le quattro cose che si possono fare su una scheda, passate in blocco. */
+/** Le cose che si possono fare su una scheda, passate in blocco. */
 private data class AzioniScheda(
     val apri: (TsTask) -> Unit,
     val completa: (TsTask) -> Unit,
     val fallisci: (TsTask) -> Unit,
     val salta: (TsTask) -> Unit,
+    val nascondi: (TsTask) -> Unit,
+    val mostra: (TsTask) -> Unit,
 )
+
+/** In quale sezione sta la scheda: decide se offrire 🙈 Nascondi o 👁 Mostra. */
+private enum class Modo { NORMALE, SCADUTO, NASCOSTO }
 
 /**
  * Una sezione è **un solo `item`** della lista, non un'intestazione più tante
@@ -131,11 +141,12 @@ private fun LazyListScope.sezione(
     stato: TasksState,
     azioni: AzioniScheda,
     larghezzaPulsanti: Dp,
+    modo: Modo = Modo.NORMALE,
 ) {
     if (task.isEmpty()) return
     item(key = "sezione-$titolo") {
         Sezione(titolo, task.size, colore) {
-            task.forEach { SchedaTask(it, stato, azioni, larghezzaPulsanti) }
+            task.forEach { SchedaTask(it, stato, azioni, larghezzaPulsanti, modo) }
         }
     }
 }
@@ -214,6 +225,7 @@ private fun SchedaTask(
     stato: TasksState,
     azioni: AzioniScheda,
     larghezzaPulsanti: Dp,
+    modo: Modo = Modo.NORMALE,
 ) {
     // Le prime due categorie e poi «+N», come nel web: tre etichette lunghe
     // riempirebbero da sole tutta la riga.
@@ -273,6 +285,20 @@ private fun SchedaTask(
             if (task.tipo in TIPI_CON_SALTA) {
                 Pillola(SALTA, Palette.accent, larghezzaPulsanti) { azioni.salta(task) }
             }
+            when (modo) {
+                Modo.SCADUTO -> Pillola(NASCONDI, Palette.muted, larghezzaPulsanti) { azioni.nascondi(task) }
+                Modo.NASCOSTO -> Pillola(MOSTRA, Palette.muted, larghezzaPulsanti) { azioni.mostra(task) }
+                Modo.NORMALE -> Unit
+            }
+        }
+
+        if (modo == Modo.NASCOSTO) {
+            Text(
+                text = "🙈 Nascosto fino al ${dataItaliana(task.nascostoFino)}",
+                color = Palette.muted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
     }
 }
@@ -283,6 +309,8 @@ private val TIPI_CON_SALTA = setOf("recurring", "simple_recurring", "multiple")
 private const val COMPLETA = "Completa"
 private const val FALLISCI = "Fallisci"
 private const val SALTA = "Salta"
+private const val NASCONDI = "🙈 Nascondi"
+private const val MOSTRA = "👁 Mostra"
 
 @Composable
 private fun Etichetta(testo: String, colore: Color) {

@@ -51,6 +51,8 @@ data class TsTask(
     val puntiRitardo: Int,
     val riservato: Boolean,
     val inPanoramica: Boolean,
+    /** `nascosto_fino`: ultimo giorno (incluso) fuori dagli SCADUTI. Null = visibile. */
+    val nascostoFino: String?,
     val frequenza: String?,
     val intervallo: Int?,
     val giorniSettimana: List<Int>,
@@ -182,6 +184,7 @@ data class TsTask(
             puntiRitardo = numero(o, "late_points") ?: 0,
             riservato = booleano(o, "riservato") ?: false,
             inPanoramica = booleano(o, "show_in_panoramica") ?: true,
+            nascostoFino = testo(o, "nascosto_fino"),
             frequenza = testo(o, "recurring_frequency"),
             intervallo = numero(o, "recurring_interval"),
             giorniSettimana = listaNumeri(o, "recurring_days_of_week"),
@@ -446,6 +449,19 @@ object TasksRepository {
                 errore = testo(risposta, "error"),
             )
         }
+
+    /**
+     * 🙈 Nascondi / 👁 Mostra: scrive **solo** `nascosto_fino` (null = di nuovo
+     * visibile). Scadenza, prossima occorrenza, regole e promemoria non si
+     * toccano — è un filtro di lettura della panoramica, gemello di
+     * `scriviNascostoFino()` in `tasks.html`.
+     */
+    suspend fun nascondiFino(id: String, giorno: LocalDate?) = withContext(Dispatchers.IO) {
+        db.from("ts_tasks").update(buildJsonObject { put("nascosto_fino", giorno?.toString()) }) {
+            filter { eq("id", id) }
+        }
+        Unit
+    }
 
     suspend fun elimina(id: String) = withContext(Dispatchers.IO) {
         db.from("ts_tasks").delete { filter { eq("id", id) } }

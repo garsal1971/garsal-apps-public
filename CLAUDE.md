@@ -5028,6 +5028,15 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
 - European date format display (`dd/mm/yyyy`) with ISO storage
 - Sidebar sections: Dashboard, Gestione (tasks only), Planner, Reminder, Impostazioni
 - FAB `+` apre direttamente la creazione task
+- **🙈 Nascondi** (web v19.26.0, APK 1.0.115, `20261007160000_ts_tasks_nascosto_fino.sql`): sui task
+  ⚠️ SCADUTI un pulsante toglie il task dagli scaduti per N giorni (7 di partenza, oggi compreso),
+  scrivendo **solo** `ts_tasks.nascosto_fino` — l'ultimo giorno incluso, NULL = visibile. In quei
+  giorni sta nella sezione **🙈 NASCOSTI** (con *👁 Mostra* per riportarlo subito) e dal giorno dopo
+  torna da sé fra gli scaduti. ⚠️ **È un filtro di lettura e basta**: scadenza, prossima
+  occorrenza, regole e promemoria non si toccano, e nessuna RPC lo legge. ⚠️ Non è
+  `show_in_panoramica` (👁️ NON IN PANORAMICA), che è per sempre. Gemelli da cambiare insieme:
+  `isNascosto` / `nascondiTask` / `scriviNascostoFino` in `tasks.html`, `TasksState.scadutiNascosti`
+  / `TasksViewModel.nascondi` / `TasksRepository.nascondiFino` nel nativo.
 - `cm_priorities` e `cm_categories` sono **sola lettura** in tasks.html — la gestione CRUD è in AppSphere → Dati Comuni
 - Significant file (~8 500 lines); sections delineated by `// ========================================` comments
 

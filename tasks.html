@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.25.5</title>
+    <title>Tasks v19.26.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2348,8 +2348,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.25.5';
-        const BUILD_TIME  = '2026-10-06T21:40:00Z';
+        const APP_VERSION = 'v19.26.0';
+        const BUILD_TIME  = '2026-10-07T12:00:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -7305,6 +7305,43 @@
             renderManagement();
         }
 
+        // 🙈 Nascondi: toglie un task scaduto dagli SCADUTI per N giorni
+        // (oggi compreso). Scrive SOLO ts_tasks.nascosto_fino: scadenza,
+        // prossima occorrenza, regole e promemoria restano come sono.
+        async function nascondiTask(id) {
+            const input = prompt('Per quanti giorni nascondere il task dagli scaduti?', '7');
+            if (input === null) return;
+            const giorni = parseInt(input, 10);
+            if (isNaN(giorni) || giorni < 1) {
+                alert('Inserisci un numero valido di giorni (minimo 1)');
+                return;
+            }
+            const fine = new Date();
+            fine.setHours(12, 0, 0, 0);
+            fine.setDate(fine.getDate() + giorni - 1);
+            await scriviNascostoFino(id, fine.toLocaleDateString('sv-SE'),
+                `🙈 Nascosto fino al ${fine.toLocaleDateString('it-IT')}`);
+        }
+
+        async function mostraTask(id) {
+            await scriviNascostoFino(id, null, '👁 Task di nuovo fra gli scaduti');
+        }
+
+        async function scriviNascostoFino(id, valore, messaggio) {
+            const { data, error } = await sb.from('ts_tasks')
+                .update({ nascosto_fino: valore })
+                .eq('id', id)
+                .select();
+            if (error || !data?.length) {
+                alert('Errore: ' + (error?.message || 'task non aggiornato'));
+                return;
+            }
+            const index = tasks.findIndex(t => t.id === id);
+            if (index !== -1) tasks[index] = data[0];
+            showToast(messaggio);
+            renderDashboard();
+        }
+
         async function deleteTask(id) {
             if (!await customConfirm('Eliminare questo task?')) return;
 
@@ -8596,7 +8633,7 @@ Per attivarle:
             const scheduledTasks = activeTasks.filter(t => t.type !== 'free_repeat');
             const hiddenTasks = tasks.filter(t => ['started', 'completed', 'failed', 'skipped'].includes(t.status) && t.show_in_panoramica === false);
             
-            const overdueTasks = scheduledTasks.filter(t => {
+            const allOverdueTasks = scheduledTasks.filter(t => {
                 if (t.type === 'single' && t.start_date) {
                     const startDate = new Date(t.start_date);
                     return startDate < today;
@@ -8611,6 +8648,14 @@ Per attivarle:
                 const dateB = new Date(b.next_occurrence_date || b.start_date || 0);
                 return dateA - dateB;
             });
+            // 🙈 Nascondi: un task scaduto con nascosto_fino >= oggi esce dagli
+            // SCADUTI e va nella sezione NASCOSTI. È un filtro di lettura e
+            // basta: scadenza, regole e promemoria non si toccano.
+            const oggiStr = today.toLocaleDateString('sv-SE');
+            const isNascosto = t => !!t.nascosto_fino && t.nascosto_fino >= oggiStr;
+            const overdueTasks = allOverdueTasks.filter(t => !isNascosto(t));
+            const nascostiTasks = allOverdueTasks.filter(isNascosto)
+                .sort((a, b) => a.nascosto_fino.localeCompare(b.nascosto_fino));
             
             const todayTasks = scheduledTasks.filter(t => isTaskDueToday(t, today)).sort((a, b) => {
                 const dateA = new Date(a.next_occurrence_date || a.start_date || 0);
@@ -8710,7 +8755,10 @@ Per attivarle:
                             </div>
                             <div style="display: flex; gap: 0.4rem; align-items: center;">
                                 <button style="background: #F59E0B; color: #1F2937; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); openWorkflowPopup('${task.id}')">Gestisci</button>
+                                ${sectionColor === 'var(--danger)' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); nascondiTask('${task.id}')">🙈 Nascondi</button>` : ''}
+                                ${sectionColor === 'nascosti' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); mostraTask('${task.id}')">👁 Mostra</button>` : ''}
                             </div>
+                            ${sectionColor === 'nascosti' ? `<div class="dash-task-meta" style="margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted);">🙈 Nascosto fino al ${task.nascosto_fino.split('-').reverse().join('/')}</div>` : ''}
                         </div>
                     `;
                 }
@@ -8731,7 +8779,10 @@ Per attivarle:
                             <button style="background: #00B894; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); completeTask('${task.id}')">Completa</button>
                             ${task.type !== 'free_repeat' ? `<button style="background: #E74C3C; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); failTask('${task.id}')">Fallisci</button>` : ''}
                             ${(task.type === 'recurring' || task.type === 'simple_recurring' || task.type === 'multiple') ? `<button style="background: #2563EB; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); skipTask('${task.id}')">Salta</button>` : ''}
+                            ${sectionColor === 'var(--danger)' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); nascondiTask('${task.id}')">🙈 Nascondi</button>` : ''}
+                            ${sectionColor === 'nascosti' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); mostraTask('${task.id}')">👁 Mostra</button>` : ''}
                         </div>
+                        ${sectionColor === 'nascosti' ? `<div class="dash-task-meta" style="margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted);">🙈 Nascosto fino al ${task.nascosto_fino.split('-').reverse().join('/')}</div>` : ''}
                     </div>
                 `;
             };
@@ -8829,6 +8880,19 @@ Per attivarle:
                 }
                 
                 html += `</div>`;
+            }
+
+            if (nascostiTasks.length > 0) {
+                html += `
+                    <div class="card dash-section dash-section--full" style="border-left: 4px solid var(--muted); margin-bottom: 1.5rem;">
+                        <h2 class="dash-section-title" style="color: var(--muted); font-size: 1.4rem; font-weight: 900; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            🙈 NASCOSTI (${nascostiTasks.length})
+                        </h2>
+                        <div class="dash-task-grid">
+                            ${nascostiTasks.map((t, i) => renderTaskCard(t, 'nascosti', i)).join('')}
+                        </div>
+                    </div>
+                `;
             }
 
             if (hiddenTasks.length > 0) {
