@@ -2397,7 +2397,7 @@ Aggiungendo una fonte nuova: il prezzo va restituito e passato a `pushPrice()`, 
 `rows` a mano — e prima di fidarsi di un campo JSON conviene guardare **cosa misura**, non come
 si chiama.
 
-### ⚡ get-prices v5.21.0: fonte ricordata, simboli in parallelo
+### ⚡ get-prices v5.21+: fonte ricordata, simboli in parallelo
 
 - **`fnz_price_cache.source` / `source_ref`** (`20261007220000_fnz_price_cache_fonte.sql`):
   la fonte che ha dato l'ultimo prezzo e l'identificativo usato lì (ticker Yahoo trovato
@@ -2415,6 +2415,13 @@ si chiama.
   deve passare di lì.
 - Se le due colonne mancano (migration non applicata) la funzione lo scrive in `fn_logs` e
   lavora senza, come prima.
+- ⚠️ **Bilancio di tempo (v5.22.0)**: il gateway chiude dopo 150 s senza risposta (504
+  `IDLE_TIMEOUT`, visto in Finanza al primo giro della v5.21.0). Dopo 105 s non si comincia
+  più nessun simbolo (i rimasti li fa il giro dopo, e `fn_logs` li elenca come *rimandati*),
+  entro 130 s si chiude anche quel che è in corso: `fetchT` usa come tetto il tempo che resta
+  e `tdTurno` non prenota un turno oltre la scadenza.
+- **I cambi valuta vengono prima da Yahoo** (`USDEUR=X`), Twelve Data solo come ripiego: ogni
+  conversione da TD costava un turno da 8 s.
 
 ### ⚠️ Header PSU obbligatori per alcune banche
 
