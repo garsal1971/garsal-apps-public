@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.26.0</title>
+    <title>Tasks v19.26.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -1983,6 +1983,28 @@
         </div>
     </div>
 
+    <!-- Scelta dei giorni (🙈 Nascondi, ⏭ Salta): al posto del prompt() del browser -->
+    <div id="giorniModal" class="modal" style="z-index:9998;" onclick="if(event.target===this)chiudiGiorni(null)">
+        <div class="modal-content" style="max-width: 360px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="giorniTitolo"></h3>
+                <span class="modal-close" onclick="chiudiGiorni(null)">✕</span>
+            </div>
+            <div style="padding:1.5rem;">
+                <p id="giorniDomanda" style="margin-bottom: 1rem; opacity: 0.8;"></p>
+                <div id="giorniRapidi" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: 0.5rem;"></div>
+                <div style="margin-top: 1rem;">
+                    <label class="form-label">Altro (giorni)</label>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="number" class="form-input" id="giorniAltro" min="1" max="3650" style="flex: 1 1 6rem; min-width: 0;" oninput="aggiornaNotaGiorni()" onkeydown="if(event.key==='Enter')confermaGiorniAltro()">
+                        <button class="btn btn-primary" onclick="confermaGiorniAltro()">Conferma</button>
+                    </div>
+                    <p id="giorniNota" style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--muted);"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Modal (Create/Edit) -->
     <div id="taskModal" class="modal">
         <div class="modal-content">
@@ -2348,8 +2370,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.26.0';
-        const BUILD_TIME  = '2026-10-07T12:00:00Z';
+        const APP_VERSION = 'v19.26.1';
+        const BUILD_TIME  = '2026-10-07T14:30:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -3527,6 +3549,44 @@
         function localDateTimeStr(d) {
             const dt = d || new Date();
             return dt.toISOString();
+        }
+
+        // Scelta dei giorni in un popup della pagina (🙈 Nascondi, ⏭ Salta):
+        // il prompt() del browser era una finestra di sistema grigia, fuori
+        // dallo stile dell'app. Torna il numero scelto, o null se si chiude.
+        let _giorniRisolvi = null;
+        let _giorniNota = null;
+        function chiediGiorni({ titolo, domanda, rapidi, predefinito, nota }) {
+            if (_giorniRisolvi) _giorniRisolvi(null);
+            document.getElementById('giorniTitolo').textContent = titolo;
+            document.getElementById('giorniDomanda').textContent = domanda;
+            document.getElementById('giorniRapidi').innerHTML = rapidi.map(n =>
+                `<button class="btn btn-secondary" onclick="chiudiGiorni(${n})">${n} ${n === 1 ? 'giorno' : 'giorni'}</button>`
+            ).join('');
+            document.getElementById('giorniAltro').value = predefinito || '';
+            _giorniNota = nota || null;
+            aggiornaNotaGiorni();
+            document.getElementById('giorniModal').classList.add('active');
+            return new Promise(resolve => { _giorniRisolvi = resolve; });
+        }
+
+        function aggiornaNotaGiorni() {
+            const n = parseInt(document.getElementById('giorniAltro').value, 10);
+            document.getElementById('giorniNota').textContent =
+                (_giorniNota && n >= 1) ? _giorniNota(n) : '';
+        }
+
+        function confermaGiorniAltro() {
+            const n = parseInt(document.getElementById('giorniAltro').value, 10);
+            if (isNaN(n) || n < 1) { showToast('⚠️ Inserisci un numero valido di giorni (minimo 1)'); return; }
+            chiudiGiorni(n);
+        }
+
+        function chiudiGiorni(valore) {
+            document.getElementById('giorniModal').classList.remove('active');
+            const risolvi = _giorniRisolvi;
+            _giorniRisolvi = null;
+            if (risolvi) risolvi(valore);
         }
 
         function customConfirm(message) {
@@ -7275,14 +7335,16 @@
             let p_days = 1;
             if (task.type === 'single') {
                 const defaultDays = settings['default_skip_days'] || '1';
-                const daysInput = prompt('Di quanti giorni vuoi spostare il task in avanti?', defaultDays);
-                if (daysInput === null) return;
-                p_days = parseInt(daysInput);
-                if (isNaN(p_days) || p_days < 1) {
-                    alert('Inserisci un numero valido di giorni (minimo 1)');
-                    return;
-                }
-                if (!await customConfirm(`Spostare il task di ${p_days} ${p_days === 1 ? 'giorno' : 'giorni'}?`)) return;
+                // La scelta nel popup è già la conferma: niente secondo «sei sicuro?»
+                const scelti = await chiediGiorni({
+                    titolo: '⏭ Salta',
+                    domanda: 'Di quanti giorni vuoi spostare il task in avanti?',
+                    rapidi: [1, 2, 3, 7, 14, 30],
+                    predefinito: defaultDays,
+                    nota: n => `Si sposta di ${n} ${n === 1 ? 'giorno' : 'giorni'} dalla sua scadenza`
+                });
+                if (scelti === null) return;
+                p_days = scelti;
             } else if (task.type === 'multiple') {
                 if (!await customConfirm('Saltare questo task alla prossima data?')) return;
             } else {
@@ -7309,16 +7371,21 @@
         // (oggi compreso). Scrive SOLO ts_tasks.nascosto_fino: scadenza,
         // prossima occorrenza, regole e promemoria restano come sono.
         async function nascondiTask(id) {
-            const input = prompt('Per quanti giorni nascondere il task dagli scaduti?', '7');
-            if (input === null) return;
-            const giorni = parseInt(input, 10);
-            if (isNaN(giorni) || giorni < 1) {
-                alert('Inserisci un numero valido di giorni (minimo 1)');
-                return;
-            }
-            const fine = new Date();
-            fine.setHours(12, 0, 0, 0);
-            fine.setDate(fine.getDate() + giorni - 1);
+            const fineDopo = n => {
+                const d = new Date();
+                d.setHours(12, 0, 0, 0);
+                d.setDate(d.getDate() + n - 1);
+                return d;
+            };
+            const giorni = await chiediGiorni({
+                titolo: '🙈 Nascondi dagli scaduti',
+                domanda: 'Per quanti giorni nascondere il task dagli scaduti? (oggi compreso)',
+                rapidi: [1, 3, 7, 14, 30],
+                predefinito: 7,
+                nota: n => `Resta nascosto fino al ${fineDopo(n).toLocaleDateString('it-IT')} compreso`
+            });
+            if (giorni === null) return;
+            const fine = fineDopo(giorni);
             await scriviNascostoFino(id, fine.toLocaleDateString('sv-SE'),
                 `🙈 Nascosto fino al ${fine.toLocaleDateString('it-IT')}`);
         }
