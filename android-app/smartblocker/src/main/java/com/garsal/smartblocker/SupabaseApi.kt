@@ -237,11 +237,36 @@ class SupabaseApi(private val ctx: Context) {
         }
     }
 
+    /**
+     * Chiama la RPC ob_smart_block_complete per chiudere un'azione di Obiettivi.
+     * Gemella di completePlantAction: le azioni stanno in ob_actions e hanno la loro
+     * RPC, che accetta la anon key solo se l'azione ha davvero un blocco in coda.
+     */
+    fun completeObjectiveAction(entityId: String) {
+        if (entityId.isBlank()) return
+        try {
+            val today = Prefs.getBlockDate(ctx).ifBlank { romeDateStr() }
+            val conn = openConn("$base/rest/v1/rpc/ob_smart_block_complete", "POST")
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+            val body = "{\"p_action_id\":\"$entityId\",\"p_today\":\"$today\"}"
+            conn.outputStream.write(body.toByteArray())
+            val code = conn.responseCode
+            val resp = if (code < 400) conn.inputStream?.bufferedReader()?.readText() ?: ""
+                       else conn.errorStream?.bufferedReader()?.readText() ?: ""
+            conn.disconnect()
+            AppLogger.log(ctx, "SUPABASE", "completeObjectiveAction $entityId p_today=$today → HTTP $code $resp")
+        } catch (e: Exception) {
+            AppLogger.log(ctx, "SUPABASE", "completeObjectiveAction errore: ${e.message}")
+        }
+    }
+
     /** Dispatcher: sceglie la RPC giusta in base all'app di provenienza dell'entità sbloccata. */
     fun completeEntity(app: String, entityId: String) {
         when (app) {
             "ta_firi" -> completeChallengeCheckin(entityId)
             "plants"  -> completePlantAction(entityId)
+            "objectives" -> completeObjectiveAction(entityId)
             else      -> completeTask(entityId)
         }
     }

@@ -4,6 +4,8 @@
 // Aggiornato: 2026-09-22 — ramo «pesata» (Ti pisasti?, app='weight', ogni N giorni)
 // Aggiornato: 2026-09-26 — azioni delle Piante (app='plants'): struttura dei task,
 //                          completion_update { app: 'plants' }
+// Aggiornato: 2026-10-07 — azioni di Obiettivi (app='objectives'): stessa forma,
+//                          completion_update { app: 'objectives' }
 //
 // Concetti chiave:
 //   REGOLA  = 1 row in cm_notification_rules (configurazione persistente)
@@ -311,6 +313,8 @@ Deno.serve(async (_req) => {
         ? (rule.entity_title ? `⚡ ${rule.entity_title}` : `⚡ Notifica`)
         : rule.app === 'plants'
         ? (rule.entity_title ? `🌱 ${rule.entity_title}` : `🌱 Piante`)
+        : rule.app === 'objectives'
+        ? (rule.entity_title ? `🎯 ${rule.entity_title}` : `🎯 Obiettivi`)
         : (rule.entity_title ? `🔔 ${rule.entity_title}` : `🔔 Promemoria`)
 
       for (const entry of entries) {
@@ -358,10 +362,12 @@ Deno.serve(async (_req) => {
             }
           }
         } else if ((rp as TaskReminderPresets).telegram_complete_button) {
-          // Le azioni delle Piante hanno la forma di un task ma il loro ciclo di
-          // vita è pv_action_complete: `app` dice a notification-action quale RPC.
+          // Le azioni delle Piante e di Obiettivi hanno la forma di un task ma il
+          // loro ciclo di vita è pv_action_complete / ob_action_complete: `app`
+          // dice a notification-action quale RPC.
+          const appCompletamento = rule.app === 'plants' || rule.app === 'objectives' ? rule.app : 'tasks'
           entryMetadata = {
-            completion_update: { app: rule.app === 'plants' ? 'plants' : 'tasks' },
+            completion_update: { app: appCompletamento },
           }
         }
 

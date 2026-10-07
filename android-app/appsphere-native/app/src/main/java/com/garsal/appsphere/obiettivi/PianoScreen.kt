@@ -273,7 +273,7 @@ private fun Sezione(
 
 /**
  * La scheda di un'azione, con le stesse cose del web: tipo, data e ora,
- * obiettivo, descrizione, etichette (priorità, categorie, metriche collegate) e
+ * obiettivo, descrizione, etichette (priorità, metriche collegate) e
  * i pulsanti che agiscono subito.
  *
  * Ogni fila sta **su una riga sola che scorre col dito** e non va a capo: è la
@@ -293,7 +293,6 @@ private fun SchedaAzione(
 ) {
     val obiettivo = stato.obiettivoDi(azione.obiettivoId)
     val priorita = stato.prioritaDi(azione.prioritaId)
-    val categorie = azione.categorie.mapNotNull { stato.categoriaDi(it) }
     val metriche = stato.metricheDiAzione(azione.id)
     val colore = coloreDaHex(priorita?.colore) ?: coloreDaHex(obiettivo?.color) ?: Palette.secondary
     val inRitardo = azione.giorno?.isBefore(oggi) == true
@@ -339,17 +338,13 @@ private fun SchedaAzione(
             )
         }
 
-        if (priorita != null || categorie.isNotEmpty() || metriche.isNotEmpty()) {
+        if (priorita != null || metriche.isNotEmpty()) {
             RigaScorrevole(Arrangement.spacedBy(6.dp), Modifier.padding(top = 6.dp)) {
                 priorita?.let {
                     Etichetta("🎯 ${it.nome}", coloreDaHex(it.colore) ?: Palette.secondary)
                 }
-                categorie.forEach {
-                    Etichetta(it.etichetta, coloreDaHex(it.colore) ?: Palette.muted)
-                }
-                // Le metriche portano il 📈 e un colore diverso, per non
-                // confonderle con le categorie: dicono cosa l'azione dovrebbe
-                // muovere, non di che cosa parla.
+                // Le categorie non si mostrano più (web v1.14.0): le metriche
+                // portano il 📈 e dicono cosa l'azione dovrebbe muovere.
                 metriche.forEach { Etichetta("📈 ${it.name}", Palette.accent) }
             }
         }

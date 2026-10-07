@@ -2235,8 +2235,25 @@ Il comportamento per tipo è quello dei task, riga per riga. Due differenze **vo
 1. la riga si cerca con `AND user_id = auth.uid()`. Le `task_*` sono `SECURITY DEFINER` e la RLS
    lì dentro non vale: senza quel filtro basta l'id di una riga altrui per completarla. Le `task_*`
    quel controllo non ce l'hanno, ma non è un motivo per rifare lo stesso buco;
-2. non si tocca `cm_notification_rules`: le azioni non hanno (ancora) promemoria Smart Block, e
-   cancellare regole per `app = 'tasks'` da qui spegnerebbe le notifiche di un task che non c'entra.
+2. si toccano le sole regole con `app = 'objectives'`: cancellare regole per `app = 'tasks'` da
+   qui spegnerebbe le notifiche di un task che non c'entra.
+
+⚠️ **Dal 7 ottobre 2026 le azioni HANNO i promemoria** (`20261007140000_ob_azioni_promemoria.sql`,
+web v1.14.0, Smart Blocker 1.6.4), con lo stesso schema delle Piante: 📱 Telegram e 📲 Telefono coi
+loro anticipi e 🔐 Smart Block all'ora dell'azione, una regola `cm_notification_rules` per canale
+con `app = 'objectives'` e `entity_type = 'task'`, scritta da `sincronizzaRegole()` in
+`obiettivi.html` (gemella di quella di `piante.html`) solo salvando il form. Dopo un ✅ o un ⏭ la
+nuova scadenza la scrivono le RPC: `ob_action_complete` / `ob_action_skip` sono ora porte su
+`ob_action_complete_core` / `ob_action_skip_core` (`p_user`, solo service_role, chiamata da
+`notification-action` per il ✅ Fatto), e `ob__sposta_promemoria` sposta o toglie le regole.
+`ob_smart_block_complete` è la porta dell'APK Smart Blocker (anon key, solo con un blocco in coda),
+e `trg_ob_actions_togli_promemoria` toglie le regole di un'azione cancellata. Un'azione a libera
+ripetizione, o salvata come conclusa, non ha promemoria. `ob_action_fail` non li tocca: non la
+chiama più nessuno.
+
+⚠️ **Le categorie delle azioni sono state tolte dalla pagina** (form, schede e filtro, web
+v1.14.0): la colonna `ob_actions.categories` resta e chi l'aveva la conserva, ma non si legge e
+non si scrive più.
 
 Scrivere un'azione è invece un `insert`/`update` diretto e **non** una RPC, e non è un'eccezione:
 le RPC governano il ciclo di vita — dove va la prossima occorrenza — non com'è fatta l'azione. È la
@@ -5283,6 +5300,8 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   In 📊 Andamento il segmento si chiama **«non riuscite»** e non «fallite» — ci finisce solo chi è
   chiuso senza esserci riusciti, per esempio una multipla arrivata in fondo alle sue date — e
   compare solo se ce n'è almeno una.
+- **🔔 Promemoria** nel form di un'azione: Telegram, Telefono e Smart Block, come in Piante (vedi
+  *Le azioni — tabelle proprie*). Sulla scheda i canali accesi si leggono come 📱📲🔐.
 - **I punti di partenza di un'azione**: successo **+10**, salto **−2**, in ritardo **−2**. Il
   ritardo valeva +3 (un premio ridotto per averla fatta comunque) ed è diventato una penalità come
   il salto. I punti restano dentro l'app: Obiettivi ha `cm_apps.conta_punti = false`.
