@@ -54,6 +54,7 @@ import com.garsal.appsphere.core.GarsalTopBar
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.Pillola
 import com.garsal.appsphere.core.RigaScorrevole
+import com.garsal.appsphere.core.Tendina
 import com.garsal.appsphere.core.coloreDaHex
 import com.garsal.appsphere.core.larghezzaPulsanti
 import java.time.LocalDate
@@ -568,7 +569,7 @@ private fun DialogoRilevazioni(
                             valori[metrica.id] = it
                         }
                         // il test di valutazione porta anche il giudizio scritto
-                        if (!salta && metrica.kind == "test") {
+                        if (!salta && metrica.haGiudizio) {
                             OutlinedTextField(
                                 value = giudizi[metrica.id].orEmpty(),
                                 onValueChange = { giudizi[metrica.id] = it },
@@ -615,7 +616,13 @@ private fun DialogoRilevazioni(
 @Composable
 private fun CampoMisura(metrica: ObMetrica, valore: String, onCambia: (String) -> Unit) {
     val (da, a) = metrica.scala
-    if (metrica.kind == "autovalutazione" && a != da) {
+    if (metrica.kind == "gofluent") {
+        Tendina(
+            etichetta = "Livello",
+            scelto = valore.replace(',', '.').toDoubleOrNull()?.let { metrica.testoValore(it) } ?: "— scegli il livello —",
+            voci = GoFluentLivelli.mapIndexed { i, l -> (i + 1).toString() to l },
+        ) { onCambia(it) }
+    } else if (metrica.kind == "autovalutazione" && a != da) {
         val corrente = valore.replace(',', '.').toFloatOrNull() ?: ((da + a) / 2).toFloat()
         Column(Modifier.fillMaxWidth()) {
             Slider(

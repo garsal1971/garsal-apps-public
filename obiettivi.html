@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.12.0</title>
+    <title>Obiettivi v1.13.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -939,6 +939,7 @@
                     <option value="autovalutazione">Autovalutazione — ti dai un voto</option>
                     <option value="automisurazione">Automisurazione — misuri un numero</option>
                     <option value="test">Test di valutazione — punteggio da 1 a 100</option>
+                    <option value="gofluent">Test GoFluent — livello da PRE-A1 a C2</option>
                 </select>
                 <div class="form-hint" id="kindHint"></div>
             </div>
@@ -962,6 +963,13 @@
         <div class="form-group" id="mTestRow">
             <div class="desc-box"><span class="desc-label">Scala</span>da 1 a 100, fissa. Il 100 è il traguardo pieno.
                 A ogni test registri il punteggio e il giudizio scritto che lo accompagna.</div>
+        </div>
+
+        <!-- il test GoFluent: i dodici livelli, fissi -->
+        <div class="form-group" id="mGoFluentRow">
+            <div class="desc-box"><span class="desc-label">Scala</span>i livelli GoFluent, fissi:
+                PRE-A1 · A1 · A1+ · A2 · A2+ · B1 · B1+ · B2 · B2+ · C1 · C1+ · C2. Il C2 è il traguardo pieno.
+                A ogni test scegli il livello e scrivi, se vuoi, il giudizio che lo accompagna.</div>
         </div>
 
         <!-- da dove a dove: solo per l'automisurazione -->
@@ -1347,8 +1355,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.12.0';
-var BUILD_TIME  = '2026-10-07T10:00:00Z';
+var APP_VERSION = 'v1.13.0';
+var BUILD_TIME  = '2026-10-07T12:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1575,11 +1583,31 @@ const STATUS_LABEL = {
 };
 
 const ROLE_LABEL = { primary: 'risultato', control: 'controllo', leading: 'sforzo' };
-const KIND_LABEL = { autovalutazione: 'autovalutazione', automisurazione: 'automisurazione', test: 'test di valutazione' };
+const KIND_LABEL = { autovalutazione: 'autovalutazione', automisurazione: 'automisurazione', test: 'test di valutazione', gofluent: 'test GoFluent' };
 
 // La scala del test di valutazione: fissa, ed è la stessa che pretende il
 // vincolo ob_metrics_scala_per_tipo.
 const TEST_MIN = 1, TEST_MAX = 100;
+
+// I livelli del test GoFluent, dal più basso al più alto: in archivio il
+// livello è la sua POSIZIONE (PRE-A1 = 1 … C2 = 12), così barra, semaforo e
+// grafici restano la stessa formula delle altre metriche. ⚠️ L'ordine è il
+// dato: spostare o inserire un livello cambierebbe il significato di tutte le
+// rilevazioni già salvate. La scala 1-12 è la stessa che pretende il vincolo
+// ob_metrics_scala_per_tipo, e GoFluentLivelli in ObiettiviModel.kt è il gemello.
+const GOFLUENT_LIVELLI = ['PRE-A1', 'A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C1+', 'C2'];
+const SCALA_FISSA = { test: [TEST_MIN, TEST_MAX], gofluent: [1, GOFLUENT_LIVELLI.length] };
+
+// Il valore di una metrica come si legge: il livello per GoFluent, il numero per le altre.
+function fmtVal(m, v) {
+    if (m && m.kind === 'gofluent' && v !== null && v !== undefined && v !== '') {
+        const l = GOFLUENT_LIVELLI[Math.round(Number(v)) - 1];
+        if (l) return l;
+    }
+    return fmtNum(v);
+}
+// Le metriche che portano il giudizio scritto accanto al valore.
+function haGiudizio(m) { return m.kind === 'test' || m.kind === 'gofluent'; }
 
 function metricsOf(objId)    { return metrics.filter(m => m.objective_id === objId); }
 function measuresOf(metId)   { return measurements.filter(m => m.metric_id === metId); }
@@ -1604,7 +1632,7 @@ function primaryOf(objId)    { return metricsOf(objId).find(m => m.role === 'pri
 // autovalutazione e test con la scala, l'automisurazione con partenza e obiettivo —
 // e questa è l'unica funzione che lo sa: è la copia della RPC ob_metric_scale.
 function scaleOf(metric) {
-    return (metric.kind === 'autovalutazione' || metric.kind === 'test')
+    return (metric.kind === 'autovalutazione' || metric.kind === 'test' || metric.kind === 'gofluent')
         ? { da: Number(metric.min_value), a: Number(metric.max_value) }
         : { da: Number(metric.baseline),  a: Number(metric.target)    };
 }
@@ -1659,7 +1687,7 @@ function renderObjectiveCard(obj) {
         const { da, a } = scaleOf(primary);
         if (a !== da) {
             const exp = Math.max(0, Math.min(1, (Number(p.expected_value) - da) / (a - da))) * 100;
-            marker = `<div class="bar-expected"><div class="bar-marker" style="left:${exp}%" title="atteso: ${fmtNum(p.expected_value)}"></div></div>`;
+            marker = `<div class="bar-expected"><div class="bar-marker" style="left:${exp}%" title="atteso: ${fmtVal(primary, p.expected_value)}"></div></div>`;
         }
     }
 
@@ -1697,7 +1725,7 @@ function renderObjectiveCard(obj) {
                     ${marker}
                     <div class="bar-track"><div class="bar-fill result" style="width:${result || 0}%"></div></div>
                     <div class="bar-sub">${primary
-                        ? esc(primary.name) + ': ' + fmtNum(p.current_value) + (primary.unit ? ' ' + esc(primary.unit) : '') + ' → ' + fmtNum(scaleOf(primary).a)
+                        ? esc(primary.name) + ': ' + fmtVal(primary, p.current_value) + (primary.unit ? ' ' + esc(primary.unit) : '') + ' → ' + fmtVal(primary, scaleOf(primary).a)
                         : 'nessuna metrica primaria'}</div>
                 </div>
                 <div class="bar-block">
@@ -1811,7 +1839,7 @@ async function openDetail(objId) {
                     </div>
                     <div class="metric-sub">
                         ${KIND_LABEL[m.kind]}
-                        · ${fmtNum(da)} → ${fmtNum(a)} ${a >= da ? '↑' : '↓'}
+                        · ${fmtVal(m, da)} → ${fmtVal(m, a)} ${a >= da ? '↑' : '↓'}
                         ${m.unit ? ' ' + esc(m.unit) : ''}
                     </div>
                     ${(() => {
@@ -1821,7 +1849,7 @@ async function openDetail(objId) {
                             : '';
                     })()}
                 </div>
-                <div class="metric-value">${fmtNum(cur)}<div class="metric-target">${pct}%</div></div>
+                <div class="metric-value">${fmtVal(m, cur)}<div class="metric-target">${pct}%</div></div>
             </div>`;
         }).join('');
     }
@@ -1983,10 +2011,12 @@ function openMetricEditor(objId, metricId) {
 function onKindChange() {
     const kind = document.getElementById('mKind').value;
     const voto = kind === 'autovalutazione';
-    const test = kind === 'test';
+    const gof  = kind === 'gofluent';
+    const test = kind === 'test' || gof;
 
     document.getElementById('mScaleRow').style.display      = voto ? '' : 'none';
-    document.getElementById('mTestRow').style.display       = test ? '' : 'none';
+    document.getElementById('mTestRow').style.display       = kind === 'test' ? '' : 'none';
+    document.getElementById('mGoFluentRow').style.display   = gof ? '' : 'none';
     document.getElementById('mBaseTargetRow').style.display = (voto || test) ? 'none' : '';
     document.getElementById('mUnitGroup').style.display     = (voto || test) ? 'none' : '';
 
@@ -2019,7 +2049,8 @@ function renderMetricFormHints() {
     const kindHints = {
         autovalutazione: 'Ti dai un voto dentro una scala che scegli tu. È ciò che rende misurabile un obiettivo senza numeri ovvi.',
         automisurazione: 'Misuri un numero vero: kg, minuti, pause, lezioni fatte. Il traguardo è il valore obiettivo.',
-        test:            'Il punteggio di un test esterno, da 1 a 100, con il giudizio scritto che lo accompagna.'
+        test:            'Il punteggio di un test esterno, da 1 a 100, con il giudizio scritto che lo accompagna.',
+        gofluent:        'Il livello del test GoFluent (PRE-A1 … C2), scelto da una tendina, con il giudizio scritto che lo accompagna.'
     };
     document.getElementById('kindHint').textContent = kindHints[kind];
 }
@@ -2040,9 +2071,9 @@ async function saveMetric() {
     // Ogni tipo compila le sue colonne e azzera quelle dell'altro: lasciarci
     // dentro i valori del tipo di prima farebbe rifiutare il salvataggio dal
     // vincolo, e a schermo sembrerebbe un errore senza causa.
-    if (kind === 'test') {
+    if (SCALA_FISSA[kind]) {
         Object.assign(payload, {
-            min_value: TEST_MIN, max_value: TEST_MAX,
+            min_value: SCALA_FISSA[kind][0], max_value: SCALA_FISSA[kind][1],
             baseline: null, target: null, unit: null
         });
     } else if (kind === 'autovalutazione') {
@@ -2262,7 +2293,7 @@ function graficoMetrica(m) {
     const { da, a } = scaleOf(m);
     const testa = `<div class="trend-metric-head">
             <span class="trend-metric-name">${esc(m.name)}</span>
-            <span class="trend-metric-meta">${KIND_LABEL[m.kind]} · ${fmtNum(da)} → ${fmtNum(a)}${m.unit ? ' ' + esc(m.unit) : ''}</span>
+            <span class="trend-metric-meta">${KIND_LABEL[m.kind]} · ${fmtVal(m, da)} → ${fmtVal(m, a)}${m.unit ? ' ' + esc(m.unit) : ''}</span>
         </div>`;
 
     if (!righe.length) {
@@ -2272,7 +2303,7 @@ function graficoMetrica(m) {
     if (righe.length === 1) {
         const r = righe[0];
         return `<div class="trend-metric">${testa}
-            <div class="trend-single">${fmtNum(r.value)}
+            <div class="trend-single">${fmtVal(m, r.value)}
                 <span class="trend-single-date">il ${fmtDate(r.measured_on)}</span></div>
             ${r.giudizio ? `<div class="form-hint">Giudizio: ${esc(r.giudizio)}</div>` : ''}
             <div class="form-hint">Una sola rilevazione: per una curva ne servono almeno due.</div></div>`;
@@ -2308,10 +2339,10 @@ function graficoMetrica(m) {
 
     return `<div class="trend-metric">${testa}
     <svg class="trend-svg" viewBox="0 0 ${W} ${H}" role="img"
-         aria-label="Andamento di ${esc(m.name)}: da ${fmtNum(val[0])} a ${fmtNum(ultimo)}">
+         aria-label="Andamento di ${esc(m.name)}: da ${fmtVal(m, val[0])} a ${fmtVal(m, ultimo)}">
         <line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" class="trend-axis"/>
         ${dentro ? `<line x1="${x0}" y1="${yTarget.toFixed(1)}" x2="${x1}" y2="${yTarget.toFixed(1)}" class="trend-target"/>
-        <text x="${x1}" y="${(yTarget - 4).toFixed(1)}" class="trend-tick" text-anchor="end">obiettivo ${fmtNum(a)}</text>` : ''}
+        <text x="${x1}" y="${(yTarget - 4).toFixed(1)}" class="trend-tick" text-anchor="end">obiettivo ${fmtVal(m, a)}</text>` : ''}
 
         <polygon points="${area}" fill="${C_LINE}" opacity="0.10"/>
         <polyline points="${punti}" fill="none" stroke="${C_LINE}" stroke-width="2"
@@ -2319,27 +2350,27 @@ function graficoMetrica(m) {
 
         ${val.map((v, i) => `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="4"
              fill="${C_LINE}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke">
-             <title>${fmtDate(righe[i].measured_on)}: ${fmtNum(v)}${m.unit ? ' ' + esc(m.unit) : ''}${righe[i].giudizio ? ' — ' + esc(righe[i].giudizio) : ''}</title>
+             <title>${fmtDate(righe[i].measured_on)}: ${fmtVal(m, v)}${m.unit ? ' ' + esc(m.unit) : ''}${righe[i].giudizio ? ' — ' + esc(righe[i].giudizio) : ''}</title>
            </circle>`).join('')}
 
-        <text x="${x0 - 6}" y="${y0 + 4}" class="trend-tick" text-anchor="end">${fmtNum(hi)}</text>
-        <text x="${x0 - 6}" y="${y1}" class="trend-tick" text-anchor="end">${fmtNum(lo)}</text>
+        <text x="${x0 - 6}" y="${y0 + 4}" class="trend-tick" text-anchor="end">${fmtVal(m, hi)}</text>
+        <text x="${x0 - 6}" y="${y1}" class="trend-tick" text-anchor="end">${fmtVal(m, lo)}</text>
         ${!dentro ? `<text x="${x1}" y="${(a === hi ? y0 + 4 : y1 - 5).toFixed(1)}"
               class="trend-tick" text-anchor="end">obiettivo</text>` : ''}
         <text x="${x0}" y="${H - 8}" class="trend-tick">${fmtDate(righe[0].measured_on)}</text>
         <text x="${x1}" y="${H - 8}" class="trend-tick" text-anchor="end">${fmtDate(righe[righe.length - 1].measured_on)}</text>
         <text x="${px(val.length - 1).toFixed(1)}" y="${(py(ultimo) - 9).toFixed(1)}"
-              class="trend-endlabel" text-anchor="end">${fmtNum(ultimo)}</text>
+              class="trend-endlabel" text-anchor="end">${fmtVal(m, ultimo)}</text>
     </svg>
     <details class="trend-values">
         <summary>i ${righe.length} valori</summary>
         <div class="trend-scroll">
         <table class="trend-table">
-            <thead><tr><th>Giorno</th><th>Valore</th>${m.kind === 'test' ? '<th>Giudizio</th>' : ''}<th>Nota</th></tr></thead>
+            <thead><tr><th>Giorno</th><th>Valore</th>${haGiudizio(m) ? '<th>Giudizio</th>' : ''}<th>Nota</th></tr></thead>
             <tbody>${righe.slice().reverse().map(r => `<tr>
                 <td>${fmtDate(r.measured_on)}</td>
-                <td class="num">${fmtNum(r.value)}</td>
-                ${m.kind === 'test' ? `<td>${esc(r.giudizio || '—')}</td>` : ''}
+                <td class="num">${fmtVal(m, r.value)}</td>
+                ${haGiudizio(m) ? `<td>${esc(r.giudizio || '—')}</td>` : ''}
                 <td>${esc(r.note || '')}</td></tr>`).join('')}</tbody>
         </table>
         </div>
@@ -2915,6 +2946,7 @@ function chiediRilevazioni(actionId, occorrenza) {
         const ultima = measuresOf(m.id).slice(-1)[0];
         const voto   = m.kind === 'autovalutazione';
         const test   = m.kind === 'test';
+        const gof    = m.kind === 'gofluent';
         const val    = ultima ? Number(ultima.value)
                               : (voto ? Math.round((da + fine) / 2) : '');
         return `
@@ -2924,8 +2956,16 @@ function chiediRilevazioni(actionId, occorrenza) {
                 <span class="chip meas-skip" onclick="toggleSaltaMetrica(this)">non adesso</span>
             </div>
             ${m.descrizione ? `<div class="desc-box" style="margin:0.3rem 0 0.5rem;">
-                <span class="desc-label">${voto ? 'Come votare' : test ? 'Quale test' : 'Cosa si misura'}</span>${esc(m.descrizione)}</div>` : ''}
-            ${test
+                <span class="desc-label">${voto ? 'Come votare' : (test || gof) ? 'Quale test' : 'Cosa si misura'}</span>${esc(m.descrizione)}</div>` : ''}
+            ${gof
+                ? `<select class="form-select meas-input">
+                       <option value="">— scegli il livello —</option>
+                       ${GOFLUENT_LIVELLI.map((l, i) => `<option value="${i + 1}"${ultima && val === i + 1 ? ' selected' : ''}>${l}</option>`).join('')}
+                   </select>
+                   <textarea class="form-textarea meas-giudizio" rows="2" style="margin-top:0.4rem;"
+                          placeholder="Il giudizio del test, es. migliorata la pronuncia"></textarea>
+                   <div class="form-hint">Il livello che il test ti ha dato; il giudizio è facoltativo.</div>`
+            : test
                 ? `<input type="number" step="1" min="${da}" max="${fine}" class="form-input meas-input"
                           value="${ultima ? val : ''}" placeholder="punteggio da ${fmtNum(da)} a ${fmtNum(fine)}">
                    <textarea class="form-textarea meas-giudizio" rows="2" style="margin-top:0.4rem;"

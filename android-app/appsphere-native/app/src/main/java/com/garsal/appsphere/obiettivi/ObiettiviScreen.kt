@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.garsal.appsphere.core.GarsalTopBar
 import com.garsal.appsphere.core.Palette
+import com.garsal.appsphere.core.Tendina
 import com.garsal.appsphere.core.coloreDaHex
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -255,13 +256,13 @@ private fun Metrica(metrica: ObMetrica, ultima: ObRilevazione?, onRileva: () -> 
         }
         val (da, a) = metrica.scala
         Text(
-            text = "da $da a $a ${metrica.unit.orEmpty()}".trim() + " · ${metrica.kind}",
+            text = "da ${metrica.testoValore(da)} a ${metrica.testoValore(a)} ${metrica.unit.orEmpty()}".trim() + " · ${metrica.kind}",
             style = MaterialTheme.typography.bodySmall,
             color = Palette.muted,
         )
         ultima?.let {
             Text(
-                "ultima: ${it.value} il ${it.measuredOn}",
+                "ultima: ${metrica.testoValore(it.value)} il ${it.measuredOn}",
                 style = MaterialTheme.typography.bodySmall,
                 color = Palette.dark,
             )
@@ -344,7 +345,8 @@ private fun RilevazioneDialog(
     onConferma: (Double, LocalDate, String, String?) -> Unit,
 ) {
     val voto = metrica.kind == "autovalutazione"
-    val test = metrica.kind == "test"
+    val gof = metrica.kind == "gofluent"
+    val test = metrica.haGiudizio
     val minimo = metrica.minValue ?: 1.0
     val massimo = metrica.maxValue ?: 10.0
 
@@ -379,7 +381,19 @@ private fun RilevazioneDialog(
                     )
                 }
 
-                if (voto) {
+                if (gof) {
+                    Tendina(
+                        etichetta = "Livello",
+                        scelto = valore.toDoubleOrNull()?.let { metrica.testoValore(it) } ?: "— scegli il livello —",
+                        voci = GoFluentLivelli.mapIndexed { i, l -> (i + 1).toString() to l },
+                    ) { valore = it }
+                    OutlinedTextField(
+                        value = giudizio,
+                        onValueChange = { giudizio = it },
+                        label = { Text("Giudizio del test") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else if (voto) {
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
