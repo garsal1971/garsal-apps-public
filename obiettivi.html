@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.14.1</title>
+    <title>Obiettivi v1.15.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -473,6 +473,8 @@
             padding: 0.55rem 0; border-bottom: 1px solid var(--border);
         }
         .exec-del { flex-shrink: 0; padding: 0.3rem 0.5rem; }
+        /* ✏️ ↩️ 🗑 in testa alla riga, una sopra l'altra: in coda finirebbero oltre il bordo. */
+        .exec-btns { display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0; }
         .exec-body { flex: 1; min-width: 0; }
         .exec-head {
             display: flex; flex-wrap: wrap; gap: 0.15rem 0.6rem;
@@ -1324,13 +1326,58 @@
             <strong>programmata</strong>, quello in cui è stata <strong>eseguita</strong>
             e i punti che ha fatto. Le righe più vecchie di questa colonna, e le azioni
             a libera ripetizione, un giorno programmato non ce l'hanno.<br>
-            Cancellare una riga toglie i suoi punti e rifà la barra dell'esecuzione
-            senza di essa: <strong>l'azione però resta dov'è</strong> — la prossima
-            occorrenza non torna indietro.
+            ✏️ corregge una riga: il giorno eseguito, l'esito, i punti e le
+            rilevazioni registrate quella volta. ↩️ <strong>annulla l'ultima</strong>
+            esecuzione e riporta l'azione al giorno per cui era programmata.
+            🗑 cancella una riga qualsiasi e i suoi punti, ma <strong>l'azione resta
+            dov'è</strong> — la prossima occorrenza non torna indietro.
         </div>
         <div id="execBody"></div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('execModal')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ MODAL: CORREGGI UN'ESECUZIONE ══════════════ -->
+<div class="modal" id="execEditModal">
+    <div class="modal-content narrow">
+        <div class="modal-header">
+            <div class="modal-title" id="execEditTitle">Correggi l'esecuzione</div>
+            <button class="modal-close" onclick="closeModal('execEditModal')">&times;</button>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Eseguita il</label>
+                <input type="date" class="form-input" id="eeDay">
+            </div>
+            <div class="form-group">
+                <label class="form-label">alle</label>
+                <input type="time" class="form-input" id="eeTime">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Esito</label>
+                <select class="form-select" id="eeEsito" onchange="esitoCambiato()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Punti</label>
+                <input type="number" step="1" class="form-input" id="eePoints">
+            </div>
+        </div>
+        <div class="form-hint" id="eeEsitoHint"></div>
+        <div id="eeMeasWrap">
+            <div class="section-title" style="margin-top:1rem;"><span>📈 Rilevazioni del <span id="eeMeasDay"></span></span></div>
+            <div id="eeMeasBody"></div>
+            <div class="form-group">
+                <label class="form-label">Nota delle rilevazioni</label>
+                <input type="text" class="form-input" id="eeMeasNote">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('execEditModal')">Annulla</button>
+            <button class="btn btn-success" onclick="salvaModificaEsecuzione()">Salva</button>
         </div>
     </div>
 </div>
@@ -1358,8 +1405,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.14.1';
-var BUILD_TIME  = '2026-10-07T18:00:00Z';
+var APP_VERSION = 'v1.15.0';
+var BUILD_TIME  = '2026-10-07T20:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -2836,14 +2883,25 @@ function renderEsecuzioni() {
     }
 
     const tot = righe.reduce((s, h) => s + (h.points || 0), 0);
+    const az  = actions.find(x => x.id === esecAzione);
+    // Si annulla solo l'ultima: righe è dalla più recente (lo storico si legge
+    // per timestamp decrescente), quindi è la prima.
+    const annullabile = az && az.type !== 'workflow' ? righe[0].id : null;
     host.innerHTML = righe.map(h => {
         const pt   = h.points || 0;
         const prog = h.occurrence_date ? String(h.occurrence_date).slice(0, 10) : null;
         const fatt = localDay(h.timestamp);
         return `
         <div class="exec-row">
-            <button class="btn btn-danger btn-small exec-del" title="Cancella questa esecuzione"
-                    onclick="cancellaEsecuzione('${h.id}')">🗑</button>
+            <div class="exec-btns">
+                <button class="btn btn-ghost btn-small exec-del" title="Correggi questa esecuzione"
+                        onclick="apriModificaEsecuzione('${h.id}')">✏️</button>
+                ${h.id === annullabile ? `<button class="btn btn-ghost btn-small exec-del"
+                        title="Annulla: l'azione torna al giorno programmato"
+                        onclick="annullaEsecuzione('${h.id}')">↩️</button>` : ''}
+                <button class="btn btn-danger btn-small exec-del" title="Cancella questa esecuzione"
+                        onclick="cancellaEsecuzione('${h.id}')">🗑</button>
+            </div>
             <div class="exec-body">
                 <div class="exec-head">
                     <span class="exec-what">${esc(ACTION_LABEL[h.action] || h.action)}</span>
@@ -2886,6 +2944,165 @@ async function cancellaEsecuzione(histId) {
     await loadAll();
     // Il popup resta aperto sull'elenco rifatto: chi ne cancella una spesso ne
     // cancella due, e richiuderlo ogni volta vorrebbe dire riaprirlo ogni volta.
+    if (document.getElementById('execModal').classList.contains('active')) renderEsecuzioni();
+}
+
+// ── Annullare l'ultima esecuzione ────────────────────────────────────────────
+// ⚠️ Lo fa la RPC ob_action_undo, non la pagina: riportare indietro la prossima
+// occorrenza è ciclo di vita, come completare e saltare. Qui si chiede e si rilegge.
+async function annullaEsecuzione(histId) {
+    const h = actionHistory.find(x => x.id === histId);
+    if (!h) return;
+    const a = actions.find(x => x.id === h.action_id);
+    const prog = h.occurrence_date ? String(h.occurrence_date).slice(0, 10) : null;
+    const pt = h.points || 0;
+    const ok = await customConfirm(
+        'Annullo «' + (ACTION_LABEL[h.action] || h.action) + '» del '
+        + fmtDate(localDay(h.timestamp)) + '?\n\n'
+        + (a && a.type === 'free_repeat'
+            ? 'L\'esecuzione sparisce dallo storico.'
+            : 'L\'azione torna da fare per il ' + (prog ? fmtDate(prog) : '—') + '.')
+        + (pt ? ' Se ne vanno anche i suoi ' + (pt > 0 ? '+' : '') + pt + ' pt.' : '')
+        + '\n\nLe rilevazioni registrate quella volta restano.');
+    if (!ok) return;
+
+    const { data, error } = await sb.rpc('ob_action_undo', { p_history_id: histId });
+    if (error) { if (handleAuthError(error)) return; showToast('❌ ' + error.message); return; }
+    if (!data?.ok) { showToast('❌ ' + (data?.error || 'errore')); return; }
+
+    if (data.promemoria_persi)
+        showToast('↩️ Annullata · l\'azione era conclusa: i promemoria si rimettono dal form', 5000);
+    else showToast('↩️ Esecuzione annullata');
+    await loadAll();
+    if (document.getElementById('execModal').classList.contains('active')) renderEsecuzioni();
+}
+
+// ── Correggere un'esecuzione ─────────────────────────────────────────────────
+let modificandoEsec = null;
+
+// L'esito si cambia solo fra le due forme del completamento: passare da
+// completata a saltata (o viceversa) cambia dove va la prossima occorrenza, e
+// quello si fa annullando e rifacendo, non correggendo una riga di storico.
+function esitiPossibili(h) {
+    return h.action === 'skipped' ? ['skipped'] : ['completed', 'completed_late'];
+}
+function puntiDiEsito(a, esito) {
+    if (!a) return null;
+    if (esito === 'completed')      return a.success_points ?? 0;
+    if (esito === 'completed_late') return a.late_points ?? 0;
+    if (esito === 'skipped')        return a.skip_points ?? 0;
+    return null;
+}
+function esitoCambiato() {
+    const h = actionHistory.find(x => x.id === modificandoEsec);
+    const a = h && actions.find(x => x.id === h.action_id);
+    const p = puntiDiEsito(a, document.getElementById('eeEsito').value);
+    if (p !== null) document.getElementById('eePoints').value = p;
+}
+
+// Il giorno delle rilevazioni di quella volta: quello programmato, o per una
+// libera ripetizione il giorno in cui è stata fatta (chiediRilevazioni fa lo stesso).
+function giornoRilevazioni(h) {
+    return h.occurrence_date ? String(h.occurrence_date).slice(0, 10) : localDay(h.timestamp);
+}
+
+function apriModificaEsecuzione(histId) {
+    const h = actionHistory.find(x => x.id === histId);
+    if (!h) return;
+    modificandoEsec = histId;
+    document.getElementById('eeDay').value  = localDay(h.timestamp);
+    document.getElementById('eeTime').value = localTime(h.timestamp);
+    const sel = document.getElementById('eeEsito');
+    sel.innerHTML = esitiPossibili(h).map(e =>
+        `<option value="${e}"${e === h.action ? ' selected' : ''}>${ACTION_LABEL[e]}</option>`).join('');
+    sel.disabled = esitiPossibili(h).length < 2;
+    document.getElementById('eePoints').value = h.points || 0;
+    document.getElementById('eeEsitoHint').textContent = h.action === 'skipped'
+        ? 'Un salto non diventa un completamento correggendolo: annullalo con ↩️ e completa l\'azione.'
+        : 'Cambiando l\'esito i punti si riscrivono con quelli dell\'azione; puoi correggerli a mano.';
+
+    const giorno = giornoRilevazioni(h);
+    const mets   = h.action_id ? metricsOfAction(h.action_id) : [];
+    document.getElementById('eeMeasWrap').style.display = mets.length ? '' : 'none';
+    document.getElementById('eeMeasDay').textContent = fmtDate(giorno);
+    let nota = '';
+    document.getElementById('eeMeasBody').innerHTML = mets.map(m => {
+        const { da, a: fine } = scaleOf(m);
+        const r = measuresOf(m.id).find(x => String(x.measured_on).slice(0, 10) === giorno);
+        if (r && r.note && !nota) nota = r.note;
+        const val  = r ? Number(r.value) : '';
+        const voto = m.kind === 'autovalutazione', test = m.kind === 'test', gof = m.kind === 'gofluent';
+        const v0   = r ? val : (voto ? Math.round((da + fine) / 2) : '');
+        // Una metrica senza rilevazione quel giorno parte su «non adesso»: si
+        // registra solo se la si accende.
+        return `
+        <div class="meas-multi${r ? '' : ' saltata'}" data-metric="${m.id}">
+            <div class="meas-multi-head">
+                <span class="meas-multi-name">${esc(m.name)}</span>
+                <span class="chip meas-skip${r ? '' : ' on'}" onclick="toggleSaltaMetrica(this)">non adesso</span>
+            </div>
+            ${gof
+                ? `<select class="form-select meas-input"${r ? '' : ' disabled'}>
+                       <option value="">— scegli il livello —</option>
+                       ${GOFLUENT_LIVELLI.map((l, i) => `<option value="${i + 1}"${val === i + 1 ? ' selected' : ''}>${l}</option>`).join('')}
+                   </select>`
+            : voto
+                ? `<input type="range" min="${da}" max="${fine}" step="1" value="${v0}" class="meas-input"${r ? '' : ' disabled'}
+                          oninput="this.closest('.meas-multi').querySelector('.meas-multi-val').textContent = this.value;">
+                   <div class="vote-scale"><span>${fmtNum(da)}</span>
+                        <span class="meas-multi-val">${v0}</span><span>${fmtNum(fine)}</span></div>`
+                : `<input type="number" step="${test ? 1 : 'any'}" class="form-input meas-input" value="${v0}"${r ? '' : ' disabled'}
+                          placeholder="${fmtNum(da)} → ${fmtNum(fine)}${m.unit ? ' ' + esc(m.unit) : ''}">`}
+            ${test || gof ? `<textarea class="form-textarea meas-giudizio" rows="2" style="margin-top:0.4rem;"${r ? '' : ' disabled'}
+                          placeholder="Il giudizio del test">${esc(r?.giudizio || '')}</textarea>` : ''}
+        </div>`;
+    }).join('');
+    document.getElementById('eeMeasNote').value = nota;
+    openModal('execEditModal');
+}
+
+async function salvaModificaEsecuzione() {
+    const h = actionHistory.find(x => x.id === modificandoEsec);
+    if (!h) return;
+    const giornoEs = document.getElementById('eeDay').value;
+    if (!giornoEs) { showToast('❌ Manca il giorno eseguito'); return; }
+    const ts     = localToISO(giornoEs, document.getElementById('eeTime').value || localTime(h.timestamp));
+    const esito  = document.getElementById('eeEsito').value || h.action;
+    const punti  = parseInt(document.getElementById('eePoints').value, 10);
+    if (isNaN(punti)) { showToast('❌ I punti devono essere un numero'); return; }
+
+    // La riga gemella `terminated` si riconosce dallo stesso istante: si sposta
+    // insieme, o resterebbe orfana e nessuno potrebbe più toglierla.
+    const gemelle = chiusuraGemella(h).map(x => x.id);
+    let res = await sb.from('ob_action_history')
+        .update({ timestamp: ts, action: esito, points: punti })
+        .eq('id', h.id).eq('user_id', h.user_id);
+    if (!res.error && gemelle.length)
+        res = await sb.from('ob_action_history').update({ timestamp: ts })
+            .in('id', gemelle).eq('user_id', h.user_id);
+    if (res.error) { if (handleAuthError(res.error)) return; showToast('❌ ' + res.error.message); return; }
+
+    // Le rilevazioni passano da ob_record_measurement, come sempre: sullo
+    // stesso giorno la RPC corregge invece di aggiungere.
+    const giorno = giornoRilevazioni(h);
+    const nota   = document.getElementById('eeMeasNote').value.trim();
+    const errori = [];
+    for (const riga of document.querySelectorAll('#eeMeasBody .meas-multi:not(.saltata)')) {
+        const valore = riga.querySelector('.meas-input').value;
+        const nome   = riga.querySelector('.meas-multi-name').textContent;
+        if (valore === '') { errori.push(nome + ': valore mancante'); continue; }
+        const { data, error } = await sb.rpc('ob_record_measurement', {
+            p_metric_id: riga.dataset.metric, p_value: Number(valore), p_measured_on: giorno,
+            p_note: nota, p_giudizio: riga.querySelector('.meas-giudizio')?.value.trim() || null
+        });
+        if (error)          { if (handleAuthError(error)) return; errori.push(nome + ': ' + error.message); }
+        else if (!data?.ok)   errori.push(nome + ': ' + (data?.error || 'errore'));
+    }
+
+    await loadAll();
+    if (errori.length) { showToast('❌ ' + errori.join(' · '), 5000); return; }
+    closeModal('execEditModal');
+    showToast('✏️ Esecuzione corretta');
     if (document.getElementById('execModal').classList.contains('active')) renderEsecuzioni();
 }
 

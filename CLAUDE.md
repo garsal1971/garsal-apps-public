@@ -5295,6 +5295,15 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   la sua riga di chiusura (`chiusuraGemella`, riconosciuta dallo stesso istante: i due INSERT
   stanno nella stessa transazione, quindi `now()` è identico), o resterebbe una riga che non si
   vede da nessuna parte e che nessuno può più togliere.
+  ✏️ **Un'esecuzione si corregge** (web v1.15.0): giorno e ora eseguiti, esito (solo fra
+  completata e in ritardo — un salto non diventa un completamento correggendolo), punti e le
+  rilevazioni di quel giorno, che passano comunque da `ob_record_measurement`. È un `update`
+  diretto su `ob_action_history`, e sposta anche la gemella `terminated` (stesso istante).
+  ↩️ **L'ultima esecuzione si annulla** con la RPC `ob_action_undo`
+  (`20261007200000_ob_action_annulla.sql`): la prossima occorrenza torna a `occurrence_date`, lo
+  stato a `from_status`, la riga se ne va con la gemella e i promemoria si spostano. Solo
+  l'ultima, mai su un workflow né su una riga senza `occurrence_date`; le rilevazioni restano. Se
+  l'azione era conclusa le regole dei promemoria erano già cancellate e si rimettono dal form.
   ⚠️ **Cancellare un'esecuzione non riporta indietro l'azione**: i punti spariscono con la riga e
   la barra dell'esecuzione si rifà senza — `ob_objective_progress` conta le azioni che hanno una
   riga `completed`/`completed_late` — ma la **prossima occorrenza resta dov'è**, perché l'ha
