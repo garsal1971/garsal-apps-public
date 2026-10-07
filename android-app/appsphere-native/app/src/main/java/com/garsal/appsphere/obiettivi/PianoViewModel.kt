@@ -3,7 +3,6 @@ package com.garsal.appsphere.obiettivi
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garsal.appsphere.tasks.CmCategoria
 import com.garsal.appsphere.tasks.CmPriorita
 import com.garsal.appsphere.tasks.TasksRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +36,6 @@ data class PianoState(
     val metriche: List<ObMetrica> = emptyList(),
     val collegamenti: List<ObCollegamentoMetrica> = emptyList(),
     val ultimeRilevazioni: Map<String, ObRilevazione> = emptyMap(),
-    val categorie: List<CmCategoria> = emptyList(),
     val priorita: List<CmPriorita> = emptyList(),
     val caricamento: Boolean = true,
     val errore: String? = null,
@@ -45,7 +43,6 @@ data class PianoState(
     val daRilevare: RilevazioniDaChiedere? = null,
 ) {
     fun obiettivoDi(id: String?): ObObiettivo? = obiettivi.firstOrNull { it.id == id }
-    fun categoriaDi(id: String): CmCategoria? = categorie.firstOrNull { it.id == id }
     fun prioritaDi(id: String?): CmPriorita? = priorita.firstOrNull { it.id == id }
 
     fun metricheDiAzione(azioneId: String): List<ObMetrica> {
@@ -143,10 +140,9 @@ class PianoViewModel : ViewModel() {
                     metriche = ObiettiviRepository.metriche(),
                     collegamenti = PianoRepository.collegamentiMetriche(),
                     ultimeRilevazioni = ObiettiviRepository.ultimeRilevazioni(),
-                    // Categorie e priorità sono **condivise con Tasks**: si
-                    // leggono dal loro repository invece di riscriverne un
-                    // secondo decoder per le stesse due tabelle.
-                    categorie = runCatching { TasksRepository.categorie() }.getOrDefault(emptyList()),
+                    // Le priorità sono **condivise con Tasks**: si leggono dal
+                    // loro repository invece di riscriverne un secondo decoder.
+                    // Le categorie non si leggono più: tolte dalle azioni.
                     priorita = runCatching { TasksRepository.priorita() }.getOrDefault(emptyList()),
                     caricamento = false,
                 )
