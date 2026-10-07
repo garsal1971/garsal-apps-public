@@ -4270,6 +4270,13 @@ Le regole che valgono qui sono le stesse del web e **vanno cambiate insieme**:
   — la metterebbe fra le arretrate. È l'unico punto in cui i due moduli leggono le date in modo
   diverso, e non è una svista.
 
+🕘 **Esecuzioni recenti** (APK 1.0.117, l'icona nella barra del Piano): le ultime 40 esecuzioni di
+tutte le azioni, concluse comprese, con ✏️ (giorno e ora, esito fra completata e in ritardo, punti,
+rilevazioni di quel giorno) e ↩️ sull'ultima di ogni azione, che chiama `ob_action_undo`. Gemelle
+di `apriModificaEsecuzione()` / `salvaModificaEsecuzione()` / `annullaEsecuzione()` di
+`obiettivi.html` (`PianoRepository.correggi` / `annulla`, `DialogoCorrezione`): vanno cambiate
+insieme. Il 🗑 della singola esecuzione resta solo sul web.
+
 ⚠️ **Un `workflow` non ha il *Completa* e da qui non si chiude**: il pulsante *Step* mostra a che
 punto è (`n/N step`) e dice di andare sul web. Non è una dimenticanza — chiudere uno step vuol
 dire riscrivere `workflow_steps`, sbloccare chi dipendeva da lui, scrivere la riga di storico coi

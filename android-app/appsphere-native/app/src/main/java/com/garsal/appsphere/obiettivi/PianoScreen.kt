@@ -83,6 +83,7 @@ fun PianoScreen(
     val oggi = LocalDate.now()
     var daSaltare by remember { mutableStateOf<ObAzione?>(null) }
     var daGuardare by remember { mutableStateOf<ObAzione?>(null) }
+    var daAnnullare by remember { mutableStateOf<ObEsecuzione?>(null) }
     val avvisi = remember { SnackbarHostState() }
     val scalaIcone = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
 
@@ -104,6 +105,14 @@ fun PianoScreen(
                     // piano. Le icone seguono `fontScale` con un tetto, come in
                     // home: in `dp` fisse, accanto a un titolo ingrandito,
                     // sarebbero piccole da centrare col dito.
+                    // 🕘 le esecuzioni recenti: correggerle e annullare l'ultima.
+                    Text(
+                        text = "🕘",
+                        fontSize = 20.sp * scalaIcone,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .clickable { vm.apriEsecuzioni() },
+                    )
                     Text(
                         text = "🎯",
                         fontSize = 20.sp * scalaIcone,
@@ -185,6 +194,46 @@ fun PianoScreen(
 
     daGuardare?.let { azione ->
         DialogoWorkflow(azione = azione, onChiudi = { daGuardare = null })
+    }
+
+    stato.esecuzioni?.let { lista ->
+        DialogoEsecuzioni(
+            lista = lista,
+            annullabili = stato.annullabili(),
+            onCorreggi = vm::apriCorrezione,
+            onAnnulla = { daAnnullare = it },
+            onChiudi = vm::chiudiEsecuzioni,
+        )
+    }
+
+    daAnnullare?.let { e ->
+        val azione = stato.azioneDi(e.azioneId)
+        AlertDialog(
+            onDismissRequest = { daAnnullare = null },
+            title = { Text("Annullare?") },
+            text = {
+                Text(
+                    "«${ObEsecuzione.ETICHETTA_ESITO[e.esito] ?: e.esito}» del " +
+                        "${dataItalianaDa(e.eseguita)} di ${e.titolo}.\n\n" +
+                        (if (azione?.libera == true) "L'esecuzione sparisce dallo storico."
+                         else "L'azione torna da fare per il ${dataItalianaDa(e.programmata)}.") +
+                        (if (e.punti != 0) " Se ne vanno anche i suoi ${if (e.punti > 0) "+" else ""}${e.punti} pt." else "") +
+                        "\n\nLe rilevazioni registrate quella volta restano."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { daAnnullare = null; vm.annulla(e) }) { Text("Annulla l'esecuzione") }
+            },
+            dismissButton = { TextButton(onClick = { daAnnullare = null }) { Text("Lascia") } },
+        )
+    }
+
+    stato.daCorreggere?.let { c ->
+        DialogoCorrezione(
+            correzione = c,
+            onAnnulla = vm::chiudiCorrezione,
+            onSalva = vm::salvaCorrezione,
+        )
     }
 
     stato.daRilevare?.let { richiesta ->
@@ -655,3 +704,214 @@ private fun CampoMisura(metrica: ObMetrica, valore: String, onCambia: (String) -
 private fun numeroBreve(v: Double): String =
     if (v == v.roundToInt().toDouble()) v.roundToInt().toString()
     else "%.2f".format(v).trimEnd('0').trimEnd('.').replace('.', ',')
+
+/**
+ * Le esecuzioni recenti di tutte le azioni, concluse comprese: ✏️ le corregge,
+ * ↩️ annulla l'ultima di un'azione. È la finestra *Esecuzioni* del web, qui
+ * per tutte le azioni insieme perché il piano le concluse non le mostra.
+ */
+@Composable
+private fun DialogoEsecuzioni(
+    lista: List<ObEsecuzione>,
+    annullabili: Set<String>,
+    onCorreggi: (ObEsecuzione) -> Unit,
+    onAnnulla: (ObEsecuzione) -> Unit,
+    onChiudi: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text("Esecuzioni recenti") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (lista.isEmpty()) {
+                    Text("Nessuna azione è ancora stata chiusa.", color = Palette.muted)
+                }
+                lista.forEach { e ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        // ✏️ e ↩️ a sinistra, prima del testo: in coda andrebbero oltre il bordo.
+                        RigaScorrevole(Arrangement.spacedBy(8.dp)) {
+                            Pillola("✏️", Palette.accent) { onCorreggi(e) }
+                            if (e.id in annullabili) Pillola("↩️", Palette.warning) { onAnnulla(e) }
+                            Text(
+                                text = e.titolo,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Palette.dark,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Visible,
+                            )
+                        }
+                        Text(
+                            text = (ObEsecuzione.ETICHETTA_ESITO[e.esito] ?: e.esito) +
+                                " · ${if (e.punti > 0) "+" else ""}${e.punti} pt",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (e.punti < 0) Palette.danger else Palette.dark,
+                        )
+                        Text(
+                            text = "programmata ${dataItalianaDa(e.programmata)} · " +
+                                "eseguita ${dataItalianaDa(e.eseguita)} ${e.ora}".trim(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.muted,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onChiudi) { Text("Chiudi") } },
+    )
+}
+
+/**
+ * Corregge un'esecuzione: giorno e ora eseguiti, esito, punti e le rilevazioni
+ * di quel giorno. Gemella di `apriModificaEsecuzione()` in `obiettivi.html`.
+ *
+ * ⚠️ L'esito si cambia solo fra completata e in ritardo: passare da completata
+ * a saltata cambia dove va la prossima occorrenza, e quello si fa annullando.
+ */
+@Composable
+private fun DialogoCorrezione(
+    correzione: EsecuzioneDaCorreggere,
+    onAnnulla: () -> Unit,
+    onSalva: (String, String, Int, Map<String, Double>, String, Map<String, String>) -> Unit,
+) {
+    val e = correzione.esecuzione
+    val chiave = e.id
+    var giorno by remember(chiave) { mutableStateOf(dataItalianaDa(e.eseguita)) }
+    var ora by remember(chiave) { mutableStateOf(e.ora) }
+    var esito by remember(chiave) { mutableStateOf(e.esito) }
+    var punti by remember(chiave) { mutableStateOf(e.punti.toString()) }
+    val saltate = remember(chiave) {
+        mutableStateMapOf<String, Boolean>().apply {
+            correzione.metriche.forEach { m -> put(m.id, correzione.rilevazioni[m.id] == null) }
+        }
+    }
+    val valori = remember(chiave) {
+        mutableStateMapOf<String, String>().apply {
+            correzione.metriche.forEach { m ->
+                val (da, a) = m.scala
+                put(m.id, correzione.rilevazioni[m.id]?.value?.let { numeroBreve(it) }
+                    ?: if (m.kind == "autovalutazione") numeroBreve(((da + a) / 2).roundToInt().toDouble()) else "")
+            }
+        }
+    }
+    val giudizi = remember(chiave) {
+        mutableStateMapOf<String, String>().apply {
+            correzione.rilevazioni.forEach { (id, r) -> r.giudizio?.let { put(id, it) } }
+        }
+    }
+    var nota by remember(chiave) {
+        mutableStateOf(correzione.rilevazioni.values.firstOrNull { !it.note.isNullOrBlank() }?.note.orEmpty())
+    }
+
+    val dataLetta = runCatching {
+        java.time.LocalDate.parse(giorno.trim(), java.time.format.DateTimeFormatter.ofPattern("d/M/uuuu"))
+    }.getOrNull()
+    val oraLetta = runCatching { java.time.LocalTime.parse(ora.trim().padStart(5, '0')) }.getOrNull()
+    val puntiLetti = punti.trim().toIntOrNull()
+    val esiti = if (e.esito == "skipped") listOf("skipped") else listOf("completed", "completed_late")
+
+    AlertDialog(
+        onDismissRequest = onAnnulla,
+        title = { Text("Correggi l'esecuzione") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(e.titolo, fontWeight = FontWeight.SemiBold, color = Palette.dark)
+                OutlinedTextField(
+                    value = giorno, onValueChange = { giorno = it },
+                    label = { Text("Eseguita il (gg/mm/aaaa)") }, singleLine = true,
+                    isError = dataLetta == null,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+                OutlinedTextField(
+                    value = ora, onValueChange = { ora = it },
+                    label = { Text("alle (hh:mm)") }, singleLine = true,
+                    isError = oraLetta == null,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+                )
+                Tendina(
+                    etichetta = "Esito",
+                    scelto = ObEsecuzione.ETICHETTA_ESITO[esito] ?: esito,
+                    voci = esiti.map { it to (ObEsecuzione.ETICHETTA_ESITO[it] ?: it) },
+                    abilitata = esiti.size > 1,
+                ) { nuovo ->
+                    esito = nuovo
+                    correzione.azione?.let { a ->
+                        punti = (if (nuovo == "completed_late") a.puntiRitardo else a.puntiSuccesso).toString()
+                    }
+                }
+                OutlinedTextField(
+                    value = punti, onValueChange = { punti = it.filter { c -> c.isDigit() || c == '-' }.take(5) },
+                    label = { Text("Punti") }, singleLine = true,
+                    isError = puntiLetti == null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = if (e.esito == "skipped")
+                        "Un salto non diventa un completamento correggendolo: annullalo con ↩️ e completa l'azione."
+                    else "Cambiando l'esito i punti si riscrivono con quelli dell'azione; puoi correggerli a mano.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Palette.muted,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+
+                if (correzione.metriche.isNotEmpty()) {
+                    Text(
+                        text = "📈 Rilevazioni del ${dataItalianaDa(e.giornoRilevazioni)}",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Palette.dark,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    correzione.metriche.forEach { metrica ->
+                        val salta = saltate[metrica.id] == true
+                        Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                            RigaScorrevole(Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = metrica.name,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (salta) Palette.muted else Palette.dark,
+                                    maxLines = 1, softWrap = false, overflow = TextOverflow.Visible,
+                                )
+                                Pillola(
+                                    testo = if (salta) "misuro" else "non adesso",
+                                    sfondo = if (salta) Palette.accent else Palette.muted,
+                                ) { saltate[metrica.id] = !salta }
+                            }
+                            if (!salta) CampoMisura(metrica, valori[metrica.id].orEmpty()) { valori[metrica.id] = it }
+                            if (!salta && metrica.haGiudizio) {
+                                OutlinedTextField(
+                                    value = giudizi[metrica.id].orEmpty(),
+                                    onValueChange = { giudizi[metrica.id] = it },
+                                    label = { Text("Giudizio del test") },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = nota, onValueChange = { nota = it },
+                        label = { Text("Nota (vale per tutte)") },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = dataLetta != null && oraLetta != null && puntiLetti != null,
+                onClick = {
+                    val istante = java.time.ZonedDateTime
+                        .of(dataLetta!!, oraLetta!!, java.time.ZoneId.systemDefault())
+                        .toOffsetDateTime().toString()
+                    val daScrivere = correzione.metriche
+                        .filter { saltate[it.id] != true }
+                        .mapNotNull { m -> valori[m.id]?.replace(',', '.')?.toDoubleOrNull()?.let { m.id to it } }
+                        .toMap()
+                    val giud = giudizi.filterKeys { it in daScrivere }
+                        .mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
+                    onSalva(istante, esito, puntiLetti!!, daScrivere, nota.trim(), giud)
+                },
+            ) { Text("Salva") }
+        },
+        dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla") } },
+    )
+}
