@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.27.9</title>
+  <title>GarsalFinanza v1.28.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -613,8 +613,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.27.9';
-const APP_BUILD   = '2026-10-06T22:00:00Z';
+const APP_VERSION = 'v1.28.0';
+const APP_BUILD   = '2026-10-08T10:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -6266,9 +6266,14 @@ async function confirmRosaBankRead() {
       })), 'bank_connection_id,external_id');
     }
     if (assetId && balance) {
-      await sbUpd('fnz_other_assets', `id=eq.${assetId}`, {
+      // Il saldo letto entra nello storico della voce: la colonna dell'asset la riscrive il
+      // trigger. Riscriverla qui a mano sarebbe una valutazione che lo storico non conosce.
+      await sbIns('fnz_other_asset_values', {
+        user_id: S.session.user.id,
+        asset_id: assetId,
         value: balance.amount,
         valuation_date: (balance.date ? String(balance.date).slice(0, 10) : new Date().toISOString().slice(0, 10)),
+        note: 'Saldo letto dal conto',
       });
     }
     _rosaBankRead = null;
@@ -7948,19 +7953,13 @@ function openOtherAssetModal(assetId = null, preType = null, preTitle = null) {
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">${valLabel}</label>
-          <input name="value" type="number" step="any" min="0" class="form-input mono" required value="${a?.value || ''}" />
-        </div>
-      </div>
-      <div class="form-row-2">
-        <div class="form-group">
-          <label class="form-label">Data Valutazione *</label>
-          <input name="valuation_date" type="date" class="form-input" required value="${a?.valuation_date || new Date().toISOString().slice(0, 10)}" />
-        </div>
-        <div class="form-group">
           <label class="form-label">Possesso (%) *</label>
           <input name="ownership_percentage" type="number" step="any" min="0" max="100" class="form-input mono" required value="${a?.ownership_percentage || '100'}" />
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">📈 ${valLabel.replace(' *', '')} nel tempo *</label>
+        <div id="asset-vals-box"><div class="empty-sm">Carico lo storico…</div></div>
       </div>
       <div class="form-row-2">
         <div class="form-group">
@@ -8005,8 +8004,6 @@ function openOtherAssetModal(assetId = null, preType = null, preTitle = null) {
       title: data.title.trim(),
       description: data.description.trim(),
       asset_type: assetType,
-      value: parseFloat(data.value),
-      valuation_date: data.valuation_date,
       ownership_percentage: parseFloat(data.ownership_percentage),
       notes: data.notes.trim(),
       // Vuoto resta vuoto e non diventa zero: «non l'ho indicato» e «costo zero» darebbero due
@@ -8015,10 +8012,153 @@ function openOtherAssetModal(assetId = null, preType = null, preTitle = null) {
       cost_basis: data.cost_basis === '' ? null : parseFloat(data.cost_basis),
     };
     
-    if (isEdit) await sbUpd('fnz_other_assets', `id=eq.${a.id}`, payload);
-    else        await sbIns('fnz_other_assets', payload);
+    // Una valutazione scritta nelle caselle e non aggiunta non si perde in silenzio: o la si
+    // aggiunge, o si chiede.
+    if (!assetValBozzaVuota()) {
+      if (!confirm('Nelle caselle della nuova voce c\'è qualcosa che non hai aggiunto alla lista.\n\nOK = salvo senza, Annulla = torno a guardare.')) {
+        throw new Error('Salvataggio annullato: aggiungi la voce con ➕ o svuota le caselle.');
+      }
+    }
+    const vive = S.assetVals.filter(v => !v._del);
+    if (!vive.length) throw new Error('Serve almeno una valutazione: aggiungila con ➕ Nuova voce.');
+    // La colonna dell'asset la riscrive il trigger dallo storico; qui la si mette solo alla
+    // nascita, perché la riga deve esistere prima delle sue valutazioni.
+    const ultima = assetValOrdinate(vive).at(-1);
+    let assetRow;
+    if (isEdit) { await sbUpd('fnz_other_assets', `id=eq.${a.id}`, payload); assetRow = a; }
+    else        assetRow = await sbIns('fnz_other_assets', { ...payload, value: ultima.value, valuation_date: ultima.valuation_date });
+    await salvaAssetVals(assetRow.id);
     await reload(); closeModal();
   });
+  caricaAssetVals(a?.id || null);
+}
+/* ── Storico delle valutazioni di un asset (fnz_other_asset_values) ──
+   La lista si tiene in memoria finché il popup è aperto e si scrive col «Salva» dell'asset,
+   come tutto il resto del form: «Annulla» deve buttare via anche le voci aggiunte.
+   ⚠️ fnz_other_assets.value / valuation_date li riscrive il trigger con la voce più recente:
+   la pagina non li tocca più. */
+async function caricaAssetVals(assetId) {
+  S.assetVals = []; S.assetValEdit = null;
+  if (assetId) {
+    try {
+      S.assetVals = (await sbQ('fnz_other_asset_values',
+        `asset_id=eq.${assetId}&order=valuation_date.asc,created_at.asc`))
+        .map(v => ({ ...v, value: parseFloat(v.value), _orig: { valuation_date: v.valuation_date, value: parseFloat(v.value), note: v.note || '' } }));
+    } catch (err) {
+      $('asset-vals-box').innerHTML = `<div class="empty-sm">⚠️ Lo storico non si legge: ${esc(err.message)}</div>`;
+      return;
+    }
+    // Un asset senza storico (nato fuori da questa pagina) parte dal valore che ha.
+    if (!S.assetVals.length) {
+      const a = S.otherAssets.find(x => x.id === assetId);
+      if (a) S.assetVals.push({ _nuova: true, valuation_date: a.valuation_date, value: parseFloat(a.value), note: '' });
+    }
+  }
+  renderAssetVals();
+}
+function assetValOrdinate(arr) {
+  return [...arr].sort((x, y) => (x.valuation_date || '').localeCompare(y.valuation_date || ''));
+}
+function assetValBozzaVuota() {
+  const v = $('av-value'), n = $('av-note');
+  return !v || (v.value.trim() === '' && n.value.trim() === '');
+}
+function renderAssetVals() {
+  const box = $('asset-vals-box');
+  if (!box) return;
+  const vive = assetValOrdinate(S.assetVals.filter(v => !v._del));
+  const inModifica = S.assetValEdit ? S.assetVals[S.assetValEdit.idx] : null;
+  const oggi = new Date();
+  const oggiIso = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-${String(oggi.getDate()).padStart(2, '0')}`;
+
+  // Il grafico solo da due voci in su: un punto solo è un numero, non un andamento.
+  let grafico = '';
+  if (vive.length >= 2) {
+    const dati = vive.map(v => ({ snapshot_date: v.valuation_date, valore: v.value }));
+    const W = Math.max(320, Math.min(640, (window.innerWidth || 640) - 140));
+    const H = 150, PAD = { top: 12, right: 14, bottom: 28, left: 72 };
+    const svg = _buildSingleSeriesSvg({ key: 'asset', label: 'Valore', field: 'valore', color: '#4f46e5' },
+      dati, false, (_s, v) => v, W, H, PAD, { valore: d => d.valore, azione: null });
+    const primo = vive[0], ultimo = vive[vive.length - 1];
+    const diff = ultimo.value - primo.value;
+    const pct  = primo.value ? diff / Math.abs(primo.value) * 100 : null;
+    if (svg) grafico = `
+      <svg class="pnetto-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${svg}</svg>
+      <p class="text-muted text-sm" style="margin:4px 0 10px">
+        Dal ${fmtDate(primo.valuation_date)} al ${fmtDate(ultimo.valuation_date)}:
+        <span class="mono fw-600 ${pnlCls(diff)}">${diff >= 0 ? '+' : ''}${fmtEUR(diff)}${pct != null ? ` (${fmtPct(pct)})` : ''}</span>
+      </p>`;
+  }
+
+  // ✏️ e 🗑 in testa alla riga: in coda, su un telefono, stanno oltre il bordo.
+  const righe = [...vive].reverse().map(v => {
+    const idx = S.assetVals.indexOf(v);
+    const sel = S.assetValEdit?.idx === idx;
+    return `<tr${sel ? ' style="background:var(--c-surface-2,#eef2ff)"' : ''}>
+      <td style="white-space:nowrap">
+        <button type="button" class="btn-icon" data-action="asset-val-edit" data-idx="${idx}" title="Modifica">✏️</button>
+        <button type="button" class="btn-icon btn-icon-danger" data-action="asset-val-del" data-idx="${idx}" title="Elimina">🗑</button>
+      </td>
+      <td style="white-space:nowrap">${fmtDate(v.valuation_date)}</td>
+      <td class="text-right mono fw-600" style="white-space:nowrap">${fmtEURc(v.value)}</td>
+      <td class="text-muted text-sm">${esc(v.note || '')}${v._nuova ? ' <span class="text-sm" style="color:var(--c-warning,#d97706)">· da salvare</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+
+  box.innerHTML = `
+    ${grafico}
+    ${vive.length ? `<div style="overflow-x:auto;max-height:240px;overflow-y:auto;margin-bottom:10px">
+      <table class="table" style="width:100%"><thead><tr><th></th><th>Data</th><th class="text-right">Valore</th><th>Nota</th></tr></thead>
+      <tbody>${righe}</tbody></table></div>`
+      : '<div class="empty-sm" style="margin-bottom:10px">Nessuna valutazione: aggiungi la prima qui sotto.</div>'}
+    <div style="border:1px dashed var(--c-border,#cbd5e1);border-radius:8px;padding:10px">
+      <div class="text-sm fw-600" style="margin-bottom:6px">${inModifica ? '✏️ Modifica voce' : '➕ Nuova voce'}</div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input id="av-date" type="date" class="form-input" value="${inModifica ? inModifica.valuation_date : oggiIso}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valore (€)</label>
+          <input id="av-value" type="number" step="any" min="0" class="form-input mono" value="${inModifica ? inModifica.value : ''}" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nota</label>
+        <input id="av-note" class="form-input" placeholder="Opzionale (es. perizia, estratto conto)" value="${esc(inModifica?.note || '')}" />
+      </div>
+      <div class="hstack gap-8" style="flex-wrap:wrap">
+        <button type="button" class="btn btn-outline btn-sm" data-action="asset-val-add">${inModifica ? '✔ Aggiorna voce' : '➕ Aggiungi alla lista'}</button>
+        ${inModifica ? '<button type="button" class="btn btn-outline btn-sm" data-action="asset-val-cancel">Annulla modifica</button>' : ''}
+      </div>
+    </div>
+    <p class="text-muted text-sm" style="margin-top:6px">Il valore dell'asset è la voce con la data più recente. Le modifiche alla lista si salvano col pulsante in fondo.</p>`;
+  // Invio in una casella della voce aggiunge la voce, non salva tutto l'asset.
+  box.querySelectorAll('#av-date,#av-value,#av-note').forEach(inp =>
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); assetValAggiungi(); } }));
+}
+function assetValAggiungi() {
+  const data = $('av-date').value, raw = $('av-value').value.trim(), note = $('av-note').value.trim();
+  if (!data) { alert('Scegli la data della valutazione.'); return; }
+  const value = parseFloat(raw.replace(',', '.'));
+  if (raw === '' || isNaN(value) || value < 0) { alert('Scrivi un valore valido (0 o più).'); return; }
+  if (S.assetValEdit) {
+    Object.assign(S.assetVals[S.assetValEdit.idx], { valuation_date: data, value, note });
+    S.assetValEdit = null;
+  } else {
+    S.assetVals.push({ _nuova: true, valuation_date: data, value, note });
+  }
+  renderAssetVals();
+}
+async function salvaAssetVals(assetId) {
+  const uid = S.session.user.id;
+  for (const v of S.assetVals) {
+    if (v._del) { if (v.id) await sbDel('fnz_other_asset_values', `id=eq.${v.id}`); continue; }
+    const corpo = { valuation_date: v.valuation_date, value: v.value, note: v.note || null };
+    if (!v.id) await sbIns('fnz_other_asset_values', { ...corpo, user_id: uid, asset_id: assetId });
+    else if (v._orig.valuation_date !== v.valuation_date || v._orig.value !== v.value || v._orig.note !== (v.note || ''))
+      await sbUpd('fnz_other_asset_values', `id=eq.${v.id}`, corpo);
+  }
 }
 /* Spese Famiglia — la vista in sola lettura sta in spese-famiglia.js, condiviso
    con situazione-teresa.html e cost-analysis.html: qui si chiama caOpen() e basta. */
@@ -8284,6 +8424,17 @@ document.addEventListener('click', async e => {
       break;
     case 'new-other-asset':  openOtherAssetModal(null, t.dataset.preType || null, t.dataset.preTitle || null); break;
     case 'edit-other-asset': openOtherAssetModal(t.dataset.id); break;
+    case 'asset-val-add':    assetValAggiungi(); break;
+    case 'asset-val-edit':   S.assetValEdit = { idx: +t.dataset.idx }; renderAssetVals(); break;
+    case 'asset-val-cancel': S.assetValEdit = null; renderAssetVals(); break;
+    case 'asset-val-del': {
+      const v = S.assetVals[+t.dataset.idx];
+      if (v && confirm(`Togliere la voce del ${fmtDate(v.valuation_date)} (${fmtEURc(v.value)})?\n\nSi cancella davvero quando salvi l'asset.`)) {
+        if (v.id) v._del = true; else S.assetVals.splice(+t.dataset.idx, 1);
+        S.assetValEdit = null; renderAssetVals();
+      }
+      break;
+    }
     case 'del-other-asset':
       if (confirm('Eliminare questo asset?')) { await sbDel('fnz_other_assets', `id=eq.${t.dataset.id}`); await reload(); }
       break;

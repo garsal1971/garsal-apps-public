@@ -2509,6 +2509,21 @@ il fondo resta agganciato a una riga che non sincronizzerà mai, oppure il conto
 job scatteranno un'ora prima del previsto. Riguarda `fnz-save-snapshot` (`0 21 * * *` = 23:00 CEST)
 e `revolut-auto-categorize`.
 
+### 📈 Lo storico delle valutazioni degli asset (`fnz_other_asset_values`)
+
+(8 ottobre 2026, `20261008100000_fnz_other_asset_values.sql`, Finanza v1.28.0.) Una riga per
+valutazione: `asset_id`, `valuation_date`, `value`, `note`. Nel popup dell'asset (💎 Patrimonio →
+✎) al posto di «Valore / Data valutazione» c'è la lista delle voci, col grafico dell'andamento da
+due voci in su, ✏️/🗑 su ogni riga e «➕ Nuova voce». La lista si tiene in memoria e si scrive col
+**Salva** dell'asset (`salvaAssetVals`): «Annulla» butta via anche le voci aggiunte.
+
+⚠️ **`fnz_other_assets.value` / `valuation_date` restano, e li scrive il TRIGGER**
+(`trg_fnz_other_asset_values_sync`) con la voce più recente: Dashboard, snapshot, Possibili
+soluzioni, Danaro di Rosa e le pagine ospiti leggono la colonna di sempre. La pagina non la scrive
+più — nemmeno *🏦 Leggi dal conto* di Danaro di Rosa, che ora aggiunge una voce allo storico.
+⚠️ Cancellare tutte le voci **non** azzera l'asset: il trigger non trova righe e lascia la colonna
+com'era. La migration ha copiato il valore di ogni asset come prima voce.
+
 ### ⚠️ Il regime fiscale degli asset (`fnz_other_assets`)
 
 Due colonne (`20260901180000_...`): **`tax_regime`** dice con quale aliquota, **`cost_basis`** su
