@@ -252,6 +252,40 @@ internal fun intero(o: JsonObject, chiave: String): Long? =
     (campo(o, chiave) as? JsonPrimitive)?.content?.toDoubleOrNull()?.toLong()
 
 /**
+ * Una riga di `ps_daily_ema` (web v4.12.0): il valore del giorno — la PRIMA
+ * pesata, o stimato col trend — e le tre medie mobili esponenziali. Le calcola
+ * il **database** (trigger su `ps_weight_tracking`) e qui si leggono soltanto,
+ * come `caricaEma()` del web: due calcoli della stessa media sarebbero due
+ * medie diverse.
+ */
+data class MediaGiorno(
+    val giorno: String,
+    val emaPeso: Double?,
+    val emaGrassoKg: Double?,
+    val emaGrassoPct: Double?,
+    /** Quel giorno nessuno si è pesato: la media è stimata col trend (pallino vuoto). */
+    val pesoStimato: Boolean,
+    val grassoStimato: Boolean,
+) {
+    companion object {
+        fun da(o: JsonObject): MediaGiorno? {
+            val giorno = testo(o, "day")?.take(10) ?: return null
+            return MediaGiorno(
+                giorno = giorno,
+                emaPeso = decimale(o, "ema_weight"),
+                emaGrassoKg = decimale(o, "ema_fat_kg"),
+                emaGrassoPct = decimale(o, "ema_fat_pct"),
+                pesoStimato = testo(o, "weight_stimato") == "true",
+                grassoStimato = testo(o, "fat_stimato") == "true",
+            )
+        }
+    }
+}
+
+/** N di default della media mobile, come `EMA_DEFAULT` del web. */
+const val EMA_GIORNI_DEFAULT = 7
+
+/**
  * I punti di un obiettivo come li dà `ps_punti`: il conto giorno per giorno,
  * il totale, e i traguardi intermedi raggiunti (soglia → primo giorno).
  * `errore` non nullo = la RPC ha risposto di no.
@@ -460,6 +494,37 @@ object PesoRepository {
             },
         ).decodeAs<JsonObject>()
         PuntiServer.da(id, risposta)
+    }
+
+    /**
+     * Le medie mobili di `ps_daily_ema` dal giorno [da], per giorno — gemella
+     * di `caricaEma()` del web. Si legge e basta: le scrive il database.
+     */
+    suspend fun medie(da: LocalDate): Map<String, MediaGiorno> = withContext(Dispatchers.IO) {
+        db.from("ps_daily_ema")
+            .select(Columns.ALL) {
+                filter { gte("day", da.toString()) }
+                order("day", Order.ASCENDING)
+                limit(5000L)
+            }
+            .decodeList<JsonObject>()
+            .mapNotNull { MediaGiorno.da(it) }
+            .associateBy { it.giorno }
+    }
+
+    /** N della media mobile (`cm_settings.ps_ema_days`), fra 2 e 90; 7 se manca. */
+    suspend fun emaGiorni(): Int = withContext(Dispatchers.IO) {
+        runCatching {
+            val riga = db.from("cm_settings")
+                .select(Columns.raw("value")) {
+                    filter { eq("key", "ps_ema_days") }
+                    limit(1)
+                }
+                .decodeList<JsonObject>()
+                .firstOrNull()
+            val n = riga?.let { testo(it, "value") }?.replace("\"", "")?.trim()?.toIntOrNull()
+            if (n != null && n >= 2) minOf(n, 90) else EMA_GIORNI_DEFAULT
+        }.getOrDefault(EMA_GIORNI_DEFAULT)
     }
 
     /**
