@@ -1297,7 +1297,7 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
   media stimata si legge ○ «media stimata col trend», non «non pesato». I giorni di premio
   (`giornoDiPesata`) hanno il fondo azzurro chiaro, tutti gli altri grigio (v4.13.1). Ogni giorno
   passato senza nessuna pesata ha comunque la sua riga, con medie stimate e target, su fondo **rosa**
-  (v4.13.2); oggi no finché non ci si pesa.
+  (v4.13.2); oggi no finché non ci si pesa. I giorni futuri (e oggi da pesare) sono bianchi (v4.13.3).
 
 ### ⚖️ Pesarsi ogni N giorni, e il promemoria della pesata
 
