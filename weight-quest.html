@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.11.6</title>
+  <title>Peso e Calorie v4.12.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1778,8 +1778,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.11.6';
-        var BUILD_TIME  = '2026-10-06T21:40:00Z';
+        var APP_VERSION = 'v4.12.0';
+        var BUILD_TIME  = '2026-10-09T11:55:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5549,6 +5549,59 @@
         // senza risposta i punti restano vuoti (e il log lo dice), invece di
         // fermare il disegno della tabella e del grafico.
         function caricaPunti() {
+            return Promise.all([caricaPuntiServer(), caricaEma()]);
+        }
+
+        // ── La media mobile esponenziale (`ps_daily_ema`) ────────────────
+        // Peso, massa grassa e % di grasso hanno ciascuno la sua media mobile
+        // esponenziale, una riga per giorno: il valore del giorno è la PRIMA
+        // pesata della giornata, e i giorni senza pesata sono stimati col trend
+        // (riga «stimata»). La tabella la riempie il DATABASE — un trigger su
+        // ps_weight_tracking — e qui si legge e basta: due calcoli della stessa
+        // media sarebbero due medie diverse. N sta in `cm_settings.ps_ema_days`
+        // e si cambia da ⚙️ Impostazioni (`ps_ema_ricalcola`).
+        // Sulla massa grassa i punti si danno sulla media (RPC `ps_punti`).
+        var EMA_DEFAULT = 7;
+        function caricaEma() {
+            if (!supabase) { userData.ema = {}; return Promise.resolve(); }
+            var da = calcFetchRange().from;
+            var url = supabase.url + '/rest/v1/ps_daily_ema?select=*&order=day.asc&limit=5000'
+                    + (da ? '&day=gte.' + da : '');
+            var urlN = supabase.url + '/rest/v1/cm_settings?key=eq.ps_ema_days&select=value&limit=1';
+            function leggi(u) {
+                return fetch(u, { headers: supabase.headers }).then(function(r) {
+                    if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ' ' + t.substring(0, 120)); });
+                    return r.json();
+                });
+            }
+            return Promise.all([leggi(url), leggi(urlN).catch(function() { return []; })])
+                .then(function(res) {
+                    var mappa = {};
+                    (res[0] || []).forEach(function(r) { mappa[String(r.day).slice(0, 10)] = r; });
+                    userData.ema = mappa;
+                    var n = parseInt(res[1] && res[1][0] ? String(res[1][0].value).replace(/"/g, '') : '', 10);
+                    userData.emaGiorni = n >= 2 ? Math.min(n, 90) : EMA_DEFAULT;
+                })
+                .catch(function(e) {
+                    userData.ema = {};
+                    log('ERROR ps_daily_ema: ' + e.message);
+                });
+        }
+        // La media di un giorno per una delle tre serie: 'ema_weight',
+        // 'ema_fat_kg', 'ema_fat_pct'. Null se quel giorno non c'è.
+        function emaDi(date, campo) {
+            var r = userData.ema && userData.ema[date];
+            if (!r || r[campo] == null) return null;
+            var v = Number(r[campo]);
+            return isFinite(v) ? v : null;
+        }
+        function emaStimata(date, campo) {
+            var r = userData.ema && userData.ema[date];
+            if (!r) return false;
+            return campo === 'ema_weight' ? !!r.weight_stimato : !!r.fat_stimato;
+        }
+
+        function caricaPuntiServer() {
             var obj = userData.currentObjective;
             if (!obj || !supabase) { userData.punti = null; return Promise.resolve(); }
             var objId = String(obj.id);
@@ -5991,7 +6044,8 @@
                     if (grafici[id]) { grafici[id].destroy(); grafici[id] = null; }
                 });
                 disegnaGraficoPeso(data, { canvasId: 'weightChart', containerId: 'chartContainer',
-                    target: getInterpolatedTarget, unita: 'kg', nome: 'Peso', margine: 2, altezza: 400 });
+                    target: getInterpolatedTarget, unita: 'kg', nome: 'Peso', margine: 2, altezza: 400,
+                    ema: 'ema_weight' });
                 return;
             }
             if (extra) extra.style.display = '';
@@ -6002,15 +6056,17 @@
             });
             // Secondo e terzo prima del primo: il primo è quello che scorre fino a oggi.
             disegnaGraficoPeso(grasso, { canvasId: 'weightChart2', containerId: 'chartContainer2',
-                target: getInterpolatedTarget, unita: 'kg', nome: 'Grasso', margine: 1, altezza: 300 });
+                target: getInterpolatedTarget, unita: 'kg', nome: 'Grasso', margine: 1, altezza: 300,
+                ema: 'ema_fat_kg' });
             disegnaGraficoPeso(perc, { canvasId: 'weightChart3', containerId: 'chartContainer3',
                 target: function(d) {
                     var t = targetTotale(d);
                     if (t == null || !(t > 0)) return null;
                     return Math.round(Math.max(t - magra, 0) / t * 1000) / 10;
-                }, unita: '%', nome: '% grasso', margine: 1, altezza: 300 });
+                }, unita: '%', nome: '% grasso', margine: 1, altezza: 300, ema: 'ema_fat_pct' });
             disegnaGraficoPeso(userData.weights || [], { canvasId: 'weightChart', containerId: 'chartContainer',
-                target: targetTotale, unita: 'kg', nome: 'Peso', margine: 2, altezza: 300 });
+                target: targetTotale, unita: 'kg', nome: 'Peso', margine: 2, altezza: 300,
+                ema: 'ema_weight' });
         }
 
         // Lo zoom allarga tutti i grafici insieme, o le date smetterebbero di stare in colonna.
@@ -6097,6 +6153,11 @@
             var maxWeightData = [];
             var minWeightEstimatedData = [];
             var maxWeightEstimatedData = [];
+            // La media mobile della serie (`opz.ema`: il campo di ps_daily_ema).
+            // Quando c'è è la linea principale, e i pallini delle pesate si sbiadiscono.
+            var emaData = [];
+            var emaStimate = [];
+            var conEma = !!(opz.ema && userData.ema && Object.keys(userData.ema).length);
 
             // Per obiettivi chiusi: pre-filtra i dati al range [start-1mese, end+1mese]
             var _objRange = objectiveClosedRange(userData.currentObjective);
@@ -6198,6 +6259,8 @@
                     var formattedLabel = month + '-' + day;
                     
                     labels.push(formattedLabel);
+                    emaData.push(conEma ? emaDi(date, opz.ema) : null);
+                    emaStimate.push(conEma ? emaStimata(date, opz.ema) : false);
                     
                     var currentDate = new Date(date);
                     var isInMilestoneRange = milestoneStartDate && milestoneEndDate && 
@@ -6259,6 +6322,7 @@
             maxWeightData.forEach(function(v) { if (v !== null) allValues.push(v); });
             minWeightEstimatedData.forEach(function(v) { if (v !== null) allValues.push(v); });
             maxWeightEstimatedData.forEach(function(v) { if (v !== null) allValues.push(v); });
+            emaData.forEach(function(v) { if (v !== null) allValues.push(v); });
             
             var yMin = null;
             var yMax = null;
@@ -6331,6 +6395,7 @@
                                         var yMax = chart.scales.y.getPixelForValue(maxValue);
                                         
                                         ctx.save();
+                                        if (conEma) ctx.globalAlpha = 0.35;
                                         
                                         if (Math.abs(minValue - maxValue) < 0.1) {
                                             // Stesso peso: pallino metà rosso/metà verde
@@ -6401,6 +6466,7 @@
                                     var size = 6; // Dimensione triangolo
 
                                     ctx.save();
+                                    if (conEma) ctx.globalAlpha = 0.35;
 
                                     if (minEstimated !== null && maxEstimated !== null && Math.abs(minEstimated - maxEstimated) < 0.1) {
                                         // MIN = MAX: diamante (rombo) rosso+verde
@@ -6480,6 +6546,22 @@
                     labels: labels,
                     datasets: [
                         {
+                            label: 'Media mobile ' + (userData.emaGiorni || EMA_DEFAULT) + ' gg',
+                            data: emaData,
+                            borderColor: '#6C5CE7',
+                            backgroundColor: '#6C5CE7',
+                            borderWidth: 3,
+                            // Un giorno stimato col trend ha un pallino vuoto: la linea passa
+                            // di lì, ma lì nessuno si è pesato.
+                            pointRadius: emaStimate.map(function(st) { return st ? 3 : 0; }),
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#6C5CE7',
+                            pointHitRadius: 6,
+                            tension: 0.2,
+                            spanGaps: false,
+                            order: 0
+                        },
+                        {
                             label: 'Target Interpolato',
                             data: targetData,
                             borderColor: '#666',
@@ -6546,7 +6628,7 @@
                             spanGaps: false,
                             order: 2
                         }
-                    ]
+                    ].filter(function(d) { return conEma || d.data !== emaData; })
                 },
                 options: {
                     responsive: true,
@@ -7128,6 +7210,22 @@
                     tagFuori.textContent = 'fuori calendario';
                     tagFuori.style.cssText = 'font-size:0.75em;font-weight:normal;color:#999;';
                     tdDate.appendChild(tagFuori);
+                }
+                // La media mobile del giorno (ps_daily_ema): peso, e sulla massa
+                // grassa anche kg e % di grasso. Su un obiettivo sulla massa grassa
+                // è il numero che fa i punti.
+                var emaW = emaDi(date, 'ema_weight'), emaK = emaDi(date, 'ema_fat_kg'), emaP = emaDi(date, 'ema_fat_pct');
+                if (emaW != null || emaK != null) {
+                    var tagEma = document.createElement('div');
+                    var parti = [];
+                    if (emaW != null) parti.push(emaW.toFixed(1).replace('.', ',') + ' kg');
+                    if (obiettivoGrasso(obj) && emaK != null) parti.push('grasso ' + emaK.toFixed(1).replace('.', ',') + ' kg');
+                    if (obiettivoGrasso(obj) && emaP != null) parti.push(emaP.toFixed(1).replace('.', ',') + ' %');
+                    var stimato = emaStimata(date, 'ema_weight') || emaStimata(date, 'ema_fat_kg');
+                    tagEma.textContent = '📈 media ' + parti.join(' · ') + (stimato ? ' (stimato)' : '');
+                    tagEma.title = 'Media mobile esponenziale a ' + (userData.emaGiorni || EMA_DEFAULT) + ' giorni';
+                    tagEma.style.cssText = 'font-size:0.75em;font-weight:normal;color:#6C5CE7;';
+                    tdDate.appendChild(tagEma);
                 }
 
                 tr.style.cursor = 'pointer';
@@ -10580,6 +10678,25 @@ function renderImpostazioni() {
     </div>
   </div>`;
 
+  // ── La media mobile del peso: N giorni ──
+  // N sta in cm_settings (chiave `ps_ema_days`): la stessa media dal PC e dal telefono. Le medie
+  // le calcola il database (`ps_daily_ema`); cambiando N le rifà tutte (`ps_ema_ricalcola`).
+  const nEma = (typeof userData !== 'undefined' && userData.emaGiorni) || EMA_DEFAULT;
+  h += `<div class="card">
+    <div class="card-title">📈 Media mobile di peso e massa grassa</div>
+    <div class="form-group">
+      <label class="text-sm" for="ema-giorni">Giorni della media (N)</label>
+      <input class="form-input" id="ema-giorni" type="number" min="2" max="90" step="1" value="${nEma}" style="max-width:8rem" />
+      <div class="form-hint">Media mobile esponenziale: i giorni recenti pesano di più
+        (α = 2 / (N + 1), con N = ${nEma} vale ${(2 / (nEma + 1)).toFixed(2).replace('.', ',')}).
+        Il valore di un giorno è la <strong>prima pesata</strong> della giornata; un giorno senza pesata
+        si stima seguendo il trend, e un buco di più di 14 giorni fa ripartire la media.
+        Sugli obiettivi sulla massa grassa i punti si danno sulla media della massa grassa,
+        le stelline dei traguardi sul peso giornaliero.</div>
+    </div>
+    <button class="btn btn-primary" data-action="salva-ema">💾 Salva e ricalcola le medie</button>
+  </div>`;
+
   // ── I dati anagrafici: si leggono, non si scrivono ──
   // Stanno in cm_profile, la scheda condivisa con le altre app. Riproporli in un form qui
   // vorrebbe dire due altezze diverse il giorno che una delle due si corregge.
@@ -11792,6 +11909,20 @@ document.addEventListener('click', async e => {
         (<span class="mono">cgi/search.pl</span>) è deprecata e dà 503 quasi sempre: va bene che
         sia rossa finché quella nuova risponde.</div>`);
       btn.disabled = false;
+    }
+
+    else if (action === 'salva-ema') {
+      const n = parseInt(document.getElementById('ema-giorni')?.value, 10);
+      if (!(n >= 2 && n <= 90)) { alert('N deve essere un numero intero fra 2 e 90.'); return; }
+      await sbIns('cm_settings?on_conflict=key', [{ key: 'ps_ema_days', value: String(n) }],
+        { 'Prefer': 'resolution=merge-duplicates,return=minimal' });
+      const esito = await sbRpc('ps_ema_ricalcola', {});
+      if (esito && esito.ok === false) throw new Error(esito.error || 'ricalcolo non riuscito');
+      userData.emaGiorni = n;
+      showToast(`📈 Medie ricalcolate a ${n} giorni (${esito?.righe ?? 0} giorni)`);
+      // Le medie e i punti che ne dipendono si rileggono: tabella, grafici e badge.
+      if (typeof loadData === 'function') loadData();
+      render();
     }
 
     else if (action === 'salva-pasti') {
