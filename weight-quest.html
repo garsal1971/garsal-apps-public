@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.13.4</title>
+  <title>Peso e Calorie v4.13.5</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1145,6 +1145,14 @@
         .tgt-cella { text-align: center; white-space: nowrap; }
         .tgt-cella .tgt-sub { font-size: 11px; font-weight: normal; color: #8a6d00; }
         .tgt-cella .tgt-punti { font-weight: bold; margin-top: 4px; }
+        /* Tabella delle pesate (v4.13.5): intestazioni e celle centrate sulla loro colonna,
+           e su desktop tutto più grande — lì lo spazio c'è e a 13 px si leggeva a fatica. */
+        #weightTable th, #weightTable td { text-align: center; vertical-align: middle; }
+        @media (min-width: 768px) {
+            #weightTable { font-size: 16px; }
+            #weightTable th { font-size: 15px; }
+            #weightTable .tgt-cella .tgt-sub { font-size: 13px; }
+        }
 </style>
 </head>
 <body>
@@ -1415,7 +1423,7 @@
                             </select>
                         </div>
                         <div style="overflow-x: auto;">
-                            <table>
+                            <table id="weightTable">
                                 <thead>
                                     <tr>
                                         <th>Data</th>
@@ -1791,8 +1799,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.13.4';
-        var BUILD_TIME  = '2026-10-09T12:55:00Z';
+        var APP_VERSION = 'v4.13.5';
+        var BUILD_TIME  = '2026-10-09T14:30:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
