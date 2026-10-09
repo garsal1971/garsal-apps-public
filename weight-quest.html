@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.13.5</title>
+  <title>Peso e Calorie v4.13.6</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1799,8 +1799,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.13.5';
-        var BUILD_TIME  = '2026-10-09T14:30:00Z';
+        var APP_VERSION = 'v4.13.6';
+        var BUILD_TIME  = '2026-10-09T15:10:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -6214,10 +6214,9 @@
             
             var labels = [];
             var targetData = [];
-            var minWeightData = [];
-            var maxWeightData = [];
-            var minWeightEstimatedData = [];
-            var maxWeightEstimatedData = [];
+            // Il valore del giorno è la PRIMA pesata (v4.13.6), la stessa della tabella e
+            // della media mobile: minimo e massimo della giornata non si disegnano più.
+            var valoreData = [];
             // La media mobile della serie (`opz.ema`: il campo di ps_daily_ema).
             // Quando c'è è la linea principale, e i pallini delle pesate si sbiadiscono.
             var emaData = [];
@@ -6340,40 +6339,12 @@
                         targetData.push(null);
                     }
                     
-                    // Controlla se abbiamo dati per questa data
-                    if (dayGroups[date]) {
-                        // Dati REALI (verde/rosso) - sempre mostrati
-                        var dayData = dayGroups[date];
-                        var minEntry = dayData[0];
-                        var maxEntry = dayData[0];
-                        
-                        dayData.forEach(function(entry) {
-                            if (entry.weight < minEntry.weight) {
-                                minEntry = entry;
-                            }
-                            if (entry.weight > maxEntry.weight) {
-                                maxEntry = entry;
-                            }
-                        });
-                        
-                        minWeightData.push(minEntry.weight);
-                        maxWeightData.push(maxEntry.weight);
-                        minWeightEstimatedData.push(null);
-                        maxWeightEstimatedData.push(null);
-                    } else if (isInMilestoneRange && filledDayGroups[date] && filledDayGroups[date][0].estimated) {
-                        // Dati STIMATI (gialli) - solo dentro l'intervallo milestone
-                        var estimatedData = filledDayGroups[date][0];
-                        minWeightData.push(null);
-                        maxWeightData.push(null);
-                        minWeightEstimatedData.push(estimatedData.estimatedMin);
-                        maxWeightEstimatedData.push(estimatedData.estimatedMax);
-                    } else {
-                        // Nessun dato
-                        minWeightData.push(null);
-                        maxWeightData.push(null);
-                        minWeightEstimatedData.push(null);
-                        maxWeightEstimatedData.push(null);
-                    }
+                    var prima = null;
+                    (dayGroups[date] || []).forEach(function(entry) {
+                        if (entry.weight == null) return;
+                        if (!prima || Number(entry.timestamp) < Number(prima.timestamp)) prima = entry;
+                    });
+                    valoreData.push(prima ? Number(prima.weight) : null);
                 });
             }
             
@@ -6383,10 +6354,7 @@
             
             // Raccogli TUTTI i valori incluso il target
             targetData.forEach(function(v) { if (v !== null) allValues.push(v); });
-            minWeightData.forEach(function(v) { if (v !== null) allValues.push(v); });
-            maxWeightData.forEach(function(v) { if (v !== null) allValues.push(v); });
-            minWeightEstimatedData.forEach(function(v) { if (v !== null) allValues.push(v); });
-            maxWeightEstimatedData.forEach(function(v) { if (v !== null) allValues.push(v); });
+            valoreData.forEach(function(v) { if (v !== null) allValues.push(v); });
             emaData.forEach(function(v) { if (v !== null) allValues.push(v); });
             
             var yMin = null;
@@ -6436,174 +6404,7 @@
             }
             
             // SEMPRE ricrea il grafico da zero (evita problemi di resize)
-            // Plugin personalizzato per disegnare punti divisi a metà
-            var customPointPlugin = {
-                id: 'customPoints',
-                afterDatasetsDraw: function(chart) {
-                    var ctx = chart.ctx;
-                    
-                    chart.data.datasets.forEach(function(dataset, datasetIndex) {
-                        var meta = chart.getDatasetMeta(datasetIndex);
-                        
-                        if (!meta.hidden && dataset.label.indexOf('(reale)') !== -1) {
-                            meta.data.forEach(function(point, index) {
-                                if (point && point.x !== undefined && point.y !== undefined) {
-                                    var minValue = minWeightData[index];
-                                    var maxValue = maxWeightData[index];
-                                    
-                                    if (minValue !== null && maxValue !== null) {
-                                        var radius = 6;
-                                        var x = point.x;
-                                        
-                                        // Trova le posizioni Y per MIN e MAX
-                                        var yMin = chart.scales.y.getPixelForValue(minValue);
-                                        var yMax = chart.scales.y.getPixelForValue(maxValue);
-                                        
-                                        ctx.save();
-                                        if (conEma) ctx.globalAlpha = 0.35;
-                                        
-                                        if (Math.abs(minValue - maxValue) < 0.1) {
-                                            // Stesso peso: pallino metà rosso/metà verde
-                                            var y = point.y;
-                                            
-                                            // Metà superiore rossa
-                                            ctx.beginPath();
-                                            ctx.arc(x, y, radius, Math.PI, 0, false);
-                                            ctx.closePath();
-                                            ctx.fillStyle = '#E74C3C';
-                                            ctx.fill();
-                                            
-                                            // Metà inferiore verde
-                                            ctx.beginPath();
-                                            ctx.arc(x, y, radius, 0, Math.PI, false);
-                                            ctx.closePath();
-                                            ctx.fillStyle = '#00B894';
-                                            ctx.fill();
-                                            
-                                            // Bordo
-                                            ctx.beginPath();
-                                            ctx.arc(x, y, radius, 0, Math.PI * 2);
-                                            ctx.strokeStyle = '#333';
-                                            ctx.lineWidth = 1;
-                                            ctx.stroke();
-                                        } else {
-                                            // Pesi diversi: semicerchi separati
-                                            
-                                            // Mezzo pallino ROSSO (alto) per MAX
-                                            ctx.beginPath();
-                                            ctx.arc(x, yMax, radius, Math.PI, 0, false);
-                                            ctx.closePath();
-                                            ctx.fillStyle = '#E74C3C';
-                                            ctx.fill();
-                                            ctx.beginPath();
-                                            ctx.arc(x, yMax, radius, Math.PI, 0, false);
-                                            ctx.strokeStyle = '#333';
-                                            ctx.lineWidth = 1;
-                                            ctx.stroke();
-                                            
-                                            // Mezzo pallino VERDE (basso) per MIN
-                                            ctx.beginPath();
-                                            ctx.arc(x, yMin, radius, 0, Math.PI, false);
-                                            ctx.closePath();
-                                            ctx.fillStyle = '#00B894';
-                                            ctx.fill();
-                                            ctx.beginPath();
-                                            ctx.arc(x, yMin, radius, 0, Math.PI, false);
-                                            ctx.strokeStyle = '#333';
-                                            ctx.lineWidth = 1;
-                                            ctx.stroke();
-                                        }
-                                        
-                                        ctx.restore();
-                                    }
-                                }
-                            });
-                        }
-                        
-                        // Disegna triangoli per i dati STIMATI
-                        if (!meta.hidden && dataset.label.indexOf('(stimato)') !== -1) {
-                            meta.data.forEach(function(point, index) {
-                                if (point && point.x !== undefined && point.y !== undefined) {
-                                    var minEstimated = minWeightEstimatedData[index];
-                                    var maxEstimated = maxWeightEstimatedData[index];
-
-                                    var x = point.x;
-                                    var size = 6; // Dimensione triangolo
-
-                                    ctx.save();
-                                    if (conEma) ctx.globalAlpha = 0.35;
-
-                                    if (minEstimated !== null && maxEstimated !== null && Math.abs(minEstimated - maxEstimated) < 0.1) {
-                                        // MIN = MAX: diamante (rombo) rosso+verde
-                                        var yCenter = chart.scales.y.getPixelForValue(minEstimated);
-
-                                        // Metà superiore: triangolo ROSSO con punta in ALTO
-                                        ctx.beginPath();
-                                        ctx.moveTo(x, yCenter - size);   // Punta in alto
-                                        ctx.lineTo(x - size, yCenter);   // Vertice sinistro centro
-                                        ctx.lineTo(x + size, yCenter);   // Vertice destro centro
-                                        ctx.closePath();
-                                        ctx.fillStyle = '#E74C3C';
-                                        ctx.fill();
-
-                                        // Metà inferiore: triangolo VERDE con punta in BASSO
-                                        ctx.beginPath();
-                                        ctx.moveTo(x, yCenter + size);   // Punta in basso
-                                        ctx.lineTo(x - size, yCenter);   // Vertice sinistro centro
-                                        ctx.lineTo(x + size, yCenter);   // Vertice destro centro
-                                        ctx.closePath();
-                                        ctx.fillStyle = '#00B894';
-                                        ctx.fill();
-
-                                        // Bordo diamante
-                                        ctx.beginPath();
-                                        ctx.moveTo(x, yCenter - size);
-                                        ctx.lineTo(x + size, yCenter);
-                                        ctx.lineTo(x, yCenter + size);
-                                        ctx.lineTo(x - size, yCenter);
-                                        ctx.closePath();
-                                        ctx.strokeStyle = '#333';
-                                        ctx.lineWidth = 1;
-                                        ctx.stroke();
-
-                                    } else {
-
-                                        if (minEstimated !== null) {
-                                            // Triangolo VERDE con punta in BASSO per MIN stimato
-                                            var yMin = chart.scales.y.getPixelForValue(minEstimated);
-
-                                            ctx.beginPath();
-                                            ctx.moveTo(x, yMin + size);           // Punta in basso
-                                            ctx.lineTo(x - size, yMin - size);    // Vertice sinistro alto
-                                            ctx.lineTo(x + size, yMin - size);    // Vertice destro alto
-                                            ctx.closePath();
-                                            ctx.fillStyle = '#00B894'; // Verde solido
-                                            ctx.fill();
-                                        }
-
-                                        if (maxEstimated !== null) {
-                                            // Triangolo ROSSO con punta in ALTO per MAX stimato
-                                            var yMax = chart.scales.y.getPixelForValue(maxEstimated);
-
-                                            ctx.beginPath();
-                                            ctx.moveTo(x, yMax - size);           // Punta in alto
-                                            ctx.lineTo(x - size, yMax + size);    // Vertice sinistro basso
-                                            ctx.lineTo(x + size, yMax + size);    // Vertice destro basso
-                                            ctx.closePath();
-                                            ctx.fillStyle = '#E74C3C'; // Rosso solido
-                                            ctx.fill();
-                                        }
-                                    }
-
-                                    ctx.restore();
-                                }
-                            });
-                        }
-                    });
-                }
-            };
-            
-            log('Creazione grafico con ' + labels.length + ' label, ' + minWeightData.filter(function(v){return v !== null;}).length + ' punti peso');
+            log('Creazione grafico con ' + labels.length + ' label, ' + valoreData.filter(function(v){return v !== null;}).length + ' punti peso');
             
             var nuovo = grafici[opz.canvasId] = new Chart(ctx, {
                 type: 'line',
@@ -6638,60 +6439,17 @@
                             order: 3
                         },
                         {
-                            label: opz.nome + ' MIN (reale)',
-                            data: minWeightData,
-                            borderColor: '#00B894',
-                            backgroundColor: 'rgba(0, 184, 148, 0.2)',
-                            borderWidth: 0,
-                            showLine: false,
-                            pointRadius: 0,
-                            pointHoverRadius: 0,
-                            tension: 0.3,
-                            spanGaps: false,
-                            order: 1
-                        },
-                        {
-                            label: opz.nome + ' MAX (reale)',
-                            data: maxWeightData,
-                            borderColor: '#E74C3C',
-                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
-                            borderWidth: 0,
-                            showLine: false,
-                            pointRadius: 0,
-                            pointHoverRadius: 0,
-                            tension: 0.3,
-                            spanGaps: false,
-                            order: 1
-                        },
-                        {
-                            label: opz.nome + ' MIN (stimato)',
-                            data: minWeightEstimatedData,
-                            borderColor: '#FFA500',
-                            backgroundColor: 'rgba(255, 165, 0, 0.2)',
-                            borderWidth: 2,
-                            borderDash: [3, 3],
-                            showLine: false,
-                            pointRadius: 0,
-                            pointHoverRadius: 0,
+                            label: opz.nome + ' (prima pesata)',
+                            data: valoreData,
+                            borderColor: conEma ? 'rgba(0, 150, 122, 0.45)' : '#00967A',
+                            backgroundColor: conEma ? 'rgba(0, 150, 122, 0.45)' : '#00967A',
+                            borderWidth: 1.5,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
                             pointHitRadius: 8,
-                            tension: 0.3,
-                            spanGaps: false,
-                            order: 2
-                        },
-                        {
-                            label: opz.nome + ' MAX (stimato)',
-                            data: maxWeightEstimatedData,
-                            borderColor: '#FFD700',
-                            backgroundColor: 'rgba(255, 215, 0, 0.2)',
-                            borderWidth: 2,
-                            borderDash: [3, 3],
-                            showLine: false,
-                            pointRadius: 0,
-                            pointHoverRadius: 0,
-                            pointHitRadius: 8,
-                            tension: 0.3,
-                            spanGaps: false,
-                            order: 2
+                            tension: 0.2,
+                            spanGaps: true,
+                            order: 1
                         }
                     ].filter(function(d) { return conEma || d.data !== emaData; })
                 },
@@ -6699,7 +6457,6 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        customPoints: customPointPlugin,
                         legend: {
                             display: true,
                             position: 'top',
@@ -6758,8 +6515,7 @@
                             }
                         }
                     }
-                },
-                plugins: [customPointPlugin]
+                }
             });
             
             if (!principale) return;
