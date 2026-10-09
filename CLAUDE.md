@@ -1289,8 +1289,12 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
   ⭐ stelline sul **peso giornaliero vero** (prima pesata, giorni stimati esclusi); la chiusura
   «perdere» sulla media di oggi, «mantenere» sulla media più alta del periodo. Gli obiettivi sul
   peso totale non cambiano.
-- Nei grafici la media è la linea viola e le pesate restano sbiadite; nella tabella ogni giorno
-  porta «📈 media …».
+- Nei grafici la media è la linea viola e le pesate restano sbiadite.
+- **La tabella delle pesate ha tre colonne** (v4.13.0): Data · Misurazioni · Target. Misurazioni
+  è una griglia 2×3 (peso · grasso kg · %): sopra la **prima pesata** del giorno, sotto le tre
+  medie (viola, in corsivo se stimate). Target porta sotto il totale e la % di piano, poi
+  «punti · cumulato». MIN e MAX del giorno non ci sono più. Un giorno di pesata saltato ma con la
+  media stimata si legge ○ «media stimata col trend», non «non pesato».
 
 ### ⚖️ Pesarsi ogni N giorni, e il promemoria della pesata
 

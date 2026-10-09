@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.12.0</title>
+  <title>Peso e Calorie v4.13.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1132,6 +1132,19 @@
         }
 
 
+        /* La cella delle misurazioni (v4.13.0): due righe × tre colonne. Sopra la prima pesata
+           del giorno, sotto le tre medie mobili. Le colonne sono 1fr anche nell'intestazione,
+           così restano in colonna con le celle sotto. */
+        .mis-griglia { display: grid; grid-template-columns: repeat(3, minmax(3.2em, 1fr)); column-gap: 6px; row-gap: 2px; text-align: center; }
+        .mis-testa span { font-size: 0.85em; }
+        .mis-legenda { font-size: 0.7em; font-weight: normal; color: #999; margin-top: 2px; }
+        .mis-ema-txt { color: #6C5CE7; }
+        .mis-v { font-weight: bold; font-size: 1em; white-space: nowrap; }
+        .mis-ema { color: #6C5CE7; font-weight: normal; font-size: 0.92em; }
+        .mis-stimato { font-style: italic; opacity: 0.8; }
+        .tgt-cella { text-align: center; white-space: nowrap; }
+        .tgt-cella .tgt-sub { font-size: 11px; font-weight: normal; color: #8a6d00; }
+        .tgt-cella .tgt-punti { font-weight: bold; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -1406,11 +1419,11 @@
                                 <thead>
                                     <tr>
                                         <th>Data</th>
-                                        <th>Previsto</th>
-                                        <th id="thPesoMin">Peso MIN</th>
-                                        <th id="thPesoMax">Peso MAX</th>
-                                        <th>Punti</th>
-                                        <th>Cumul.</th>
+                                        <th>
+                                            <div class="mis-griglia mis-testa"><span>Peso</span><span>Grasso</span><span>%</span></div>
+                                            <div class="mis-legenda">sopra il giorno · sotto <span class="mis-ema-txt">la media</span></div>
+                                        </th>
+                                        <th>Target<div class="mis-legenda">punti · cumulato</div></th>
                                     </tr>
                                 </thead>
                                 <tbody id="weightTableBody"></tbody>
@@ -1778,8 +1791,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.12.0';
-        var BUILD_TIME  = '2026-10-09T11:55:00Z';
+        var APP_VERSION = 'v4.13.0';
+        var BUILD_TIME  = '2026-10-09T12:16:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -6999,11 +7012,6 @@
             }
             tableAllDays       = allDays.sort(function(a, b) { return a.localeCompare(b); });
 
-            // Sulla massa grassa le colonne lo dicono: un 25 kg senza spiegazione sembrerebbe un errore.
-            var grasso = obiettivoGrasso(obj);
-            var thMin = document.getElementById('thPesoMin'), thMax = document.getElementById('thPesoMax');
-            if (thMin) thMin.textContent = grasso ? 'MIN grasso' : 'Peso MIN';
-            if (thMax) thMax.textContent = grasso ? 'MAX grasso' : 'Peso MAX';
 
             tablePage = 1;
             tableRenderPage();
@@ -7098,7 +7106,7 @@
             var filtered = tableFilteredDays();
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #999;">Nessun dato disponibile</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Nessun dato disponibile</td></tr>';
                 document.getElementById('tablePageInfo').textContent = '';
                 document.getElementById('tablePrevBtn').disabled = true;
                 document.getElementById('tableNextBtn').disabled = true;
@@ -7211,22 +7219,6 @@
                     tagFuori.style.cssText = 'font-size:0.75em;font-weight:normal;color:#999;';
                     tdDate.appendChild(tagFuori);
                 }
-                // La media mobile del giorno (ps_daily_ema): peso, e sulla massa
-                // grassa anche kg e % di grasso. Su un obiettivo sulla massa grassa
-                // è il numero che fa i punti.
-                var emaW = emaDi(date, 'ema_weight'), emaK = emaDi(date, 'ema_fat_kg'), emaP = emaDi(date, 'ema_fat_pct');
-                if (emaW != null || emaK != null) {
-                    var tagEma = document.createElement('div');
-                    var parti = [];
-                    if (emaW != null) parti.push(emaW.toFixed(1).replace('.', ',') + ' kg');
-                    if (obiettivoGrasso(obj) && emaK != null) parti.push('grasso ' + emaK.toFixed(1).replace('.', ',') + ' kg');
-                    if (obiettivoGrasso(obj) && emaP != null) parti.push(emaP.toFixed(1).replace('.', ',') + ' %');
-                    var stimato = emaStimata(date, 'ema_weight') || emaStimata(date, 'ema_fat_kg');
-                    tagEma.textContent = '📈 media ' + parti.join(' · ') + (stimato ? ' (stimato)' : '');
-                    tagEma.title = 'Media mobile esponenziale a ' + (userData.emaGiorni || EMA_DEFAULT) + ' giorni';
-                    tagEma.style.cssText = 'font-size:0.75em;font-weight:normal;color:#6C5CE7;';
-                    tdDate.appendChild(tagEma);
-                }
 
                 tr.style.cursor = 'pointer';
                 // ⚠️ Il dettaglio riceve le righe VERE (peso totale), non la vista
@@ -7239,118 +7231,113 @@
 
                 tr.appendChild(tdDate);
 
-                // TARGET
-                var tdTarget = document.createElement('td');
-                tdTarget.style.padding = '10px';
-                tdTarget.style.textAlign = 'center';
-                tdTarget.style.color = '#666';
-                tdTarget.style.fontWeight = 'bold';
-                tdTarget.textContent = target ? target.toFixed(1) + ' kg' : '--';
-                // Sulla massa grassa il previsto è grasso: sotto, il peso totale di piano e la %.
+                // MISURAZIONI: due righe per tre colonne (peso · grasso kg · %).
+                // Sopra il giorno: la PRIMA pesata, la stessa che entra nella media;
+                // sotto le tre medie mobili (ps_daily_ema). Un giorno senza pesata ha
+                // «—» sopra e la media stimata sotto, in corsivo.
                 var magraT = massaMagra(userData.currentObjective);
-                if (target && magraT != null) {
+                var grassoObj = magraT != null;
+                var prima = null;
+                (userData.weights || []).forEach(function(r) {
+                    if (r.date !== date || r.weight == null) return;
+                    if (!prima || Number(r.timestamp) < Number(prima.timestamp)) prima = r;
+                });
+                var primaG = null;
+                (userData.weights || []).forEach(function(r) {
+                    if (r.date !== date || r.weight == null || r.body_fat_pct == null) return;
+                    if (!primaG || Number(r.timestamp) < Number(primaG.timestamp)) primaG = r;
+                });
+                var gPeso = prima ? Number(prima.weight) : null;
+                var gPct  = primaG ? Number(primaG.body_fat_pct) : null;
+                var gKg   = primaG ? massaGrassa(primaG) : null;
+                var eW = emaDi(date, 'ema_weight'), eK = emaDi(date, 'ema_fat_kg'), eP = emaDi(date, 'ema_fat_pct');
+                var stimW = emaStimata(date, 'ema_weight'), stimF = emaStimata(date, 'ema_fat_kg');
+                function numIt(v, dec) { return v == null || !isFinite(v) ? '—' : v.toFixed(dec).replace('.', ','); }
+                // Il valore che fa i punti si colora contro il target: la media del
+                // grasso sugli obiettivi a massa grassa, il peso del giorno sugli altri.
+                function colore(v) {
+                    if (v == null || !target) return '';
+                    return Math.round(v * 10) / 10 <= Math.round(target * 10) / 10 ? 'color:#00B894;' : 'color:#E74C3C;';
+                }
+                var tdMis = document.createElement('td');
+                tdMis.style.padding = '10px 6px';
+                var griglia = document.createElement('div');
+                griglia.className = 'mis-griglia';
+                var celle = [
+                    [numIt(gPeso, 1), 'mis-v', grassoObj ? '' : colore(gPeso)],
+                    [numIt(gKg, 1), 'mis-v', ''],
+                    [numIt(gPct, 1), 'mis-v', ''],
+                    [numIt(eW, 1), 'mis-ema' + (stimW ? ' mis-stimato' : ''), ''],
+                    [numIt(eK, 1), 'mis-ema' + (stimF ? ' mis-stimato' : ''), grassoObj ? colore(eK) + 'font-weight:bold;' : ''],
+                    [numIt(eP, 1), 'mis-ema' + (stimF ? ' mis-stimato' : ''), '']
+                ];
+                celle.forEach(function(c) {
+                    var sp = document.createElement('span');
+                    sp.textContent = c[0];
+                    sp.className = c[1];
+                    if (c[2]) sp.style.cssText = c[2];
+                    griglia.appendChild(sp);
+                });
+                tdMis.appendChild(griglia);
+                // Un giorno di pesata saltato ma con la media stimata col trend NON è
+                // «non pesato»: i punti li ha fatti sulla media, quindi si mostra stimato.
+                var haMedia = (eW != null || eK != null) && (stimW || stimF);
+                if (isMissed && !prima && haMedia) {
+                    tr.style.background = '#f9f9f9';
+                    iconBadge.textContent = '○ ';
+                    iconBadge.title = 'Nessuna pesata: media stimata col trend';
+                    iconBadge.style.color = '#bbb';
+                }
+                if (isMissed && !prima && !haMedia) {
+                    var nonP = document.createElement('div');
+                    nonP.textContent = 'non pesato';
+                    nonP.style.cssText = 'font-size:0.75em;color:#E74C3C;text-align:center;margin-top:2px;';
+                    tdMis.appendChild(nonP);
+                } else if ((stimW || stimF) && !prima) {
+                    var stimN = document.createElement('div');
+                    stimN.textContent = 'media stimata col trend';
+                    stimN.style.cssText = 'font-size:0.72em;color:#999;text-align:center;margin-top:2px;';
+                    tdMis.appendChild(stimN);
+                }
+                tr.appendChild(tdMis);
+
+                // TARGET · PUNTI · CUMULATO, una sotto l'altra.
+                var tdTarget = document.createElement('td');
+                tdTarget.className = 'tgt-cella';
+                tdTarget.style.padding = '10px 6px';
+                var tgtV = document.createElement('div');
+                tgtV.style.cssText = 'color:#666;font-weight:bold;';
+                tgtV.textContent = target ? target.toFixed(1).replace('.', ',') + ' kg' : '—';
+                tdTarget.appendChild(tgtV);
+                // Sulla massa grassa il target è grasso: sotto, il peso totale di piano e la %.
+                if (target && grassoObj) {
                     var totT = target + magraT;
                     var subT = document.createElement('div');
-                    subT.style.cssText = 'font-size:11px; font-weight:normal; color:#8a6d00;';
-                    subT.textContent = 'di ' + totT.toFixed(1) + ' kg · ' + (target / totT * 100).toFixed(1).replace('.', ',') + ' %';
+                    subT.className = 'tgt-sub';
+                    subT.textContent = 'di ' + totT.toFixed(1).replace('.', ',') + ' kg · ' + (target / totT * 100).toFixed(1).replace('.', ',') + ' %';
                     tdTarget.appendChild(subT);
                 }
-                tr.appendChild(tdTarget);
-
-                // PESO MIN
-                var tdMin = document.createElement('td');
-                tdMin.style.padding = '10px';
-                tdMin.style.textAlign = 'center';
-                tdMin.style.fontWeight = 'bold';
-                tdMin.style.fontSize = '1.1em';
-                if (isInterpolated) {
-                    tdMin.textContent = interpWeight != null ? interpWeight.toFixed(1) + ' kg' : '—';
-                    tdMin.style.color = '#aaa';
-                    tdMin.style.fontStyle = 'italic';
-                } else if (isMissed) {
-                    tdMin.textContent = 'non pesato';
-                    tdMin.style.color = '#E74C3C';
-                    tdMin.style.fontSize = '0.9em';
-                } else if (isPlanned) {
-                    tdMin.textContent = '—';
-                    tdMin.style.color = '#bbb';
-                } else {
-                    tdMin.style.color = (target && Math.round(minWeight * 10) / 10 <= Math.round(target * 10) / 10) ? '#00B894' : '#E74C3C';
-                    tdMin.textContent = minWeight != null ? minWeight.toFixed(1) + ' kg' : '--';
-                    // Obiettivo sulla massa grassa: il totale sotto, a titolo informativo.
-                    var nt = notaTotale(minEntry);
-                    if (nt) {
-                        var sub = document.createElement('div');
-                        sub.textContent = nt;
-                        sub.style.cssText = 'font-size:0.72em;font-weight:normal;color:#999;';
-                        tdMin.appendChild(sub);
-                    }
-                }
-                tr.appendChild(tdMin);
-
-                // PESO MAX
-                var tdMax = document.createElement('td');
-                tdMax.style.padding = '10px';
-                tdMax.style.textAlign = 'center';
-                tdMax.style.fontWeight = 'bold';
-                tdMax.style.fontSize = '1.1em';
-                if (isInterpolated) {
-                    tdMax.textContent = interpWeight != null ? interpWeight.toFixed(1) + ' kg' : '—';
-                    tdMax.style.color = '#aaa';
-                    tdMax.style.fontStyle = 'italic';
-                } else if (isMissed || isPlanned) {
-                    tdMax.textContent = '—';
-                    tdMax.style.color = '#bbb';
-                } else {
-                    tdMax.style.color = (target && Math.round(maxWeight * 10) / 10 <= Math.round(target * 10) / 10) ? '#00B894' : '#E74C3C';
-                    tdMax.textContent = maxWeight != null ? maxWeight.toFixed(1) + ' kg' : '--';
-                    var ntMax = notaTotale(maxEntry);
-                    if (ntMax) {
-                        var subMax = document.createElement('div');
-                        subMax.textContent = ntMax;
-                        subMax.style.cssText = 'font-size:0.72em;font-weight:normal;color:#999;';
-                        tdMax.appendChild(subMax);
-                    }
-                }
-                tr.appendChild(tdMax);
-
-                // PUNTI
-                var tdScore = document.createElement('td');
-                tdScore.style.padding = '10px';
-                tdScore.style.textAlign = 'center';
-                tdScore.style.fontWeight = 'bold';
-                tdScore.style.fontSize = '1.1em';
+                var pti = document.createElement('div');
+                pti.className = 'tgt-punti';
+                var testoP, coloreP;
                 if (isOffPlan) {
-                    tdScore.textContent = '—';
-                    tdScore.style.color = '#ccc';
-                    tdScore.title = 'Fuori calendario: non fa punti';
+                    testoP = '—'; coloreP = '#ccc'; pti.title = 'Fuori calendario: non fa punti';
                 } else if (dailyScore === null) {
-                    tdScore.textContent = isPlanned ? '' : '--';
-                    tdScore.style.color = '#ccc';
-                } else if (dailyScore > 0) {
-                    tdScore.textContent = '+' + dailyScore;
-                    tdScore.style.color = '#00B894';
+                    testoP = isPlanned ? '' : '--'; coloreP = '#ccc';
                 } else {
-                    tdScore.textContent = dailyScore;
-                    tdScore.style.color = '#E74C3C';
+                    testoP = (dailyScore > 0 ? '+' : '') + dailyScore;
+                    coloreP = dailyScore > 0 ? '#00B894' : '#E74C3C';
                 }
-                tr.appendChild(tdScore);
-
-                // CUMULATIVO
-                var tdCumulative = document.createElement('td');
-                tdCumulative.style.padding = '10px';
-                tdCumulative.style.textAlign = 'center';
-                tdCumulative.style.fontWeight = 'bold';
-                tdCumulative.style.fontSize = '1.1em';
+                var testoC = '', coloreC = '#ccc';
                 if (tableCumulMap[date] !== undefined) {
                     var cum = tableCumulMap[date];
-                    tdCumulative.textContent = (cum > 0 ? '+' : '') + cum;
-                    tdCumulative.style.color = cum >= 0 ? '#00B894' : '#E74C3C';
-                } else {
-                    tdCumulative.textContent = '--';
-                    tdCumulative.style.color = '#ccc';
+                    testoC = (cum > 0 ? '+' : '') + cum;
+                    coloreC = cum >= 0 ? '#00B894' : '#E74C3C';
                 }
-                tr.appendChild(tdCumulative);
+                pti.innerHTML = '<span style="color:' + coloreP + '">' + (testoP || '&nbsp;') + '</span>'
+                    + (testoC ? ' <span style="color:#999;font-weight:normal">·</span> <span style="color:' + coloreC + '">' + testoC + '</span>' : '');
+                tdTarget.appendChild(pti);
+                tr.appendChild(tdTarget);
 
                 fragment.appendChild(tr);
             });
