@@ -779,93 +779,150 @@ private fun VistaTabella(righe: List<PesoRegole.RigaGiorno>, onApri: (String) ->
 }
 
 /**
- * Una giornata.
+ * Una giornata — gemella della riga di `tableRenderPage()` del web v4.13.
  *
- * Non una riga di tabella a sei colonne come nel web: coi caratteri di sistema
- * grandi sei colonne o si tagliano o vanno a capo ognuna per conto suo. Qui
- * stanno su tre righe, e quello che conta di più — la data e il peso — è in
- * cima.
+ * Non tre colonne di tabella come nel web, che coi caratteri di sistema grandi
+ * si taglierebbero: una scheda con in cima la data e il target, poi la stessa
+ * griglia 2 × 3 (peso · grasso kg · %) — sopra la **prima pesata** del giorno,
+ * sotto le tre **medie mobili** (viola, in corsivo se stimate) — e in fondo
+ * punti e cumulato. Fondo come il web: bianco i giorni futuri, rosa i giorni
+ * passati senza pesata, azzurro chiaro i giorni di premio, grigio gli altri.
  */
 @Composable
 private fun RigaTabella(riga: PesoRegole.RigaGiorno, onApri: (String) -> Unit) {
-    val sotto = riga.punti?.let { it > 0 }
     val stato = riga.stato
-    // I giorni del piano senza pesata si distinguono dal fondo prima ancora di
-    // leggerli: azzurro «da fare», rosa «non pesato» — i colori del web.
-    val fondo = when (stato) {
-        PesoRegole.StatoRiga.DA_FARE -> Color(0xFFF5F9FF)
-        PesoRegole.StatoRiga.NON_PESATO -> Color(0xFFFFF5F5)
-        else -> Palette.inputBg
+    val fondo = when {
+        riga.futuro -> Color.White
+        riga.senzaPesata -> Color(0xFFFCE4EC)
+        riga.giornoPremio -> Color(0xFFE3F2FD)
+        else -> Color(0xFFF2F2F2)
     }
-    val conPesata = stato == PesoRegole.StatoRiga.PESATA
+    val media = riga.media
+    val stimW = media?.pesoStimato == true
+    val stimF = media?.grassoStimato == true
+    val haMediaStimata = (media?.emaPeso != null || media?.emaGrassoKg != null) && (stimW || stimF)
+    val grassoObj = riga.notaTarget != null
+    // Il valore che fa i punti si colora contro il target: la media del grasso
+    // sugli obiettivi a massa grassa, il peso del giorno sugli altri.
+    fun colore(v: Double?): Color? {
+        val t = riga.target ?: return null
+        if (v == null) return null
+        return if (PesoRegole.arrotonda(v, 1) <= PesoRegole.arrotonda(t, 1)) Verde else Palette.danger
+    }
+    val icona = when {
+        stato == PesoRegole.StatoRiga.DA_FARE -> "📅 "
+        stato == PesoRegole.StatoRiga.NON_PESATO && !haMediaStimata -> "✗ "
+        riga.primaPeso == null && (riga.senzaPesata || riga.interpolata) -> "○ "
+        else -> ""
+    }
+    val conPesata = riga.primaPeso != null
     Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(fondo)
+            .border(1.dp, Palette.border, RoundedCornerShape(10.dp))
             .clickable(enabled = conPesata) { onApri(riga.giorno) }
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = when (stato) {
-                    PesoRegole.StatoRiga.DA_FARE -> "📅 "
-                    PesoRegole.StatoRiga.NON_PESATO -> "✗ "
-                    else -> ""
-                } + dataItaliana(riga.giorno),
+                text = icona + dataItaliana(riga.giorno),
                 fontWeight = FontWeight.Bold,
-                color = if (stato == PesoRegole.StatoRiga.NON_PESATO) Palette.danger else Palette.dark,
+                color = if (icona == "✗ ") Palette.danger else Palette.dark,
+                modifier = Modifier.weight(1f),
             )
-            Text(
-                text = when (stato) {
-                    PesoRegole.StatoRiga.DA_FARE -> "da fare"
-                    PesoRegole.StatoRiga.NON_PESATO -> "non pesato"
-                    else -> "${kg(riga.minimo)} kg"
-                },
-                fontWeight = FontWeight.Bold,
-                color = when (sotto) {
-                    true -> Verde
-                    false -> Palette.danger
-                    null -> Palette.dark
-                },
-            )
-        }
-
-        // Sulla massa grassa: il totale e la % sotto il minimo e il massimo.
-        riga.notaMinimo?.let {
-            Text("min: $it", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
-        }
-        riga.notaMassimo?.takeIf { riga.massimo != null && riga.massimo != riga.minimo }?.let {
-            Text("max: $it", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
-        }
-
-        Text(
-            text = buildString {
-                append("previsto ${kg(riga.target)}")
-                riga.notaTarget?.let { append(" ($it)") }
-                riga.massimo?.takeIf { riga.minimo != null && it != riga.minimo }?.let {
-                    append(" · max ${kg(it)}")
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "target ${riga.target?.let { kg(it) + " kg" } ?: "—"}",
+                    fontWeight = FontWeight.Bold,
+                    color = Palette.muted,
+                )
+                riga.notaTarget?.let {
+                    Text(it, color = Color(0xFF8A6D00), style = MaterialTheme.typography.bodySmall)
                 }
-                if (riga.interpolata) append(" · giorno ricostruito")
-                if (riga.fuoriCalendario) append(" · fuori calendario, niente punti")
-            },
+            }
+        }
+
+        // La griglia: intestazioni, poi giorno (sopra) e media (sotto).
+        fun num(v: Double?) = v?.let { kg(it) } ?: "—"
+        val viola = Color(0xFF6C5CE7)
+        val righeGriglia = listOf(
+            Triple("Peso", num(riga.primaPeso) to num(media?.emaPeso), Triple(if (grassoObj) null else colore(riga.primaPeso), null as Color?, stimW)),
+            Triple("Grasso", num(riga.primaGrassoKg) to num(media?.emaGrassoKg), Triple(null as Color?, if (grassoObj) colore(media?.emaGrassoKg) else null, stimF)),
+            Triple("%", num(riga.primaGrassoPct) to num(media?.emaGrassoPct), Triple(null as Color?, null as Color?, stimF)),
+        )
+        Row(Modifier.fillMaxWidth()) {
+            righeGriglia.forEach { (titolo, valori, stile) ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        titolo,
+                        color = Palette.muted,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    CellaTabella(valori.first, stile.first ?: Palette.dark, grassetto = true)
+                    CellaTabella(valori.second, stile.second ?: viola, grassetto = stile.second != null, corsivo = stile.third)
+                }
+            }
+        }
+        Text(
+            text = "sopra il giorno (prima pesata) · sotto la media",
             color = Palette.muted,
             style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
+        when {
+            stato == PesoRegole.StatoRiga.NON_PESATO && riga.primaPeso == null && !haMediaStimata ->
+                Text("non pesato", color = Palette.danger, style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            stato == PesoRegole.StatoRiga.DA_FARE ->
+                Text("pesata da fare", color = Palette.muted, style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            (stimW || stimF) && riga.primaPeso == null ->
+                Text("media stimata col trend", color = Palette.muted, style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        }
+        if (riga.fuoriCalendario) {
+            Text("fuori calendario, niente punti", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+        }
 
-        riga.punti?.let { punti ->
+        if (riga.punti != null || riga.cumulativo != null) {
             Text(
-                text = "${if (punti >= 0) "+" else "−"}${kotlin.math.abs(punti)} punti · " +
-                    "totale ${riga.cumulativo ?: 0}",
-                color = if (punti >= 0) Verde else Palette.danger,
-                style = MaterialTheme.typography.bodySmall,
+                text = buildString {
+                    riga.punti?.let { append(if (it > 0) "+$it" else if (it < 0) "−${-it}" else "0") }
+                    riga.cumulativo?.let {
+                        if (isNotEmpty()) append(" · ")
+                        append("totale ${if (it > 0) "+$it" else if (it < 0) "−${-it}" else "0"}")
+                    }
+                },
+                color = when {
+                    (riga.punti ?: 0) > 0 -> Verde
+                    (riga.punti ?: 0) < 0 -> Palette.danger
+                    else -> Palette.muted
+                },
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
+}
+
+/** Una cella della griglia della tabella, centrata. */
+@Composable
+private fun CellaTabella(testo: String, colore: Color, grassetto: Boolean, corsivo: Boolean = false) {
+    Text(
+        text = testo,
+        color = colore,
+        fontWeight = if (grassetto) FontWeight.Bold else FontWeight.Normal,
+        fontStyle = if (corsivo) androidx.compose.ui.text.font.FontStyle.Italic else null,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 // ── Dialoghi ─────────────────────────────────────────────────────────────

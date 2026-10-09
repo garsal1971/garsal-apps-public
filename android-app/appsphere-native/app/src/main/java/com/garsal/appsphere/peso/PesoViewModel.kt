@@ -86,6 +86,13 @@ data class PesoState(
      * tabella resta senza punti invece di inventarseli.
      */
     val punti: PuntiServer? = null,
+    /**
+     * Le medie mobili di `ps_daily_ema`, per giorno (web v4.12.0). Vuota finché
+     * non arrivano, o se non arrivano: tabella e grafico restano senza media.
+     */
+    val medie: Map<String, MediaGiorno> = emptyMap(),
+    /** N della media mobile, da `cm_settings.ps_ema_days`. */
+    val emaGiorni: Int = EMA_GIORNI_DEFAULT,
 ) {
     val obiettivo: Obiettivo?
         get() = obiettivi.firstOrNull { it.id == obiettivoId }
@@ -100,7 +107,9 @@ data class PesoState(
      * ogni lettura vorrebbe dire rifare l'interpolazione di un anno di giorni
      * a ogni ridisegno.
      */
-    val righe: List<PesoRegole.RigaGiorno> by lazy { PesoRegole.tabella(vista, obiettivo, contoPunti) }
+    val righe: List<PesoRegole.RigaGiorno> by lazy {
+        PesoRegole.tabella(vista, obiettivo, contoPunti, tutteLePesate = pesate, medie = medie)
+    }
 
     /**
      * Le pesate come le vede l'obiettivo guardato — `pesiInVista()` del web:
@@ -437,6 +446,9 @@ class PesoViewModel : ViewModel() {
      * senza risposta i punti restano vuoti e il log lo dice.
      */
     private suspend fun caricaPunti() {
+        // Le medie mobili insieme ai punti, come `caricaPunti()` del web: sulla
+        // massa grassa i punti si danno proprio sulla media.
+        caricaMedie()
         val id = _state.value.obiettivoId ?: run {
             _state.value = _state.value.copy(punti = null)
             return
@@ -449,6 +461,15 @@ class PesoViewModel : ViewModel() {
                 if (_state.value.obiettivoId == id) _state.value = _state.value.copy(punti = punti)
             }
             .onFailure { Log.w(TAG, "punti non letti", it) }
+    }
+
+    /** Le medie di `ps_daily_ema` e il loro N. Non fallisce mai. */
+    private suspend fun caricaMedie() {
+        val stato = _state.value
+        val da = daQuando(stato.obiettivi, stato.obiettivoId)
+        runCatching { PesoRepository.medie(da) to PesoRepository.emaGiorni() }
+            .onSuccess { (medie, n) -> _state.value = _state.value.copy(medie = medie, emaGiorni = n) }
+            .onFailure { Log.w(TAG, "ps_daily_ema non letta", it) }
     }
 
     fun messaggioMostrato() {

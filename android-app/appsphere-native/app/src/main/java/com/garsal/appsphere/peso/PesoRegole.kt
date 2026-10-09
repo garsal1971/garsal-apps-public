@@ -244,6 +244,11 @@ object PesoRegole {
         NON_PESATO,
         /** Giorno di pesata ancora da venire (oggi compreso, finché non ci si pesa). */
         DA_FARE,
+        /**
+         * Con N: giorno passato fuori calendario senza nessuna pesata. Ha la sua
+         * riga lo stesso, con le medie stimate — web v4.13.2.
+         */
+        SENZA_PESATA,
     }
 
     /**
@@ -272,6 +277,20 @@ object PesoRegole {
         val notaMassimo: String? = null,
         /** Sulla massa grassa: «di X kg · Y %» sotto il previsto. */
         val notaTarget: String? = null,
+        // ── La riga come la tabella del web v4.13 ───────────────────────
+        /** La PRIMA pesata del giorno (peso totale), quella che entra nella media. */
+        val primaPeso: Double? = null,
+        /** Grasso (kg e %) della prima pesata che il grasso ce l'ha. */
+        val primaGrassoKg: Double? = null,
+        val primaGrassoPct: Double? = null,
+        /** Le medie mobili del giorno (`ps_daily_ema`), se ci sono. */
+        val media: MediaGiorno? = null,
+        /** Giorno passato senza nessuna pesata: fondo rosa, medie stimate. */
+        val senzaPesata: Boolean = false,
+        /** Giorno in cui il piano dà punti: fondo azzurro chiaro. */
+        val giornoPremio: Boolean = false,
+        /** Giorno futuro, o oggi ancora da pesare: fondo bianco. */
+        val futuro: Boolean = false,
     )
 
     /** Una giornata del conto dei punti — una riga di `ps_punti`. */
@@ -301,8 +320,12 @@ object PesoRegole {
         obiettivo: Obiettivo?,
         conto: List<RigaPunti>,
         oggi: LocalDate = LocalDate.now(),
+        /** Le pesate vere (peso totale), per la prima pesata e i giorni senza. */
+        tutteLePesate: List<Pesata> = pesate,
+        medie: Map<String, MediaGiorno> = emptyMap(),
     ): List<RigaGiorno> {
         val perGiorno = pesate.groupBy { it.giorno }
+        val veriPerGiorno = tutteLePesate.groupBy { it.giorno }
         val minimi = minimiGiornalieri(pesate)
         val oggiStr = oggi.toString()
 
@@ -324,9 +347,24 @@ object PesoRegole {
             if (obiettivo.ogniGiorni != null) ricostruiti.clear()
         }
 
+        // Ogni giorno passato dell'obiettivo senza nessuna pesata ha la sua
+        // riga (web v4.13.2): medie stimate col trend e target, su fondo rosa.
+        // Oggi no finché non ci si pesa: la giornata non è finita.
+        val senza = mutableSetOf<String>()
+        if (obiettivo != null && inizio != null) {
+            val fineS = if (obiettivo.fine.isNotBlank() && obiettivo.fine < oggiStr) obiettivo.fine else oggiStr
+            var c: LocalDate = inizio
+            while (true) {
+                val g = c.toString()
+                if (g >= oggiStr || g > fineS) break
+                if (veriPerGiorno[g].isNullOrEmpty()) senza += g
+                c = c.plusDays(1)
+            }
+        }
+
         val perConto = conto.associateBy { it.giorno }
 
-        return (perGiorno.keys + ricostruiti + saltati + daFare).sortedDescending().map { giorno ->
+        return (perGiorno.keys + ricostruiti + saltati + daFare + senza).sortedDescending().map { giorno ->
             val righe = perGiorno[giorno]
             val minima = righe?.minByOrNull { it.peso }
             val massima = righe?.maxByOrNull { it.peso }
@@ -335,8 +373,13 @@ object PesoRegole {
                 giorno in saltati -> StatoRiga.NON_PESATO
                 giorno in daFare -> StatoRiga.DA_FARE
                 interpolato -> StatoRiga.RICOSTRUITO
+                perGiorno[giorno] == null && giorno in senza -> StatoRiga.SENZA_PESATA
                 else -> StatoRiga.PESATA
             }
+            // La prima pesata del giorno: la stessa che entra nella media.
+            val veri = veriPerGiorno[giorno].orEmpty()
+            val prima = veri.minByOrNull { it.timestamp }
+            val primaG = veri.filter { it.grasso != null }.minByOrNull { it.timestamp }
             val dentro = obiettivo != null && giorno >= obiettivo.inizio && giorno <= obiettivo.fine
             // ⚠️ [pesate] sono quelle di [pesiVista]: sulla massa grassa il target
             // congelato è già in grasso, e quello interpolato va convertito.
@@ -358,6 +401,13 @@ object PesoRegole {
                 notaMinimo = if (interpolato) null else notaTotale(minima),
                 notaMassimo = if (interpolato) null else notaTotale(massima),
                 notaTarget = notaTargetTotale(target, obiettivo),
+                primaPeso = prima?.peso,
+                primaGrassoKg = primaG?.let { massaGrassa(it) },
+                primaGrassoPct = primaG?.grasso,
+                media = medie[giorno],
+                senzaPesata = giorno in senza,
+                giornoPremio = dentro && giornoDiPesata(obiettivo!!, giorno),
+                futuro = giorno > oggiStr || (giorno in daFare && veri.isEmpty()),
             )
         }
     }

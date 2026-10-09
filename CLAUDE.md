@@ -1271,8 +1271,8 @@ minimo e massimo e «di X kg · Y %» sotto il previsto, e i tre grafici che sco
 
 ### 📈 La media mobile esponenziale (`ps_daily_ema`)
 
-(9 ottobre 2026, `20261009100000_ps_media_mobile.sql`, web v4.12.0 — **solo web**, il nativo non
-la legge ancora.) La bilancia a impedenza balla troppo per dare punti sulla singola pesata. Una
+(9 ottobre 2026, `20261009100000_ps_media_mobile.sql`, web v4.12.0; dall'APK 1.0.118 la legge anche il
+nativo: tabella con prima pesata e medie, grafici con prima pesata + media e legenda.) La bilancia a impedenza balla troppo per dare punti sulla singola pesata. Una
 riga per giorno con il valore del giorno — la **prima pesata** della giornata — e le medie mobili
 esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro trend.
 
