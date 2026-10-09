@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.13.1</title>
+  <title>Peso e Calorie v4.13.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1132,7 +1132,7 @@
         }
 
 
-        /* La cella delle misurazioni (v4.13.1): due righe × tre colonne. Sopra la prima pesata
+        /* La cella delle misurazioni (v4.13.2): due righe × tre colonne. Sopra la prima pesata
            del giorno, sotto le tre medie mobili. Le colonne sono 1fr anche nell'intestazione,
            così restano in colonna con le celle sotto. */
         .mis-griglia { display: grid; grid-template-columns: repeat(3, minmax(3.2em, 1fr)); column-gap: 6px; row-gap: 2px; text-align: center; }
@@ -1791,8 +1791,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.13.1';
-        var BUILD_TIME  = '2026-10-09T12:21:00Z';
+        var APP_VERSION = 'v4.13.2';
+        var BUILD_TIME  = '2026-10-09T12:26:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -6919,6 +6919,7 @@
         var tableDailyScoreMap= {};
         var tableObj          = null;
         var tableMissedDays   = {};   // giorni di pesata passati senza pesata
+        var tableNoWeighDays  = {};   // giorni passati senza nessuna pesata: medie stimate, fondo rosa
         var tablePlannedDays  = {};   // giorni di pesata da oggi alla fine
 
         function updateWeightTable(data) {
@@ -6975,7 +6976,27 @@
                 if (ogniN) interpolatedDays = {};
             }
 
+            // Ogni giorno passato dell'obiettivo senza nessuna pesata ha comunque
+            // la sua riga: medie stimate col trend e target, su fondo rosa. Oggi
+            // no finché non ci si pesa: la giornata non è finita.
+            var giorniSenza = {};
+            if (obj && startDateStr) {
+                var conPesata = {};
+                (userData.weights || []).forEach(function(r) { if (r.weight != null) conPesata[r.date] = true; });
+                var oggiS = localDateStr();
+                var fineS = endDateStr && endDateStr < oggiS ? endDateStr : oggiS;
+                var cs = new Date(startDateStr.slice(0, 10) + 'T12:00:00');
+                while (true) {
+                    var dss = localDateStr(cs);
+                    if (dss >= oggiS || dss > fineS) break;
+                    if (!conPesata[dss]) giorniSenza[dss] = true;
+                    cs.setDate(cs.getDate() + 1);
+                }
+            }
+            tableNoWeighDays = giorniSenza;
+
             var allDays = Object.keys(dayGroups)
+                .concat(Object.keys(giorniSenza))
                 .concat(Object.keys(interpolatedDays))
                 .concat(Object.keys(missedDays))
                 .concat(Object.keys(plannedDays))
@@ -7179,7 +7200,9 @@
                 // azzurro chiaro; tutti gli altri grigio. Lo stato del giorno
                 // (non pesato, stimato, da fare) lo dicono icona e cella.
                 var giornoPremio = !!(obj && inRange && giornoDiPesata(obj, date));
-                tr.style.background = giornoPremio ? '#E3F2FD' : '#F2F2F2';
+                tr.style.background = tableNoWeighDays[date] ? '#FCE4EC'
+                    : (giornoPremio ? '#E3F2FD' : '#F2F2F2');
+                if (tableNoWeighDays[date]) tr.style.opacity = '1';
                 if (giornoPremio) tr.title = 'Giorno di premio: qui si fanno i punti';
 
                 // DATA
@@ -7208,6 +7231,10 @@
                     iconBadge.textContent = '✗ ';
                     iconBadge.title = 'Giorno di pesata passato senza pesarsi';
                     iconBadge.style.color = '#E74C3C';
+                } else if (tableNoWeighDays[date]) {
+                    iconBadge.textContent = '○ ';
+                    iconBadge.title = 'Nessuna pesata: medie stimate col trend';
+                    iconBadge.style.color = '#bbb';
                 } else if (hasManual) {
                     // Almeno una pesata manuale → matita
                     iconBadge.textContent = '✏️ ';
