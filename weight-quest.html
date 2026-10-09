@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.13.3</title>
+  <title>Peso e Calorie v4.13.4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1132,7 +1132,7 @@
         }
 
 
-        /* La cella delle misurazioni (v4.13.3): due righe × tre colonne. Sopra la prima pesata
+        /* La cella delle misurazioni (v4.13.4): due righe × tre colonne. Sopra la prima pesata
            del giorno, sotto le tre medie mobili. Le colonne sono 1fr anche nell'intestazione,
            così restano in colonna con le celle sotto. */
         .mis-griglia { display: grid; grid-template-columns: repeat(3, minmax(3.2em, 1fr)); column-gap: 6px; row-gap: 2px; text-align: center; }
@@ -1791,8 +1791,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.13.3';
-        var BUILD_TIME  = '2026-10-09T12:32:00Z';
+        var APP_VERSION = 'v4.13.4';
+        var BUILD_TIME  = '2026-10-09T12:55:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5247,9 +5247,18 @@
             return { from: localDateStr(startD), to: obj.end_date || null };
         }
 
+        var ricaricaDopo = false;
+        function fineCaricamento() {
+            isLoadingData = false;
+            if (ricaricaDopo) { ricaricaDopo = false; setTimeout(loadData, 0); }
+        }
+
         function loadData() {
             if (isLoadingData) {
-                log('SKIP loadData: caricamento già in corso');
+                // Una pesata salvata mentre un caricamento è in corso non va persa:
+                // quello in corso ha letto i dati di prima, quindi se ne rifà uno appena finisce.
+                log('loadData: caricamento in corso, lo ripeto appena finisce');
+                ricaricaDopo = true;
                 return;
             }
             
@@ -5262,7 +5271,7 @@
                 .then(function(response) {
                     if (response.error) {
                         log('ERROR: ' + response.error.message);
-                        isLoadingData = false;
+                        fineCaricamento();
                         return;
                     }
                     log('Dati caricati: ' + (response.data ? response.data.length : 0) + ' record');
@@ -5288,14 +5297,14 @@
                             updateMilestoneProgressBar();
                             updateWeightTable(dati);
                             updateWeightChart(dati);
-                            isLoadingData = false;
+                            fineCaricamento();
                         });
                     }
-                    isLoadingData = false;
+                    fineCaricamento();
                 })
                 .catch(function(error) {
                     log('ERROR catch: ' + error.message);
-                    isLoadingData = false;
+                    fineCaricamento();
                 });
         }
 
@@ -5562,7 +5571,8 @@
         // senza risposta i punti restano vuoti (e il log lo dice), invece di
         // fermare il disegno della tabella e del grafico.
         function caricaPunti() {
-            return Promise.all([caricaPuntiServer(), caricaEma()]);
+            // Prima le medie, poi i punti: se le medie vanno ricalcolate, i punti le leggono già rifatte.
+            return caricaEma().then(caricaPuntiServer);
         }
 
         // ── La media mobile esponenziale (`ps_daily_ema`) ────────────────
@@ -5575,7 +5585,7 @@
         // e si cambia da ⚙️ Impostazioni (`ps_ema_ricalcola`).
         // Sulla massa grassa i punti si danno sulla media (RPC `ps_punti`).
         var EMA_DEFAULT = 7;
-        function caricaEma() {
+        function caricaEma(riprova) {
             if (!supabase) { userData.ema = {}; return Promise.resolve(); }
             var da = calcFetchRange().from;
             var url = supabase.url + '/rest/v1/ps_daily_ema?select=*&order=day.asc&limit=5000'
@@ -5591,6 +5601,16 @@
                 .then(function(res) {
                     var mappa = {};
                     (res[0] || []).forEach(function(r) { mappa[String(r.day).slice(0, 10)] = r; });
+                    // Le medie le rifà il trigger a ogni scrittura. Se non tornano con le pesate
+                    // appena lette (un giorno nuovo, una pesata corretta o cancellata), le si
+                    // fa ricalcolare una volta e si rileggono: meglio un giro in più che una
+                    // tabella che mostra le medie di prima.
+                    if (!riprova && !emaAllineata(mappa)) {
+                        log('📈 Medie non allineate alle pesate: ricalcolo');
+                        return fetch(supabase.url + '/rest/v1/rpc/ps_ema_ricalcola', {
+                            method: 'POST', headers: supabase.headers, body: '{}'
+                        }).then(function() { return caricaEma(true); });
+                    }
                     userData.ema = mappa;
                     var n = parseInt(res[1] && res[1][0] ? String(res[1][0].value).replace(/"/g, '') : '', 10);
                     userData.emaGiorni = n >= 2 ? Math.min(n, 90) : EMA_DEFAULT;
@@ -5599,6 +5619,30 @@
                     userData.ema = {};
                     log('ERROR ps_daily_ema: ' + e.message);
                 });
+        }
+        // Le righe di ps_daily_ema dicono le stesse cose delle pesate? Per ogni giorno
+        // caricato la prima pesata (e il primo grasso) deve coincidere col valore vero della
+        // riga, e un giorno senza pesate non deve avere un valore vero.
+        function emaAllineata(mappa) {
+            var primo = {}, primoG = {};
+            (userData.weights || []).forEach(function(r) {
+                if (r.weight == null || !r.date) return;
+                var ts = Number(r.timestamp);
+                if (!primo[r.date] || ts < primo[r.date].ts) primo[r.date] = { ts: ts, w: Number(r.weight) };
+                if (r.body_fat_pct != null && (!primoG[r.date] || ts < primoG[r.date].ts))
+                    primoG[r.date] = { ts: ts, p: Number(r.body_fat_pct) };
+            });
+            var vicino = function(a, b) { return a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.006; };
+            for (var d in primo) {
+                var e = mappa[d];
+                if (!e || e.weight_stimato || !vicino(e.weight, primo[d].w)) return false;
+                if (primoG[d] && (e.fat_stimato || !vicino(e.fat_pct, primoG[d].p))) return false;
+            }
+            for (var g in mappa) {
+                if (!primo[g] && !mappa[g].weight_stimato && mappa[g].weight != null
+                    && userData.weights && userData.weights.length && g >= userData.weights[userData.weights.length - 1].date) return false;
+            }
+            return true;
         }
         // La media di un giorno per una delle tre serie: 'ema_weight',
         // 'ema_fat_kg', 'ema_fat_pct'. Null se quel giorno non c'è.
