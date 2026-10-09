@@ -1298,6 +1298,10 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
   (`giornoDiPesata`) hanno il fondo azzurro chiaro, tutti gli altri grigio (v4.13.1). Ogni giorno
   passato senza nessuna pesata ha comunque la sua riga, con medie stimate e target, su fondo **rosa**
   (v4.13.2); oggi no finché non ci si pesa. I giorni futuri (e oggi da pesare) sono bianchi (v4.13.3).
+- **La tabella si rifà a ogni pesata nuova o corretta** (v4.13.4): un `loadData()` chiamato mentre
+  un altro è in corso non si salta più ma si **ripete appena finisce** (`ricaricaDopo`), e
+  `caricaEma` confronta le righe di `ps_daily_ema` con le pesate appena lette (`emaAllineata`):
+  se non tornano chiama `ps_ema_ricalcola` una volta e rilegge. Medie prima, punti dopo.
 
 ### ⚖️ Pesarsi ogni N giorni, e il promemoria della pesata
 
