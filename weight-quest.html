@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.13.0</title>
+  <title>Peso e Calorie v4.13.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1132,7 +1132,7 @@
         }
 
 
-        /* La cella delle misurazioni (v4.13.0): due righe × tre colonne. Sopra la prima pesata
+        /* La cella delle misurazioni (v4.13.1): due righe × tre colonne. Sopra la prima pesata
            del giorno, sotto le tre medie mobili. Le colonne sono 1fr anche nell'intestazione,
            così restano in colonna con le celle sotto. */
         .mis-griglia { display: grid; grid-template-columns: repeat(3, minmax(3.2em, 1fr)); column-gap: 6px; row-gap: 2px; text-align: center; }
@@ -1791,8 +1791,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.13.0';
-        var BUILD_TIME  = '2026-10-09T12:16:00Z';
+        var APP_VERSION = 'v4.13.1';
+        var BUILD_TIME  = '2026-10-09T12:21:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -7174,6 +7174,13 @@
                 } else if (!inRange) {
                     tr.style.opacity = '0.4';
                 }
+                // I giorni di premio — quelli in cui il calendario del piano dà
+                // punti (giornoDiPesata: tutti, o uno ogni N) — hanno il fondo
+                // azzurro chiaro; tutti gli altri grigio. Lo stato del giorno
+                // (non pesato, stimato, da fare) lo dicono icona e cella.
+                var giornoPremio = !!(obj && inRange && giornoDiPesata(obj, date));
+                tr.style.background = giornoPremio ? '#E3F2FD' : '#F2F2F2';
+                if (giornoPremio) tr.title = 'Giorno di premio: qui si fanno i punti';
 
                 // DATA
                 var tdDate = document.createElement('td');
@@ -7283,7 +7290,6 @@
                 // «non pesato»: i punti li ha fatti sulla media, quindi si mostra stimato.
                 var haMedia = (eW != null || eK != null) && (stimW || stimF);
                 if (isMissed && !prima && haMedia) {
-                    tr.style.background = '#f9f9f9';
                     iconBadge.textContent = '○ ';
                     iconBadge.title = 'Nessuna pesata: media stimata col trend';
                     iconBadge.style.color = '#bbb';

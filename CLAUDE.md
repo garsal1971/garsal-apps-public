@@ -1294,7 +1294,8 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
   è una griglia 2×3 (peso · grasso kg · %): sopra la **prima pesata** del giorno, sotto le tre
   medie (viola, in corsivo se stimate). Target porta sotto il totale e la % di piano, poi
   «punti · cumulato». MIN e MAX del giorno non ci sono più. Un giorno di pesata saltato ma con la
-  media stimata si legge ○ «media stimata col trend», non «non pesato».
+  media stimata si legge ○ «media stimata col trend», non «non pesato». I giorni di premio
+  (`giornoDiPesata`) hanno il fondo azzurro chiaro, tutti gli altri grigio (v4.13.1).
 
 ### ⚖️ Pesarsi ogni N giorni, e il promemoria della pesata
 
