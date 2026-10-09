@@ -1269,6 +1269,29 @@ minimo e massimo e «di X kg · Y %» sotto il previsto, e i tre grafici che sco
 `massaGrassa` / `pesiVista` / `notaTotale` in `PesoRegole.kt` contro le omonime del web; la
 `PesoState.vista` è il `pesiInVista()` di là, e `PesoState.pesate` resta il dato vero.
 
+### 📈 La media mobile esponenziale (`ps_daily_ema`)
+
+(9 ottobre 2026, `20261009100000_ps_media_mobile.sql`, web v4.12.0 — **solo web**, il nativo non
+la legge ancora.) La bilancia a impedenza balla troppo per dare punti sulla singola pesata. Una
+riga per giorno con il valore del giorno — la **prima pesata** della giornata — e le medie mobili
+esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro trend.
+
+- ⚠️ **La calcola il database e basta**: `ps_ema_ricalcola()` rifà la tabella dell'utente da
+  capo, e la chiama un trigger **per istruzione** su `ps_weight_tracking` (un errore lì non fa
+  fallire la pesata). La pagina legge e disegna.
+- **N** sta in `cm_settings`, chiave `ps_ema_days` (di partenza 7, fra 2 e 90), α = 2/(N+1). Si
+  cambia da ⚙️ Impostazioni, che poi chiama `ps_ema_ricalcola`.
+- **Un giorno senza pesata si stima col trend** (media + trend, riga `*_stimato`). Un buco di più
+  di 14 giorni non si stima: la serie riparte alla pesata dopo.
+- La massa grassa media è la **media dei kg giornalieri**, non peso medio × % media.
+- Sugli obiettivi **`use_fat_mass`**: i punti dei giorni di pesata si danno sulla **media della
+  massa grassa** contro il grasso previsto (giorno passato senza nessun valore = malus); le
+  ⭐ stelline sul **peso giornaliero vero** (prima pesata, giorni stimati esclusi); la chiusura
+  «perdere» sulla media di oggi, «mantenere» sulla media più alta del periodo. Gli obiettivi sul
+  peso totale non cambiano.
+- Nei grafici la media è la linea viola e le pesate restano sbiadite; nella tabella ogni giorno
+  porta «📈 media …».
+
 ### ⚖️ Pesarsi ogni N giorni, e il promemoria della pesata
 
 `ps_objectives.weigh_every_days` (`20260922100000_ps_objectives_pesata_ogni_n.sql`) dice ogni
