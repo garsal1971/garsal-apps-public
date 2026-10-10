@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.8</title>
+<title>AppSphere v1.10.9</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2172,8 +2172,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.8';
-const BUILD_TIME  = '2026-10-10T13:00:00Z';
+const APP_VERSION = 'v1.10.9';
+const BUILD_TIME  = '2026-10-10T15:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4995,7 +4995,7 @@ async function loadCronologia() {
 const PT_EMOJI = {
   'tasks.html': '✅', 'weight-quest.html': '⚖️', 'events-log.html': '📓',
   'habit-tracker.html': '🔁', 'memo.html': '🏅', 'ta-firi.html': '🔥',
-  'sos.html': '🆘', 'decisions.html': '🧭',
+  'sos.html': '🆘', 'decisions.html': '🧭', 'piante.html': '🌱',
 };
 
 // Una data solo giorno (`YYYY-MM-DD`) si legge in ora locale: `new Date()`
@@ -5121,6 +5121,22 @@ const PT_LETTORI = {
     return giri.map(s => {
       const t = tp.get(s.sos_type_id);
       return { quando: ptData(s.ended_at), pts: s.points, testo: (t ? (t.emoji || '🆘') + ' ' + t.name : 'SOS') + (s.outcome_label ? ' · ' + s.outcome_label : '') };
+    });
+  },
+
+  // SUM(points) FROM pv_action_history
+  // La riga porta da sé il nome dell'azione (action_title), quindi un'azione
+  // cancellata resta leggibile; la pianta si cerca per l'etichetta.
+  'piante.html': async () => {
+    const [storia, piante] = await Promise.all([
+      ptLeggi('pv_action_history?select=plant_id,action_title,action,points,timestamp&points=neq.0'),
+      ptLeggi('pv_plants?select=id,name'),
+    ]);
+    const pp = new Map(piante.map(p => [p.id, p]));
+    return storia.map(h => {
+      const pianta = pp.get(h.plant_id);
+      const nome = ptVirg(h.action_title || 'azione') + (pianta ? ' — ' + pianta.name : '');
+      return { quando: ptData(h.timestamp), pts: h.points, testo: (PT_AZIONI[h.action] || h.action || 'Punti') + ' · ' + nome };
     });
   },
 
