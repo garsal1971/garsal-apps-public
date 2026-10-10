@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.2</title>
+<title>AppSphere v1.10.3</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2040,7 +2040,7 @@
     <div class="sp-value" id="hp-value">—</div>
   </div>
 </div>
-<button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco">🗄️ <span id="drawer-dots"></span></button>
+<button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco" aria-label="Cassetto"><span id="drawer-dots"></span></button>
 
 <!-- 🗄️ CASSETTO: le bolle tolte dalla home col doppio tocco -->
 <div id="drawer-overlay" onclick="if (event.target === this) closeDrawer()">
@@ -2163,8 +2163,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.2';
-const BUILD_TIME  = '2026-10-10T09:00:00Z';
+const APP_VERSION = 'v1.10.3';
+const BUILD_TIME  = '2026-10-10T09:15:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
