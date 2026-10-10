@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.7</title>
+<title>AppSphere v1.10.8</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -255,7 +255,7 @@
      al catalogo premi, perché quei punti non si spendono — quindi niente
      `cursor:pointer` e niente `:hover`, che prometterebbero un clic. */
   #hidden-panel { background: #7F1D1D; }
-  /* 🗄️ Il cassetto: le bolle tolte dalla home col doppio tocco. In alto a destra, sotto la
+  /* 🗄️ Il cassetto: le bolle trascinate qui sopra (v1.10.8; fino alla v1.10.7 col doppio tocco). In alto a destra, sotto la
      barra blu (v1.10.1); le bolle lo scansano perché `getScorePanelRect()` lo misura insieme
      ai riquadri del totale. */
   #drawer-chip {
@@ -287,6 +287,11 @@
   .drawer-dot { width: 16px; height: 16px; border-radius: 3px; border: 2px solid #111; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
   .drawer-more { font-size: 14px; font-weight: 700; }
   #drawer-chip.visible { display: grid; }
+  /* Durante un trascinamento il cassetto compare anche vuoto (è lì che si lascia la bolla),
+     e si accende quando il dito ci passa sopra. */
+  #drawer-chip.bersaglio { display: grid; border-style: dashed; }
+  #drawer-dots:empty::after { content: '🗄️'; font-size: 26px; }
+  #drawer-chip.sopra { background: #FDE68A; transform: scale(1.12); border-style: solid; }
   #drawer-overlay {
     display: none;
     position: fixed;
@@ -2044,9 +2049,9 @@
     <div class="sp-value" id="hp-value">—</div>
   </div>
 </div>
-<button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco" aria-label="Cassetto"><span id="drawer-dots"></span></button>
+<button id="drawer-chip" type="button" onclick="openDrawer()" title="Trascina una bolla qui sopra per metterla nel cassetto" aria-label="Cassetto"><span id="drawer-dots"></span></button>
 
-<!-- 🗄️ CASSETTO: le bolle tolte dalla home col doppio tocco -->
+<!-- 🗄️ CASSETTO: le bolle trascinate sopra il cassetto -->
 <div id="drawer-overlay" onclick="if (event.target === this) closeDrawer()">
   <div class="rw-modal">
     <div class="rw-modal-header">
@@ -2167,8 +2172,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.7';
-const BUILD_TIME  = '2026-10-10T12:00:00Z';
+const APP_VERSION = 'v1.10.8';
+const BUILD_TIME  = '2026-10-10T13:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2645,7 +2650,7 @@ function makeDraggable(node) {
 
   function onDown(e) {
     // ⚠️ Dopo un tocco il browser genera anche mousedown/mouseup sintetici: contati, un tocco
-    // solo sembrerebbe un doppio tocco e la bolla finirebbe nel cassetto.
+    // solo aprirebbe l'app due volte.
     if (e.type === 'touchstart') ultimoTocco = Date.now();
     else if (e.type === 'mousedown' && Date.now() - ultimoTocco < 800) return;
     // Capture mode attiva: registra colore nella casella successiva
@@ -2685,8 +2690,10 @@ function makeDraggable(node) {
     if (!moved && Math.hypot(dx, dy) > 4) {
       moved = true;
       el.classList.add('dragging');
+      cassettoBersaglio(true);
     }
     if (!moved) return;
+    sopraCassetto = ditoSulCassetto(x, y);
 
     // Update dragged node position: viewport clamp, then panel exclusion.
     node.x = clamp(origX + dx, node.r + PAD, W - node.r - PAD);
@@ -2703,13 +2710,17 @@ function makeDraggable(node) {
 
   function onUp() {
     dragging = false;
+    const nelCassetto = moved && sopraCassetto;
+    sopraCassetto = false;
+    cassettoBersaglio(false);
     el.classList.remove('dragging');
     nodes.forEach(n => n.el.classList.remove('pushed'));
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('touchmove', onMove);
     window.removeEventListener('mouseup', onUp);
     window.removeEventListener('touchend', onUp);
-    if (!moved) tapSullaBolla(node);
+    if (nelCassetto) mettiNelCassetto(node.app);
+    else if (!moved) launchApp(node.app);
   }
 
   el.addEventListener('mousedown', onDown);
@@ -2717,14 +2728,33 @@ function makeDraggable(node) {
 }
 
 // ── 🗄️ CASSETTO (v1.10.0) ──
-// Doppio tocco su una bolla → la bolla sparisce dalla home e finisce nel cassetto (il 🗄️
-// accanto al totale); dal cassetto un tocco la rimette in home. ⚠️ Per distinguere il doppio
-// tocco il tocco singolo apre l'app dopo DOPPIO_MS. ⚠️ Il cassetto vive in localStorage: è
-// una preferenza di questo dispositivo, non un dato — e i punti dell'app continuano a contare.
-const DOPPIO_MS = 300;
+// Una bolla trascinata sopra il cassetto (il 🗄️ in alto a destra) sparisce dalla home e ci
+// finisce dentro; dal cassetto un tocco la rimette in home. ⚠️ Fino alla v1.10.7 ci si
+// arrivava col doppio tocco, che si confondeva con altri gesti e ritardava di 300 ms
+// l'apertura di ogni app: ora il tocco apre subito. ⚠️ Durante il trascinamento il cassetto
+// compare anche vuoto, o la prima bolla non avrebbe dove andare. ⚠️ Conta il DITO e non la
+// bolla: la bolla scansa il cassetto (`getScorePanelRect`) e non ci entrerebbe mai.
+// ⚠️ Il cassetto vive in localStorage: è una preferenza di questo dispositivo, non un dato —
+// e i punti dell'app continuano a contare.
 const CASSETTO_KEY = 'appsphere_cassetto';
 let ultimoTocco = 0;
-let tapInAttesa = null; // { id, timer }
+let sopraCassetto = false;
+
+function cassettoBersaglio(acceso) {
+  const chip = document.getElementById('drawer-chip');
+  if (!chip) return;
+  chip.classList.toggle('bersaglio', acceso);
+  if (!acceso) chip.classList.remove('sopra');
+}
+
+function ditoSulCassetto(x, y) {
+  const chip = document.getElementById('drawer-chip');
+  if (!chip) return false;
+  const r = chip.getBoundingClientRect();
+  const dentro = r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  chip.classList.toggle('sopra', dentro);
+  return dentro;
+}
 
 function cassettoIds() {
   try {
@@ -2734,20 +2764,6 @@ function cassettoIds() {
 }
 function salvaCassetto(set) {
   try { localStorage.setItem(CASSETTO_KEY, JSON.stringify([...set])); } catch (e) { /* senza storage resta in home */ }
-}
-
-function tapSullaBolla(node) {
-  if (tapInAttesa && tapInAttesa.id === node.id) {
-    clearTimeout(tapInAttesa.timer);
-    tapInAttesa = null;
-    mettiNelCassetto(node.app);
-    return;
-  }
-  if (tapInAttesa) clearTimeout(tapInAttesa.timer);
-  tapInAttesa = {
-    id: node.id,
-    timer: setTimeout(() => { tapInAttesa = null; launchApp(node.app); }, DOPPIO_MS),
-  };
 }
 
 function mettiNelCassetto(app) {
@@ -2808,7 +2824,7 @@ function renderDrawer() {
   if (!apps.length) { body.innerHTML = '<p class="dr-hint">Il cassetto è vuoto.</p>'; return; }
   const hint = document.createElement('p');
   hint.className = 'dr-hint';
-  hint.textContent = 'Tocca un\'app per rimetterla nella home. Per mettercene un\'altra: doppio tocco sulla sua bolla.';
+  hint.textContent = 'Tocca un\'app per rimetterla nella home. Per mettercene un\'altra: trascina la sua bolla sopra il cassetto.';
   body.appendChild(hint);
   apps.forEach(app => {
     const b = document.createElement('button');

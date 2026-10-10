@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -217,6 +218,10 @@ fun HomeScreen(
                 // 🗄️ Il cassetto in alto a destra: anche lui si scansa, e si misura.
                 var ingombroCassetto by remember { mutableStateOf(IntSize.Zero) }
                 val nelCassetto = stato.bolleNelCassetto
+                // 🗄️ Mentre si trascina una bolla il cassetto compare anche vuoto (è lì che la
+                // si lascia), e si accende quando il dito ci passa sopra.
+                var inTrascinamento by remember { mutableStateOf(false) }
+                var sopraCassetto by remember { mutableStateOf(false) }
 
                 if (stato.bolle.isEmpty() && stato.caricamento) {
                     CircularProgressIndicator(
@@ -238,13 +243,18 @@ fun HomeScreen(
                         onApri = onApriApp,
                         onCatturaColore = vm::catturaColore,
                         onPressioneLunga = vm::apriCattura,
-                        onDoppioTocco = { vm.mettiNelCassetto(it.htmlFile) },
+                        onTrascinamento = { attivo, sopra ->
+                            inTrascinamento = attivo
+                            sopraCassetto = sopra
+                        },
+                        onNelCassetto = { vm.mettiNelCassetto(it.htmlFile) },
                     )
                 }
 
-                if (nelCassetto.isNotEmpty()) {
+                if (nelCassetto.isNotEmpty() || inTrascinamento) {
                     Cassetto(
                         bolle = nelCassetto,
+                        evidenziato = sopraCassetto,
                         onClick = { mostraCassetto = true },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -327,7 +337,12 @@ fun HomeScreen(
  * griglia di ⌈√n⌉ colonne — cresce col numero e resta quadrato, mai sotto i 64 dp.
  */
 @Composable
-private fun Cassetto(bolle: List<Bolla>, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun Cassetto(
+    bolle: List<Bolla>,
+    evidenziato: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val mostrate = bolle.take(MAX_BOLLICINE)
     val altre = bolle.size - mostrate.size
     val celle = mostrate.size + if (altre > 0) 1 else 0
@@ -337,12 +352,15 @@ private fun Cassetto(bolle: List<Bolla>, onClick: () -> Unit, modifier: Modifier
         modifier
             .size(lato)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFE5E7EB))
+            .background(if (evidenziato) Color(0xFFFDE68A) else Color(0xFFE5E7EB))
             .border(4.dp, NeroBordo, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Vuoto si vede solo durante un trascinamento: dice cos'è il bersaglio.
+        if (bolle.isEmpty()) {
+            Text("🗄️", fontSize = 26.sp)
+        } else Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val celleList: List<Bolla?> = mostrate + if (altre > 0) listOf(null) else emptyList()
             celleList.chunked(colonne).forEach { riga ->
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -377,7 +395,7 @@ private fun DialogoCassetto(bolle: List<Bolla>, onRimetti: (Bolla) -> Unit, onCh
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    "Tocca un'app per rimetterla nella home. Per mettercene un'altra: doppio tocco sulla sua bolla.",
+                    "Tocca un'app per rimetterla nella home. Per mettercene un'altra: trascina la sua bolla qui sopra.",
                     color = Palette.muted,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -435,10 +453,12 @@ private fun CampoBolle(
     onApri: (String) -> Unit,
     onCatturaColore: (String) -> Unit,
     onPressioneLunga: () -> Unit,
-    onDoppioTocco: (Bolla) -> Unit,
+    onTrascinamento: (attivo: Boolean, sopraCassetto: Boolean) -> Unit,
+    onNelCassetto: (Bolla) -> Unit,
 ) {
     val densita = LocalDensity.current.density
     val marginePx = with(LocalDensity.current) { MARGINE_PANNELLO.toPx() }
+    val latoMinimoCassettoPx = with(LocalDensity.current) { 64.dp.toPx() }
 
     BoxWithConstraints(
         Modifier
@@ -470,6 +490,15 @@ private fun CampoBolle(
                     h = ingombroCassetto.height.toFloat(),
                 ))
             }
+        }
+
+        // 🗄️ Dove sta il cassetto, nelle coordinate del campo: in alto a destra, e vuoto (cioè
+        // mostrato solo durante il trascinamento) è un quadrato da 64 dp.
+        fun ditoSulCassetto(dito: Offset): Boolean {
+            val lw = if (ingombroCassetto != IntSize.Zero) ingombroCassetto.width.toFloat() else latoMinimoCassettoPx
+            val lh = if (ingombroCassetto != IntSize.Zero) ingombroCassetto.height.toFloat() else latoMinimoCassettoPx
+            val x0 = w - marginePx - lw
+            return dito.x in x0..(x0 + lw) && dito.y in marginePx..(marginePx + lh)
         }
 
         val raggi = remember(bolle, w, h, densita) {
@@ -507,7 +536,14 @@ private fun CampoBolle(
                 onApri = {
                     if (inCattura) onCatturaColore(bolla.colore) else onApri(bolla.route)
                 },
-                onDoppioTocco = { onDoppioTocco(bolla) },
+                onTrascinamento = { dito ->
+                    val sopra = dito != null && ditoSulCassetto(dito)
+                    onTrascinamento(dito != null, sopra)
+                },
+                onRilascia = { dito ->
+                    onTrascinamento(false, false)
+                    if (dito != null && ditoSulCassetto(dito)) onNelCassetto(bolla)
+                },
                 onTrascina = { spostamento ->
                     val nodi = posizioni.mapIndexed { j, p ->
                         BubbleLayout.Nodo(j, p.x, p.y, raggi[j])
@@ -531,7 +567,8 @@ private fun BollaCerchio(
     centro: Offset,
     inCattura: Boolean,
     onApri: () -> Unit,
-    onDoppioTocco: () -> Unit,
+    onTrascinamento: (dito: Offset?) -> Unit,
+    onRilascia: (dito: Offset?) -> Unit,
     onTrascina: (Offset) -> Unit,
 ) {
     val densita = LocalDensity.current.density
@@ -540,6 +577,8 @@ private fun BollaCerchio(
     // olimpico con scritta bianca sopra non si legge.
     val coloreTesto = if (coloreCerchio.luminance() > 0.6f) Palette.dark else Palette.light
     val diametroDp = (raggio * 2f / densita).dp
+    // Il pointerInput non si riavvia a ogni spostamento: legge il centro di adesso da qui.
+    val centroAttuale = rememberUpdatedState(centro)
     // Il numero si scrive solo se è un punteggio: quello di Spuntiamola sono i
     // giorni che mancano, quello di Obiettivi gli obiettivi attivi, e sotto il
     // nome di una bolla un conteggio si legge come punti (vedi
@@ -589,21 +628,31 @@ private fun BollaCerchio(
             // A codice aperto le bolle non si trascinano: il gesto serve tutto
             // a toccarle una per una, e una bolla che scivola sotto il dito
             // mentre si digita il codice fa perdere la cifra.
+            // 🗄️ Trascinata col dito sopra il cassetto, la bolla ci finisce dentro (APK 1.0.120,
+            // gemello di `ditoSulCassetto` nel web; fino alla 1.0.119 col doppio tocco, che si
+            // confondeva con altri gesti e ritardava l'apertura). ⚠️ Conta il DITO e non la
+            // bolla: la bolla scansa il cassetto e non ci entrerebbe mai. Il dito si ricava
+            // dal punto toccato più lo spostamento grezzo, non dalla posizione della bolla.
             .pointerInput(bolla.htmlFile, inCattura) {
                 if (inCattura) return@pointerInput
-                detectDragGestures { cambiamento, spostamento ->
+                var dito: Offset? = null
+                detectDragGestures(
+                    onDragStart = { tocco ->
+                        dito = Offset(centroAttuale.value.x - raggio + tocco.x, centroAttuale.value.y - raggio + tocco.y)
+                        onTrascinamento(dito)
+                    },
+                    onDragEnd = { onRilascia(dito); dito = null },
+                    onDragCancel = { onRilascia(null); dito = null },
+                ) { cambiamento, spostamento ->
                     cambiamento.consume()
+                    dito = dito?.plus(spostamento)
+                    onTrascinamento(dito)
                     onTrascina(spostamento)
                 }
             }
-            // 🗄️ Doppio tocco → nel cassetto (APK 1.0.119). ⚠️ detectTapGestures col doppio
-            // tocco aspetta un attimo prima di dare il tocco singolo, come il web (DOPPIO_MS).
-            // A codice aperto il doppio tocco non c'è: ogni tocco è una cifra, subito.
+            // Il tocco apre subito: niente più attesa del doppio tocco.
             .pointerInput(bolla.htmlFile, inCattura) {
-                detectTapGestures(
-                    onDoubleTap = if (inCattura) null else ({ _: Offset -> onDoppioTocco() }),
-                    onTap = { onApri() },
-                )
+                detectTapGestures(onTap = { onApri() })
             },
         contentAlignment = Alignment.Center,
     ) {
