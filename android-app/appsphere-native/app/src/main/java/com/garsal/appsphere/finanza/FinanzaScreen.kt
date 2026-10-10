@@ -100,7 +100,7 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
                         Text(
                             "⟳", color = Palette.light, fontSize = 22.sp,
                             modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                                .clickable { vm.carica(rifaiSnapshot = true) }
+                                .clickable { vm.carica(rifaiSnapshot = true, conPrezzi = true) }
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         )
                     }
@@ -174,8 +174,9 @@ private fun Intestazione(s: FinanzaState) {
             },
             color = Palette.muted, style = MaterialTheme.typography.bodySmall,
         )
+        s.fase?.let { Text("⏳ $it", color = Palette.topBar, style = MaterialTheme.typography.bodySmall) }
         s.avvisoSnapshot?.let {
-            Text("⚠️ Non ho potuto aggiornare lo snapshot ($it): vedi l'ultimo in archivio.",
+            Text("⚠️ Non tutto è stato aggiornato ($it).",
                 color = Palette.warning, style = MaterialTheme.typography.bodySmall)
         }
         s.errore?.let { Text("⚠️ $it", color = Palette.danger, style = MaterialTheme.typography.bodySmall) }

@@ -4,14 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garsal.appsphere.core.Supabase
-import io.github.jan.supabase.functions.functions
+import com.garsal.appsphere.BuildConfig
+import com.garsal.appsphere.core.Jwt
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +23,8 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.LocalDate
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -180,15 +180,58 @@ object FinanzaRepository {
      * Rifà lo snapshot di oggi lato server (`save-snapshot` col JWT: scrive il **solo**
      * snapshot di chi chiama, senza aggiornare i prezzi). Torna l'errore, se c'è.
      */
-    suspend fun aggiornaSnapshot(): String? = withContext(Dispatchers.IO) {
+    suspend fun aggiornaSnapshot(): String? = chiamaFunzione("save-snapshot", 90_000)
+
+    /**
+     * Aggiorna i prezzi in cache (`get-prices`, la stessa chiamata di «⟳ Aggiorna prezzi»
+     * in `finanza.html`). ⚠️ Può metterci fino a ~130 s — dopo 105 non comincia più
+     * nessun simbolo e a 130 chiude — quindi il tetto di lettura è a 170 s. Torna
+     * l'errore, se c'è; i prezzi non aggiornati restano quelli di prima.
+     */
+    suspend fun aggiornaPrezzi(): String? = chiamaFunzione("get-prices", 170_000)
+
+    /**
+     * ⚠️ HttpURLConnection e non `functions.invoke`: il client di supabase-kt ha un
+     * timeout più corto di quel che `get-prices` può durare (stessa scelta di `pv-ai`).
+     * Il token si controlla prima di mandarlo, e un 401 si riprova una volta dopo un rinnovo.
+     */
+    private suspend fun chiamaFunzione(nome: String, attesaMs: Int): String? = withContext(Dispatchers.IO) {
         runCatching {
-            val r = Supabase.client().functions.invoke("save-snapshot") {
-                contentType(ContentType.Application.Json)
-                setBody("{}")
+            fun manda(token: String): HttpURLConnection =
+                (URL(BuildConfig.SUPABASE_URL + "/functions/v1/$nome").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 30_000
+                    readTimeout = attesaMs
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("apikey", BuildConfig.SUPABASE_ANON_KEY)
+                    outputStream.use { it.write("{}".toByteArray()) }
+                }
+            var c = manda(token())
+            if (c.responseCode == 401) {
+                c.disconnect()
+                c = manda(rinnova() ?: error("Sessione scaduta: rientra e riprova."))
             }
-            val corpo = runCatching { Json.parseToJsonElement(r.bodyAsText()).jsonObject }.getOrNull()
-            corpo?.get("error").testo()
-        }.getOrElse { it.message ?: "save-snapshot non raggiungibile" }
+            val codice = c.responseCode
+            val testo = (if (codice in 200..299) c.inputStream else c.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            c.disconnect()
+            val corpo = runCatching { Json.parseToJsonElement(testo).jsonObject }.getOrNull()
+            corpo?.get("error").testo() ?: if (codice !in 200..299) "HTTP $codice" else null
+        }.getOrElse { it.message ?: "$nome non raggiungibile" }
+    }
+
+    private suspend fun token(): String {
+        val corrente = Supabase.client().auth.currentSessionOrNull()?.accessToken
+        if (corrente != null && Jwt.vivo(corrente)) return corrente
+        return rinnova() ?: error("Sessione scaduta: rientra e riprova.")
+    }
+
+    private suspend fun rinnova(): String? {
+        val auth = Supabase.client().auth
+        if (auth.currentSessionOrNull() == null) return null
+        return runCatching { auth.refreshCurrentSession(); auth.currentSessionOrNull()?.accessToken }.getOrNull()
     }
 
     /** Le colonne di testa di tutti gli snapshot, dal più vecchio. A pagine da 1000. */
@@ -238,6 +281,8 @@ enum class VistaFinanza(val etichetta: String) {
 data class FinanzaState(
     val caricamento: Boolean = true,
     val aggiornamento: Boolean = false,
+    /** Cosa si sta aggiornando, scritto sotto la barra: «Aggiorno i prezzi…» può durare minuti. */
+    val fase: String? = null,
     val errore: String? = null,
     /** Perché lo snapshot di oggi non si è potuto rifare: si mostra quello in archivio. */
     val avvisoSnapshot: String? = null,
@@ -281,16 +326,24 @@ class FinanzaViewModel : ViewModel() {
      * Prima si legge quel che c'è (la pagina si apre subito), poi si rifà lo snapshot
      * di oggi e si rilegge. Se il rifacimento non riesce resta l'ultimo in archivio.
      */
-    fun carica(rifaiSnapshot: Boolean) {
+    fun carica(rifaiSnapshot: Boolean, conPrezzi: Boolean = false) {
+        if (_state.value.aggiornamento && conPrezzi) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(aggiornamento = true, errore = null)
-            leggi()
-            if (rifaiSnapshot) {
-                val errore = FinanzaRepository.aggiornaSnapshot()
-                _state.value = _state.value.copy(avvisoSnapshot = errore)
-                if (errore == null) leggi()
+            _state.value = _state.value.copy(aggiornamento = true, errore = null, avvisoSnapshot = null)
+            if (!conPrezzi) leggi()
+            if (conPrezzi) {
+                _state.value = _state.value.copy(fase = "Aggiorno i prezzi… può volerci qualche minuto")
+                FinanzaRepository.aggiornaPrezzi()?.let {
+                    _state.value = _state.value.copy(avvisoSnapshot = "prezzi non aggiornati: $it")
+                }
             }
-            _state.value = _state.value.copy(aggiornamento = false, caricamento = false, serie = null)
+            if (rifaiSnapshot) {
+                _state.value = _state.value.copy(fase = "Rifaccio lo snapshot di oggi…")
+                val errore = FinanzaRepository.aggiornaSnapshot()
+                if (errore != null) _state.value = _state.value.copy(avvisoSnapshot = errore)
+                if (errore == null || conPrezzi) leggi()
+            }
+            _state.value = _state.value.copy(aggiornamento = false, fase = null, caricamento = false, serie = null)
             _state.value.portafoglioAperto?.let { caricaSerie() }
         }
     }

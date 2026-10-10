@@ -4371,11 +4371,18 @@ condivise coi task, e un secondo decoder per le stesse due tabelle sarebbe una s
 💼 **Portafogli** (elenco e dettaglio con posizioni e andamento) — e **non scrive niente**. La
 bolla è riservata in `cm_apps`, quindi compare solo in modalità nascosta.
 
-⚠️ **Non calcola niente in Kotlin**: all'apertura (e col ⟳) chiama `save-snapshot` col JWT — la
+⚠️ **Non calcola niente in Kotlin**: all'apertura chiama `save-snapshot` col JWT — la
 stessa chiamata di `autoSaveSnapshot()` nel web, che rifà lo snapshot di **oggi** coi prezzi in
 cache — poi legge `fnz_dashboard_snapshots` e disegna quello. Così `portfolioStats` /
 `computeLoanValue` / `computePricesFromHistory` restano in due copie e non tre. Se la funzione non
 risponde si mostra l'ultimo snapshot in archivio, e la pagina dice di che giorno è.
+
+Il **⟳ in alto aggiorna anche i prezzi** (APK 1.0.122): prima `get-prices` — la stessa chiamata
+di «⟳ Aggiorna prezzi» nel web — poi `save-snapshot`, poi rilegge. ⚠️ Le due funzioni si chiamano
+con `HttpURLConnection` e non con `functions.invoke`: `get-prices` può durare fino a ~130 s e il
+client di supabase-kt ha un timeout più corto (stessa scelta di `pv-ai`). Mentre lavora la pagina
+scrive la fase sotto la barra; se i prezzi non si aggiornano lo dice e lo snapshot si rifà coi
+prezzi di prima.
 
 ⚠️ **Valori lordi, di proposito**: il netto delle tasse non c'è (lo snapshot non lo conosce, ed è
 stato chiesto così). La variazione «dal giorno prima» è contro lo snapshot precedente. Il dettaglio
