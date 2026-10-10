@@ -64,6 +64,9 @@ private fun eur(v: Double?) = v?.let { EUR.format(it) } ?: "—"
 private fun eur0(v: Double?) = v?.let { EUR0.format(it) } ?: "—"
 private fun pct(v: Double?) = v?.let { String.format(Locale.ITALY, "%+.2f %%", it) } ?: "—"
 private fun dataIt(iso: String) = runCatching { LocalDate.parse(iso.take(10)).format(DATA_IT) }.getOrDefault(iso)
+private val VERDE_FONDO = Color(0xFFDCFCE7)
+private val VERDE_BORDO = Color(0xFF16A34A)
+
 private fun coloreSegno(v: Double?) = when {
     v == null || v == 0.0 -> Palette.muted
     v > 0 -> Palette.success
@@ -207,10 +210,26 @@ private fun Titolo(t: String) = Text(t, fontWeight = FontWeight.Bold, color = Pa
 
 /** Etichetta a sinistra, valore a destra: coi caratteri grandi va a capo da sé, e i due restano leggibili. */
 @Composable
-private fun Riga(etichetta: String, valore: String, colore: Color = Palette.dark, grande: Boolean = false, sotto: String? = null, sottoColore: Color = Palette.muted) {
+private fun Riga(
+    etichetta: String,
+    valore: String,
+    colore: Color = Palette.dark,
+    grande: Boolean = false,
+    sotto: String? = null,
+    sottoColore: Color = Palette.muted,
+    migliore: Boolean = false,
+) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(etichetta, color = Palette.muted, modifier = Modifier.weight(1f).padding(end = 8.dp))
-        Column(horizontalAlignment = Alignment.End) {
+        // Il migliore della colonna sta in un box verde, come `td.snap-top` nel web.
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier = if (!migliore) Modifier else Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(VERDE_FONDO)
+                .border(2.dp, VERDE_BORDO, RoundedCornerShape(6.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        ) {
             Text(
                 valore, color = colore, fontFamily = FontFamily.Monospace,
                 fontWeight = if (grande) FontWeight.Bold else FontWeight.SemiBold,
@@ -312,13 +331,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.sviluppo(s: FinanzaSt
             Spacer(Modifier.weight(1f))
         }
     }
+    val top = s.migliori
     items(s.storicoMostrato, key = { it.data }) { sn ->
         Scheda {
             Text(dataIt(sn.data), fontWeight = FontWeight.Bold, color = Palette.dark)
-            Riga("Patrimonio netto", eur(sn.patrimonioNetto), grande = true)
-            Riga("Portafogli", eur(sn.portafogli), Palette.success)
-            Riga("Asset totali", eur(sn.asset))
-            Riga("Debiti totali", eur(sn.debiti), Palette.danger)
+            Riga("Patrimonio netto", eur(sn.patrimonioNetto), grande = true, migliore = sn.patrimonioNetto == top.patrimonio)
+            Riga("Portafogli", eur(sn.portafogli), Palette.success, migliore = sn.portafogli == top.portafogli)
+            Riga("Asset totali", eur(sn.asset), migliore = sn.asset == top.asset)
+            Riga("Debiti totali", eur(sn.debiti), Palette.danger, migliore = sn.debiti == top.debiti)
         }
     }
 }
