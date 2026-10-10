@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.6</title>
+<title>AppSphere v1.10.7</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2167,8 +2167,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.6';
-const BUILD_TIME  = '2026-10-10T10:40:00Z';
+const APP_VERSION = 'v1.10.7';
+const BUILD_TIME  = '2026-10-10T12:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4527,8 +4527,12 @@ async function saveBadgeQuery(id) {
   statusEl.textContent = '';
   statusEl.style.display = 'none';
 
+  // Il colore si salva come lo mostra la casella esadecimale (maiuscolo, come
+  // le righe già in archivio): `checkSequence()` confronta stringa per stringa.
+  const colore = color ? color.toUpperCase() : null;
+  const coloreVecchio = ((_badgeRows.find(r => String(r.id) === String(id)) || {}).color || '').trim();
   const patch = { score_query: query };
-  if (color) patch.color = color;
+  if (colore) patch.color = colore;
 
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/cm_apps?id=eq.${id}`,
@@ -4538,21 +4542,55 @@ async function saveBadgeQuery(id) {
         'apikey': SUPABASE_KEY,
         'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal',
+        // ⚠️ Non `return=minimal`: se la RLS blocca la scrittura PostgREST
+        // risponde 204 su zero righe, e la pagina scriveva «✓ salvato» lo stesso.
+        // Con le righe in risposta, zero righe vuol dire «non ha salvato».
+        'Prefer': 'return=representation',
       },
       body: JSON.stringify(patch),
     }
   );
+  let righe = [];
+  if (res.ok) { try { righe = await res.json(); } catch (e) {} }
 
   btn.disabled = false;
   statusEl.style.display = 'inline';
-  if (res.ok) {
+  if (res.ok && Array.isArray(righe) && righe.length) {
     statusEl.className = 'bq-status';
     statusEl.textContent = '✓ salvato';
     setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+    const riga = _badgeRows.find(r => String(r.id) === String(id));
+    if (riga) { riga.score_query = query; if (colore) riga.color = colore; }
+    if (colore && colore !== coloreVecchio.toUpperCase()) {
+      applicaColoreBolla(id, colore);
+      avvisaSeColoreNelCodice(coloreVecchio);
+    }
   } else {
     statusEl.className = 'bq-status err';
-    statusEl.textContent = '✗ errore';
+    statusEl.textContent = res.ok ? '✗ non salvato (permessi?)' : '✗ errore';
+  }
+}
+
+// Il colore salvato si vede SUBITO sulla bolla: prima restava quello vecchio fino
+// al ricaricamento, e all'avvio la cache lo riproponeva ancora per un attimo —
+// sembrava che il salvataggio non avesse funzionato. Si aggiornano bolle a
+// schermo e cache insieme, così il prossimo avvio parte già dal colore nuovo.
+function applicaColoreBolla(id, colore) {
+  const app = CURRENT_APPS.find(a => String(a.id) === String(id));
+  if (!app) return;
+  app.color = colore;
+  try { localStorage.setItem(APPS_CACHE_KEY, JSON.stringify(CURRENT_APPS)); } catch (e) {}
+  render(CURRENT_APPS);
+}
+
+// ⚠️ Il codice della modalità nascosta è una sequenza di colori delle bolle:
+// cambiando il colore di una che ne fa parte, quel codice non apre più.
+function avvisaSeColoreNelCodice(coloreVecchio) {
+  if (!coloreVecchio || !hiddenSequence.length) return;
+  const v = coloreVecchio.toUpperCase();
+  if (hiddenSequence.some(c => String(c).trim().toUpperCase() === v)) {
+    alert('⚠️ Il colore ' + coloreVecchio + ' faceva parte del codice della modalità nascosta: '
+        + 'con il colore nuovo quel codice non apre più. Va riscritto hidden_mode_sequence in cm_settings.');
   }
 }
 
