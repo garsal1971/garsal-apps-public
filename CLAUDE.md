@@ -5092,7 +5092,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
 - Tap = launch app; drag = reposition circle
 - **🗄️ Cassetto** (v1.10.0, solo web): il **doppio tocco** su una bolla la toglie dalla home e la
   mette nel cassetto, il pulsante 🗄️ N **in alto a destra** sotto la barra blu (v1.10.1); le bolle
-  lo scansano (dentro, una bollicina per app del colore della sua bolla, v1.10.2) perché `getScorePanelRect()` ora torna un **elenco** di rettangoli (riquadri del
+  lo scansano (quadrato, dentro una bollicina per app del colore della sua bolla in una griglia di ⌈√n⌉ colonne: cresce e resta quadrato, v1.10.4) perché `getScorePanelRect()` ora torna un **elenco** di rettangoli (riquadri del
   totale + cassetto) e `pushFromPanel` li prende tutti; dal cassetto un tocco la rimette in home. ⚠️ Per riconoscere il doppio tocco il
   tocco singolo apre l'app dopo `DOPPIO_MS` (300 ms), e i mousedown sintetici dopo un touch si
   ignorano (`ultimoTocco`) — contati, un tocco solo varrebbe doppio. ⚠️ Il cassetto sta in
