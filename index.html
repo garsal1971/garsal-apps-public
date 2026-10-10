@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.0</title>
+<title>AppSphere v1.10.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -255,23 +255,31 @@
      al catalogo premi, perché quei punti non si spendono — quindi niente
      `cursor:pointer` e niente `:hover`, che prometterebbero un clic. */
   #hidden-panel { background: #7F1D1D; }
-  /* 🗄️ Il cassetto (v1.10.0): le bolle tolte dalla home col doppio tocco. Sta nello stesso
-     contenitore dei riquadri, così le bolle lo scansano senza un rettangolo in più. */
+  /* 🗄️ Il cassetto: le bolle tolte dalla home col doppio tocco. In alto a destra, sotto la
+     barra blu (v1.10.1); le bolle lo scansano perché `getScorePanelRect()` lo misura insieme
+     ai riquadri del totale. */
   #drawer-chip {
+    position: fixed;
+    top: 68px;
+    right: 16px;
+    z-index: 200;
     display: none;
     align-items: center;
-    gap: 6px;
-    min-height: 44px;
-    padding: 8px 14px;
+    gap: 8px;
+    min-height: 64px;
+    min-width: 88px;
+    padding: 10px 18px;
     background: #374151;
     color: #fff;
     border: 4px solid #111;
-    border-radius: 10px;
+    border-radius: 12px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
+    font-size: 26px;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   }
+  #drawer-chip:hover { transform: scale(1.05); }
   #drawer-chip.visible { display: inline-flex; }
   #drawer-overlay {
     display: none;
@@ -2026,8 +2034,8 @@
     <div class="sp-label">Nascoste</div>
     <div class="sp-value" id="hp-value">—</div>
   </div>
-  <button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco">🗄️ <span id="drawer-count">0</span></button>
 </div>
+<button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco">🗄️ <span id="drawer-count">0</span></button>
 
 <!-- 🗄️ CASSETTO: le bolle tolte dalla home col doppio tocco -->
 <div id="drawer-overlay" onclick="if (event.target === this) closeDrawer()">
@@ -2150,8 +2158,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.0';
-const BUILD_TIME  = '2026-10-10T08:00:00Z';
+const APP_VERSION = 'v1.10.1';
+const BUILD_TIME  = '2026-10-10T08:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2190,23 +2198,35 @@ function getScorePanelRect() {
   // primo le bolle passerebbero sopra il secondo. Il contenitore si stringe
   // sul contenuto, quindi quando il riquadro è uno solo il rettangolo è lo
   // stesso di prima.
-  const el = document.getElementById('score-panels');
-  const totale = document.getElementById('score-panel');
-  if (!el || !totale || !totale.classList.contains('visible')) return null;
-  const r = el.getBoundingClientRect();
-  // ⚠️ Il rettangolo si traduce nelle coordinate di #field, che è il sistema
-  // di riferimento delle bolle: sono `position:absolute` lì dentro, e #field
-  // comincia sotto la barra blu (`top: 56px`). Restituendo le coordinate della
-  // finestra, il rettangolo da scansare risulterebbe 56 px più in basso di
-  // dov'è davvero e le bolle gli passerebbero sopra per quella fascia — il
-  // difetto che si vedeva coi due riquadri affiancati (v1.7.2).
+  // ⚠️ I rettangoli si traducono nelle coordinate di #field, il sistema di riferimento delle
+  // bolle, che comincia sotto la barra blu: con quelle della finestra il rettangolo da
+  // scansare risulterebbe 56 px più in basso di dov'è davvero (v1.7.2).
+  // 🗄️ Torna un ELENCO di rettangoli (v1.10.1): i riquadri del totale e il cassetto in alto a
+  // destra, che le bolle devono scansare tutt'e due. Nessuno visibile = null, come prima.
   const field = document.getElementById('field');
   const f = field ? field.getBoundingClientRect() : { left: 0, top: 0 };
-  return { x: r.left - f.left, y: r.top - f.top, w: r.width, h: r.height };
+  const rettangoli = [];
+  const el = document.getElementById('score-panels');
+  const totale = document.getElementById('score-panel');
+  if (el && totale && totale.classList.contains('visible')) {
+    const r = el.getBoundingClientRect();
+    rettangoli.push({ x: r.left - f.left, y: r.top - f.top, w: r.width, h: r.height });
+  }
+  const cassetto = document.getElementById('drawer-chip');
+  if (cassetto && cassetto.classList.contains('visible')) {
+    const r = cassetto.getBoundingClientRect();
+    rettangoli.push({ x: r.left - f.left, y: r.top - f.top, w: r.width, h: r.height });
+  }
+  return rettangoli.length ? rettangoli : null;
 }
 
 function pushFromPanel(cx, cy, r, panel) {
   if (!panel) return { x: cx, y: cy };
+  if (Array.isArray(panel)) {
+    let p = { x: cx, y: cy };
+    panel.forEach(q => { p = pushFromPanel(p.x, p.y, r, q); });
+    return p;
+  }
   const closestX = clamp(cx, panel.x, panel.x + panel.w);
   const closestY = clamp(cy, panel.y, panel.y + panel.h);
   const dx = cx - closestX;
@@ -2260,9 +2280,11 @@ function initialPlace(r, existingNodes) {
 
   function overlapsPanelAt(x, y) {
     if (!panel) return false;
-    const closestX = clamp(x, panel.x, panel.x + panel.w);
-    const closestY = clamp(y, panel.y, panel.y + panel.h);
-    return Math.hypot(x - closestX, y - closestY) < r + GAP;
+    return panel.some(q => {
+      const closestX = clamp(x, q.x, q.x + q.w);
+      const closestY = clamp(y, q.y, q.y + q.h);
+      return Math.hypot(x - closestX, y - closestY) < r + GAP;
+    });
   }
 
   // Start tight at center, expand spread until a non-overlapping spot is found

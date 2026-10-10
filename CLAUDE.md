@@ -5091,8 +5091,9 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
 - Circle placement uses an iterative collision-resolution algorithm (no overlap, viewport-clamped)
 - Tap = launch app; drag = reposition circle
 - **🗄️ Cassetto** (v1.10.0, solo web): il **doppio tocco** su una bolla la toglie dalla home e la
-  mette nel cassetto, il chip 🗄️ N accanto al totale (dentro `#score-panels`, quindi le bolle lo
-  scansano); dal cassetto un tocco la rimette in home. ⚠️ Per riconoscere il doppio tocco il
+  mette nel cassetto, il pulsante 🗄️ N **in alto a destra** sotto la barra blu (v1.10.1); le bolle
+  lo scansano perché `getScorePanelRect()` ora torna un **elenco** di rettangoli (riquadri del
+  totale + cassetto) e `pushFromPanel` li prende tutti; dal cassetto un tocco la rimette in home. ⚠️ Per riconoscere il doppio tocco il
   tocco singolo apre l'app dopo `DOPPIO_MS` (300 ms), e i mousedown sintetici dopo un touch si
   ignorano (`ultimoTocco`) — contati, un tocco solo varrebbe doppio. ⚠️ Il cassetto sta in
   `localStorage` (`appsphere_cassetto`, id di `cm_apps`): è una preferenza del dispositivo, e
