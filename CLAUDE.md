@@ -5090,18 +5090,21 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
 - Score is computed at load time by calling the Supabase RPC `run_score_query` with the SQL stored in `cm_apps.score_query`
 - Circle placement uses an iterative collision-resolution algorithm (no overlap, viewport-clamped)
 - Tap = launch app; drag = reposition circle
-- **🗄️ Cassetto** (v1.10.0, solo web): il **doppio tocco** su una bolla la toglie dalla home e la
-  mette nel cassetto, il pulsante 🗄️ N **in alto a destra** sotto la barra blu (v1.10.1); le bolle
-  lo scansano (quadrato, dentro una bollicina per app del colore della sua bolla in una griglia di ⌈√n⌉ colonne: cresce e resta quadrato, v1.10.4) perché `getScorePanelRect()` ora torna un **elenco** di rettangoli (riquadri del
-  totale + cassetto) e `pushFromPanel` li prende tutti; dal cassetto un tocco la rimette in home. ⚠️ Per riconoscere il doppio tocco il
-  tocco singolo apre l'app dopo `DOPPIO_MS` (300 ms), e i mousedown sintetici dopo un touch si
-  ignorano (`ultimoTocco`) — contati, un tocco solo varrebbe doppio. ⚠️ Il cassetto sta in
-  `localStorage` (`appsphere_cassetto`, id di `cm_apps`): è una preferenza del dispositivo, e
-  **i punti dell'app nel cassetto continuano a contare** (resta in `CURRENT_APPS`).
-  ⚠️ **C'è anche in nativo** (APK 1.0.119): `Cassetto` / `DialogoCassetto` in `HomeScreen.kt`,
-  doppio tocco con `detectTapGestures(onDoubleTap)`, l'insieme in `HomeState.cassetto` (preferenze
-  `home_cassetto`, per `htmlFile`), e `BubbleLayout` che scansa un **elenco** di `Pannello`. I due
-  cassetti sono indipendenti (ognuno il suo dispositivo): forma e regole vanno cambiate insieme.
+- **🗄️ Cassetto** (v1.10.0): una bolla **trascinata col dito sopra il cassetto** — il quadrato
+  in alto a destra sotto la barra blu — sparisce dalla home e ci finisce dentro (v1.10.8 / APK
+  1.0.120; fino alla v1.10.7 / 1.0.119 era il **doppio tocco**, ritirato perché si confondeva con
+  altri gesti e ritardava di 300 ms l'apertura di ogni app: ora il tocco apre subito). Dal cassetto
+  un tocco la rimette in home. ⚠️ **Conta il DITO e non la bolla** (`ditoSulCassetto` nel web,
+  gemella in `CampoBolle` nel nativo): la bolla scansa il cassetto (`getScorePanelRect()` /
+  `BubbleLayout.Pannello`) e non ci entrerebbe mai. ⚠️ **Durante il trascinamento il cassetto
+  compare anche vuoto** (tratteggiato nel web, con 🗄️) e si accende di giallo quando il dito ci
+  passa sopra — senza, la prima bolla non avrebbe dove andare. Dentro, una bollicina per app del
+  colore della sua bolla in una griglia di ⌈√n⌉ colonne (cresce e resta quadrato). I mousedown
+  sintetici dopo un touch si ignorano (`ultimoTocco`), o un tocco aprirebbe l'app due volte.
+  ⚠️ Il cassetto sta in `localStorage` (`appsphere_cassetto`, id di `cm_apps`) e nelle preferenze
+  del telefono (`home_cassetto`, per `htmlFile`): è una preferenza del dispositivo, e **i punti
+  dell'app nel cassetto continuano a contare**. I due cassetti sono indipendenti: forma e regole
+  vanno cambiate insieme.
 - Color palette: Olympic rings colors (`#0081C8`, `#FCB131`, `#1A1A1A`, `#00A651`, `#EE334E`)
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·
   semestre · anno · dall'inizio*), il totale **per app** (pallino col colore della bolla, emoji e

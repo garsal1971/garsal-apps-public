@@ -37,7 +37,7 @@ data class HomeState(
     val bolle: List<Bolla> = emptyList(),
     /**
      * 🗄️ Il cassetto (APK 1.0.119, gemello di quello di `index.html` v1.10): gli `htmlFile` delle
-     * bolle tolte dalla home col doppio tocco. Vive nelle preferenze di questo telefono, e i
+     * bolle trascinate sopra il cassetto. Vive nelle preferenze di questo telefono, e i
      * punti di quelle app continuano a contare nel totale.
      */
     val cassetto: Set<String> = emptySet(),
