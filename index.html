@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.3</title>
+<title>AppSphere v1.10.4</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -264,11 +264,11 @@
     right: 16px;
     z-index: 200;
     display: none;
-    align-items: center;
-    gap: 8px;
-    min-height: 64px;
-    min-width: 88px;
-    padding: 10px 18px;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    box-sizing: border-box;
     background: #374151;
     color: #fff;
     border: 4px solid #111;
@@ -280,12 +280,13 @@
     box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   }
   #drawer-chip:hover { transform: scale(1.05); }
-  /* Le bollicine dentro il cassetto (v1.10.2): una per app, del colore della sua bolla. Vanno
-     a capo invece di allargare il pulsante oltre lo schermo; oltre MAX_BOLLICINE c'è «+N». */
-  #drawer-dots { display: flex; flex-wrap: wrap; gap: 4px; max-width: 132px; align-items: center; }
+  /* Le bollicine dentro il cassetto: una per app, del colore della sua bolla. ⚠️ Il cassetto è
+     QUADRATO (v1.10.4): le bollicine stanno in una griglia di ⌈√n⌉ colonne, e larghezza e
+     altezza le calcola aggiornaCassettoChip() — cresce col numero, resta quadrato. */
+  #drawer-dots { display: grid; gap: 4px; place-items: center; }
   .drawer-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #111; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
   .drawer-more { font-size: 14px; font-weight: 700; }
-  #drawer-chip.visible { display: inline-flex; }
+  #drawer-chip.visible { display: grid; }
   #drawer-overlay {
     display: none;
     position: fixed;
@@ -2163,8 +2164,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.3';
-const BUILD_TIME  = '2026-10-10T09:15:00Z';
+const APP_VERSION = 'v1.10.4';
+const BUILD_TIME  = '2026-10-10T09:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2762,7 +2763,7 @@ function aggiornaCassettoChip() {
   if (!chip) return;
   // Una bollicina per app, del colore della sua bolla: si riconosce cosa c'è dentro senza aprirlo.
   const dots = document.getElementById('drawer-dots');
-  const MAX_BOLLICINE = 12;
+  const MAX_BOLLICINE = 24;
   const dentro = CURRENT_APPS.filter(a => set.has(String(a.id)));
   dots.innerHTML = '';
   dentro.slice(0, MAX_BOLLICINE).forEach(a => {
@@ -2778,6 +2779,14 @@ function aggiornaCassettoChip() {
     m.textContent = '+' + (dentro.length - MAX_BOLLICINE);
     dots.appendChild(m);
   }
+  // Quadrato: ⌈√celle⌉ colonne, e il lato cresce con loro (bollicina 16 px, spazio 4, margine 12
+  // per parte, bordo 4). Mai sotto i 64 px, che restano comodi da toccare.
+  const celle = dots.children.length || 1;
+  const col = Math.ceil(Math.sqrt(celle));
+  dots.style.gridTemplateColumns = 'repeat(' + col + ', 16px)';
+  const lato = Math.max(64, col * 16 + (col - 1) * 4 + 2 * 12 + 2 * 4);
+  chip.style.width = lato + 'px';
+  chip.style.height = lato + 'px';
   chip.classList.toggle('visible', n > 0);
   chip.title = n === 1 ? '1 bolla nel cassetto' : n + ' bolle nel cassetto';
 }
