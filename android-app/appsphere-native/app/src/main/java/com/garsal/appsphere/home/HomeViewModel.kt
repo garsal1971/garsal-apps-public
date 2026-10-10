@@ -35,6 +35,12 @@ private data class BollaSalvata(
 
 data class HomeState(
     val bolle: List<Bolla> = emptyList(),
+    /**
+     * 🗄️ Il cassetto (APK 1.0.119, gemello di quello di `index.html` v1.10): gli `htmlFile` delle
+     * bolle tolte dalla home col doppio tocco. Vive nelle preferenze di questo telefono, e i
+     * punti di quelle app continuano a contare nel totale.
+     */
+    val cassetto: Set<String> = emptySet(),
     val avvisi: List<Avviso> = emptyList(),
     val caricamento: Boolean = true,
     val errore: String? = null,
@@ -75,6 +81,12 @@ data class HomeState(
      */
     val totaleNetto: Int get() = totaleLordo - puntiSpesi
 
+    /** Le bolle da disegnare in home: tutte tranne quelle nel cassetto. */
+    val bolleInHome: List<Bolla> get() = bolle.filter { it.htmlFile !in cassetto }
+
+    /** Le bolle nel cassetto, fra quelle che oggi si vedrebbero. */
+    val bolleNelCassetto: List<Bolla> get() = bolle.filter { it.htmlFile in cassetto }
+
     /**
      * Quante caselle disegnare. Le tre del web (`hiddenSeqLength || 3`) sono il
      * ripiego: finché la sequenza non è arrivata il widget si apre lo stesso,
@@ -95,6 +107,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private var chiusuraCattura: Job? = null
 
     init {
+        _state.value = _state.value.copy(
+            cassetto = prefs.getStringSet(CHIAVE_CASSETTO, emptySet()).orEmpty().toSet()
+        )
         // Le bolle in cache si disegnano subito, prima ancora di parlare col
         // database: all'avvio si vede la home popolata invece di una rotella.
         // Poi i dati veri le sostituiscono.
@@ -148,6 +163,20 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
         }
+    }
+
+    // ── 🗄️ Cassetto ──────────────────────────────────────────────────────────
+
+    /** Doppio tocco su una bolla: esce dalla home e va nel cassetto. */
+    fun mettiNelCassetto(htmlFile: String) = scriviCassetto(_state.value.cassetto + htmlFile)
+
+    /** Tocco su un'app nel cassetto: torna in home. */
+    fun togliDalCassetto(htmlFile: String) = scriviCassetto(_state.value.cassetto - htmlFile)
+
+    private fun scriviCassetto(nuovo: Set<String>) {
+        _state.value = _state.value.copy(cassetto = nuovo)
+        // ⚠️ Una copia: getStringSet restituisce un insieme che non va modificato.
+        prefs.edit().putStringSet(CHIAVE_CASSETTO, HashSet(nuovo)).apply()
     }
 
     // ── Codice a colori ─────────────────────────────────────────────────────
@@ -283,5 +312,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
         /** I 15 secondi di inattività dopo cui il widget si richiude (web: `captureTimeout`). */
         const val ATTESA_CATTURA = 15_000L
+        const val CHIAVE_CASSETTO = "home_cassetto"
     }
 }

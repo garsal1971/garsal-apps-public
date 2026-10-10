@@ -5097,8 +5097,11 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   tocco singolo apre l'app dopo `DOPPIO_MS` (300 ms), e i mousedown sintetici dopo un touch si
   ignorano (`ultimoTocco`) — contati, un tocco solo varrebbe doppio. ⚠️ Il cassetto sta in
   `localStorage` (`appsphere_cassetto`, id di `cm_apps`): è una preferenza del dispositivo, e
-  **i punti dell'app nel cassetto continuano a contare** (resta in `CURRENT_APPS`). La home
-  nativa non lo legge.
+  **i punti dell'app nel cassetto continuano a contare** (resta in `CURRENT_APPS`).
+  ⚠️ **C'è anche in nativo** (APK 1.0.119): `Cassetto` / `DialogoCassetto` in `HomeScreen.kt`,
+  doppio tocco con `detectTapGestures(onDoubleTap)`, l'insieme in `HomeState.cassetto` (preferenze
+  `home_cassetto`, per `htmlFile`), e `BubbleLayout` che scansa un **elenco** di `Pannello`. I due
+  cassetti sono indipendenti (ognuno il suo dispositivo): forma e regole vanno cambiate insieme.
 - Color palette: Olympic rings colors (`#0081C8`, `#FCB131`, `#1A1A1A`, `#00A651`, `#EE334E`)
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·
   semestre · anno · dall'inizio*), il totale **per app** (pallino col colore della bolla, emoji e

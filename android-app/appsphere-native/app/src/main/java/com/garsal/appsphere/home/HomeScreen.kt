@@ -23,7 +23,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -131,6 +136,7 @@ fun HomeScreen(
     val stato by vm.state.collectAsStateWithLifecycle()
     var mostraVersione by remember { mutableStateOf(false) }
     var mostraPremi by remember { mutableStateOf(false) }
+    var mostraCassetto by remember { mutableStateOf(false) }
 
     fun chiudiPremi() {
         mostraPremi = false
@@ -208,13 +214,16 @@ fun HomeScreen(
                 // caratteri di sistema grandi è alto il doppio e un rettangolo
                 // scritto a mano nel codice sarebbe sbagliato proprio lì.
                 var ingombroPannello by remember { mutableStateOf(IntSize.Zero) }
+                // 🗄️ Il cassetto in alto a destra: anche lui si scansa, e si misura.
+                var ingombroCassetto by remember { mutableStateOf(IntSize.Zero) }
+                val nelCassetto = stato.bolleNelCassetto
 
                 if (stato.bolle.isEmpty() && stato.caricamento) {
                     CircularProgressIndicator(
                         color = Palette.topBar,
                         modifier = Modifier.align(Alignment.Center),
                     )
-                } else if (stato.bolle.isEmpty()) {
+                } else if (stato.bolleInHome.isEmpty() && stato.bolle.isEmpty()) {
                     Text(
                         text = "Nessuna app da mostrare.",
                         color = Palette.muted,
@@ -222,12 +231,25 @@ fun HomeScreen(
                     )
                 } else {
                     CampoBolle(
-                        bolle = stato.bolle,
+                        bolle = stato.bolleInHome,
                         ingombroPannello = ingombroPannello,
+                        ingombroCassetto = if (nelCassetto.isEmpty()) IntSize.Zero else ingombroCassetto,
                         inCattura = stato.inCattura,
                         onApri = onApriApp,
                         onCatturaColore = vm::catturaColore,
                         onPressioneLunga = vm::apriCattura,
+                        onDoppioTocco = { vm.mettiNelCassetto(it.htmlFile) },
+                    )
+                }
+
+                if (nelCassetto.isNotEmpty()) {
+                    Cassetto(
+                        bolle = nelCassetto,
+                        onClick = { mostraCassetto = true },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(MARGINE_PANNELLO)
+                            .onSizeChanged { ingombroCassetto = it },
                     )
                 }
 
@@ -284,7 +306,113 @@ fun HomeScreen(
     if (mostraVersione) {
         DialogoAggiornamento(onChiudi = { mostraVersione = false })
     }
+
+    val dentroIlCassetto = stato.bolleNelCassetto
+    if (mostraCassetto && dentroIlCassetto.isNotEmpty()) {
+        DialogoCassetto(
+            bolle = dentroIlCassetto,
+            onRimetti = {
+                vm.togliDalCassetto(it.htmlFile)
+                // Tolta l'ultima, il dialogo si chiude da sé (come closeDrawer() nel web).
+                if (dentroIlCassetto.size <= 1) mostraCassetto = false
+            },
+            onChiudi = { mostraCassetto = false },
+        )
+    }
 }
+
+/**
+ * 🗄️ Il cassetto (APK 1.0.119), gemello di `#drawer-chip` di `index.html`: un quadrato grigio
+ * chiaro col bordo nero e dentro una bollicina per app, del colore della sua bolla, in una
+ * griglia di ⌈√n⌉ colonne — cresce col numero e resta quadrato, mai sotto i 64 dp.
+ */
+@Composable
+private fun Cassetto(bolle: List<Bolla>, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val mostrate = bolle.take(MAX_BOLLICINE)
+    val altre = bolle.size - mostrate.size
+    val celle = mostrate.size + if (altre > 0) 1 else 0
+    val colonne = kotlin.math.ceil(kotlin.math.sqrt(celle.toDouble())).toInt().coerceAtLeast(1)
+    val lato = maxOf(64.dp, BOLLICINA * colonne + 4.dp * (colonne - 1) + 12.dp * 2 + 4.dp * 2)
+    Box(
+        modifier
+            .size(lato)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFE5E7EB))
+            .border(4.dp, NeroBordo, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            val celleList: List<Bolla?> = mostrate + if (altre > 0) listOf(null) else emptyList()
+            celleList.chunked(colonne).forEach { riga ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    riga.forEach { b ->
+                        if (b == null) {
+                            Text("+$altre", color = NeroBordo, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Box(
+                                Modifier
+                                    .size(BOLLICINA)
+                                    .clip(CircleShape)
+                                    .background(coloreDaHex(b.colore) ?: Palette.olimpici.first())
+                                    .border(2.dp, NeroBordo, CircleShape)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** L'elenco delle app nel cassetto: un tocco la rimette in home. */
+@Composable
+private fun DialogoCassetto(bolle: List<Bolla>, onRimetti: (Bolla) -> Unit, onChiudi: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text("🗄️ Cassetto") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "Tocca un'app per rimetterla nella home. Per mettercene un'altra: doppio tocco sulla sua bolla.",
+                    color = Palette.muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                bolle.forEach { b ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Palette.inputBg)
+                            .clickable { onRimetti(b) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(coloreDaHex(b.colore) ?: Palette.olimpici.first())
+                                .border(3.dp, NeroBordo, CircleShape)
+                        )
+                        Text(b.nome, color = Palette.dark, modifier = Modifier.weight(1f))
+                        Text("↩ in home", color = Palette.accent, fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onChiudi) { Text("Chiudi") } },
+    )
+}
+
+private val BOLLICINA = 16.dp
+private const val MAX_BOLLICINE = 24
 
 /**
  * L'area delle bolle: dimensioni e collocazione le decide [BubbleLayout],
@@ -302,10 +430,12 @@ fun HomeScreen(
 private fun CampoBolle(
     bolle: List<Bolla>,
     ingombroPannello: IntSize,
+    ingombroCassetto: IntSize,
     inCattura: Boolean,
     onApri: (String) -> Unit,
     onCatturaColore: (String) -> Unit,
     onPressioneLunga: () -> Unit,
+    onDoppioTocco: (Bolla) -> Unit,
 ) {
     val densita = LocalDensity.current.density
     val marginePx = with(LocalDensity.current) { MARGINE_PANNELLO.toPx() }
@@ -324,14 +454,22 @@ private fun CampoBolle(
         val w = constraints.maxWidth.toFloat()
         val h = constraints.maxHeight.toFloat()
 
-        val pannello = remember(ingombroPannello, w, h, marginePx) {
-            if (ingombroPannello == IntSize.Zero) null
-            else BubbleLayout.Pannello(
-                x = marginePx,
-                y = h - marginePx - ingombroPannello.height,
-                w = ingombroPannello.width.toFloat(),
-                h = ingombroPannello.height.toFloat(),
-            )
+        val pannello = remember(ingombroPannello, ingombroCassetto, w, h, marginePx) {
+            buildList {
+                if (ingombroPannello != IntSize.Zero) add(BubbleLayout.Pannello(
+                    x = marginePx,
+                    y = h - marginePx - ingombroPannello.height,
+                    w = ingombroPannello.width.toFloat(),
+                    h = ingombroPannello.height.toFloat(),
+                ))
+                // 🗄️ Il cassetto, in alto a destra.
+                if (ingombroCassetto != IntSize.Zero) add(BubbleLayout.Pannello(
+                    x = w - marginePx - ingombroCassetto.width,
+                    y = marginePx,
+                    w = ingombroCassetto.width.toFloat(),
+                    h = ingombroCassetto.height.toFloat(),
+                ))
+            }
         }
 
         val raggi = remember(bolle, w, h, densita) {
@@ -369,6 +507,7 @@ private fun CampoBolle(
                 onApri = {
                     if (inCattura) onCatturaColore(bolla.colore) else onApri(bolla.route)
                 },
+                onDoppioTocco = { onDoppioTocco(bolla) },
                 onTrascina = { spostamento ->
                     val nodi = posizioni.mapIndexed { j, p ->
                         BubbleLayout.Nodo(j, p.x, p.y, raggi[j])
@@ -392,6 +531,7 @@ private fun BollaCerchio(
     centro: Offset,
     inCattura: Boolean,
     onApri: () -> Unit,
+    onDoppioTocco: () -> Unit,
     onTrascina: (Offset) -> Unit,
 ) {
     val densita = LocalDensity.current.density
@@ -456,7 +596,15 @@ private fun BollaCerchio(
                     onTrascina(spostamento)
                 }
             }
-            .clickable(onClick = onApri),
+            // 🗄️ Doppio tocco → nel cassetto (APK 1.0.119). ⚠️ detectTapGestures col doppio
+            // tocco aspetta un attimo prima di dare il tocco singolo, come il web (DOPPIO_MS).
+            // A codice aperto il doppio tocco non c'è: ogni tocco è una cifra, subito.
+            .pointerInput(bolla.htmlFile, inCattura) {
+                detectTapGestures(
+                    onDoubleTap = if (inCattura) null else ({ _: Offset -> onDoppioTocco() }),
+                    onTap = { onApri() },
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         Column(

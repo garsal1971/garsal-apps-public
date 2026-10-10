@@ -94,7 +94,7 @@ object BubbleLayout {
      * Assesta le posizioni dopo il primo disegno: si separano le coppie che si
      * toccano finché nessuno si muove più (o dopo 300 giri).
      */
-    fun assesta(nodi: List<Nodo>, w: Float, h: Float, pannello: Pannello? = null) {
+    fun assesta(nodi: List<Nodo>, w: Float, h: Float, pannello: List<Pannello> = emptyList()) {
         repeat(300) {
             val prima = nodi.map { it.x to it.y }
             separaCoppie(nodi, fissato = null)
@@ -123,7 +123,7 @@ object BubbleLayout {
         trascinato: Int,
         w: Float,
         h: Float,
-        pannello: Pannello? = null,
+        pannello: List<Pannello> = emptyList(),
     ) {
         val dn = nodi.firstOrNull { it.indice == trascinato } ?: return
 
@@ -223,6 +223,12 @@ object BubbleLayout {
      * direzione non esiste (distanza zero): si esce dal lato con la
      * penetrazione minore, che è lo spostamento più corto.
      */
+    // I rettangoli da scansare sono più d'uno: il riquadro del totale in basso a sinistra e
+    // il cassetto in alto a destra (APK 1.0.119). Si scansano uno dopo l'altro.
+    private fun scansaPannello(n: Nodo, pannelli: List<Pannello>) {
+        pannelli.forEach { scansaPannello(n, it) }
+    }
+
     private fun scansaPannello(n: Nodo, p: Pannello?) {
         if (p == null) return
         val vicinoX = n.x.coerceIn(p.x, max(p.x, p.x + p.w))
