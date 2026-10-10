@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.1</title>
+<title>AppSphere v1.10.2</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -280,6 +280,11 @@
     box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   }
   #drawer-chip:hover { transform: scale(1.05); }
+  /* Le bollicine dentro il cassetto (v1.10.2): una per app, del colore della sua bolla. Vanno
+     a capo invece di allargare il pulsante oltre lo schermo; oltre MAX_BOLLICINE c'è «+N». */
+  #drawer-dots { display: flex; flex-wrap: wrap; gap: 4px; max-width: 132px; align-items: center; }
+  .drawer-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #111; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
+  .drawer-more { font-size: 14px; font-weight: 700; }
   #drawer-chip.visible { display: inline-flex; }
   #drawer-overlay {
     display: none;
@@ -2035,7 +2040,7 @@
     <div class="sp-value" id="hp-value">—</div>
   </div>
 </div>
-<button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco">🗄️ <span id="drawer-count">0</span></button>
+<button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco">🗄️ <span id="drawer-dots"></span></button>
 
 <!-- 🗄️ CASSETTO: le bolle tolte dalla home col doppio tocco -->
 <div id="drawer-overlay" onclick="if (event.target === this) closeDrawer()">
@@ -2158,8 +2163,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.1';
-const BUILD_TIME  = '2026-10-10T08:30:00Z';
+const APP_VERSION = 'v1.10.2';
+const BUILD_TIME  = '2026-10-10T09:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2755,7 +2760,24 @@ function aggiornaCassettoChip() {
   const n = CURRENT_APPS.filter(a => set.has(String(a.id))).length;
   const chip = document.getElementById('drawer-chip');
   if (!chip) return;
-  document.getElementById('drawer-count').textContent = n;
+  // Una bollicina per app, del colore della sua bolla: si riconosce cosa c'è dentro senza aprirlo.
+  const dots = document.getElementById('drawer-dots');
+  const MAX_BOLLICINE = 12;
+  const dentro = CURRENT_APPS.filter(a => set.has(String(a.id)));
+  dots.innerHTML = '';
+  dentro.slice(0, MAX_BOLLICINE).forEach(a => {
+    const d = document.createElement('span');
+    d.className = 'drawer-dot';
+    d.style.background = a.color || '#999';
+    d.title = a.name;
+    dots.appendChild(d);
+  });
+  if (dentro.length > MAX_BOLLICINE) {
+    const m = document.createElement('span');
+    m.className = 'drawer-more';
+    m.textContent = '+' + (dentro.length - MAX_BOLLICINE);
+    dots.appendChild(m);
+  }
   chip.classList.toggle('visible', n > 0);
   chip.title = n === 1 ? '1 bolla nel cassetto' : n + ' bolle nel cassetto';
 }
