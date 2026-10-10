@@ -5090,6 +5090,14 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
 - Score is computed at load time by calling the Supabase RPC `run_score_query` with the SQL stored in `cm_apps.score_query`
 - Circle placement uses an iterative collision-resolution algorithm (no overlap, viewport-clamped)
 - Tap = launch app; drag = reposition circle
+- **🗄️ Cassetto** (v1.10.0, solo web): il **doppio tocco** su una bolla la toglie dalla home e la
+  mette nel cassetto, il chip 🗄️ N accanto al totale (dentro `#score-panels`, quindi le bolle lo
+  scansano); dal cassetto un tocco la rimette in home. ⚠️ Per riconoscere il doppio tocco il
+  tocco singolo apre l'app dopo `DOPPIO_MS` (300 ms), e i mousedown sintetici dopo un touch si
+  ignorano (`ultimoTocco`) — contati, un tocco solo varrebbe doppio. ⚠️ Il cassetto sta in
+  `localStorage` (`appsphere_cassetto`, id di `cm_apps`): è una preferenza del dispositivo, e
+  **i punti dell'app nel cassetto continuano a contare** (resta in `CURRENT_APPS`). La home
+  nativa non lo legge.
 - Color palette: Olympic rings colors (`#0081C8`, `#FCB131`, `#1A1A1A`, `#00A651`, `#EE334E`)
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·
   semestre · anno · dall'inizio*), il totale **per app** (pallino col colore della bolla, emoji e
