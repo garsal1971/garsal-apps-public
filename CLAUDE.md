@@ -4382,7 +4382,11 @@ di «⟳ Aggiorna prezzi» nel web — poi `save-snapshot`, poi rilegge. ⚠️ 
 con `HttpURLConnection` e non con `functions.invoke`: `get-prices` può durare fino a ~130 s e il
 client di supabase-kt ha un timeout più corto (stessa scelta di `pv-ai`). Mentre lavora la pagina
 scrive la fase sotto la barra; se i prezzi non si aggiornano lo dice e lo snapshot si rifà coi
-prezzi di prima.
+prezzi di prima. ⚠️ Gli avvisi sono un **elenco** (prezzi e snapshot, uno per riga) e gli errori
+di rete si dicono a parole (`testoFinanza()`): un errore che fallisce subito — host non risolto,
+connessione rifiutata — **si riprova una volta dopo 3 s** (`conRiprova`, APK 1.0.123), perché un
+telefono che passa dal Wi-Fi al 4G durante l'attesa perde il nome del server per qualche secondo.
+Un timeout invece non si riprova: su `get-prices` vorrebbe dire altri due minuti.
 
 ⚠️ **Valori lordi, di proposito**: il netto delle tasse non c'è (lo snapshot non lo conosce, ed è
 stato chiesto così). La variazione «dal giorno prima» è contro lo snapshot precedente. Il dettaglio
