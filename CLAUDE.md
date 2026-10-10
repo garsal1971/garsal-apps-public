@@ -3421,7 +3421,7 @@ e non si vedrebbe finché non lo si prova su un launcher che la usa.
 | Home a bolle, avvisi, riquadro del totale, login, biometria | `home/`, `MainActivity.kt`, `core/` |
 | Catalogo premi (riscossione, gestione, cronologia) | `premi/` |
 | Notifiche push dei promemoria (canale `android`) | `notifiche/` — vedi *Notifiche, tre canali* |
-| App portate | `spuntiamola/`, `eventslog/`, `tasks/`, `tafiri/`, `peso/`, `memo/`, `abituati/`, `calorie/`, `obiettivi/` (la bolla apre il 📆 **Piano quotidiano**), `frz/` (Forziere: bolla 🙈 riservata) |
+| App portate | `spuntiamola/`, `eventslog/`, `tasks/`, `tafiri/`, `peso/`, `memo/`, `abituati/`, `calorie/`, `obiettivi/` (la bolla apre il 📆 **Piano quotidiano**), `frz/` (Forziere: bolla 🙈 riservata), `finanza/` (Finanza **in sola lettura**: bolla 🙈 riservata) |
 
 ### ⚠️ Righe di pulsanti e liste di scelta: due componenti condivisi, non uno per schermata
 
@@ -4364,6 +4364,24 @@ scendesse in una RPC come le altre, il pulsante si accende qui senza altro lavor
 un'azione storta ma la **schermata vuota**. È la stessa scelta di `ts_tasks`. Categorie e
 priorità invece **si leggono da `TasksRepository`**: `cm_categories` e `cm_priorities` sono
 condivise coi task, e un secondo decoder per le stesse due tabelle sarebbe una seconda verità.
+
+### ⚠️ Finanza nativa: solo visualizzazione, e i numeri sono gli SNAPSHOT
+
+`finanza/` (APK 1.0.121) porta tre viste di `finanza.html` — 📊 **Dashboard**, 📈 **Sviluppo**,
+💼 **Portafogli** (elenco e dettaglio con posizioni e andamento) — e **non scrive niente**. La
+bolla è riservata in `cm_apps`, quindi compare solo in modalità nascosta.
+
+⚠️ **Non calcola niente in Kotlin**: all'apertura (e col ⟳) chiama `save-snapshot` col JWT — la
+stessa chiamata di `autoSaveSnapshot()` nel web, che rifà lo snapshot di **oggi** coi prezzi in
+cache — poi legge `fnz_dashboard_snapshots` e disegna quello. Così `portfolioStats` /
+`computeLoanValue` / `computePricesFromHistory` restano in due copie e non tre. Se la funzione non
+risponde si mostra l'ultimo snapshot in archivio, e la pagina dice di che giorno è.
+
+⚠️ **Valori lordi, di proposito**: il netto delle tasse non c'è (lo snapshot non lo conosce, ed è
+stato chiesto così). La variazione «dal giorno prima» è contro lo snapshot precedente. Il dettaglio
+dei portafogli (`details`) per l'andamento si legge **solo aprendo un portafoglio e solo sul
+periodo scelto**, come `caricaPtfSnapshots()`. ⚠️ Se cambia la forma di `details` in
+`save-snapshot`, va cambiato `Snapshot.da` / `PortafoglioSnap.da` in `FinanzaData.kt`.
 
 ### ⚠️ Forziere nativo: cinque cose, e i formati provati prima di scriverli
 
