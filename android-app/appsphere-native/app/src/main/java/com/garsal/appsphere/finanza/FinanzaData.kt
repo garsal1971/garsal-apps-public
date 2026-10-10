@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.garsal.appsphere.core.Supabase
 import com.garsal.appsphere.BuildConfig
 import com.garsal.appsphere.core.Jwt
+import com.garsal.appsphere.core.messaggioBreve
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +25,10 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import java.net.ConnectException
 import java.net.HttpURLConnection
+import java.net.NoRouteToHostException
+import java.net.UnknownHostException
 import java.net.URL
 import java.time.LocalDate
 
@@ -65,6 +70,36 @@ private fun JsonElement?.testo(): String? = when (this) {
 
 private fun JsonElement?.oggetti(): List<JsonObject> =
     (this as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
+
+// ── Errori di rete ──────────────────────────────────────────────────────────
+// ⚠️ Un telefono che passa dal Wi-Fi al 4G durante un'attesa lunga perde il nome del
+// server per qualche secondo («Unable to resolve host»): è la rete, non un difetto, e
+// mostrarlo con l'indirizzo intero della chiamata riempiva lo schermo senza dire niente.
+
+/** È un errore di rete che vale la pena riprovare? Solo quelli che falliscono SUBITO. */
+private fun Throwable.diRete(): Boolean {
+    var t: Throwable? = this
+    while (t != null) {
+        if (t is UnknownHostException || t is ConnectException || t is NoRouteToHostException) return true
+        val m = t.message.orEmpty()
+        if ("Unable to resolve host" in m || "Failed to connect" in m) return true
+        t = t.cause
+    }
+    return false
+}
+
+/** Il testo breve di un errore: la rete si dice a parole, il resto senza URL né header. */
+fun Throwable.testoFinanza(): String =
+    if (diRete()) "rete non raggiungibile, riprova col ⟳"
+    else messaggioBreve().replace(Regex("^HTTP request to \\S+ \\(\\w+\\) failed with message:\\s*"), "")
+
+/** Prova; su un errore di rete aspetta 3 secondi e riprova UNA volta. */
+private suspend fun <T> conRiprova(blocco: suspend () -> T): T =
+    try { blocco() } catch (e: Exception) {
+        if (!e.diRete()) throw e
+        delay(3_000)
+        blocco()
+    }
 
 // ── Modello ─────────────────────────────────────────────────────────────────
 
@@ -196,7 +231,7 @@ object FinanzaRepository {
      * Il token si controlla prima di mandarlo, e un 401 si riprova una volta dopo un rinnovo.
      */
     private suspend fun chiamaFunzione(nome: String, attesaMs: Int): String? = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatching { conRiprova {
             fun manda(token: String): HttpURLConnection =
                 (URL(BuildConfig.SUPABASE_URL + "/functions/v1/$nome").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
@@ -219,7 +254,7 @@ object FinanzaRepository {
             c.disconnect()
             val corpo = runCatching { Json.parseToJsonElement(testo).jsonObject }.getOrNull()
             corpo?.get("error").testo() ?: if (codice !in 200..299) "HTTP $codice" else null
-        }.getOrElse { it.message ?: "$nome non raggiungibile" }
+        } }.getOrElse { it.testoFinanza() }
     }
 
     private suspend fun token(): String {
@@ -235,7 +270,7 @@ object FinanzaRepository {
     }
 
     /** Le colonne di testa di tutti gli snapshot, dal più vecchio. A pagine da 1000. */
-    suspend fun storico(): List<Snapshot> = withContext(Dispatchers.IO) {
+    suspend fun storico(): List<Snapshot> = withContext(Dispatchers.IO) { conRiprova {
         val out = mutableListOf<Snapshot>()
         var da = 0L
         while (true) {
@@ -248,28 +283,28 @@ object FinanzaRepository {
             da += 1000
         }
         out
-    }
+    } }
 
     /** L'ultimo snapshot e quello prima, col dettaglio: servono a Dashboard e Portafogli. */
-    suspend fun ultimiDue(): List<Snapshot> = withContext(Dispatchers.IO) {
+    suspend fun ultimiDue(): List<Snapshot> = withContext(Dispatchers.IO) { conRiprova {
         db.from("fnz_dashboard_snapshots").select(Columns.raw("$TESTA,details")) {
             order("snapshot_date", Order.DESCENDING)
             limit(2)
         }.decodeList<JsonObject>().map { Snapshot.da(it) }
-    }
+    } }
 
     /**
      * Gli snapshot di un periodo col dettaglio, per l'andamento di un portafoglio.
      * ⚠️ Solo aprendo quella vista e solo sul periodo scelto: `details` porta tutte le
      * posizioni di tutti i portafogli, e un anno sono megabyte (come `caricaPtfSnapshots`).
      */
-    suspend fun conDettaglio(periodo: Periodo): List<Snapshot> = withContext(Dispatchers.IO) {
+    suspend fun conDettaglio(periodo: Periodo): List<Snapshot> = withContext(Dispatchers.IO) { conRiprova {
         val inizio = periodo.da()
         db.from("fnz_dashboard_snapshots").select(Columns.raw("snapshot_date,patrimonio_netto,portafogli_totali,asset_totali,debiti_totali,details")) {
             if (inizio != null) filter { gte("snapshot_date", inizio.toString()) }
             order("snapshot_date", Order.ASCENDING)
         }.decodeList<JsonObject>().map { Snapshot.da(it) }
-    }
+    } }
 }
 
 // ── ViewModel ───────────────────────────────────────────────────────────────
@@ -284,8 +319,11 @@ data class FinanzaState(
     /** Cosa si sta aggiornando, scritto sotto la barra: «Aggiorno i prezzi…» può durare minuti. */
     val fase: String? = null,
     val errore: String? = null,
-    /** Perché lo snapshot di oggi non si è potuto rifare: si mostra quello in archivio. */
-    val avvisoSnapshot: String? = null,
+    /**
+     * Cosa non si è potuto aggiornare (prezzi, snapshot), uno per riga. ⚠️ Un elenco e non
+     * un campo solo: l'errore dello snapshot copriva quello dei prezzi che lo precedeva.
+     */
+    val avvisi: List<String> = emptyList(),
     val vista: VistaFinanza = VistaFinanza.DASHBOARD,
     val ultimo: Snapshot? = null,
     val precedente: Snapshot? = null,
@@ -329,18 +367,18 @@ class FinanzaViewModel : ViewModel() {
     fun carica(rifaiSnapshot: Boolean, conPrezzi: Boolean = false) {
         if (_state.value.aggiornamento && conPrezzi) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(aggiornamento = true, errore = null, avvisoSnapshot = null)
+            _state.value = _state.value.copy(aggiornamento = true, errore = null, avvisi = emptyList())
             if (!conPrezzi) leggi()
             if (conPrezzi) {
                 _state.value = _state.value.copy(fase = "Aggiorno i prezzi… può volerci qualche minuto")
                 FinanzaRepository.aggiornaPrezzi()?.let {
-                    _state.value = _state.value.copy(avvisoSnapshot = "prezzi non aggiornati: $it")
+                    _state.value = _state.value.copy(avvisi = _state.value.avvisi + "Prezzi non aggiornati: $it")
                 }
             }
             if (rifaiSnapshot) {
                 _state.value = _state.value.copy(fase = "Rifaccio lo snapshot di oggi…")
                 val errore = FinanzaRepository.aggiornaSnapshot()
-                if (errore != null) _state.value = _state.value.copy(avvisoSnapshot = errore)
+                if (errore != null) _state.value = _state.value.copy(avvisi = _state.value.avvisi + "Snapshot non rifatto: $errore")
                 if (errore == null || conPrezzi) leggi()
             }
             _state.value = _state.value.copy(aggiornamento = false, fase = null, caricamento = false, serie = null)
@@ -360,7 +398,7 @@ class FinanzaViewModel : ViewModel() {
             )
         } catch (e: Exception) {
             Log.w(TAG, "lettura snapshot fallita", e)
-            _state.value = _state.value.copy(caricamento = false, errore = e.message ?: "Lettura non riuscita")
+            _state.value = _state.value.copy(caricamento = false, errore = "Snapshot non letti: " + e.testoFinanza())
         }
     }
 
@@ -391,7 +429,7 @@ class FinanzaViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "andamento non letto", e)
                 if (_state.value.periodoPortafoglio == periodo)
-                    _state.value = _state.value.copy(serie = emptyList(), serieErrore = e.message ?: "Non letto")
+                    _state.value = _state.value.copy(serie = emptyList(), serieErrore = e.testoFinanza())
             }
         }
     }

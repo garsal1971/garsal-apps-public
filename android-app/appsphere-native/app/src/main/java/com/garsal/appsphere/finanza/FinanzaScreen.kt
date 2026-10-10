@@ -114,7 +114,7 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
                     CircularProgressIndicator(color = Palette.topBar, modifier = Modifier.align(Alignment.Center))
 
                 s.ultimo == null -> Text(
-                    s.errore?.let { "Non ho potuto leggere gli snapshot: $it" }
+                    s.errore
                         ?: "Nessuno snapshot in archivio: aprite Finanza sul web una volta.",
                     color = Palette.muted, textAlign = TextAlign.Center,
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
@@ -175,9 +175,8 @@ private fun Intestazione(s: FinanzaState) {
             color = Palette.muted, style = MaterialTheme.typography.bodySmall,
         )
         s.fase?.let { Text("⏳ $it", color = Palette.topBar, style = MaterialTheme.typography.bodySmall) }
-        s.avvisoSnapshot?.let {
-            Text("⚠️ Non tutto è stato aggiornato ($it).",
-                color = Palette.warning, style = MaterialTheme.typography.bodySmall)
+        s.avvisi.forEach {
+            Text("⚠️ $it", color = Palette.warning, style = MaterialTheme.typography.bodySmall)
         }
         s.errore?.let { Text("⚠️ $it", color = Palette.danger, style = MaterialTheme.typography.bodySmall) }
     }
