@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.9.8</title>
+<title>AppSphere v1.10.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -255,6 +255,50 @@
      al catalogo premi, perché quei punti non si spendono — quindi niente
      `cursor:pointer` e niente `:hover`, che prometterebbero un clic. */
   #hidden-panel { background: #7F1D1D; }
+  /* 🗄️ Il cassetto (v1.10.0): le bolle tolte dalla home col doppio tocco. Sta nello stesso
+     contenitore dei riquadri, così le bolle lo scansano senza un rettangolo in più. */
+  #drawer-chip {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 14px;
+    background: #374151;
+    color: #fff;
+    border: 4px solid #111;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #drawer-chip.visible { display: inline-flex; }
+  #drawer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(0,0,0,0.55);
+    font-family: 'DM Sans', sans-serif;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #drawer-overlay.open { display: flex; }
+  #drawer-overlay .rw-modal { width: min(420px, 100%); max-height: 92vh; }
+  .dr-body { flex: 1; overflow-y: auto; min-height: 0; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .dr-hint { font-size: 13px; color: #6B7280; margin: 0 0 4px; }
+  .dr-item {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 48px; padding: 8px 12px;
+    background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px;
+    font: inherit; font-size: 16px; text-align: left; cursor: pointer; color: #1F2937;
+    overflow-wrap: anywhere;
+  }
+  .dr-item:hover { background: #EEF2FF; }
+  .dr-dot { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #111; }
+  .dr-name { flex: 1; }
+  .dr-back { flex-shrink: 0; font-size: 13px; color: #2563EB; font-weight: 700; }
   .sp-label {
     font-family: 'DM Sans', sans-serif;
     font-size: 10px;
@@ -1982,6 +2026,18 @@
     <div class="sp-label">Nascoste</div>
     <div class="sp-value" id="hp-value">—</div>
   </div>
+  <button id="drawer-chip" type="button" onclick="openDrawer()" title="Le bolle messe nel cassetto col doppio tocco">🗄️ <span id="drawer-count">0</span></button>
+</div>
+
+<!-- 🗄️ CASSETTO: le bolle tolte dalla home col doppio tocco -->
+<div id="drawer-overlay" onclick="if (event.target === this) closeDrawer()">
+  <div class="rw-modal">
+    <div class="rw-modal-header">
+      <span class="rw-modal-title">🗄️ Cassetto</span>
+      <button class="rw-modal-close" onclick="closeDrawer()" aria-label="Chiudi">✕</button>
+    </div>
+    <div class="dr-body" id="drawer-body"></div>
+  </div>
 </div>
 
 <!-- 🏆 PUNTI: riepilogo per app e cronologia di guadagni e spese -->
@@ -2094,8 +2150,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.9.8';
-const BUILD_TIME  = '2026-10-06T21:40:00Z';
+const APP_VERSION = 'v1.10.0';
+const BUILD_TIME  = '2026-10-10T08:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2483,7 +2539,12 @@ function render(apps) {
   field.innerHTML = '';
   nodes = [];
 
-  const sorted = [...CURRENT_APPS].sort((a, b) => b.score - a.score);
+  // 🗄️ Le bolle nel cassetto non si disegnano, ma restano in CURRENT_APPS: i loro punti
+  // continuano a contare nel totale, e sizeOf() scala ancora su tutte.
+  const nelCassetto = cassettoIds();
+  const sorted = CURRENT_APPS.filter(a => !nelCassetto.has(String(a.id)))
+    .sort((a, b) => b.score - a.score);
+  aggiornaCassettoChip();
 
   // Phase A: compute positions and build DOM elements (not appended yet so
   // settlePositions can adjust without triggering layout per-node)
@@ -2552,6 +2613,10 @@ function makeDraggable(node) {
   }
 
   function onDown(e) {
+    // ⚠️ Dopo un tocco il browser genera anche mousedown/mouseup sintetici: contati, un tocco
+    // solo sembrerebbe un doppio tocco e la bolla finirebbe nel cassetto.
+    if (e.type === 'touchstart') ultimoTocco = Date.now();
+    else if (e.type === 'mousedown' && Date.now() - ultimoTocco < 800) return;
     // Capture mode attiva: registra colore nella casella successiva
     if (captureMode) {
       const now = Date.now();
@@ -2613,13 +2678,105 @@ function makeDraggable(node) {
     window.removeEventListener('touchmove', onMove);
     window.removeEventListener('mouseup', onUp);
     window.removeEventListener('touchend', onUp);
-    if (!moved) {
-      launchApp(node.app);
-    }
+    if (!moved) tapSullaBolla(node);
   }
 
   el.addEventListener('mousedown', onDown);
   el.addEventListener('touchstart', onDown, { passive: true });
+}
+
+// ── 🗄️ CASSETTO (v1.10.0) ──
+// Doppio tocco su una bolla → la bolla sparisce dalla home e finisce nel cassetto (il 🗄️
+// accanto al totale); dal cassetto un tocco la rimette in home. ⚠️ Per distinguere il doppio
+// tocco il tocco singolo apre l'app dopo DOPPIO_MS. ⚠️ Il cassetto vive in localStorage: è
+// una preferenza di questo dispositivo, non un dato — e i punti dell'app continuano a contare.
+const DOPPIO_MS = 300;
+const CASSETTO_KEY = 'appsphere_cassetto';
+let ultimoTocco = 0;
+let tapInAttesa = null; // { id, timer }
+
+function cassettoIds() {
+  try {
+    const v = JSON.parse(localStorage.getItem(CASSETTO_KEY) || '[]');
+    return new Set(Array.isArray(v) ? v.map(String) : []);
+  } catch (e) { return new Set(); }
+}
+function salvaCassetto(set) {
+  try { localStorage.setItem(CASSETTO_KEY, JSON.stringify([...set])); } catch (e) { /* senza storage resta in home */ }
+}
+
+function tapSullaBolla(node) {
+  if (tapInAttesa && tapInAttesa.id === node.id) {
+    clearTimeout(tapInAttesa.timer);
+    tapInAttesa = null;
+    mettiNelCassetto(node.app);
+    return;
+  }
+  if (tapInAttesa) clearTimeout(tapInAttesa.timer);
+  tapInAttesa = {
+    id: node.id,
+    timer: setTimeout(() => { tapInAttesa = null; launchApp(node.app); }, DOPPIO_MS),
+  };
+}
+
+function mettiNelCassetto(app) {
+  const set = cassettoIds();
+  set.add(String(app.id));
+  salvaCassetto(set);
+  render();
+}
+
+function aggiornaCassettoChip() {
+  const set = cassettoIds();
+  // Contano solo le app che oggi si vedrebbero: una riservata a modalità nascosta spenta
+  // non c'è in CURRENT_APPS, e annunciarla nel cassetto direbbe che esiste.
+  const n = CURRENT_APPS.filter(a => set.has(String(a.id))).length;
+  const chip = document.getElementById('drawer-chip');
+  if (!chip) return;
+  document.getElementById('drawer-count').textContent = n;
+  chip.classList.toggle('visible', n > 0);
+  chip.title = n === 1 ? '1 bolla nel cassetto' : n + ' bolle nel cassetto';
+}
+
+function openDrawer() {
+  renderDrawer();
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+function closeDrawer() { document.getElementById('drawer-overlay').classList.remove('open'); }
+
+function renderDrawer() {
+  const set = cassettoIds();
+  const body = document.getElementById('drawer-body');
+  const apps = CURRENT_APPS.filter(a => set.has(String(a.id)));
+  body.innerHTML = '';
+  if (!apps.length) { body.innerHTML = '<p class="dr-hint">Il cassetto è vuoto.</p>'; return; }
+  const hint = document.createElement('p');
+  hint.className = 'dr-hint';
+  hint.textContent = 'Tocca un\'app per rimetterla nella home. Per mettercene un\'altra: doppio tocco sulla sua bolla.';
+  body.appendChild(hint);
+  apps.forEach(app => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dr-item';
+    const dot = document.createElement('span');
+    dot.className = 'dr-dot';
+    dot.style.background = app.color || '#999';
+    const nome = document.createElement('span');
+    nome.className = 'dr-name';
+    nome.textContent = app.name;
+    const back = document.createElement('span');
+    back.className = 'dr-back';
+    back.textContent = '↩ in home';
+    b.append(dot, nome, back);
+    b.addEventListener('click', () => {
+      const s = cassettoIds();
+      s.delete(String(app.id));
+      salvaCassetto(s);
+      render();
+      if (CURRENT_APPS.some(a => s.has(String(a.id)))) renderDrawer(); else closeDrawer();
+    });
+    body.appendChild(b);
+  });
 }
 
 function launchApp(app) {
@@ -5348,6 +5505,7 @@ if ('serviceWorker' in navigator) {
   { sel: '#profilo-overlay',           chiudi: () => closeProfilo() },
   { sel: '#rewards-overlay',           chiudi: () => closeRewards() },
   { sel: '#punti-overlay',             chiudi: () => closePunti() },
+  { sel: '#drawer-overlay',            chiudi: () => closeDrawer() },
   { sel: '#rw-form-overlay',           chiudi: () => closeRewardForm() },
   { sel: '#badge-modal-overlay',       chiudi: () => closeBadgeSettings() },
   { sel: '#priorities-modal-overlay',  chiudi: () => closePrioritiesSettings() },
