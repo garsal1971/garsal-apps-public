@@ -313,6 +313,8 @@ enum class VistaFinanza(val etichetta: String) {
     DASHBOARD("📊 Dashboard"), SVILUPPO("📈 Sviluppo"), PORTAFOGLI("💼 Portafogli")
 }
 
+data class Migliori(val patrimonio: Double?, val portafogli: Double?, val asset: Double?, val debiti: Double?)
+
 data class FinanzaState(
     val caricamento: Boolean = true,
     val aggiornamento: Boolean = false,
@@ -339,11 +341,30 @@ data class FinanzaState(
     fun valorePrecedente(id: String): Double? =
         precedente?.dettaglioPortafogli?.firstOrNull { it.id == id }?.valore
 
-    /** Uno per mese: l'ultimo di ogni mese, come «📅 Uno per mese» nel web. */
+    /**
+     * «📅 Uno per mese» come nel web: per ogni mese lo snapshot coi **portafogli più alti**
+     * (non l'ultimo del mese), dal più recente.
+     */
     val storicoMostrato: List<Snapshot>
         get() {
             val tutti = storico.asReversed()
-            return if (!soloMensili) tutti else tutti.distinctBy { it.data.take(7) }
+            if (!soloMensili) return tutti
+            return tutti.groupBy { it.data.take(7) }.values.map { mese -> mese.maxBy { it.portafogli } }
+        }
+
+    /**
+     * Il migliore di ogni colonna **fra le righe mostrate** (`evid` in `finanza.html`): il
+     * più alto, tranne i debiti dove è il più basso. Si evidenzia in un box verde.
+     */
+    val migliori: Migliori
+        get() {
+            val r = storicoMostrato
+            return Migliori(
+                patrimonio = r.maxOfOrNull { it.patrimonioNetto },
+                portafogli = r.maxOfOrNull { it.portafogli },
+                asset = r.maxOfOrNull { it.asset },
+                debiti = r.minOfOrNull { it.debiti },
+            )
         }
 
     val storicoDelPeriodo: List<Snapshot>

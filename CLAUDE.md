@@ -4388,6 +4388,12 @@ connessione rifiutata — **si riprova una volta dopo 3 s** (`conRiprova`, APK 1
 telefono che passa dal Wi-Fi al 4G durante l'attesa perde il nome del server per qualche secondo.
 Un timeout invece non si riprova: su `get-prices` vorrebbe dire altri due minuti.
 
+In 📈 Sviluppo il **migliore di ogni colonna** fra gli snapshot mostrati (il più alto, tranne i
+debiti dove è il più basso) sta in un **box verde**, come `td.snap-top` nel web (APK 1.0.124), e
+«📅 Uno per mese» prende per ogni mese lo snapshot coi portafogli più alti, come il web — non
+l'ultimo del mese. Le due regole stanno in `FinanzaState.migliori` / `storicoMostrato` e vanno
+cambiate insieme a `renderProgressione` in `finanza.html`.
+
 ⚠️ **Valori lordi, di proposito**: il netto delle tasse non c'è (lo snapshot non lo conosce, ed è
 stato chiesto così). La variazione «dal giorno prima» è contro lo snapshot precedente. Il dettaglio
 dei portafogli (`details`) per l'andamento si legge **solo aprendo un portafoglio e solo sul
