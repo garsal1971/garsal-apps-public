@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.5</title>
+<title>AppSphere v1.10.6</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -284,7 +284,7 @@
      QUADRATO (v1.10.4): le bollicine stanno in una griglia di ⌈√n⌉ colonne, e larghezza e
      altezza le calcola aggiornaCassettoChip() — cresce col numero, resta quadrato. */
   #drawer-dots { display: grid; gap: 4px; place-items: center; }
-  .drawer-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #111; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
+  .drawer-dot { width: 16px; height: 16px; border-radius: 3px; border: 2px solid #111; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
   .drawer-more { font-size: 14px; font-weight: 700; }
   #drawer-chip.visible { display: grid; }
   #drawer-overlay {
@@ -310,7 +310,10 @@
     overflow-wrap: anywhere;
   }
   .dr-item:hover { background: #EEF2FF; }
-  .dr-dot { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #111; }
+  .dr-dot { flex-shrink: 0; width: 22px; height: 22px; border-radius: 4px; border: 3px solid #111; }
+  /* Le bollicine del cassetto hanno la forma delle bolle (v1.10.6): quadratini col
+     ⬜ Quadrati, cerchietti col ◯ Cerchi — la stessa classe `circles-mode` di `.circle`. */
+  body.circles-mode .drawer-dot, body.circles-mode .dr-dot { border-radius: 50%; }
   .dr-name { flex: 1; }
   .dr-back { flex-shrink: 0; font-size: 13px; color: #2563EB; font-weight: 700; }
   .sp-label {
@@ -2164,8 +2167,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.5';
-const BUILD_TIME  = '2026-10-10T09:45:00Z';
+const APP_VERSION = 'v1.10.6';
+const BUILD_TIME  = '2026-10-10T10:40:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
