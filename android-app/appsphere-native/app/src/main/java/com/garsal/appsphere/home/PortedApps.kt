@@ -17,6 +17,7 @@ object Route {
     const val CALORIE = "calorie"
     const val FORZIERE = "forziere"
     const val PIANTE = "piante"
+    const val FINANZA = "finanza"
 }
 
 /**
@@ -127,6 +128,15 @@ object PortedApps {
             titoloDiRipiego = "Piante",
             descrizioneDiRipiego = "Diario di cura delle piante",
             coloreDiRipiego = "#7CB342",
+        ),
+        // 💰 Finanza in SOLA LETTURA (APK 1.0.121): Dashboard, Sviluppo e Portafogli, letti
+        // dagli snapshot — vedi `finanza/FinanzaData.kt`. ⚠️ La riga ha `riservato = true`
+        // in `cm_apps`, quindi la bolla compare **solo in modalità nascosta**, come il Forziere.
+        "finanza.html" to AppPortata(
+            route = Route.FINANZA,
+            titoloDiRipiego = "Finanza",
+            descrizioneDiRipiego = "Patrimonio e portafogli",
+            coloreDiRipiego = "#4f46e5",
         ),
         "weight-quest.html" to AppPortata(
             route = Route.PESO,
