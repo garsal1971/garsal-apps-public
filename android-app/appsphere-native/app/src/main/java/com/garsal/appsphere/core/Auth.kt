@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Login Google e stato della sessione.
@@ -201,6 +203,38 @@ object AuthRepo {
                 if (_state.value == State.CARICAMENTO) _state.value = State.FUORI
             }
         }
+    }
+
+    /**
+     * Il token di accesso dura un'ora, e il rinnovo automatico di supabase-kt è un timer
+     * (`delay`) che **non corre mentre il telefono dorme**: riaprendo l'app dopo un po' il
+     * token è già scaduto e le chiamate rispondono «JWT expired». Con
+     * `enableLifecycleCallbacks = false` nessuno se ne accorge al rientro, quindi lo si
+     * controlla qui: se il token in mano non è più vivo (`Jwt.vivo`, 30 s di margine) si
+     * rinnova. Lo chiamano il ritorno in primo piano ([MainActivity.onStart]) e la home
+     * prima di caricare. ⚠️ Un rinnovo per volta (`mutex`): due chiamate insieme
+     * spenderebbero lo stesso refresh token due volte, e la seconda verrebbe rifiutata.
+     * Un rinnovo fallito non fa niente qui: lo dice `sessionStatus` (RefreshFailure).
+     */
+    suspend fun assicuraSessione(forza: Boolean = false) {
+        mutexRinnovo.withLock {
+            val auth = Supabase.client().auth
+            val sessione = auth.currentSessionOrNull() ?: return
+            if (!forza && Jwt.vivo(sessione.accessToken)) return
+            try {
+                auth.refreshCurrentSession()
+                Log.i(TAG, "sessione rinnovata (${if (forza) "su richiesta" else "token scaduto"})")
+            } catch (e: Exception) {
+                Log.w(TAG, "rinnovo della sessione fallito", e)
+            }
+        }
+    }
+
+    private val mutexRinnovo = Mutex()
+
+    /** [assicuraSessione] lanciata nello scope di AuthRepo: per chi non è una coroutine. */
+    fun rinnovaSeServe() {
+        scope.launch { assicuraSessione() }
     }
 
     /** Email dell'utente collegato, usata per le etichette e per i log. */

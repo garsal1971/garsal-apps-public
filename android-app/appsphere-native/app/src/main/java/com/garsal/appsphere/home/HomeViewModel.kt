@@ -5,7 +5,9 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.garsal.appsphere.core.AuthRepo
 import com.garsal.appsphere.core.ModalitaNascosta
+import com.garsal.appsphere.core.messaggioBreve
 import com.garsal.appsphere.premi.PremiRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -140,9 +142,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.value = _state.value.copy(caricamento = true, errore = null)
             try {
-                val dati = HomeRepository.carica(_state.value.modalitaNascosta)
-                val avvisi = HomeRepository.avvisi()
-                val spesi = PremiRepository.puntiSpesi()
+                AuthRepo.assicuraSessione()
+                // ⚠️ Se il server dice comunque che il token è scaduto (orologio del
+                // telefono storto, chiavi ruotate) si rinnova a forza e si riprova UNA volta.
+                val (dati, avvisi, spesi) = try {
+                    Triple(HomeRepository.carica(_state.value.modalitaNascosta), HomeRepository.avvisi(), PremiRepository.puntiSpesi())
+                } catch (e: Exception) {
+                    if (e.message?.contains("JWT expired", ignoreCase = true) != true) throw e
+                    AuthRepo.assicuraSessione(forza = true)
+                    Triple(HomeRepository.carica(_state.value.modalitaNascosta), HomeRepository.avvisi(), PremiRepository.puntiSpesi())
+                }
                 _state.value = _state.value.copy(
                     bolle = dati.bolle,
                     avvisi = avvisi,
@@ -159,7 +168,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     caricamento = false,
                     // Se in cache c'era qualcosa le bolle restano a schermo:
                     // meglio dei punteggi di ieri che una pagina vuota.
-                    errore = e.message ?: "Caricamento non riuscito",
+                    // ⚠️ messaggioBreve e non e.message: quello di supabase-kt porta in
+                    // coda URL e header, token compreso, e finiva a schermo così.
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }

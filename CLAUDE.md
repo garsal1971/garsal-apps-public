@@ -4892,6 +4892,17 @@ all'APK WebView. Leggeva male quel file: l'APK WebView usa il **browser completo
 Custom Tab solo come ripiego. Quello che Google rifiuta è il WebView incorporato, non il browser
 di sistema.
 
+### ⚠️ Il token scaduto al rientro: `AuthRepo.assicuraSessione()` (APK 1.0.125)
+
+Il rinnovo automatico del JWT è un `delay` dentro supabase-kt, e **non corre mentre il telefono
+dorme**: riaprendo l'app dopo un'ora il token è scaduto e la home rispondeva «JWT expired» — con
+URL e header **token compreso** a schermo, perché scriveva `e.message`. Ora
+`MainActivity.onStart` chiama `AuthRepo.rinnovaSeServe()` e la home `assicuraSessione()` prima di
+caricare: se il token non è vivo (`Jwt.vivo`) si rinnova, **uno per volta** (`Mutex`, o lo stesso
+refresh token si spenderebbe due volte). Se il server risponde comunque «JWT expired» la home
+rinnova a forza e riprova una volta, e l'errore si mostra con `messaggioBreve()`. ⚠️ Le altre
+schermate hanno ancora `e.message` in parecchi punti.
+
 ### ⚠️ Il rientro dal login non passa da `parseFragmentAndImportSession`
 
 Quella funzione di supabase-kt fa il lavoro dentro `authScope`, lo scope interno della libreria,
