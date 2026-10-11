@@ -57,19 +57,6 @@ data class Bolla(
     val contaPunti: Boolean = false,
 )
 
-data class Avviso(val testo: String, val route: String)
-
-@Serializable
-private data class PvNome(val name: String = "", val archived: Boolean? = null, val emoji: String? = null)
-
-@Serializable
-private data class PvAzioneAvviso(
-    val title: String = "",
-    @SerialName("next_occurrence_date") val nextOccurrenceDate: String? = null,
-    @SerialName("pv_plants") val pianta: PvNome? = null,
-    @SerialName("pv_groups") val gruppo: PvNome? = null,
-)
-
 /**
  * Quello che serve per disegnare la home: le bolle e il punteggio **lordo**.
  *
@@ -107,24 +94,6 @@ data class DatiHome(
      * riquadro: senza nessuna riservata, un box che dice 0 è rumore.
      */
     val appRiservate: Int,
-)
-
-@Serializable
-private data class SpSettingsAvviso(
-    val goal: String = "",
-    val emoji: String = "🎯",
-    @SerialName("start_date") val startDate: String = "",
-    @SerialName("end_date") val endDate: String = "",
-    @SerialName("skip_weekend") val skipWeekend: Boolean = false,
-)
-
-@Serializable
-private data class SpGiorno(val day: String = "", val label: String? = null)
-
-@Serializable
-private data class SfSfidaAvviso(
-    val title: String = "",
-    @SerialName("checkin_time") val checkinTime: String = "",
 )
 
 object HomeRepository {
@@ -281,135 +250,5 @@ object HomeRepository {
         }
     }
 
-    /**
-     * Gli avvisi della home.
-     *
-     * Sul web ne convergono sei (decisioni, task urgenti, totale portafogli,
-     * Ta Firi, Spuntiamola, abitudini). Qui ce ne sono tre, Spuntiamola, Ta
-     * Firi? più le azioni delle Piante, che sono quelle che portano a una schermata che esiste: un avviso
-     * che non apre niente è peggio di nessun avviso. Le altre si aggiungono
-     * quando le rispettive app diventano native.
-     */
-    suspend fun avvisi(): List<Avviso> = withContext(Dispatchers.IO) {
-        listOfNotNull(avvisoSpuntiamola()) + avvisiTaFiri() + avvisiPiante()
-    }
-
-    /**
-     * Le azioni di cura delle Piante da fare oggi più quelle rimaste indietro
-     * (⚠️), come `loadHomeAlertPiante` in `index.html`: le prossime non
-     * entrano, e le «quando capita» restano fuori perché non hanno una data.
-     * ⚠️ Le azioni di una pianta **archiviata** non si mostrano; quelle di un
-     * gruppo sì, col nome del gruppo al posto della pianta. Il giorno si legge
-     * in ora locale, o un'azione di mezzanotte finirebbe fra le arretrate.
-     */
-    private suspend fun avvisiPiante(): List<Avviso> = try {
-        val zona = ZoneId.systemDefault()
-        val oggi = LocalDate.now(zona)
-        val domani = oggi.plusDays(1).atStartOfDay(zona).toInstant().toString()
-        Supabase.client().postgrest
-            .from("pv_actions")
-            .select(Columns.raw("title,next_occurrence_date,pv_plants(name,archived),pv_groups(name,emoji)")) {
-                filter {
-                    neq("status", "terminated")
-                    lt("next_occurrence_date", domani)
-                }
-                order("next_occurrence_date", Order.ASCENDING)
-            }
-            .decodeList<PvAzioneAvviso>()
-            .filter { it.pianta?.archived != true }
-            .map { a ->
-                val giorno = a.nextOccurrenceDate
-                    ?.let { runCatching { OffsetDateTime.parse(it).atZoneSameInstant(zona).toLocalDate() }.getOrNull() }
-                    ?: oggi
-                val di = a.pianta?.name ?: a.gruppo?.let { g -> listOfNotNull(g.emoji, g.name).joinToString(" ") }
-                val testo = (if (giorno < oggi) "⚠️ " else "") + "🌱 " + a.title + (di?.let { " — $it" } ?: "")
-                Avviso(testo, Route.PIANTE)
-            }
-    } catch (e: Exception) {
-        Log.w(TAG, "avvisi Piante non disponibili: ${e.message}")
-        emptyList()
-    }
-
-    /**
-     * Le sfide di Ta Firi? in corso oggi, una riga per sfida col suo orario di
-     * check-in — le stesse righe e lo stesso testo di `loadHomeAlertChallenges`
-     * in `index.html`.
-     *
-     * Come nel web l'avviso compare **anche se la sfida di oggi è già
-     * spuntata**: qui è un promemoria di cosa c'è in ballo, e la domanda vera
-     * («l'hai fatta?») la fa il banner dentro l'app.
-     */
-    private suspend fun avvisiTaFiri(): List<Avviso> = try {
-        val oggi = LocalDate.now().toString()
-        Supabase.client().postgrest
-            .from("sf_challenges")
-            .select(Columns.raw("title,checkin_time")) {
-                filter {
-                    eq("status", "active")
-                    lte("start_date", oggi)
-                    gte("end_date", oggi)
-                }
-                order("checkin_time", Order.ASCENDING)
-            }
-            .decodeList<SfSfidaAvviso>()
-            .map { Avviso("${it.title} · ${it.checkinTime.take(5)}", Route.TA_FIRI) }
-    } catch (e: Exception) {
-        Log.w(TAG, "avvisi Ta Firi? non disponibili: ${e.message}")
-        emptyList()
-    }
-
-    private suspend fun avvisoSpuntiamola(): Avviso? = try {
-        val db = Supabase.client().postgrest
-        // Giorno locale, non UTC: alle undici di sera `toISOString()` darebbe
-        // già il giorno dopo e l'avviso sparirebbe con la spunta ancora da fare.
-        val oggi = LocalDate.now()
-        val oggiStr = oggi.toString()
-
-        val impostazioni = db.from("sp_settings")
-            .select(Columns.raw("goal,emoji,start_date,end_date,skip_weekend")) {
-                limit(1)
-            }
-            .decodeList<SpSettingsAvviso>()
-            .firstOrNull()
-
-        val fuoriPeriodo = impostazioni == null ||
-            oggiStr < impostazioni.startDate ||
-            oggiStr > impostazioni.endDate
-        val weekendSaltato = impostazioni?.skipWeekend == true &&
-            (oggi.dayOfWeek == DayOfWeek.SATURDAY || oggi.dayOfWeek == DayOfWeek.SUNDAY)
-
-        when {
-            impostazioni == null || fuoriPeriodo || weekendSaltato -> null
-            else -> {
-                val giaSpuntato = db.from("sp_checks")
-                    .select(Columns.raw("day")) {
-                        filter { eq("day", oggiStr) }
-                        limit(1)
-                    }
-                    .decodeList<SpGiorno>()
-                    .isNotEmpty()
-
-                if (giaSpuntato) null else {
-                    val chiave = db.from("sp_key_days")
-                        .select(Columns.raw("day,label")) {
-                            filter { eq("day", oggiStr) }
-                            limit(1)
-                        }
-                        .decodeList<SpGiorno>()
-                        .firstOrNull()
-
-                    val testo = if (chiave != null) {
-                        val etichetta = chiave.label?.takeIf { it.isNotBlank() }?.let { " — $it" } ?: ""
-                        "⭐ Oggi è una giornata chiave$etichetta e non l'hai spuntata!"
-                    } else {
-                        "Oggi non l'hai ancora spuntato — ${impostazioni.emoji} ${impostazioni.goal}"
-                    }
-                    Avviso(testo, Route.SPUNTIAMOLA)
-                }
-            }
-        }
-    } catch (e: Exception) {
-        Log.w(TAG, "avviso Spuntiamola non disponibile: ${e.message}")
-        null
-    }
+    // Gli avvisi della home sono diventati il 📋 recap del giorno: vedi Recap.kt.
 }

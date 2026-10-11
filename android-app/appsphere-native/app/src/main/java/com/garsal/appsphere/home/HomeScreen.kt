@@ -192,14 +192,6 @@ fun HomeScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
 
-            if (!stato.avvisiChiusi && stato.avvisi.isNotEmpty()) {
-                FumettoAvvisi(
-                    avvisi = stato.avvisi,
-                    onApri = onApriApp,
-                    onChiudi = { vm.chiudiAvvisi() },
-                )
-            }
-
             stato.errore?.let { messaggio ->
                 Text(
                     text = messaggio,
@@ -217,6 +209,8 @@ fun HomeScreen(
                 var ingombroPannello by remember { mutableStateOf(IntSize.Zero) }
                 // 🗄️ Il cassetto in alto a destra: anche lui si scansa, e si misura.
                 var ingombroCassetto by remember { mutableStateOf(IntSize.Zero) }
+                // 📋 Il pulsante del recap, in alto a sinistra: le bolle scansano anche lui.
+                var ingombroRecap by remember { mutableStateOf(IntSize.Zero) }
                 val nelCassetto = stato.bolleNelCassetto
                 // 🗄️ Mentre si trascina una bolla il cassetto compare anche vuoto (è lì che la
                 // si lascia), e si accende quando il dito ci passa sopra.
@@ -239,6 +233,7 @@ fun HomeScreen(
                         bolle = stato.bolleInHome,
                         ingombroPannello = ingombroPannello,
                         ingombroCassetto = if (nelCassetto.isEmpty()) IntSize.Zero else ingombroCassetto,
+                        ingombroRecap = ingombroRecap,
                         inCattura = stato.inCattura,
                         onApri = onApriApp,
                         onCatturaColore = vm::catturaColore,
@@ -250,6 +245,14 @@ fun HomeScreen(
                         onNelCassetto = { vm.mettiNelCassetto(it.htmlFile) },
                     )
                 }
+
+                PulsanteRecap(
+                    onClick = { vm.apriRecap(auto = false) },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(MARGINE_PANNELLO)
+                        .onSizeChanged { ingombroRecap = it },
+                )
 
                 if (nelCassetto.isNotEmpty() || inTrascinamento) {
                     Cassetto(
@@ -315,6 +318,22 @@ fun HomeScreen(
 
     if (mostraVersione) {
         DialogoAggiornamento(onChiudi = { mostraVersione = false })
+    }
+
+    if (stato.recapAperto) {
+        DialogoRecap(
+            dati = stato.recap,
+            caricamento = stato.recapCaricamento,
+            modalitaNascosta = stato.modalitaNascosta,
+            tolti = stato.recapTolti,
+            onTogli = vm::togliDalRecap,
+            onRimetti = vm::rimettiNelRecap,
+            onApri = { route ->
+                vm.chiudiRecap()
+                onApriApp(route)
+            },
+            onChiudi = vm::chiudiRecap,
+        )
     }
 
     val dentroIlCassetto = stato.bolleNelCassetto
@@ -449,6 +468,7 @@ private fun CampoBolle(
     bolle: List<Bolla>,
     ingombroPannello: IntSize,
     ingombroCassetto: IntSize,
+    ingombroRecap: IntSize,
     inCattura: Boolean,
     onApri: (String) -> Unit,
     onCatturaColore: (String) -> Unit,
@@ -474,13 +494,20 @@ private fun CampoBolle(
         val w = constraints.maxWidth.toFloat()
         val h = constraints.maxHeight.toFloat()
 
-        val pannello = remember(ingombroPannello, ingombroCassetto, w, h, marginePx) {
+        val pannello = remember(ingombroPannello, ingombroCassetto, ingombroRecap, w, h, marginePx) {
             buildList {
                 if (ingombroPannello != IntSize.Zero) add(BubbleLayout.Pannello(
                     x = marginePx,
                     y = h - marginePx - ingombroPannello.height,
                     w = ingombroPannello.width.toFloat(),
                     h = ingombroPannello.height.toFloat(),
+                ))
+                // 📋 Il pulsante del recap, in alto a sinistra.
+                if (ingombroRecap != IntSize.Zero) add(BubbleLayout.Pannello(
+                    x = marginePx,
+                    y = marginePx,
+                    w = ingombroRecap.width.toFloat(),
+                    h = ingombroRecap.height.toFloat(),
                 ))
                 // 🗄️ Il cassetto, in alto a destra.
                 if (ingombroCassetto != IntSize.Zero) add(BubbleLayout.Pannello(
@@ -924,43 +951,18 @@ private fun misuraTesto(
     }
 }
 
+/** 📋 Il pulsante del recap del giorno, gemello di `#recap-chip` di `index.html`. */
 @Composable
-private fun FumettoAvvisi(
-    avvisi: List<Avviso>,
-    onApri: (String) -> Unit,
-    onChiudi: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7E0)),
+private fun PulsanteRecap(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(64.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .border(4.dp, NeroBordo, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Avvisi",
-                    fontWeight = FontWeight.Bold,
-                    color = Palette.dark,
-                )
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Chiudi avvisi",
-                    tint = Palette.muted,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(20.dp)
-                        .clickable(onClick = onChiudi),
-                )
-            }
-            avvisi.forEach { avviso ->
-                Text(
-                    text = avviso.testo,
-                    color = Palette.dark,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onApri(avviso.route) },
-                )
-            }
-        }
+        Text("📋", fontSize = 28.sp)
     }
 }

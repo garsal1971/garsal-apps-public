@@ -43,11 +43,15 @@ data class HomeState(
      * punti di quelle app continuano a contare nel totale.
      */
     val cassetto: Set<String> = emptySet(),
-    val avvisi: List<Avviso> = emptyList(),
+    /** 📋 Il recap del giorno (gemello di quello di index.html): null finché non è letto. */
+    val recap: DatiRecap? = null,
+    val recapCaricamento: Boolean = false,
+    val recapAperto: Boolean = false,
+    /** Le chiavi dei box del recap tolti oggi su questo telefono. */
+    val recapTolti: Set<String> = emptySet(),
     val caricamento: Boolean = true,
     val errore: String? = null,
     val modalitaNascosta: Boolean = false,
-    val avvisiChiusi: Boolean = false,
     /** La sequenza da indovinare, letta da `cm_settings`. Vuota = codice spento. */
     val sequenza: List<String> = emptyList(),
     /** Il widget del codice è aperto e le bolle si toccano per il colore. */
@@ -108,6 +112,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** Chiude il widget del codice se nessuno lo tocca più: i 15 s del web. */
     private var chiusuraCattura: Job? = null
 
+    /** La lettura del recap in corso, per non farne due insieme. Sta prima di `init`, che la usa. */
+    private var recapInCorso: Job? = null
+
     init {
         _state.value = _state.value.copy(
             cassetto = prefs.getStringSet(CHIAVE_CASSETTO, emptySet()).orEmpty().toSet()
@@ -116,7 +123,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // database: all'avvio si vede la home popolata invece di una rotella.
         // Poi i dati veri le sostituiscono.
         leggiCache()
+        _state.value = _state.value.copy(recapTolti = leggiTolti())
         ricarica()
+        apriRecap(auto = true)
         caricaSequenza()
 
         // La modalità nascosta vive fuori dal ViewModel — la leggono anche le
@@ -145,16 +154,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 AuthRepo.assicuraSessione()
                 // ⚠️ Se il server dice comunque che il token è scaduto (orologio del
                 // telefono storto, chiavi ruotate) si rinnova a forza e si riprova UNA volta.
-                val (dati, avvisi, spesi) = try {
-                    Triple(HomeRepository.carica(_state.value.modalitaNascosta), HomeRepository.avvisi(), PremiRepository.puntiSpesi())
+                val (dati, spesi) = try {
+                    HomeRepository.carica(_state.value.modalitaNascosta) to PremiRepository.puntiSpesi()
                 } catch (e: Exception) {
                     if (e.message?.contains("JWT expired", ignoreCase = true) != true) throw e
                     AuthRepo.assicuraSessione(forza = true)
-                    Triple(HomeRepository.carica(_state.value.modalitaNascosta), HomeRepository.avvisi(), PremiRepository.puntiSpesi())
+                    HomeRepository.carica(_state.value.modalitaNascosta) to PremiRepository.puntiSpesi()
                 }
                 _state.value = _state.value.copy(
                     bolle = dati.bolle,
-                    avvisi = avvisi,
                     caricamento = false,
                     totaleLordo = dati.totaleLordo,
                     puntiSpesi = spesi,
@@ -257,8 +265,59 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         ModalitaNascosta.spegni()
     }
 
-    fun chiudiAvvisi() {
-        _state.value = _state.value.copy(avvisiChiusi = true)
+    // ── 📋 Recap del giorno ─────────────────────────────────────────────────
+    //
+    // Si apre da solo alla PRIMA apertura della giornata su questo telefono
+    // (`recap_giorno`), e quando si vuole dal 📋. L'apertura automatica segna
+    // il giorno solo quando il recap compare davvero: senza dati (rete giù) si
+    // riprova alla prossima apertura — la stessa regola di apriRecap() nel web.
+
+    fun apriRecap(auto: Boolean) {
+        val oggi = java.time.LocalDate.now().toString()
+        if (auto && prefs.getString(CHIAVE_RECAP_GIORNO, null) == oggi) return
+        if (!auto) _state.value = _state.value.copy(recapAperto = true)
+        _state.value = _state.value.copy(recapTolti = leggiTolti())
+        val giaLetto = _state.value.recap?.letto == oggi
+        if (auto && giaLetto) return
+        if (recapInCorso?.isActive == true) return
+        recapInCorso = viewModelScope.launch {
+            _state.value = _state.value.copy(recapCaricamento = true)
+            val dati = try {
+                AuthRepo.assicuraSessione()
+                RecapRepository.carica()
+            } catch (e: Exception) {
+                Log.w("AppSphereHome", "recap non letto: ${e.messaggioBreve()}")
+                null
+            }
+            _state.value = _state.value.copy(recap = dati ?: _state.value.recap, recapCaricamento = false)
+            if (auto && dati != null) {
+                prefs.edit().putString(CHIAVE_RECAP_GIORNO, oggi).apply()
+                _state.value = _state.value.copy(recapAperto = true)
+            }
+        }
+    }
+
+    fun chiudiRecap() {
+        _state.value = _state.value.copy(recapAperto = false)
+    }
+
+    /** I box tolti valgono per OGGI: un elenco di un altro giorno è vuoto. */
+    private fun leggiTolti(): Set<String> {
+        val oggi = java.time.LocalDate.now().toString()
+        if (prefs.getString(CHIAVE_TOLTI_GIORNO, null) != oggi) return emptySet()
+        return prefs.getStringSet(CHIAVE_TOLTI, emptySet()).orEmpty().toSet()
+    }
+
+    fun togliDalRecap(chiave: String) = scriviTolti(leggiTolti() + chiave)
+
+    fun rimettiNelRecap() = scriviTolti(emptySet())
+
+    private fun scriviTolti(tolti: Set<String>) {
+        _state.value = _state.value.copy(recapTolti = tolti)
+        prefs.edit()
+            .putString(CHIAVE_TOLTI_GIORNO, java.time.LocalDate.now().toString())
+            .putStringSet(CHIAVE_TOLTI, HashSet(tolti))
+            .apply()
     }
 
     /**
@@ -324,5 +383,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         /** I 15 secondi di inattività dopo cui il widget si richiude (web: `captureTimeout`). */
         const val ATTESA_CATTURA = 15_000L
         const val CHIAVE_CASSETTO = "home_cassetto"
+        const val CHIAVE_RECAP_GIORNO = "recap_giorno"
+        const val CHIAVE_TOLTI = "recap_tolti"
+        const val CHIAVE_TOLTI_GIORNO = "recap_tolti_giorno"
     }
 }
