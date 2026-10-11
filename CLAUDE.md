@@ -5152,6 +5152,19 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   dell'app nel cassetto continuano a contare**. I due cassetti sono indipendenti: forma e regole
   vanno cambiate insieme.
 - Color palette: Olympic rings colors (`#0081C8`, `#FCB131`, `#1A1A1A`, `#00A651`, `#EE334E`)
+- **📋 Recap del giorno** (v1.11.0) — ha preso il posto del fumetto «❗ Avvisi» (le sezioni
+  Obiettivi/Piante descritte più sopra per il fumetto vivono ora qui). Si apre da solo alla **prima
+  apertura del giorno su quel dispositivo** (`localStorage.appsphere_recap_giorno`, giorno locale)
+  e quando si vuole dal 📋 **in alto a sinistra** sotto la barra blu, che le bolle scansano come il
+  cassetto. Quattro sezioni: 💶 **Finanza** (il totale portafogli di
+  `loadHomeAlertPortfolioTotal`), 📅 **Oggi** e ⚠️ **Scadute** — le scadenze di tutte le app con una
+  data, raggruppate per app: Tasks (tutti tranne le libere ripetizioni; `nascosto_fino` li tiene
+  fuori dalle scadute), Obiettivi e Piante (azioni), Ta Firi? (check-in `pending`), Decisioni,
+  Spuntiamola, Abituati e la pesata di Peso (questi ultimi solo oggi) — e 🔔 **Promemoria aperti**,
+  le righe `pending`/`snoozed` di `cm_notification_queue` di qualunque app, una volta sola anche se
+  sono su più canali. ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
+  e Piante si **convertono** (`recapGiornoDi`). I riservati seguono la modalità nascosta. Solo web:
+  la home nativa ha ancora i suoi avvisi.
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·
   semestre · anno · dall'inizio*), il totale **per app** (pallino col colore della bolla, emoji e
   nome: toccandolo si filtra) e la **cronologia** di guadagni e premi riscattati, dal più recente.
