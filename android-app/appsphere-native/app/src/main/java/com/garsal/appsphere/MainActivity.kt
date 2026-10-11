@@ -104,6 +104,13 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    // Tornando in primo piano il token può essere scaduto mentre il telefono dormiva:
+    // si rinnova subito, prima che qualche schermata ci faccia una chiamata.
+    override fun onStart() {
+        super.onStart()
+        AuthRepo.rinnovaSeServe()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
