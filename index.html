@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.10.9</title>
+<title>AppSphere v1.11.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -87,8 +87,36 @@
     pointer-events: none;
   }
 
-  /* ── FUMETTO AVVISO (es. DecisionKeeper "mostra avviso nella home") ── */
-  .home-alert-overlay {
+  /* ── 📋 RECAP DEL GIORNO (v1.11.0, al posto del fumetto «Avvisi») ──
+     Le classi .home-alert-* sono quelle del vecchio fumetto, riusate. */
+  /* ⚠️ `:not(.open)` e non `#recap-overlay` da solo: il `display:flex` della regola
+     condivisa qui sotto ha la stessa specificità e, venendo dopo, vincerebbe. */
+  #recap-overlay:not(.open) { display: none; }
+  #recap-overlay .home-alert-bubble { max-height: 86vh; }
+  #recap-overlay .home-alert-bubble-title { font-size: 22px; text-align: center; }
+  #recap-overlay .home-alert-section-title { font-size: 14px; color: #111; border-top: 2px solid #E5E7EB; padding-top: 14px; margin-top: 22px; }
+  #recap-overlay .home-alert-section-title:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  #recap-overlay .home-alert-chips { gap: 8px; }
+  #recap-overlay .home-alert-chip { padding: 12px 14px; font-size: 16px; border-radius: 12px; }
+  .home-alert-chip.oggi { background: #EFF6FF; color: #1E3A8A; border-color: #BFDBFE; }
+  .home-alert-chip.promemoria { background: #F9FAFB; color: #374151; border-color: #E5E7EB; cursor: default; }
+  .recap-app { font-size: 14px; font-weight: 800; color: #374151; margin: 14px 0 6px; }
+  .recap-n { display: inline-block; min-width: 1.5em; padding: 0 6px; border-radius: 999px; background: #E5E7EB; font-size: 12px; text-align: center; }
+  .recap-quando { display: block; font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 2px; }
+  .recap-vuoto { font-size: 15px; color: #6B7280; padding: 4px 2px; }
+  /* Il pulsante: in alto a sinistra sotto la barra blu, specchio del cassetto 🗄️. */
+  #recap-chip {
+    position: fixed; top: 68px; left: 16px; z-index: 200;
+    display: none; place-items: center;
+    width: 64px; height: 64px; padding: 0; box-sizing: border-box;
+    background: #fff; color: #111; border: 4px solid #111; border-radius: 12px;
+    font-size: 28px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  #recap-chip.visible { display: grid; }
+  #recap-chip:hover { transform: scale(1.05); }
+
+  /* ── FUMETTO AVVISO: stili riusati dal recap ── */
+  .home-alert-overlay, #recap-overlay {
     position: fixed;
     inset: 0;
     background: rgba(17,17,17,0.55);
@@ -2049,6 +2077,14 @@
     <div class="sp-value" id="hp-value">—</div>
   </div>
 </div>
+<button id="recap-chip" type="button" onclick="apriRecap(false)" title="Recap del giorno" aria-label="Recap del giorno">📋</button>
+<div id="recap-overlay" onclick="if (event.target === this) chiudiRecap()">
+  <div class="home-alert-bubble" role="dialog" aria-labelledby="recap-title">
+    <div class="home-alert-bubble-title" id="recap-title">📋 Recap</div>
+    <div id="recap-body"></div>
+    <button type="button" class="home-alert-close" onclick="chiudiRecap()" title="Chiudi">✕</button>
+  </div>
+</div>
 <button id="drawer-chip" type="button" onclick="openDrawer()" title="Trascina una bolla qui sopra per metterla nel cassetto" aria-label="Cassetto"><span id="drawer-dots"></span></button>
 
 <!-- 🗄️ CASSETTO: le bolle trascinate sopra il cassetto -->
@@ -2172,8 +2208,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.10.9';
-const BUILD_TIME  = '2026-10-10T15:30:00Z';
+const APP_VERSION = 'v1.11.0';
+const BUILD_TIME  = '2026-10-11T10:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -2229,6 +2265,12 @@ function getScorePanelRect() {
   const cassetto = document.getElementById('drawer-chip');
   if (cassetto && cassetto.classList.contains('visible')) {
     const r = cassetto.getBoundingClientRect();
+    rettangoli.push({ x: r.left - f.left, y: r.top - f.top, w: r.width, h: r.height });
+  }
+  // 📋 Il pulsante del recap, in alto a sinistra (v1.11.0): le bolle scansano anche lui.
+  const recap = document.getElementById('recap-chip');
+  if (recap && recap.classList.contains('visible')) {
+    const r = recap.getBoundingClientRect();
     rettangoli.push({ x: r.left - f.left, y: r.top - f.top, w: r.width, h: r.height });
   }
   return rettangoli.length ? rettangoli : null;
@@ -2630,8 +2672,8 @@ function render(apps) {
   if (spv) spv.textContent = total.toLocaleString('it-IT');
   updateScorePanel();
 
-  // Il rebuild ha ricreato tutti i nodi: riaggancia il fumetto avviso (se attivo)
-  renderHomeAlertBubble();
+  // La modalità nascosta può essere cambiata: il recap aperto si ridisegna coi riservati giusti.
+  if (recapAperto()) disegnaRecap();
 }
 
 // ── DRAG ──
@@ -3112,7 +3154,8 @@ function showApp(user) {
   // Avvia subito il caricamento (render istantaneo dalla cache + fetch in
   // background): le bolle sono già pronte dietro al login mentre sfuma.
   loadApps();
-  loadHomeAlerts();
+  document.getElementById('recap-chip').classList.add('visible');
+  apriRecap(true);
   setTimeout(() => { ls.style.display = 'none'; }, 500);
 }
 
@@ -3331,31 +3374,18 @@ async function loadApps(forceRender = false) {
   }
 }
 
-// ── POPUP AVVISI (decisioni, task urgenti, totale portafogli) ──
-// Due modi di chiudere il popup, comportamento diverso:
-//  - pulsante "✕": chiusura esplicita, non si ripropone per il resto
-//    della giornata (persistita su localStorage con la data odierna).
-//  - tap fuori dall'area (sullo sfondo): chiusura "leggera", solo per
-//    la visualizzazione corrente. Al prossimo caricamento della home
-//    il popup ricompare regolarmente.
-// Fonti aggregate: decisioni DecisionKeeper con show_home_alert=true, task
-// scaduti/di oggi con priorità "urgente", totale portafogli Finanza, sfide
-// Ta Firi attive oggi, abitudini ancora aperte oggi. Ogni fonte espone item con lo stesso formato
-// { title, hidden, url } così la sezione può crescere in futuro (nuove
-// app) senza toccare il rendering.
-let _homeAlertDecisions = [];
-let _homeAlertTasks = [];
-let _homeAlertFinanza = [];
-let _homeAlertChallenges = [];
-let _homeAlertSpuntiamola = [];
-let _homeAlertHabits = [];
-let _homeAlertObiettivi = [];
-let _homeAlertPiante = [];
-
-function alertDismissedToday() {
-  return localStorage.getItem('appsphere_alert_dismissed_date') === new Date().toISOString().slice(0, 10);
-}
-let _homeAlertDismissed = alertDismissedToday();
+// ── 📋 RECAP DEL GIORNO (v1.11.0) ──
+// Ha preso il posto del fumetto «❗ Avvisi». Si apre da solo alla PRIMA apertura
+// della giornata su questo dispositivo (`appsphere_recap_giorno` in localStorage,
+// giorno locale), e quando si vuole dal 📋 in alto a sinistra.
+// In quattro sezioni, in quest'ordine:
+//   💶 Finanza          — informativa: il totale portafogli, lo stesso del vecchio fumetto;
+//   📅 Oggi             — le scadenze di oggi di TUTTE le app che hanno una data;
+//   ⚠️ Scadute          — le scadenze rimaste indietro;
+//   🔔 Promemoria aperti — le righe di cm_notification_queue non ancora consegnate.
+// Ogni fonte restituisce elementi { app, title, hidden, url, day, ora }: `day`
+// (YYYY-MM-DD locale) decide fra Oggi e Scadute. Una fonte che non risponde
+// torna [] e le altre restano: un recap parziale è meglio di nessun recap.
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -3377,43 +3407,6 @@ async function loadHomeAlertDecisions(uid, headers) {
     return rows.map(d => ({ title: d.title, hidden: !!d.is_hidden, url: 'decisions.html' }));
   } catch (e) {
     console.warn('Avvisi DecisionKeeper non disponibili:', e);
-    return [];
-  }
-}
-
-async function loadHomeAlertUrgentTasks(headers) {
-  try {
-    const prRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cm_priorities?select=id&name=ilike.urgente`,
-      { headers }
-    );
-    if (!prRes.ok) return [];
-    const priorities = await prRes.json();
-    if (!priorities.length) return [];
-    const priorityIds = priorities.map(p => p.id).join(',');
-
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/ts_tasks?select=id,title,type,start_date,next_occurrence_date,status,riservato` +
-      `&status=in.(started,completed,failed,skipped)&priority_id=in.(${priorityIds})&type=neq.free_repeat`,
-      { headers }
-    );
-    if (!res.ok) return [];
-    const rows = await res.json();
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return rows
-      .filter(t => {
-        const dueRaw = t.type === 'single' ? t.start_date : t.next_occurrence_date;
-        if (!dueRaw) return false;
-        const due = new Date(dueRaw);
-        due.setHours(0, 0, 0, 0);
-        return due <= today;
-      })
-      .map(t => ({ title: t.title, hidden: !!t.riservato, url: 'tasks.html' }));
-  } catch (e) {
-    console.warn('Avvisi task urgenti non disponibili:', e);
     return [];
   }
 }
@@ -3563,23 +3556,6 @@ async function loadHomeAlertPortfolioTotal(headers) {
   }
 }
 
-async function loadHomeAlertChallenges(headers) {
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/sf_challenges?select=id,title,checkin_time` +
-      `&status=eq.active&start_date=lte.${today}&end_date=gte.${today}&order=checkin_time.asc`,
-      { headers }
-    );
-    if (!res.ok) return [];
-    const rows = await res.json();
-    return rows.map(c => ({ title: c.title + ' · ' + (c.checkin_time || '').slice(0, 5), hidden: false, url: 'ta-firi.html' }));
-  } catch (e) {
-    console.warn('Avvisi sfide non disponibili:', e);
-    return [];
-  }
-}
-
 // Spuntiamola: avvisa solo se oggi rientra nel periodo impostato e la
 // spunta di oggi non è ancora stata fatta.
 async function loadHomeAlertSpuntiamola(headers) {
@@ -3671,6 +3647,8 @@ async function loadHomeAlertHabits(headers) {
       if (h.frequency === 'weekly' && Array.isArray(h.weekdays) && h.weekdays.length
           && !h.weekdays.map(Number).includes(dow)) continue;
 
+      // «N volte in M giorni» non ha un giorno dovuto: non è una scadenza di oggi.
+      if (h.frequency === 'count_window') continue;
       const done = todayCompletions.filter(c => c.habit_id === h.id);
 
       if (h.frequency === 'daily_multiple' && Array.isArray(h.daily_times) && h.daily_times.length) {
@@ -3694,175 +3672,313 @@ async function loadHomeAlertHabits(headers) {
   }
 }
 
-// Obiettivi: le azioni da svolgere oggi — quelle che cadono oggi più quelle
-// rimaste indietro. ⚠️ Le prossime NON entrano: il fumetto è un promemoria di
-// quel che si può chiudere adesso, non l'agenda — quella è il Piano quotidiano
-// dentro l'app. Le azioni a libera ripetizione non hanno una data e restano
-// fuori per costruzione (`next_occurrence_date` nullo).
-async function loadHomeAlertObiettivi(headers) {
+// Giorno locale di un istante (ISO o timestamptz). ⚠️ Non tagliare la stringa:
+// un'azione di Obiettivi o Piante delle 00:30 sta in archivio come le 22:30 UTC
+// del giorno prima.
+function recapGiornoDi(v) {
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Mezzanotte LOCALE di domani, in ISO, per confrontarla coi timestamptz.
+function recapDomaniIso() {
+  const o = new Date();
+  return new Date(o.getFullYear(), o.getMonth(), o.getDate() + 1).toISOString();
+}
+
+async function recapDecisioni(uid, headers) {
   try {
-    const oggi = new Date();
-    const domani = new Date(oggi.getTime() + 86400000).toISOString().slice(0, 10);
-    const inizioOggi = oggi.toISOString().slice(0, 10);
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/ob_actions?select=id,title,next_occurrence_date` +
-      `&status=neq.terminated&next_occurrence_date=lt.${domani}` +
-      `&order=next_occurrence_date.asc`,
+      `${SUPABASE_URL}/rest/v1/dc_decisions?select=id,title,is_hidden&user_id=eq.${uid}&show_home_alert=eq.true&status=eq.active&order=created_at.desc`,
       { headers }
     );
     if (!res.ok) return [];
-    const righe = await res.json();
-    return righe.map(a => {
-      // il giorno in ora locale: tagliare la stringa darebbe il giorno UTC, e
-      // un'azione di mezzanotte finirebbe nel giorno prima
-      const d = new Date(a.next_occurrence_date);
-      const giorno = isNaN(d.getTime()) ? inizioOggi
-        : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
-          + '-' + String(d.getDate()).padStart(2, '0');
-      const arretrata = giorno < inizioOggi;
-      return {
-        title: (arretrata ? '⚠️ ' : '') + a.title,
-        hidden: false,
-        url: 'obiettivi.html'
-      };
-    });
-  } catch (e) {
-    console.warn('Avvisi obiettivi non disponibili:', e);
-    return [];
-  }
+    // Una decisione in sospeso non ha una data: vale per oggi.
+    return (await res.json()).map(d => ({ app: '🗳️ Decisioni in sospeso', title: d.title, hidden: !!d.is_hidden, url: 'decisions.html', day: localDayStr() }));
+  } catch (e) { console.warn('[recap] decisioni:', e); return []; }
 }
 
-async function loadHomeAlertPiante(headers) {
-  // Le azioni di cura da fare oggi più quelle rimaste indietro (⚠️), come per
-  // Obiettivi. Fuori le piante archiviate; le azioni di gruppo restano, col
-  // nome del gruppo al posto della pianta. Gemella di avvisiPiante() in
-  // HomeRepository.kt dell'APK nativa.
+// Tasks: tutti i task vivi con una data (le libere ripetizioni non ne hanno).
+// ⚠️ Qui le date si TAGLIANO e non si convertono: tasks.html scrive i timestamp
+// già in ora locale (è il `giornoDa()` del nativo). Un task 🙈 nascosto dagli
+// scaduti (`nascosto_fino`) resta fuori dalle scadute fino a quel giorno, come
+// nella panoramica di Tasks.
+async function recapTasks(headers) {
   try {
-    const oggi = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const giornoLocale = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-    const inizioOggi = giornoLocale(oggi);
-    // mezzanotte LOCALE di domani, in UTC per il confronto col timestamptz
-    const domani = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() + 1).toISOString();
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/ts_tasks?select=*&status=in.(started,completed,failed,skipped)&type=neq.free_repeat`,
+      { headers }
+    );
+    if (!res.ok) return [];
+    const oggi = localDayStr();
+    const out = [];
+    for (const t of await res.json()) {
+      const raw = String((t.type === 'single' ? t.start_date : (t.next_occurrence_date || t.start_date)) || '');
+      const day = raw.slice(0, 10);
+      if (!day || day > oggi) continue;
+      if (day < oggi && t.nascosto_fino && String(t.nascosto_fino).slice(0, 10) >= oggi) continue;
+      const ora = raw.length > 15 ? raw.slice(11, 16) : '';
+      out.push({ app: '📋 Tasks', title: t.title, hidden: !!t.riservato, url: 'tasks.html', day, ora: ora === '00:00' ? '' : ora });
+    }
+    return out;
+  } catch (e) { console.warn('[recap] tasks:', e); return []; }
+}
+
+async function recapObiettivi(headers) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/ob_actions?select=title,next_occurrence_date` +
+      `&status=neq.terminated&next_occurrence_date=lt.${encodeURIComponent(recapDomaniIso())}&order=next_occurrence_date.asc`,
+      { headers }
+    );
+    if (!res.ok) return [];
+    return (await res.json()).map(a => ({
+      app: '🎯 Obiettivi', title: a.title, hidden: false, url: 'obiettivi.html',
+      day: recapGiornoDi(a.next_occurrence_date) || localDayStr()
+    }));
+  } catch (e) { console.warn('[recap] obiettivi:', e); return []; }
+}
+
+// Piante: fuori le archiviate; le azioni di gruppo col nome del gruppo.
+// Gemella di avvisiPiante() in HomeRepository.kt dell'APK nativa.
+async function recapPiante(headers) {
+  try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/pv_actions?select=title,next_occurrence_date,` +
       `pv_plants(name,archived),pv_groups(name,emoji)` +
-      `&status=neq.terminated&next_occurrence_date=lt.${encodeURIComponent(domani)}` +
-      `&order=next_occurrence_date.asc`,
+      `&status=neq.terminated&next_occurrence_date=lt.${encodeURIComponent(recapDomaniIso())}&order=next_occurrence_date.asc`,
       { headers }
     );
     if (!res.ok) return [];
-    const righe = await res.json();
-    return righe
+    return (await res.json())
       .filter(a => !(a.pv_plants && a.pv_plants.archived))
       .map(a => {
-        const d = new Date(a.next_occurrence_date);
-        const giorno = isNaN(d.getTime()) ? inizioOggi : giornoLocale(d);
         const di = a.pv_plants ? a.pv_plants.name
           : a.pv_groups ? [a.pv_groups.emoji, a.pv_groups.name].filter(Boolean).join(' ') : '';
         return {
-          title: (giorno < inizioOggi ? '⚠️ ' : '') + a.title + (di ? ' — ' + di : ''),
-          hidden: false,
-          url: 'piante.html'
+          app: '🌱 Piante', title: a.title + (di ? ' — ' + di : ''), hidden: false, url: 'piante.html',
+          day: recapGiornoDi(a.next_occurrence_date) || localDayStr()
         };
       });
-  } catch (e) {
-    console.warn('Avvisi piante non disponibili:', e);
-    return [];
-  }
+  } catch (e) { console.warn('[recap] piante:', e); return []; }
 }
 
-async function loadHomeAlerts() {
-  if (_homeAlertDismissed) return;
-  const token = localStorage.getItem('sb_token');
-  if (!token) return;
-  const payload = decodeJwt(token);
-  const uid = payload && payload.sub;
-  if (!uid) return;
-  const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token };
+// Ta Firi?: i check-in ancora `pending` delle sfide attive fino a oggi. Quelli
+// dei giorni passati sono le scadute: un giorno non segnato.
+async function recapTaFiri(headers) {
+  try {
+    const oggi = localDayStr();
+    const cRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sf_challenges?select=id,title,checkin_time&status=eq.active&start_date=lte.${oggi}`,
+      { headers }
+    );
+    if (!cRes.ok) return [];
+    const sfide = await cRes.json();
+    if (!sfide.length) return [];
+    const byId = new Map(sfide.map(c => [c.id, c]));
+    const kRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sf_checkins?select=challenge_id,day_date,status` +
+      `&status=eq.pending&day_date=lte.${oggi}&challenge_id=in.(${sfide.map(c => c.id).join(',')})&order=day_date.asc`,
+      { headers }
+    );
+    if (!kRes.ok) return [];
+    return (await kRes.json()).filter(k => byId.has(k.challenge_id)).map(k => {
+      const c = byId.get(k.challenge_id);
+      return { app: '🔥 Ta Firi?', title: c.title, hidden: false, url: 'ta-firi.html',
+               day: String(k.day_date).slice(0, 10), ora: String(c.checkin_time || '').slice(0, 5) };
+    });
+  } catch (e) { console.warn('[recap] ta firi:', e); return []; }
+}
 
-  const [decisions, tasks, finanza, challenges, spuntiamola, habits, obiettivi, piante] = await Promise.all([
-    loadHomeAlertDecisions(uid, headers),
-    loadHomeAlertUrgentTasks(headers),
+// Pesata: oggi è giorno di pesata dell'obiettivo attivo (ogni giorno, o ogni N
+// giorni da `start_date` — la regola di giornoDiPesata() in weight-quest.html)
+// e oggi non ci si è ancora pesati.
+async function recapPesata(headers) {
+  try {
+    const oggi = localDayStr();
+    const oRes = await fetch(`${SUPABASE_URL}/rest/v1/ps_objectives?select=*&status=eq.active&order=created_at.desc&limit=1`, { headers });
+    if (!oRes.ok) return [];
+    const ob = (await oRes.json())[0];
+    if (!ob) return [];
+    const inizio = String(ob.start_date || '').slice(0, 10);
+    const fine = String(ob.end_date || '').slice(0, 10);
+    if ((inizio && oggi < inizio) || (fine && oggi > fine)) return [];
+    const n = parseInt(ob.weigh_every_days, 10);
+    if (n >= 1) {
+      if (!inizio) return [];
+      const diff = Math.round((new Date(oggi + 'T12:00:00') - new Date(inizio + 'T12:00:00')) / 86400000);
+      if (diff % n !== 0) return [];
+    }
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    const da = d.getTime(), a = da + 86400000;
+    const wRes = await fetch(`${SUPABASE_URL}/rest/v1/ps_weight_tracking?select=timestamp&timestamp=gte.${da}&timestamp=lt.${a}&limit=1`, { headers });
+    if (!wRes.ok || (await wRes.json()).length) return [];
+    return [{ app: '⚖️ Peso', title: 'Pesata di oggi' + (ob.name ? ' — ' + ob.name : ''), hidden: false, url: 'weight-quest.html', day: oggi }];
+  } catch (e) { console.warn('[recap] pesata:', e); return []; }
+}
+
+// Promemoria aperti: tutte le righe della coda non ancora consegnate né chiuse,
+// di qualunque app. ⚠️ La stessa occorrenza su due canali sono due righe (e due
+// rule_id): si contano una volta, riconosciute da app + entità + istante.
+async function recapPromemoria(headers, riservati) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/cm_notification_queue?select=app,entity_id,title,fire_at,channel` +
+      `&status=in.(pending,snoozed)&order=fire_at.asc&limit=500`,
+      { headers }
+    );
+    if (!res.ok) return [];
+    const visti = new Map();
+    for (const r of await res.json()) {
+      const chiave = r.app + '|' + r.entity_id + '|' + String(r.fire_at).slice(0, 16);
+      const c = visti.get(chiave);
+      if (c) { if (!c.canali.includes(r.channel)) c.canali.push(r.channel); continue; }
+      visti.set(chiave, { title: r.title || 'Promemoria', fire_at: r.fire_at, canali: [r.channel], hidden: riservati.has(String(r.entity_id)) });
+    }
+    return [...visti.values()];
+  } catch (e) { console.warn('[recap] promemoria:', e); return []; }
+}
+
+let _recap = null;           // ultimi dati letti
+let _recapCaricamento = null; // la lettura in corso, per non farne due insieme
+
+async function caricaRecap() {
+  const token = localStorage.getItem('sb_token');
+  const uid = token && (decodeJwt(token) || {}).sub;
+  if (!uid) return null;
+  const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token };
+  // I task riservati servono anche per nascondere i loro promemoria.
+  const [finanza, decisioni, tasks, obiettivi, piante, tafiri, spunt, abitudini, pesata] = await Promise.all([
     loadHomeAlertPortfolioTotal(headers),
-    loadHomeAlertChallenges(headers),
+    recapDecisioni(uid, headers),
+    recapTasks(headers),
+    recapObiettivi(headers),
+    recapPiante(headers),
+    recapTaFiri(headers),
     loadHomeAlertSpuntiamola(headers),
     loadHomeAlertHabits(headers),
-    loadHomeAlertObiettivi(headers),
-    loadHomeAlertPiante(headers)
+    recapPesata(headers)
   ]);
-  _homeAlertDecisions = decisions;
-  _homeAlertTasks = tasks;
-  _homeAlertFinanza = finanza;
-  _homeAlertChallenges = challenges;
-  _homeAlertSpuntiamola = spuntiamola;
-  _homeAlertHabits = habits;
-  _homeAlertObiettivi = obiettivi;
-  _homeAlertPiante = piante;
-  renderHomeAlertBubble();
+  const riservati = new Set();
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/ts_tasks?select=id&riservato=eq.true`, { headers });
+    if (r.ok) (await r.json()).forEach(t => riservati.add(String(t.id)));
+  } catch (e) { /* senza: i promemoria si mostrano tutti */ }
+  const promemoria = await recapPromemoria(headers, riservati);
+  const oggi = localDayStr();
+  const scadenze = [
+    ...decisioni, ...tasks, ...obiettivi, ...piante, ...tafiri,
+    ...spunt.map(i => ({ ...i, app: '✅ Spuntiamola', day: oggi })),
+    ...abitudini.map(i => ({ ...i, app: '🔁 Abituati', day: oggi })),
+    ...pesata
+  ];
+  return { finanza, scadenze, promemoria, letto: oggi };
 }
 
-function renderAlertSection(title, items, extraClass) {
-  const visible = hiddenMode ? items : items.filter(i => !i.hidden);
-  if (!visible.length) return '';
-
-  const MAX_CHIPS = 8;
-  const shown = visible.slice(0, MAX_CHIPS);
-  const extra = visible.length - shown.length;
-  const chipClass = 'home-alert-chip' + (extraClass ? ' ' + extraClass : '');
-
-  return '<div class="home-alert-section-title">' + title + '</div>' +
-    '<div class="home-alert-chips">' +
-    shown.map(i => i.url
-      ? '<a class="' + chipClass + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>'
-      : '<span class="' + chipClass + '">' + escapeHtml(i.title) + '</span>'
-    ).join('') +
-    (extra > 0 ? '<span class="home-alert-chip more">+' + extra + ' altre</span>' : '') +
-    '</div>';
+function recapAperto() {
+  const ov = document.getElementById('recap-overlay');
+  return !!ov && ov.classList.contains('open');
 }
 
-function renderHomeAlertBubble() {
-  const old = document.querySelector('.home-alert-overlay');
-  if (old) old.remove();
-  if (_homeAlertDismissed) return;
-
-  const sectionsHtml =
-    renderAlertSection('🗳️ Decisioni in sospeso', _homeAlertDecisions) +
-    renderAlertSection('⏰ Task urgenti', _homeAlertTasks) +
-    renderAlertSection('💰 Finanza', _homeAlertFinanza, 'finanza') +
-    renderAlertSection('🎯 Sfide di oggi', _homeAlertChallenges, 'sfide') +
-    renderAlertSection('✅ Spuntiamola', _homeAlertSpuntiamola, 'spuntiamola') +
-    renderAlertSection('🔁 Abituati — da fare oggi', _homeAlertHabits, 'abitudini') +
-    renderAlertSection('🎯 Obiettivi — azioni di oggi', _homeAlertObiettivi, 'obiettivi') +
-    renderAlertSection('🌱 Piante — azioni di oggi', _homeAlertPiante, 'piante');
-  if (!sectionsHtml) return;
-
-  // Tap fuori: chiude solo questa visualizzazione, ricompare al prossimo caricamento.
-  const dismissNow = () => overlay.remove();
-
-  // Pulsante "✕": chiusura esplicita, non si ripropone per il resto della giornata.
-  const dismissToday = () => {
-    localStorage.setItem('appsphere_alert_dismissed_date', new Date().toISOString().slice(0, 10));
-    _homeAlertDismissed = true;
-    overlay.remove();
-  };
-
-  const overlay = document.createElement('div');
-  overlay.className = 'home-alert-overlay';
-  overlay.addEventListener('click', dismissNow);
-
-  const bubble = document.createElement('div');
-  bubble.className = 'home-alert-bubble';
-  bubble.addEventListener('click', e => e.stopPropagation());
-  bubble.innerHTML =
-    '<div class="home-alert-bubble-title">❗ Avvisi</div>' +
-    sectionsHtml +
-    '<button type="button" class="home-alert-close" title="Chiudi per oggi">✕</button>';
-
-  bubble.querySelector('.home-alert-close').addEventListener('click', dismissToday);
-  overlay.appendChild(bubble);
-  document.body.appendChild(overlay);
+// Apre il recap. `auto` = apertura da sola all'avvio: solo la prima volta della
+// giornata su questo dispositivo.
+async function apriRecap(auto) {
+  const oggi = localDayStr();
+  if (auto) {
+    let gia = null;
+    try { gia = localStorage.getItem('appsphere_recap_giorno'); } catch (e) {}
+    if (gia === oggi) return;
+  }
+  const ov = document.getElementById('recap-overlay');
+  if (!ov) return;
+  if (!auto || !_recap || _recap.letto !== oggi) {
+    if (!auto) { ov.classList.add('open'); disegnaRecap(true); }
+    if (!_recapCaricamento) _recapCaricamento = caricaRecap().finally(() => { _recapCaricamento = null; });
+    const dati = await _recapCaricamento;
+    if (!dati) { if (!auto) disegnaRecap(); return; }
+    _recap = dati;
+  }
+  // L'apertura automatica segna il giorno quando il recap compare davvero:
+  // senza dati (rete giù) si riprova alla prossima apertura.
+  if (auto) {
+    try { localStorage.setItem('appsphere_recap_giorno', oggi); } catch (e) {}
+    ov.classList.add('open');
+  }
+  disegnaRecap();
 }
+
+function chiudiRecap() {
+  const ov = document.getElementById('recap-overlay');
+  if (ov) ov.classList.remove('open');
+}
+
+function recapDataBreve(day) {
+  return day.slice(8, 10) + '/' + day.slice(5, 7);
+}
+
+// Una sezione di scadenze, raggruppate per app nell'ordine in cui le fonti le danno.
+function recapGruppi(items, scadute) {
+  const gruppi = new Map();
+  for (const i of items) {
+    if (!gruppi.has(i.app)) gruppi.set(i.app, []);
+    gruppi.get(i.app).push(i);
+  }
+  let html = '';
+  for (const [app, lista] of gruppi) {
+    if (scadute) lista.sort((a, b) => a.day.localeCompare(b.day));
+    else lista.sort((a, b) => (a.ora || '99').localeCompare(b.ora || '99'));
+    html += '<div class="recap-app">' + escapeHtml(app) + ' <span class="recap-n">' + lista.length + '</span></div>' +
+      '<div class="home-alert-chips">' + lista.map(i =>
+        '<a class="home-alert-chip' + (scadute ? '' : ' oggi') + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
+          (scadute ? '<span class="recap-quando">dal ' + recapDataBreve(i.day) + '</span>' : (i.ora ? '<span class="recap-quando">' + escapeHtml(i.ora) + '</span>' : '')) +
+          escapeHtml(i.title) +
+        '</a>').join('') +
+      '</div>';
+  }
+  return html;
+}
+
+function disegnaRecap(caricamento) {
+  const box = document.getElementById('recap-body');
+  if (!box) return;
+  const titolo = document.getElementById('recap-title');
+  if (titolo) titolo.textContent = '📋 Recap di ' + new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (caricamento && !_recap) { box.innerHTML = '<div class="recap-vuoto">Carico…</div>'; return; }
+  if (!_recap) { box.innerHTML = '<div class="recap-vuoto">Non sono riuscito a leggere i dati. Riprova fra poco.</div>'; return; }
+
+  const vis = l => hiddenMode ? l : l.filter(i => !i.hidden);
+  const oggi = localDayStr();
+  const scad = vis(_recap.scadenze);
+  const diOggi = scad.filter(i => i.day === oggi);
+  const scadute = scad.filter(i => i.day < oggi);
+  const prom = vis(_recap.promemoria);
+
+  let html = '';
+  html += '<div class="home-alert-section-title">💶 Finanza</div>';
+  html += _recap.finanza.length
+    ? '<div class="home-alert-chips">' + _recap.finanza.map(i =>
+        '<a class="home-alert-chip finanza" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>').join('') + '</div>'
+    : '<div class="recap-vuoto">Totale portafogli non disponibile.</div>';
+
+  html += '<div class="home-alert-section-title">📅 Oggi · ' + diOggi.length + '</div>';
+  html += diOggi.length ? recapGruppi(diOggi, false) : '<div class="recap-vuoto">Niente in scadenza oggi.</div>';
+
+  html += '<div class="home-alert-section-title">⚠️ Scadute · ' + scadute.length + '</div>';
+  html += scadute.length ? recapGruppi(scadute, true) : '<div class="recap-vuoto">Niente di arretrato.</div>';
+
+  html += '<div class="home-alert-section-title">🔔 Promemoria aperti · ' + prom.length + '</div>';
+  const icona = { telegram: '📱', android: '📲', smart_block: '🔐' };
+  html += prom.length
+    ? '<div class="home-alert-chips">' + prom.map(p => {
+        const d = new Date(p.fire_at);
+        const quando = isNaN(d.getTime()) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        return '<span class="home-alert-chip promemoria"><span class="recap-quando">' + escapeHtml(quando) + ' ' + p.canali.map(c => icona[c] || '').join('') + '</span>' + escapeHtml(p.title) + '</span>';
+      }).join('') + '</div>'
+    : '<div class="recap-vuoto">Nessun promemoria in coda.</div>';
+
+  box.innerHTML = html;
+}
+
 
 // ── VERSIONE APP (solo dentro l'APK Android) ──
 // Il ponte lo espone solo l'APK WebView: sul PC la voce resta nascosta, e negli
@@ -5449,6 +5565,7 @@ async function init() {
       if (Array.isArray(cached) && cached.length && !CURRENT_APPS.length) {
         document.getElementById('user-bar').classList.add('visible');
         document.getElementById('score-panel').classList.add('visible');
+        document.getElementById('recap-chip').classList.add('visible');
         applyShapePreference();
         render(cached);
       }
@@ -5485,6 +5602,8 @@ async function init() {
   document.getElementById('user-bar').classList.remove('visible');
   document.getElementById('score-panel').classList.remove('visible');
   document.getElementById('hidden-panel').classList.remove('visible');
+  document.getElementById('recap-chip').classList.remove('visible');
+  chiudiRecap();
   const field = document.getElementById('field');
   if (field) field.innerHTML = '';
   CURRENT_APPS = [];
@@ -5632,6 +5751,7 @@ if ('serviceWorker' in navigator) {
   { sel: '#rewards-overlay',           chiudi: () => closeRewards() },
   { sel: '#punti-overlay',             chiudi: () => closePunti() },
   { sel: '#drawer-overlay',            chiudi: () => closeDrawer() },
+  { sel: '#recap-overlay',             chiudi: () => chiudiRecap() },
   { sel: '#rw-form-overlay',           chiudi: () => closeRewardForm() },
   { sel: '#badge-modal-overlay',       chiudi: () => closeBadgeSettings() },
   { sel: '#priorities-modal-overlay',  chiudi: () => closePrioritiesSettings() },
