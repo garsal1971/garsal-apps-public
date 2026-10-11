@@ -5166,7 +5166,11 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   fuori dalle scadute), Obiettivi e Piante (azioni), Ta Firi? (check-in `pending`), Decisioni,
   Spuntiamola, Abituati e la pesata di Peso (questi ultimi solo oggi) — e 🔔 **Promemoria aperti**,
   le righe `pending`/`snoozed` di `cm_notification_queue` di qualunque app, una volta sola anche se
-  sono su più canali. ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
+  sono su più canali. ⚠️ **Ogni box si toglie trascinandolo verso destra** (v1.13.0): resta tolto per il
+  resto della giornata su quel dispositivo (`localStorage.appsphere_recap_tolti`, col giorno) e
+  ricompare il giorno dopo se la cosa c'è ancora. Non scrive niente nel database. La chiave del box
+  (`data-rk`) non contiene i numeri che mostra, o un box di Finanza ricomparirebbe al primo
+  ricarico; in fondo c'è *↺ Rimetti i box tolti oggi*. ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
   e Piante si **convertono** (`recapGiornoDi`). I riservati seguono la modalità nascosta. Solo web:
   la home nativa ha ancora i suoi avvisi.
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·
