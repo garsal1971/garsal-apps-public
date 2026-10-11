@@ -4852,7 +4852,17 @@ E un'**ottava, 🌱 Piante** (web v1.9.6, APK 1.0.106: `loadHomeAlertPiante` / `
 della pianta — in nativo il tocco apre Piante, che quelle azioni non le mostra ancora. ⚠️ Il
 confine è la mezzanotte **locale** di domani, non quella UTC.
 
-Gli avvisi in home nativa hanno per ora **tre fonti, Spuntiamola, Ta Firi? e le azioni delle Piante**: le altre quattro del web
+⚠️ **Dall'APK 1.0.126 il fumetto degli avvisi nativo non c'è più: c'è il 📋 recap del giorno**
+(`home/Recap.kt`), gemello di quello di `index.html` — stesse tre sezioni, stesse fonti query per
+query, stesso box unico ⚖️ Peso e Calorie, stesso trascinamento a destra che toglie un box fino a
+domani (preferenze `recap_tolti` / `recap_tolti_giorno`, solo su quel telefono) e stesso «↺ Rimetti».
+Si apre da solo alla prima apertura del giorno (`recap_giorno`) e dal 📋 in alto a sinistra, che le
+bolle scansano. ⚠️ Un compito di un'app che in nativo non c'è (🗳️ Decisioni) si mostra lo stesso e
+il tocco non apre niente; anche i promemoria non si aprono, come sul web. ⚠️ Finanza nel recap si
+vede sempre, anche fuori dalla modalità nascosta. Cambiando una fonte del recap web, va cambiata
+anche in `RecapRepository`. Quel che segue è la storia del fumetto, prima del recap.
+
+Gli avvisi in home nativa avevano **tre fonti, Spuntiamola, Ta Firi? e le azioni delle Piante**: le altre quattro del web
 (decisioni, task urgenti, totale portafogli, abitudini) porterebbero a schermate che qui non
 esistono, e un avviso che non apre niente è peggio di nessun avviso. Quello di Ta Firi? elenca le
 sfide in corso oggi con il loro orario di check-in, ed è la copia di `loadHomeAlertChallenges` —
