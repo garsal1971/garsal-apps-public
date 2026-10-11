@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.11.0</title>
+<title>AppSphere v1.12.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -100,6 +100,7 @@
   #recap-overlay .home-alert-chip { padding: 12px 14px; font-size: 16px; border-radius: 12px; }
   .home-alert-chip.oggi { background: #EFF6FF; color: #1E3A8A; border-color: #BFDBFE; }
   .home-alert-chip.promemoria { background: #F9FAFB; color: #374151; border-color: #E5E7EB; cursor: default; }
+  .recap-sub { font-size: 16px; font-weight: 800; color: #111; margin: 16px 0 4px; }
   .recap-app { font-size: 14px; font-weight: 800; color: #374151; margin: 14px 0 6px; }
   .recap-n { display: inline-block; min-width: 1.5em; padding: 0 6px; border-radius: 999px; background: #E5E7EB; font-size: 12px; text-align: center; }
   .recap-quando { display: block; font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 2px; }
@@ -2208,8 +2209,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.11.0';
-const BUILD_TIME  = '2026-10-11T10:00:00Z';
+const APP_VERSION = 'v1.12.0';
+const BUILD_TIME  = '2026-10-11T15:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -3378,10 +3379,10 @@ async function loadApps(forceRender = false) {
 // Ha preso il posto del fumetto «❗ Avvisi». Si apre da solo alla PRIMA apertura
 // della giornata su questo dispositivo (`appsphere_recap_giorno` in localStorage,
 // giorno locale), e quando si vuole dal 📋 in alto a sinistra.
-// In quattro sezioni, in quest'ordine:
-//   💶 Finanza          — informativa: il totale portafogli, lo stesso del vecchio fumetto;
-//   📅 Oggi             — le scadenze di oggi di TUTTE le app che hanno una data;
-//   ⚠️ Scadute          — le scadenze rimaste indietro;
+// In tre sezioni, in quest'ordine (v1.12.0):
+//   ℹ️ Info      — 💶 Finanza (il totale portafogli) e ⚖️ Peso e Calorie (recapPeso);
+//   ✅ Compiti   — 📅 Oggi e ⚠️ Scadute, sempre separate: le scadenze di TUTTE le
+//                  app che hanno una data, di oggi e rimaste indietro;
 //   🔔 Promemoria aperti — le righe di cm_notification_queue non ancora consegnate.
 // Ogni fonte restituisce elementi { app, title, hidden, url, day, ora }: `day`
 // (YYYY-MM-DD locale) decide fra Oggi e Scadute. Una fonte che non risponde
@@ -3790,31 +3791,123 @@ async function recapTaFiri(headers) {
   } catch (e) { console.warn('[recap] ta firi:', e); return []; }
 }
 
-// Pesata: oggi è giorno di pesata dell'obiettivo attivo (ogni giorno, o ogni N
-// giorni da `start_date` — la regola di giornoDiPesata() in weight-quest.html)
-// e oggi non ci si è ancora pesati.
-async function recapPesata(headers) {
+// ⚖️ Peso e Calorie (v1.12.0): la parte «peso» della sezione ℹ️ Info, e il
+// compito «Pesata di oggi». Una lettura sola per tutt'e due.
+//   - ultimo peso: l'ultima riga di ps_weight_tracking;
+//   - media mobile: l'ultima ema_weight di ps_daily_ema (la linea viola dei grafici);
+//   - prossima pesata: oggi se è giorno di pesata e non ci si è ancora pesati,
+//     altrimenti il prossimo giorno dovuto — la regola di giornoDiPesata() /
+//     prossimaPesata() in weight-quest.html — col peso che il piano chiede quel
+//     giorno (pesoPianoAl(), stessa interpolazione fra le milestone);
+//   - calorie: il target di oggi da `al_conto`, lo stesso numero del 📓 Diario
+//     (senza quel che si è già mangiato, di proposito);
+//   - pesato oggi o no.
+// ⚠️ Le tre regole (giorno di pesata, prossima pesata, interpolazione) sono copie
+// di quelle di weight-quest.html: cambiandole là, vanno cambiate qui.
+function pesoGiornoDiPesata(ob, giorno) {
+  const n = parseInt(ob.weigh_every_days, 10);
+  const inizio = String(ob.start_date || '').slice(0, 10);
+  if (!(n >= 1)) return true;
+  if (!inizio || giorno < inizio) return false;
+  const diff = Math.round((new Date(giorno + 'T12:00:00') - new Date(inizio + 'T12:00:00')) / 86400000);
+  return diff % n === 0;
+}
+
+function pesoProssimaPesata(ob, dalGiorno) {
+  const inizio = String(ob.start_date || '').slice(0, 10);
+  const fine = String(ob.end_date || '').slice(0, 10);
+  if (!inizio) return null;
+  const d = new Date((dalGiorno > inizio ? dalGiorno : inizio) + 'T12:00:00');
+  for (let i = 0; i < 400; i++) {
+    const s = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    if (fine && s > fine) return null;
+    if (pesoGiornoDiPesata(ob, s)) return s;
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function pesoPianoAl(giorno, ob) {
+  let ms = ob.milestones;
+  if (typeof ms === 'string') { try { ms = JSON.parse(ms); } catch (e) { ms = null; } }
+  if (!Array.isArray(ms)) return null;
+  ms = ms.filter(m => m && m.date && m.weight != null)
+         .map(m => ({ date: String(m.date).slice(0, 10), weight: +m.weight }))
+         .sort((a, b) => a.date.localeCompare(b.date));
+  if (ms.length < 2) return null;
+  if (giorno <= ms[0].date) return ms[0].weight;
+  const ultima = ms[ms.length - 1];
+  if (giorno >= ultima.date) return ultima.weight;
+  const gg = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
+  for (let i = 0; i < ms.length - 1; i++) {
+    const a = ms[i], b = ms[i + 1];
+    if (giorno >= a.date && giorno <= b.date) {
+      const tot = gg(a.date, b.date);
+      if (!tot) return a.weight;
+      return Math.round((a.weight + (b.weight - a.weight) * gg(a.date, giorno) / tot) * 100) / 100;
+    }
+  }
+  return null;
+}
+
+function fmtKg(v) {
+  return Number(v).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' kg';
+}
+
+async function recapPeso(headers) {
+  const vuoto = { info: [], compito: [] };
   try {
     const oggi = localDayStr();
-    const oRes = await fetch(`${SUPABASE_URL}/rest/v1/ps_objectives?select=*&status=eq.active&order=created_at.desc&limit=1`, { headers });
-    if (!oRes.ok) return [];
-    const ob = (await oRes.json())[0];
-    if (!ob) return [];
-    const inizio = String(ob.start_date || '').slice(0, 10);
-    const fine = String(ob.end_date || '').slice(0, 10);
-    if ((inizio && oggi < inizio) || (fine && oggi > fine)) return [];
-    const n = parseInt(ob.weigh_every_days, 10);
-    if (n >= 1) {
-      if (!inizio) return [];
-      const diff = Math.round((new Date(oggi + 'T12:00:00') - new Date(inizio + 'T12:00:00')) / 86400000);
-      if (diff % n !== 0) return [];
-    }
+    const get = qs => fetch(`${SUPABASE_URL}/rest/v1/${qs}`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []);
     const d = new Date(); d.setHours(0, 0, 0, 0);
     const da = d.getTime(), a = da + 86400000;
-    const wRes = await fetch(`${SUPABASE_URL}/rest/v1/ps_weight_tracking?select=timestamp&timestamp=gte.${da}&timestamp=lt.${a}&limit=1`, { headers });
-    if (!wRes.ok || (await wRes.json()).length) return [];
-    return [{ app: '⚖️ Peso', title: 'Pesata di oggi' + (ob.name ? ' — ' + ob.name : ''), hidden: false, url: 'weight-quest.html', day: oggi }];
-  } catch (e) { console.warn('[recap] pesata:', e); return []; }
+    const [obs, ultime, oggiRighe, ema, conto] = await Promise.all([
+      get('ps_objectives?select=*&status=eq.active&order=created_at.desc&limit=1'),
+      get('ps_weight_tracking?select=weight,timestamp&order=timestamp.desc&limit=1'),
+      get(`ps_weight_tracking?select=timestamp&timestamp=gte.${da}&timestamp=lt.${a}&limit=1`),
+      get(`ps_daily_ema?select=day,ema_weight&day=lte.${oggi}&ema_weight=not.is.null&order=day.desc&limit=1`),
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/al_conto`, {
+        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_oggi: oggi })
+      }).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+    const ob = obs[0] || null;
+    const pesato = oggiRighe.length > 0;
+    const url = 'weight-quest.html';
+    const info = [];
+
+    const ultima = ultime[0];
+    if (ultima && ultima.weight != null) {
+      const g = new Date(Number(ultima.timestamp));
+      const quando = isNaN(g.getTime()) ? '' : ' (' + g.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ')';
+      info.push({ title: 'Ultimo peso: ' + fmtKg(ultima.weight) + quando, url });
+    }
+    const m = ema[0];
+    if (m) info.push({ title: 'Media mobile: ' + fmtKg(m.ema_weight) + (m.day !== oggi ? ' (' + recapDataBreve(m.day) + ')' : ''), url });
+
+    const diPesata = ob ? pesoGiornoDiPesata(ob, oggi) && (!ob.end_date || oggi <= String(ob.end_date).slice(0, 10)) : true;
+    if (ob) {
+      const prossima = (diPesata && !pesato) ? pesoProssimaPesata(ob, oggi) : pesoProssimaPesata(ob, localDayStr(1));
+      if (prossima) {
+        const n = Math.round((new Date(prossima + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
+        const fra = n === 0 ? 'oggi' : n === 1 ? 'domani' : 'fra ' + n + ' giorni';
+        const target = pesoPianoAl(prossima, ob);
+        info.push({ title: 'Prossima pesata: ' + recapDataBreve(prossima) + ' (' + fra + ')' + (target != null ? ' · target ' + fmtKg(target) : ''), url });
+      }
+    }
+
+    const tgt = conto && conto.giorni && conto.giorni[oggi] && conto.giorni[oggi].target;
+    if (tgt && tgt.ok && tgt.kcal != null) {
+      info.push({ title: 'Calorie di oggi: ' + Math.round(tgt.kcal).toLocaleString('it-IT') + ' kcal', url });
+    }
+
+    info.push({ title: pesato ? '✅ Pesato oggi' : (diPesata ? '❌ Non ancora pesato oggi' : '➖ Oggi non è giorno di pesata'), url });
+
+    const compito = (ob && diPesata && !pesato && (!ob.start_date || oggi >= String(ob.start_date).slice(0, 10)))
+      ? [{ app: '⚖️ Peso', title: 'Pesata di oggi' + (ob.objective_name ? ' — ' + ob.objective_name : ''), hidden: false, url, day: oggi }]
+      : [];
+    return { info, compito };
+  } catch (e) { console.warn('[recap] peso:', e); return vuoto; }
 }
 
 // Promemoria aperti: tutte le righe della coda non ancora consegnate né chiuse,
@@ -3848,7 +3941,7 @@ async function caricaRecap() {
   if (!uid) return null;
   const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token };
   // I task riservati servono anche per nascondere i loro promemoria.
-  const [finanza, decisioni, tasks, obiettivi, piante, tafiri, spunt, abitudini, pesata] = await Promise.all([
+  const [finanza, decisioni, tasks, obiettivi, piante, tafiri, spunt, abitudini, peso] = await Promise.all([
     loadHomeAlertPortfolioTotal(headers),
     recapDecisioni(uid, headers),
     recapTasks(headers),
@@ -3857,7 +3950,7 @@ async function caricaRecap() {
     recapTaFiri(headers),
     loadHomeAlertSpuntiamola(headers),
     loadHomeAlertHabits(headers),
-    recapPesata(headers)
+    recapPeso(headers)
   ]);
   const riservati = new Set();
   try {
@@ -3870,9 +3963,9 @@ async function caricaRecap() {
     ...decisioni, ...tasks, ...obiettivi, ...piante, ...tafiri,
     ...spunt.map(i => ({ ...i, app: '✅ Spuntiamola', day: oggi })),
     ...abitudini.map(i => ({ ...i, app: '🔁 Abituati', day: oggi })),
-    ...pesata
+    ...peso.compito
   ];
-  return { finanza, scadenze, promemoria, letto: oggi };
+  return { finanza, peso: peso.info, scadenze, promemoria, letto: oggi };
 }
 
 function recapAperto() {
@@ -3954,16 +4047,24 @@ function disegnaRecap(caricamento) {
   const prom = vis(_recap.promemoria);
 
   let html = '';
-  html += '<div class="home-alert-section-title">💶 Finanza</div>';
+  const chip = (i, cls) => '<a class="home-alert-chip ' + cls + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>';
+
+  // ℹ️ Info: Finanza e Peso e Calorie, due blocchi informativi.
+  html += '<div class="home-alert-section-title">ℹ️ Info</div>';
+  html += '<div class="recap-sub">💶 Finanza</div>';
   html += _recap.finanza.length
-    ? '<div class="home-alert-chips">' + _recap.finanza.map(i =>
-        '<a class="home-alert-chip finanza" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>').join('') + '</div>'
+    ? '<div class="home-alert-chips">' + _recap.finanza.map(i => chip(i, 'finanza')).join('') + '</div>'
     : '<div class="recap-vuoto">Totale portafogli non disponibile.</div>';
+  html += '<div class="recap-sub">⚖️ Peso e Calorie</div>';
+  html += (_recap.peso || []).length
+    ? '<div class="home-alert-chips">' + _recap.peso.map(i => chip(i, 'finanza')).join('') + '</div>'
+    : '<div class="recap-vuoto">Dati di peso non disponibili.</div>';
 
-  html += '<div class="home-alert-section-title">📅 Oggi · ' + diOggi.length + '</div>';
+  // ✅ Compiti: Oggi e Scadute, sempre separate.
+  html += '<div class="home-alert-section-title">✅ Compiti</div>';
+  html += '<div class="recap-sub">📅 Oggi · ' + diOggi.length + '</div>';
   html += diOggi.length ? recapGruppi(diOggi, false) : '<div class="recap-vuoto">Niente in scadenza oggi.</div>';
-
-  html += '<div class="home-alert-section-title">⚠️ Scadute · ' + scadute.length + '</div>';
+  html += '<div class="recap-sub">⚠️ Scadute · ' + scadute.length + '</div>';
   html += scadute.length ? recapGruppi(scadute, true) : '<div class="recap-vuoto">Niente di arretrato.</div>';
 
   html += '<div class="home-alert-section-title">🔔 Promemoria aperti · ' + prom.length + '</div>';

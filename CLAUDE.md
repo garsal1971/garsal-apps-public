@@ -5156,8 +5156,12 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   Obiettivi/Piante descritte più sopra per il fumetto vivono ora qui). Si apre da solo alla **prima
   apertura del giorno su quel dispositivo** (`localStorage.appsphere_recap_giorno`, giorno locale)
   e quando si vuole dal 📋 **in alto a sinistra** sotto la barra blu, che le bolle scansano come il
-  cassetto. Quattro sezioni: 💶 **Finanza** (il totale portafogli di
-  `loadHomeAlertPortfolioTotal`), 📅 **Oggi** e ⚠️ **Scadute** — le scadenze di tutte le app con una
+  cassetto. Tre sezioni (v1.12.0): ℹ️ **Info** — 💶 Finanza (il totale portafogli di
+  `loadHomeAlertPortfolioTotal`) e ⚖️ **Peso e Calorie** (`recapPeso`: ultimo peso, ultima media
+  mobile di `ps_daily_ema`, prossima pesata dovuta coi giorni che mancano e il peso di piano di
+  quel giorno, il target kcal di oggi da `al_conto` senza i consumi, pesato oggi sì/no; le regole
+  di giorno di pesata e interpolazione sono copie di quelle di `weight-quest.html` e vanno cambiate
+  insieme) — ✅ **Compiti**, con 📅 **Oggi** e ⚠️ **Scadute** sempre separate, — le scadenze di tutte le app con una
   data, raggruppate per app: Tasks (tutti tranne le libere ripetizioni; `nascosto_fino` li tiene
   fuori dalle scadute), Obiettivi e Piante (azioni), Ta Firi? (check-in `pending`), Decisioni,
   Spuntiamola, Abituati e la pesata di Peso (questi ultimi solo oggi) — e 🔔 **Promemoria aperti**,
