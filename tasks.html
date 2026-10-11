@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.26.1</title>
+    <title>Tasks v19.26.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2370,8 +2370,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.26.1';
-        const BUILD_TIME  = '2026-10-07T14:30:00Z';
+        const APP_VERSION = 'v19.26.2';
+        const BUILD_TIME  = '2026-10-11T09:00:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -5375,6 +5375,12 @@
             console.log('🟢 About to call renderReminders()');
             renderReminders(); // Clear reminders display
             console.log('🟢 Called renderReminders()');
+            // ⚠️ I preset dei promemoria si caricano IN FONDO all'avvio, dopo task,
+            // storico e notifiche: aprendo «Nuovo Task» presto l'elenco è ancora vuoto e
+            // sotto il canale scelto non compare nessuna tempistica. La modifica li
+            // caricava già se mancavano (openEditModal); qui mancava, e si rifà il
+            // disegno appena arrivano (v19.26.2).
+            if (reminderPresets.length === 0) loadReminderPresets().then(() => renderReminders());
             
             // Imposta data/ora corrente nel campo start_date
             const now = new Date();
