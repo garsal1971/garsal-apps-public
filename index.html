@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.12.1</title>
+<title>AppSphere v1.13.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -101,6 +101,7 @@
   .home-alert-chip.oggi { background: #EFF6FF; color: #1E3A8A; border-color: #BFDBFE; }
   .home-alert-chip.promemoria { background: #F9FAFB; color: #374151; border-color: #E5E7EB; cursor: default; }
   .recap-sub { font-size: 16px; font-weight: 800; color: #111; margin: 16px 0 4px; }
+  #recap-body [data-rk] { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
   .recap-peso { display: block; }
   .recap-riga { display: block; padding: 2px 0; }
   .recap-app { font-size: 14px; font-weight: 800; color: #374151; margin: 14px 0 6px; }
@@ -2211,8 +2212,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.12.1';
-const BUILD_TIME  = '2026-10-11T16:00:00Z';
+const APP_VERSION = 'v1.13.0';
+const BUILD_TIME  = '2026-10-11T16:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4011,6 +4012,96 @@ function recapDataBreve(day) {
   return day.slice(8, 10) + '/' + day.slice(5, 7);
 }
 
+// ── Box tolti per oggi (v1.13.0) ──
+// Un box del recap si toglie premendolo e trascinandolo verso destra. Resta tolto
+// per il resto della giornata su questo dispositivo (`appsphere_recap_tolti` in
+// localStorage, col giorno locale): il giorno dopo l'elenco riparte vuoto, quindi
+// il box ricompare se la cosa c'è ancora nel database. Non si scrive niente sul
+// database: togliere un box non chiude né rimanda la cosa che dice.
+// Ogni box ha una chiave stabile (data-rk) che non dipende dai numeri che mostra:
+// il totale dei portafogli o il peso cambiano nel giorno, il box resta lo stesso.
+function recapTolti() {
+  try {
+    const v = JSON.parse(localStorage.getItem('appsphere_recap_tolti') || 'null');
+    if (v && v.day === localDayStr() && Array.isArray(v.keys)) return new Set(v.keys);
+  } catch (e) {}
+  return new Set();
+}
+
+function recapTogli(chiave) {
+  const t = recapTolti();
+  t.add(chiave);
+  try { localStorage.setItem('appsphere_recap_tolti', JSON.stringify({ day: localDayStr(), keys: [...t] })); } catch (e) {}
+}
+
+function recapRimettiTutti() {
+  try { localStorage.removeItem('appsphere_recap_tolti'); } catch (e) {}
+  disegnaRecap();
+}
+
+const recapChiaveScadenza = i => 's|' + i.app + '|' + i.title + '|' + i.day + '|' + (i.ora || '');
+const recapChiavePromemoria = p => 'p|' + p.title + '|' + String(p.fire_at).slice(0, 16);
+
+// Trascinamento verso destra: delegato su #recap-body, che si ridisegna intero.
+// ⚠️ `touch-action: pan-y` sui box (CSS) lascia al browser lo scorrimento verticale
+// e manda a noi quello orizzontale; senza, il dito trascinerebbe la pagina.
+// ⚠️ Un trascinamento finito non deve diventare un tocco: il click che il browser
+// manda dopo il rilascio si ferma in cattura, o il box toglierebbe e aprirebbe l'app.
+let _recapSw = null, _recapNoClick = false;
+(function agganciaSwipeRecap() {
+  function init() {
+    const body = document.getElementById('recap-body');
+    if (!body) return;
+    body.addEventListener('pointerdown', e => {
+      const c = e.target.closest('[data-rk]');
+      if (!c || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      _recapSw = { c, id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, va: false };
+    });
+    body.addEventListener('pointermove', e => {
+      const s = _recapSw;
+      if (!s || e.pointerId !== s.id) return;
+      const dx = e.clientX - s.x, dy = e.clientY - s.y;
+      if (!s.va) {
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { _recapSw = null; return; }
+        if (dx > 10 && dx > Math.abs(dy)) {
+          s.va = true;
+          try { s.c.setPointerCapture(e.pointerId); } catch (er) {}
+          s.c.style.transition = 'none';
+        } else return;
+      }
+      s.dx = Math.max(0, dx);
+      s.c.style.transform = 'translateX(' + s.dx + 'px)';
+      s.c.style.opacity = String(Math.max(0.2, 1 - s.dx / 260));
+    });
+    const fine = e => {
+      const s = _recapSw;
+      if (!s || e.pointerId !== s.id) return;
+      _recapSw = null;
+      if (!s.va) return;
+      _recapNoClick = true;
+      setTimeout(() => { _recapNoClick = false; }, 400);
+      const c = s.c;
+      c.style.transition = 'transform .2s ease, opacity .2s ease';
+      if (e.type === 'pointerup' && s.dx > Math.min(120, c.offsetWidth * 0.35)) {
+        c.style.transform = 'translateX(110%)';
+        c.style.opacity = '0';
+        recapTogli(c.dataset.rk);
+        setTimeout(() => disegnaRecap(), 200);
+      } else {
+        c.style.transform = '';
+        c.style.opacity = '';
+      }
+    };
+    body.addEventListener('pointerup', fine);
+    body.addEventListener('pointercancel', fine);
+    body.addEventListener('click', e => {
+      if (_recapNoClick) { e.preventDefault(); e.stopPropagation(); _recapNoClick = false; }
+    }, true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
 // Una sezione di scadenze, raggruppate per app nell'ordine in cui le fonti le danno.
 function recapGruppi(items, scadute) {
   const gruppi = new Map();
@@ -4024,7 +4115,7 @@ function recapGruppi(items, scadute) {
     else lista.sort((a, b) => (a.ora || '99').localeCompare(b.ora || '99'));
     html += '<div class="recap-app">' + escapeHtml(app) + ' <span class="recap-n">' + lista.length + '</span></div>' +
       '<div class="home-alert-chips">' + lista.map(i =>
-        '<a class="home-alert-chip' + (scadute ? '' : ' oggi') + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
+        '<a class="home-alert-chip' + (scadute ? '' : ' oggi') + '" data-rk="' + escapeHtml(recapChiaveScadenza(i)) + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
           (scadute ? '<span class="recap-quando">dal ' + recapDataBreve(i.day) + '</span>' : (i.ora ? '<span class="recap-quando">' + escapeHtml(i.ora) + '</span>' : '')) +
           escapeHtml(i.title) +
         '</a>').join('') +
@@ -4041,26 +4132,28 @@ function disegnaRecap(caricamento) {
   if (caricamento && !_recap) { box.innerHTML = '<div class="recap-vuoto">Carico…</div>'; return; }
   if (!_recap) { box.innerHTML = '<div class="recap-vuoto">Non sono riuscito a leggere i dati. Riprova fra poco.</div>'; return; }
 
+  const tolti = recapTolti();
   const vis = l => hiddenMode ? l : l.filter(i => !i.hidden);
   const oggi = localDayStr();
-  const scad = vis(_recap.scadenze);
+  const scad = vis(_recap.scadenze).filter(i => !tolti.has(recapChiaveScadenza(i)));
   const diOggi = scad.filter(i => i.day === oggi);
   const scadute = scad.filter(i => i.day < oggi);
-  const prom = vis(_recap.promemoria);
+  const prom = vis(_recap.promemoria).filter(p => !tolti.has(recapChiavePromemoria(p)));
+  const toltoOggi = '<div class="recap-vuoto">Tolto fino a domani.</div>';
 
   let html = '';
-  const chip = (i, cls) => '<a class="home-alert-chip ' + cls + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>';
+  const chip = (i, cls, rk) => '<a class="home-alert-chip ' + cls + '" data-rk="' + escapeHtml(rk) + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>';
 
   // ℹ️ Info: Finanza e Peso e Calorie, due blocchi informativi.
   html += '<div class="home-alert-section-title">ℹ️ Info</div>';
   html += '<div class="recap-sub">💶 Finanza</div>';
-  html += _recap.finanza.length
-    ? '<div class="home-alert-chips">' + _recap.finanza.map(i => chip(i, 'finanza')).join('') + '</div>'
+  html += tolti.has('finanza') ? toltoOggi : _recap.finanza.length
+    ? '<div class="home-alert-chips">' + _recap.finanza.map(i => chip(i, 'finanza', 'finanza')).join('') + '</div>'
     : '<div class="recap-vuoto">Totale portafogli non disponibile.</div>';
   html += '<div class="recap-sub">⚖️ Peso e Calorie</div>';
-  html += (_recap.peso || []).length
+  html += tolti.has('peso') ? toltoOggi : (_recap.peso || []).length
     // Un box solo: le righe una sotto l'altra, un tocco apre weight-quest.html.
-    ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" href="weight-quest.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
+    ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" data-rk="peso" href="weight-quest.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
         _recap.peso.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>'
     : '<div class="recap-vuoto">Dati di peso non disponibili.</div>';
 
@@ -4077,9 +4170,14 @@ function disegnaRecap(caricamento) {
     ? '<div class="home-alert-chips">' + prom.map(p => {
         const d = new Date(p.fire_at);
         const quando = isNaN(d.getTime()) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-        return '<span class="home-alert-chip promemoria"><span class="recap-quando">' + escapeHtml(quando) + ' ' + p.canali.map(c => icona[c] || '').join('') + '</span>' + escapeHtml(p.title) + '</span>';
+        return '<span class="home-alert-chip promemoria" data-rk="' + escapeHtml(recapChiavePromemoria(p)) + '"><span class="recap-quando">' + escapeHtml(quando) + ' ' + p.canali.map(c => icona[c] || '').join('') + '</span>' + escapeHtml(p.title) + '</span>';
       }).join('') + '</div>'
     : '<div class="recap-vuoto">Nessun promemoria in coda.</div>';
+
+  // Un trascinamento per sbaglio non deve costare il box fino a domani.
+  if (tolti.size) {
+    html += '<div class="recap-vuoto" style="margin-top:18px"><a href="#" onclick="event.preventDefault(); recapRimettiTutti()">↺ Rimetti i box tolti oggi (' + tolti.size + ')</a></div>';
+  }
 
   box.innerHTML = html;
 }
