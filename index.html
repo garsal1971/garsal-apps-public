@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.12.0</title>
+<title>AppSphere v1.12.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -101,6 +101,8 @@
   .home-alert-chip.oggi { background: #EFF6FF; color: #1E3A8A; border-color: #BFDBFE; }
   .home-alert-chip.promemoria { background: #F9FAFB; color: #374151; border-color: #E5E7EB; cursor: default; }
   .recap-sub { font-size: 16px; font-weight: 800; color: #111; margin: 16px 0 4px; }
+  .recap-peso { display: block; }
+  .recap-riga { display: block; padding: 2px 0; }
   .recap-app { font-size: 14px; font-weight: 800; color: #374151; margin: 14px 0 6px; }
   .recap-n { display: inline-block; min-width: 1.5em; padding: 0 6px; border-radius: 999px; background: #E5E7EB; font-size: 12px; text-align: center; }
   .recap-quando { display: block; font-size: 12px; font-weight: 700; opacity: 0.75; margin-bottom: 2px; }
@@ -2209,8 +2211,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.12.0';
-const BUILD_TIME  = '2026-10-11T15:30:00Z';
+const APP_VERSION = 'v1.12.1';
+const BUILD_TIME  = '2026-10-11T16:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4057,7 +4059,9 @@ function disegnaRecap(caricamento) {
     : '<div class="recap-vuoto">Totale portafogli non disponibile.</div>';
   html += '<div class="recap-sub">⚖️ Peso e Calorie</div>';
   html += (_recap.peso || []).length
-    ? '<div class="home-alert-chips">' + _recap.peso.map(i => chip(i, 'finanza')).join('') + '</div>'
+    // Un box solo: le righe una sotto l'altra, un tocco apre weight-quest.html.
+    ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" href="weight-quest.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
+        _recap.peso.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>'
     : '<div class="recap-vuoto">Dati di peso non disponibili.</div>';
 
   // ✅ Compiti: Oggi e Scadute, sempre separate.
