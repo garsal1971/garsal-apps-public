@@ -2729,6 +2729,20 @@ nel registro le quantità che risultavano dalle transazioni e ha passato il port
   scrittura** di Finanza nativa, che dopo il salvataggio rifà lo snapshot e rilegge. Il form delle
   transazioni non offre i portafogli a saldi.
 
+### 📑 Report (Configurazione → Report)
+
+(12 ottobre 2026, Finanza v1.31.0.) Elenchi **fissi, scritti in `REPORTS`** dentro `finanza.html`
+(nessuna tabella): ogni voce ha un `build()` che torna `{ columns, numeric, rows, total }`, e i
+cinque formati — ⬇️ PDF (jsPDF + autotable), ⬇️ Excel (.xlsx, SheetJS), ⬇️ CSV, 📋 CSV e 📋 MD
+negli appunti — leggono **la stessa tabella**, così un file non dice una cifra diversa da un
+altro. Le librerie si caricano dal CDN **al primo uso** (`repCarica`). Il CSV usa `;` e la
+virgola decimale (Excel italiano lo apre da sé) e porta il BOM per gli accenti.
+
+Il primo è **Prodotti finanziari in quota**: nome, ISIN e valore in quota, **sommato fra i
+portafogli**, dal più grande. ⚠️ I numeri vengono da `computeHoldings` × `ownership_percentage`,
+come nel dettaglio portafoglio (senza prezzo si ripiega sul costo); **fuori dossier, liquidità e
+portafogli a saldi** (crypto). Aggiungere un report = una voce in `REPORTS` più la sua funzione.
+
 ### La descrizione di un prodotto (`fnz_products.description`)
 
 Che cos'è quello strumento e, se è un fondo o un ETF, che cosa contiene. Si scrive dal form del

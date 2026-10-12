@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.30.0</title>
+  <title>GarsalFinanza v1.31.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -547,6 +547,7 @@
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="tag-config">🏷️ Tag</button>
         <button class="nav-item"        data-action="nav" data-view="conti-collegati">🏦 Banche e Conti</button>
+        <button class="nav-item"        data-action="nav" data-view="report">📑 Report</button>
         <button class="nav-item"        data-action="nav" data-view="impostazioni">⚙️ Impostazioni</button>
       </div>
       <div class="nav-sep"></div>
@@ -576,6 +577,7 @@
       <div id="view-configurazione"     class="view"></div>
       <div id="view-tag-config"         class="view"></div>
       <div id="view-conti-collegati"    class="view"></div>
+      <div id="view-report"             class="view"></div>
       <div id="view-impostazioni"       class="view"></div>
     </main>
   </div>
@@ -613,8 +615,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.30.0';
-const APP_BUILD   = '2026-10-12T16:00:00Z';
+const APP_VERSION = 'v1.31.0';
+const APP_BUILD   = '2026-10-12T18:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -6076,6 +6078,7 @@ function renderConfigurazione() {
   const voci = [
     { view: 'tag-config',      icon: '🏷️', title: 'Tag',             sub: 'Categorie e opzioni dei tag assegnabili ai prodotti' },
     { view: 'conti-collegati', icon: '🏦', title: 'Banche e Conti',   sub: 'Censimento istituti, consensi e battesimo dei conti' },
+    { view: 'report',          icon: '📑', title: 'Report',          sub: 'Elenchi da scaricare (PDF, Excel, CSV) o copiare (CSV, Markdown)' },
     { view: 'impostazioni',    icon: '⚙️', title: 'Impostazioni',     sub: 'Preferenze dell\'app e dati dell\'account' },
   ];
   setHtml('view-configurazione', `
@@ -8309,6 +8312,144 @@ async function salvaAssetVals(assetId) {
 }
 /* Spese Famiglia — la vista in sola lettura sta in spese-famiglia.js, condiviso
    con situazione-teresa.html e cost-analysis.html: qui si chiama caOpen() e basta. */
+/* ══════════════ REPORT ══════════════════════════════════════════
+   Elenchi fissi, scritti qui: ogni report è { id, title, sub, build } e build() torna
+   { columns, rows, total } con le righe già calcolate. I formati (PDF, Excel, CSV, MD)
+   leggono tutti la STESSA tabella, così un file non può dire una cifra diversa da un altro.
+   ⚠️ I numeri non si ricalcolano: vengono da computeHoldings, la stessa del dettaglio
+   portafoglio, con la stessa quota (ownership_percentage) e lo stesso ripiego sul costo
+   quando manca il prezzo. */
+const REPORTS = [
+  { id: 'prodotti-quota', title: 'Prodotti finanziari in quota',
+    sub: 'Ogni prodotto in portafoglio al valore della quota posseduta, sommato fra i portafogli. Fuori dossier, liquidità e crypto a saldi.',
+    build: reportProdottiQuota },
+];
+function reportProdottiQuota() {
+  const byProd = new Map();
+  S.portfolios.filter(p => !isSaldi(p)).forEach(p => {
+    const own = (parseFloat(p.ownership_percentage) || 100) / 100;
+    computeHoldings(p.id).forEach(h => {
+      if (!(h.qty > 0)) return;
+      const val = (h.currentValue ?? h.costBasis) * own;
+      const cur = byProd.get(h.product.id) || { name: h.product.name || h.product.symbol, isin: h.product.isin || '', value: 0 };
+      cur.value += val;
+      byProd.set(h.product.id, cur);
+    });
+  });
+  const rows = [...byProd.values()].sort((a, b) => b.value - a.value)
+    .map(r => [r.name, r.isin, Math.round(r.value * 100) / 100]);
+  const total = rows.reduce((s, r) => s + r[2], 0);
+  return { columns: ['Prodotto', 'ISIN', 'Valore in quota (€)'], numeric: [false, false, true],
+           rows, total: ['Totale', '', Math.round(total * 100) / 100] };
+}
+function reportCorrente() { return REPORTS.find(r => r.id === S.reportId) || REPORTS[0]; }
+function renderReport() {
+  const rep = reportCorrente();
+  const t = rep.build();
+  const cell = (v, i) => t.numeric[i] ? `<td class="mono" style="text-align:right">${fmtEURc(v)}</td>` : `<td${i === 1 ? ' class="mono text-sm"' : ''}>${esc(v || '—')}</td>`;
+  setHtml('view-report', `
+    <div class="view-header">
+      <div><h2 class="page-title">📑 Report</h2><p class="page-sub">Elenchi da scaricare o da copiare e incollare</p></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Scegli il report</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">${REPORTS.map(r => `
+        <button class="btn btn-sm ${r.id === rep.id ? 'btn-primary' : 'btn-outline'}" data-action="report-sel" data-id="${r.id}">${esc(r.title)}</button>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">${esc(rep.title)}</div>
+      <p class="page-sub" style="margin-top:4px">${esc(rep.sub)}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">
+        <button class="btn btn-sm btn-outline" data-action="report-out" data-fmt="pdf">⬇️ PDF</button>
+        <button class="btn btn-sm btn-outline" data-action="report-out" data-fmt="xlsx">⬇️ Excel</button>
+        <button class="btn btn-sm btn-outline" data-action="report-out" data-fmt="csv">⬇️ CSV</button>
+        <button class="btn btn-sm btn-outline" data-action="report-out" data-fmt="copy-csv">📋 CSV</button>
+        <button class="btn btn-sm btn-outline" data-action="report-out" data-fmt="copy-md">📋 MD</button>
+      </div>
+      <div id="report-msg" class="text-sm text-muted" style="min-height:1.2em"></div>
+      ${t.rows.length ? `<div style="overflow-x:auto"><table class="table">
+        <thead><tr>${t.columns.map((c, i) => `<th${t.numeric[i] ? ' style="text-align:right"' : ''}>${esc(c)}</th>`).join('')}</tr></thead>
+        <tbody>${t.rows.map(r => `<tr>${r.map(cell).join('')}</tr>`).join('')}</tbody>
+        <tfoot><tr style="font-weight:700">${t.total.map(cell).join('')}</tr></tfoot>
+      </table></div>` : '<p class="text-muted">Nessun dato da mostrare.</p>'}
+    </div>`);
+}
+/* Numeri: nel CSV e nel MD con la virgola decimale e il punto e virgola come separatore del
+   CSV, che è quello che Excel italiano apre da sé; nell'xlsx restano numeri veri. */
+const repNum = v => v.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function reportCsv(t) {
+  const q = v => { const s = String(v ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const line = r => r.map((v, i) => t.numeric[i] ? repNum(v) : q(v)).join(';');
+  return [t.columns.map(q).join(';'), ...t.rows.map(line), line(t.total)].join('\r\n');
+}
+function reportMd(t, title) {
+  const m = v => String(v ?? '').replace(/\|/g, '\\|');
+  const line = r => '| ' + r.map((v, i) => t.numeric[i] ? repNum(v) : m(v)).join(' | ') + ' |';
+  return [`## ${title}`, '', '| ' + t.columns.map(m).join(' | ') + ' |',
+    '| ' + t.numeric.map(n => n ? '---:' : '---').join(' | ') + ' |',
+    ...t.rows.map(line), line(t.total.map((v, i) => t.numeric[i] ? v : (v ? `**${v}**` : '')))].join('\n');
+}
+function reportScarica(blob, nome) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// Le librerie si caricano solo al primo uso: chi non scarica mai un PDF non le paga.
+const _repScript = {};
+function repCarica(src) {
+  return _repScript[src] ||= new Promise((ok, ko) => {
+    const s = document.createElement('script'); s.src = src;
+    s.onload = ok; s.onerror = () => { delete _repScript[src]; ko(new Error('libreria non caricata: ' + src)); };
+    document.head.appendChild(s);
+  });
+}
+async function reportOut(fmt) {
+  const rep = reportCorrente();
+  const t = rep.build();
+  const msg = txt => setHtml('report-msg', esc(txt));
+  const oggi = new Date();
+  const data = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-${String(oggi.getDate()).padStart(2, '0')}`;
+  const base = `${rep.id}-${data}`;
+  try {
+    if (fmt === 'csv') {
+      // Il BOM fa leggere a Excel gli accenti come UTF-8.
+      reportScarica(new Blob(['﻿' + reportCsv(t)], { type: 'text/csv;charset=utf-8' }), base + '.csv');
+      msg('CSV scaricato.');
+    } else if (fmt === 'copy-csv' || fmt === 'copy-md') {
+      await navigator.clipboard.writeText(fmt === 'copy-csv' ? reportCsv(t) : reportMd(t, rep.title));
+      msg(fmt === 'copy-csv' ? 'CSV copiato negli appunti.' : 'Markdown copiato negli appunti.');
+    } else if (fmt === 'xlsx') {
+      msg('Preparo il file Excel…');
+      await repCarica('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+      const ws = XLSX.utils.aoa_to_sheet([t.columns, ...t.rows, t.total]);
+      t.numeric.forEach((n, c) => { if (!n) return;
+        for (let r = 1; r <= t.rows.length + 1; r++) { const cell = ws[XLSX.utils.encode_cell({ r, c })]; if (cell) cell.z = '#,##0.00'; } });
+      ws['!cols'] = t.columns.map((_, i) => ({ wch: i === 0 ? 50 : 20 }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Report');
+      XLSX.writeFile(wb, base + '.xlsx');
+      msg('Excel scaricato.');
+    } else if (fmt === 'pdf') {
+      msg('Preparo il PDF…');
+      await repCarica('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      await repCarica('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+      const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+      doc.setFontSize(14); doc.text(rep.title, 40, 40);
+      doc.setFontSize(9); doc.setTextColor(120); doc.text(`GarsalFinanza · ${oggi.toLocaleDateString('it-IT')}`, 40, 56);
+      const fmtRow = r => r.map((v, i) => t.numeric[i] ? repNum(v) + ' €' : String(v ?? ''));
+      const colStyles = {}; t.numeric.forEach((n, i) => { if (n) colStyles[i] = { halign: 'right' }; });
+      doc.autoTable({ startY: 70, head: [t.columns], body: t.rows.map(fmtRow), foot: [fmtRow(t.total)],
+        styles: { fontSize: 9 }, headStyles: { fillColor: [0, 129, 200] }, footStyles: { fillColor: [230, 230, 230], textColor: 20 },
+        columnStyles: colStyles, showFoot: 'lastPage' });
+      doc.save(base + '.pdf');
+      msg('PDF scaricato.');
+    }
+  } catch (err) {
+    msg('Errore: ' + err.message);
+  }
+}
 /* ══════════════ NAVIGATION ═════════════════════════════════════ */
 function navigate(view, param = null) {
   if (view === 'portafoglio-detail' && param !== S.portfolioId) S.ptfFilters = {};
@@ -8324,7 +8465,7 @@ function navigate(view, param = null) {
    queste il menù principale lascia il posto a quello di configurazione. Il
    controllo sta in render() e non in navigate(), o tornando indietro col
    pulsante del browser resterebbe il menù sbagliato. */
-const CONFIG_VIEWS = new Set(['configurazione', 'tag-config', 'conti-collegati', 'impostazioni']);
+const CONFIG_VIEWS = new Set(['configurazione', 'tag-config', 'conti-collegati', 'report', 'impostazioni']);
 function render() {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $(`view-${S.view}`)?.classList.add('active');
@@ -8363,6 +8504,7 @@ function render() {
     case 'analisi-costi':      caOpen($('view-analisi-costi')); break;
     case 'tag-config':         renderTagConfig();          break;
     case 'conti-collegati':    renderBankConnections();    break;
+    case 'report':             renderReport();             break;
     case 'impostazioni':       renderImpostazioni();       break;
   }
 }
@@ -8375,6 +8517,8 @@ document.addEventListener('click', async e => {
   console.log('🔴 ACTION:', t.dataset.action);
   switch (t.dataset.action) {
     case 'nav':             navigate(t.dataset.view); closeMobileNav(); break;
+    case 'report-sel':      S.reportId = t.dataset.id; renderReport(); break;
+    case 'report-out':      reportOut(t.dataset.fmt); break;
     case 'view-portfolio':  navigate('portafoglio-detail', t.dataset.id); break;
     case 'new-portfolio':   openNewPortfolioModal(); break;
     case 'edit-portfolio':  openNewPortfolioModal(t.dataset.id); break;
