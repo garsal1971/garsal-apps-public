@@ -2711,6 +2711,12 @@ nel registro le quantità che risultavano dalle transazioni e ha passato il port
   cambiare insieme). Senza prezzo una moneta vale 0: non c'è un costo su cui ripiegare. Dal
   12 ottobre 2026 costo e P&L totali degli snapshot non contano più le crypto.
 - La regola sta in `fnz_posizioni`, quindi home, recap e snapshot si allineano da soli.
+- ⚠️ **Un portafoglio a saldi non ha liquidità** (`20261012120000_fnz_liquidita_saldi.sql`):
+  tutto quel che il fondo collegato raccoglie è convertito in crypto, quindi `fnz_liquidita` dà
+  `cash = 0` per `gestione = 'saldi'` — altrimenti ogni versamento comparirebbe come contante in
+  più accanto alle monete. ⚠️ Le monete nuove (es. **TAO**, Bittensor) prendono il prezzo da
+  `get-prices` solo se il prodotto è `asset_type = 'crypto'`; `TAO` sta in `COINGECKO_ID_MAP`
+  (`bittensor`), perché la ricerca per simbolo su CoinGecko potrebbe dare un altro «TAO».
 - **Si scrive dal web e dall'APK**: `registroSaldiHtml` / `openSaldoModal` in finanza.html,
   `registroSaldi` / `DialogoSaldo` + `FinanzaRepository.scriviSaldo` nel nativo — l'**unica
   scrittura** di Finanza nativa, che dopo il salvataggio rifà lo snapshot e rilegge. Il form delle
