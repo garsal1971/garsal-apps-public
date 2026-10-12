@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.14.1</title>
+  <title>Peso e Calorie v4.14.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1813,8 +1813,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.14.1';
-        var BUILD_TIME  = '2026-10-12T11:00:00Z';
+        var APP_VERSION = 'v4.14.2';
+        var BUILD_TIME  = '2026-10-12T12:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5833,19 +5833,44 @@
                 }
             }
 
-            var manca = (peso != null && target != null && isFinite(target)) ? peso - target : null;
-            var coloreManca = manca == null ? '#999' : (Math.round(manca * 10) / 10 <= 0 ? '#00B894' : '#E74C3C');
             function kg(v) { return v == null || !isFinite(v) ? '—' : v.toFixed(1) + ' kg'; }
 
-            // Sulla massa grassa (v4.14.1): kg e % sulla stessa riga, il peso totale su una riga sua.
+            // v4.14.2: il peso totale MISURATO, poi le tre medie mobili (ps_daily_ema) dello
+            // stesso giorno — sulla prossima pesata, quelle di oggi. Una media stimata col
+            // trend (giorno senza pesata) si scrive in corsivo.
             var grasso = obiettivoGrasso(userData.currentObjective);
-            var pct = (grasso && rif && rif.grasso_pct != null) ? ' · ' + (Math.round(rif.grasso_pct * 10) / 10) + ' %' : '';
+            var totale = rif ? (grasso ? (rif.peso_totale != null ? Number(rif.peso_totale) : null) : rif.weight) : null;
+            var gEma = tipo === 'dopo' ? oggi : day;
+            if (userData.ema && !userData.ema[gEma]) {
+                var giorni = Object.keys(userData.ema).filter(function(g) { return g <= gEma; }).sort();
+                if (giorni.length) gEma = giorni[giorni.length - 1];
+            }
+            function media(campo, fmt) {
+                var v = emaDi(gEma, campo);
+                if (v == null) return '—';
+                var t = fmt(v);
+                return emaStimata(gEma, campo) ? '<i title="media stimata col trend">' + t + '</i>' : t;
+            }
+            var mPeso  = media('ema_weight', kg);
+            var mGr    = media('ema_fat_kg', kg);
+            var mPct   = media('ema_fat_pct', function(v) { return (Math.round(v * 10) / 10) + ' %'; });
+            var conGrasso = grasso || mGr !== '—' || mPct !== '—';
+            // Sulla massa grassa i punti si danno sulla media: «Mancano» confronta quella.
+            var base = grasso ? emaDi(gEma, 'ema_fat_kg') : peso;
+            if (base == null) base = peso;
+            var manca = (base != null && target != null && isFinite(target)) ? base - target : null;
+            var coloreManca = manca == null ? '#999' : (Math.round(manca * 10) / 10 <= 0 ? '#00B894' : '#E74C3C');
+            var notaEma = gEma !== (tipo === 'dopo' ? oggi : day)
+                ? '<div class="pc-note">medie del ' + gEma.slice(8, 10) + '/' + gEma.slice(5, 7) + '</div>' : '';
             return '<div class="pesata-card ' + tipo + '">'
                  + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                 + '<div class="pc-row"><span>' + (grasso ? 'Massa grassa' : 'Peso') + '</span><b>' + kg(peso) + pct + '</b></div>'
-                 + ((grasso && rif && rif.peso_totale != null)
-                    ? '<div class="pc-row"><span>Peso totale</span><b>' + kg(Number(rif.peso_totale)) + '</b></div>' : '')
+                 + '<div class="pc-row"><span>Peso totale</span><b>' + kg(totale) + '</b></div>'
                  + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
+                 + '<div class="pc-row"><span>📈 Media peso</span><b style="color:#7C3AED">' + mPeso + '</b></div>'
+                 + (conGrasso
+                    ? '<div class="pc-row"><span>📈 Media massa grassa</span><b style="color:#7C3AED">' + mGr + '</b></div>'
+                    + '<div class="pc-row"><span>📈 Media grasso</span><b style="color:#7C3AED">' + mPct + '</b></div>' : '')
+                 + notaEma
                  + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
                  + '<div class="pc-row"><span>Mancano</span><b style="color:' + coloreManca + '">'
                  + (manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg') + '</b></div>'
