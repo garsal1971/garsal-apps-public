@@ -2705,6 +2705,13 @@ nel registro le quantità che risultavano dalle transazioni e ha passato il port
 - ⚠️ **Il registro si scrive e non si riscrive**: ogni ✏️ Aggiorna quantità è una riga nuova
   (portafoglio, moneta, quantità, `recorded_at`, nota); vale la più recente. Zero = «non ne ho più»
   e la posizione sparisce. Il ✕ toglie una riga sbagliata e torna a valere la precedente.
+- ✅ **Il P&L c'è, sul portafoglio intero** (Finanza v1.30.0, save-snapshot v1.4.0, APK
+  1.0.130): l'**investito è il VERSATO nel fondo collegato** (`fnz_liquidita.versato`,
+  nominale, quel che fa quota, versamenti futuri compresi — tutto il fondo è convertito in
+  crypto), e P&L = valore − versato. Gemelle da cambiare insieme: `versatoSaldi()` /
+  `portfolioStats` in finanza.html e `versatoSaldi` / `portfolioStats` in `save-snapshot`, che
+  lo scrive in `total_cost` / `pnl` dello snapshot (il nativo legge quelli). Senza fondo
+  collegato il P&L non si calcola. Per moneta invece resta «—».
 - ⚠️ **Niente costo**: `fnz_posizioni` manda `cost_basis` **NULL** per quelle posizioni, e i
   client lo leggono come «sconosciuto» — niente P&L, niente tasse, e il valore **non** entra nel
   P&L totale (`senzaCosto` in `computeHoldings` di finanza.html e di `save-snapshot`, gemelle da

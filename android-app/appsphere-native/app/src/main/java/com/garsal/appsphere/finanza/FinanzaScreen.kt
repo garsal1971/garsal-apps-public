@@ -450,8 +450,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.portafogli(s: Finanza
             Text("Possesso: ${NUM.format(pf.possessoPct)} %", color = Palette.muted, fontSize = 13.sp)
             val v = variazione(pf.valore, s.valorePrecedente(pf.id))
             Riga("Valore (quota)", eur(pf.valore), grande = true, sotto = v?.first, sottoColore = v?.second ?: Palette.muted)
-            if (pf.id !in s.saldi) Riga("P&L", "${eur(pf.pnl)}  ${pct(pf.pnlPct)}", coloreSegno(pf.pnl))
-            else Text("Quantità scritte a mano · senza costo", color = Palette.muted, fontSize = 12.sp)
+            Riga("P&L", "${eur(pf.pnl)}  ${pct(pf.pnlPct)}", coloreSegno(pf.pnl))
+            if (pf.id in s.saldi) Text("Quantità scritte a mano · investito = versato nel fondo", color = Palette.muted, fontSize = 12.sp)
             if ((pf.liquidita ?: 0.0) > 0.0) Riga("di cui liquidità", eur(pf.liquidita))
         }
     }
@@ -470,7 +470,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dettaglioPortafoglio(
             // Un portafoglio a saldi non ha liquidità: il fondo collegato è tutto in crypto.
             if (!saldi) Riga("Liquidità", eur(pf.liquidita))
             if (saldi) {
-                Text("Possesso: ${NUM.format(pf.possessoPct)} % · Le quantità si scrivono a mano: il valore è quantità × prezzo, senza costo né P&L.",
+                // L'investito è il versato nel fondo collegato: lo scrive `save-snapshot` in total_cost.
+                Riga("Investito (versato nel fondo)", eur(pf.costo))
+                Riga("P&L", eur(pf.pnl), coloreSegno(pf.pnl), sotto = pct(pf.pnlPct), sottoColore = coloreSegno(pf.pnl))
+                Text("Possesso: ${NUM.format(pf.possessoPct)} % · Le quantità si scrivono a mano; il P&L è sul portafoglio intero, non moneta per moneta.",
                     color = Palette.muted, fontSize = 12.sp)
                 Pillola(if (s.salvataggio) "Salvo…" else "✏️ Aggiorna quantità", Palette.topBar) {
                     if (!s.salvataggio) onAggiorna(null)

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.29.0</title>
+  <title>GarsalFinanza v1.30.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -613,8 +613,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.29.0';
-const APP_BUILD   = '2026-10-12T10:00:00Z';
+const APP_VERSION = 'v1.30.0';
+const APP_BUILD   = '2026-10-12T16:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -1002,6 +1002,14 @@ async function loadSaldi() {
   catch (e) { console.warn('[saldi] non letti:', e.message); S.saldiCrypto = []; }
 }
 const isSaldi = p => p?.gestione === 'saldi';
+/* L'investito di un portafoglio a saldi è il VERSATO nel fondo collegato (nominale, quel che fa
+   quota, futuri versamenti compresi: tutto il fondo è convertito in crypto). NULL senza fondo
+   collegato — allora P&L non si calcola. Gemella di `versatoSaldi` in `save-snapshot`. */
+function versatoSaldi(p) {
+  if (!isSaldi(p)) return null;
+  const v = S.liquidita.get(p.id)?.versato;
+  return v == null ? null : Number(v);
+}
 // Le quantità crypto vanno fino all'ottavo decimale (1 satoshi): fmtNum si ferma al sesto.
 const fmtQty = n => n == null ? '—' : new Intl.NumberFormat('it-IT', { maximumFractionDigits: 8 }).format(n);
 function computeHoldings(filter = null) {
@@ -1073,12 +1081,15 @@ function portfolioStats() {
     const titoli = h.reduce((s, x) => s + (x.currentValue ?? x.costBasis), 0) * own;
     const cash = computePortfolioCash(p.id) * own;
     const tot = titoli + cash;
-    const cost = h.reduce((s, x) => s + x.costBasis, 0) * own;
+    let cost = h.reduce((s, x) => s + x.costBasis, 0) * own;
     // P&L e variazione giornaliera restano sui soli titoli: la liquidità non guadagna né
     // perde, e sommarla qui la farebbe comparire come utile il giorno che entra sul conto.
     // ⚠️ E sui soli titoli CON un costo: le monete di un portafoglio a saldi non ne hanno.
     const titoliSenzaCosto = h.filter(x => x.senzaCosto).reduce((s, x) => s + x.currentValue, 0) * own;
-    const pnl  = titoli - titoliSenzaCosto - cost;
+    let pnl  = titoli - titoliSenzaCosto - cost;
+    let valueSenzaCosto = titoliSenzaCosto;
+    const versato = versatoSaldi(p);
+    if (versato != null) { cost += versato * own; pnl = titoli - cost; valueSenzaCosto = 0; }
     const previousCloseValue = h.reduce((s, x) => {
       const prevClose = x.pd?.prev_close ?? null;
       return s + (prevClose != null ? x.qty * prevClose : (x.currentValue ?? x.costBasis));
@@ -1095,7 +1106,7 @@ function portfolioStats() {
       securitiesValue: titoli,
       cash,
       totalCost: cost,
-      valueSenzaCosto: titoliSenzaCosto,
+      valueSenzaCosto,
       pnl,
       pnlPct: cost > 0 ? (pnl / cost) * 100 : 0,
       previousCloseValue,
@@ -2321,8 +2332,10 @@ function renderPortafoglioDetail() {
   // ⚠️ Un portafoglio a saldi (il CRYPTO) non ha costo: niente Investito, P&L né rendimento.
   const saldi     = isSaldi(portfolio);
   const totalSenzaCosto = holdings.filter(h => h.senzaCosto).reduce((s, h) => s + h.currentValue, 0) * own;
-  const totalPnl  = totalTitoli - totalSenzaCosto - totalCost;
-  const totalPct  = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+  const versato   = versatoSaldi(portfolio);
+  const totalInvestito = versato != null ? totalCost + versato * own : totalCost;
+  const totalPnl  = versato != null ? totalTitoli - totalInvestito : totalTitoli - totalSenzaCosto - totalCost;
+  const totalPct  = totalInvestito > 0 ? (totalPnl / totalInvestito) * 100 : 0;
   const totalDailyPnl = holdings.reduce((s, h) => s + (h.pd?.change_amt != null ? h.pd.change_amt * h.qty * own : 0), 0);
   const totalDailyPct = (totalTitoli - totalDailyPnl) > 0 ? (totalDailyPnl / (totalTitoli - totalDailyPnl)) * 100 : 0;
   const totalTax  = holdings.reduce((s, h) => s + h.taxDue, 0) * own;
@@ -2349,13 +2362,15 @@ function renderPortafoglioDetail() {
         ? `<button class="btn btn-primary btn-sm" data-action="saldo-modifica" data-portfolio-id="${portfolio.id}">✏️ Aggiorna quantità</button>`
         : `<button class="btn btn-primary btn-sm" data-action="new-transaction" data-portfolio-id="${portfolio.id}">+ Transazione</button>`}
     </div>
-    ${saldi ? `<p class="text-muted text-sm mb-12">Qui le quantità si scrivono a mano: tocca una moneta per aggiornarla, o ✏️ Aggiorna quantità per aggiungerne una. Il valore è quantità × prezzo; costo, P&amp;L e tasse non si calcolano.</p>` : ''}
+    ${saldi ? `<p class="text-muted text-sm mb-12">Qui le quantità si scrivono a mano: tocca una moneta per aggiornarla, o ✏️ Aggiorna quantità per aggiungerne una. Il valore è quantità × prezzo; l'investito è quanto è stato versato nel fondo collegato, e il P&amp;L si conta sul portafoglio intero, non moneta per moneta. Tasse non calcolate.</p>` : ''}
     <div class="kpi-grid">
       ${kpi('Valore portafoglio (quota)', fmtEUR(totalVal),  'neutral')}
       ${saldi ? '' : kpi('Netto tasse (quota)',         fmtEUR(totalNet),  'neutral')}
       ${totalCash > 0 ? kpi('di cui liquidità (quota)', fmtEUR(totalCash), 'neutral') : ''}
-      ${saldi ? kpi('Var. % 1d', fmtPct(totalDailyPct), pnlCls(totalDailyPct)) : `
-      ${kpi('Investito (quota)',          fmtEUR(totalCost), 'neutral')}
+      ${saldi ? `${versato != null ? `${kpi('Investito = versato nel fondo (quota)', fmtEUR(totalInvestito), 'neutral')}
+      ${kpi('P&amp;L (quota)', `${fmtEUR(totalPnl)} · ${fmtPct(totalPct)}`, pnlCls(totalPnl))}` : ''}
+      ${kpi('Var. % 1d', fmtPct(totalDailyPct), pnlCls(totalDailyPct))}` : `
+      ${kpi('Investito (quota)',          fmtEUR(totalInvestito), 'neutral')}
       ${kpi('P&amp;L (quota)',            fmtEUR(totalPnl),  pnlCls(totalPnl))}
       <div class="kpi-card" data-action="toggle-ptf-pnl-mode" style="cursor:pointer" title="${S.ptfPnlMode === 'daily' ? 'Clicca per rendimento totale' : 'Clicca per rendimento giornaliero'}">
         <div class="kpi-label">${S.ptfPnlMode === 'daily' ? 'Var. % 1d ⇄' : 'Rendimento ⇄'}</div>
