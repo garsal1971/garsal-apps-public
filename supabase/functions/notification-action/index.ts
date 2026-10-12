@@ -58,6 +58,10 @@ function chiChiama(req: Request): { serviceRole: boolean; userId: string | null 
   const header = req.headers.get('Authorization') ?? ''
   const token  = header.replace(/^Bearer\s+/i, '')
   if (!token) return { serviceRole: false, userId: null }
+  // ⚠️ La chiave di servizio può non essere un JWT: con le chiavi nuove di
+  // Supabase (`sb_secret_…`) non c'è nessun `role` da leggere, e senza questo
+  // confronto telegram-webhook veniva respinto con «Non è un tuo promemoria».
+  if (token === SERVICE_ROLE_KEY) return { serviceRole: true, userId: null }
   try {
     const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
     return {
