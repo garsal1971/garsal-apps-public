@@ -467,7 +467,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dettaglioPortafoglio(
         Scheda(bordoColore = coloreDaHex(pf.colore) ?: Palette.muted) {
             val v = variazione(pf.valore, s.valorePrecedente(pf.id))
             Riga("Valore portafoglio (quota)", eur(pf.valore), grande = true, sotto = v?.first, sottoColore = v?.second ?: Palette.muted)
-            Riga("Liquidità", eur(pf.liquidita))
+            // Un portafoglio a saldi non ha liquidità: il fondo collegato è tutto in crypto.
+            if (!saldi) Riga("Liquidità", eur(pf.liquidita))
             if (saldi) {
                 Text("Possesso: ${NUM.format(pf.possessoPct)} % · Le quantità si scrivono a mano: il valore è quantità × prezzo, senza costo né P&L.",
                     color = Palette.muted, fontSize = 12.sp)

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "5.22.0"; // bilancio di tempo (niente 504), cambi da Yahoo; simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
+const VERSION = "5.23.0"; // TAO (Bittensor) nella mappa CoinGecko; bilancio di tempo (niente 504), cambi da Yahoo; simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -733,6 +733,7 @@ const COINGECKO_ID_MAP: Record<string, string> = {
   NEAR: "near", APT: "aptos", OP: "optimism", ARB: "arbitrum",
   SUI: "sui", SEI: "sei-network", PEPE: "pepe", SHIB: "shiba-inu",
   POL: "polygon-ecosystem-token", // rebrand di MATIC (2024), ID CoinGecko diverso da matic-network
+  TAO: "bittensor", // Bittensor: cercato per simbolo, /search potrebbe dare un altro «TAO»
 };
 
 const COINGECKO_HEADERS = {
