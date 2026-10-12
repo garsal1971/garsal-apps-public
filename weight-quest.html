@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.14.5</title>
+  <title>Peso e Calorie v4.15.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -388,9 +388,57 @@
         .pesata-card .pc-row b { font-size: 16px; }
         .pesata-card .pc-note { font-size: 11px; color: #888; }
         .pesata-card .pc-sep { border-top: 1px dashed #ddd; margin: 6px 0 4px; }
-        .pesata-card .pc-big { display: flex; flex-direction: column; padding: 4px 0; }
-        .pesata-card .pc-big span { font-size: 13px; color: #555; }
-        .pesata-card .pc-big b { font-size: 26px; line-height: 1.15; color: #00B894; }
+        /* v4.15.0: la prossima pesata — i target del piano centrati, in tre «gettoni». */
+        .pesata-card.dopo { display: flex; flex-direction: column; }
+        .pesata-card .pc-centro {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 10px;
+            text-align: center; padding: 6px 0;
+        }
+        .pesata-card .pc-big {
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 70%; padding: 8px 18px; border-radius: 16px;
+            background: linear-gradient(135deg, #E8FFF8 0%, #C6F3E5 100%);
+            box-shadow: 0 2px 6px rgba(0, 184, 148, .18);
+        }
+        .pesata-card .pc-big span { font-size: 12px; color: #00806A; text-transform: uppercase; letter-spacing: .06em; }
+        .pesata-card .pc-big b { font-size: 30px; line-height: 1.15; color: #00967A; }
+
+        /* v4.15.0: il giorno della pesata che conta, l'esito si scopre toccando il ❓. */
+        .pesata-card .pc-rivela {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; min-height: 4.5em; margin: 6px 0; padding: 8px;
+            border: none; border-radius: 16px; cursor: pointer; color: white;
+            background: linear-gradient(135deg, #6C5CE7 0%, #FF3366 100%);
+            font: inherit; animation: pcPulsa 1.6s ease-in-out infinite;
+        }
+        .pesata-card .pc-rivela .q { font-size: 34px; line-height: 1; font-weight: bold; }
+        .pesata-card .pc-rivela .t { font-size: 13px; margin-top: 4px; }
+        @keyframes pcPulsa { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+        .pesata-card .pc-esito {
+            margin: 6px 0; padding: 6px 10px; border-radius: 12px; text-align: center; font-weight: bold;
+        }
+        .pesata-card .pc-esito.ok { background: #E8FFF8; color: #00967A; }
+        .pesata-card .pc-esito.ko { background: #FFF1F3; color: #E74C3C; }
+        #esitoOverlay {
+            position: fixed; inset: 0; z-index: 10050; display: flex;
+            align-items: center; justify-content: center; padding: 16px;
+            background: rgba(20, 20, 40, .45);
+        }
+        #esitoOverlay .box {
+            background: white; border-radius: 20px; padding: 22px 20px; max-width: 22rem;
+            text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3);
+            animation: esitoEntra .45s cubic-bezier(.2,1.4,.4,1);
+        }
+        #esitoOverlay .em { font-size: 56px; line-height: 1.1; }
+        #esitoOverlay h3 { margin: 8px 0 6px; font-size: 20px; }
+        #esitoOverlay p { margin: 0 0 14px; color: #555; font-size: 15px; }
+        #esitoOverlay button {
+            border: none; border-radius: 12px; padding: 10px 22px; font: inherit; font-weight: bold;
+            color: white; background: #6C5CE7; cursor: pointer;
+        }
+        @keyframes esitoEntra { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        #fuochiCanvas { position: fixed; inset: 0; z-index: 10040; pointer-events: none; }
 
         .stat-box.gradient {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1816,8 +1864,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.14.5';
-        var BUILD_TIME  = '2026-10-12T14:00:00Z';
+        var APP_VERSION = 'v4.15.0';
+        var BUILD_TIME  = '2026-10-12T14:15:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5805,8 +5853,9 @@
             // Ci si pesa tutti i giorni (serve alla media mobile): Oggi c'è sempre, e dice se
             // è anche una pesata dell'obiettivo, cioè una di quelle che contano per i punti.
             var obCorr = userData.currentObjective;
-            if (tipo === 'oggi' && obCorr && obCorr.start_date && day >= obCorr.start_date
-                && (!obCorr.end_date || day <= obCorr.end_date) && giornoDiPesata(obCorr, day)) quando += ' · conta per i punti';
+            var contaOggi = tipo === 'oggi' && obCorr && obCorr.start_date && day >= obCorr.start_date
+                && (!obCorr.end_date || day <= obCorr.end_date) && giornoDiPesata(obCorr, day);
+            if (contaOggi) quando += ' · conta per i punti';
             if (tipo === 'dopo') {
                 var gg = Math.round((new Date(day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
                 quando += gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
@@ -5824,11 +5873,12 @@
                 function kgA(v) { return v == null || !isFinite(v) ? '—' : Number(v).toFixed(1) + ' kg'; }
                 return '<div class="pesata-card ' + tipo + '">'
                      + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                     + '<div class="pc-note">Target attesi dal piano</div>'
+                     + '<div class="pc-centro">'
+                     + '<div class="pc-note">🎯 Target attesi dal piano</div>'
                      + big('Peso totale', kgA(wAtt))
                      + (gAtt != null ? big('Massa grassa', kgA(gAtt))
                         + big('Grasso', (wAtt > 0 ? (Math.round(gAtt / wAtt * 1000) / 10) + ' %' : '—')) : '')
-                     + '</div>';
+                     + '</div></div>';
             }
 
             var peso = null, nota = '', target = getInterpolatedTarget(day), rif = null;
@@ -5887,6 +5937,25 @@
             if (base == null) base = peso;
             var manca = (base != null && target != null && isFinite(target)) ? base - target : null;
             var coloreManca = manca == null ? '#999' : (Math.round(manca * 10) / 10 <= 0 ? '#00B894' : '#E74C3C');
+            // v4.15.0: oggi è una pesata che conta e ci si è pesati → l'esito non si dice subito:
+            // c'è un ❓ da toccare (rivelaPesata), e da lì fuochi d'artificio o una musichetta.
+            // Rivelato una volta, su questo dispositivo resta scritto (localStorage, per giorno).
+            var mancaR = manca == null ? null : Math.round(manca * 10) / 10;
+            function rigaMancano() {
+                var riga = '<div class="pc-row"><span>Mancano</span><b style="color:' + coloreManca + '">'
+                     + (manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg') + '</b></div>';
+                if (!contaOggi || mancaR == null || !minimoDelGiorno(data, day)) return riga;
+                var chiave = 'wq_esito_' + obCorr.id + '_' + day, visto = null;
+                try { visto = localStorage.getItem(chiave); } catch (e) {}
+                var esito = mancaR <= 0 ? 'ok' : 'ko';
+                if (visto) {
+                    return riga + '<div class="pc-esito ' + esito + '">'
+                         + (esito === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
+                }
+                return '<button type="button" class="pc-rivela" onclick="rivelaPesata(this)"'
+                     + ' data-chiave="' + chiave + '" data-esito="' + esito + '" data-manca="' + mancaR + '">'
+                     + '<span class="q">❓</span><span class="t">Com\'è andata? Tocca per scoprirlo</span></button>';
+            }
             var notaEma = gEma !== (tipo === 'dopo' ? oggi : day)
                 ? '<div class="pc-note">medie del ' + gEma.slice(8, 10) + '/' + gEma.slice(5, 7) + '</div>' : '';
             return '<div class="pesata-card ' + tipo + '">'
@@ -5902,8 +5971,7 @@
                     + '<div class="pc-row"><span>📈 Media grasso</span><b style="color:#7C3AED">' + mPct + '</b></div>' : '')
                  + notaEma
                  + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
-                 + '<div class="pc-row"><span>Mancano</span><b style="color:' + coloreManca + '">'
-                 + (manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg') + '</b></div>'
+                 + rigaMancano()
                  + righeCaloriePesata(day, tipo)
                  + '</div>';
         }
@@ -5975,6 +6043,109 @@
                        + '<div class="pc-note">Nessun\'altra pesata: il piano finisce il '
                        + obj.end_date.slice(8, 10) + '/' + obj.end_date.slice(5, 7) + '.</div></div>';
             box.innerHTML = html;
+        }
+
+        // ── v4.15.0: l'esito della pesata che conta ───────────────────────
+        // Il confronto è quello del «Mancano» della scheda (a un decimale, ≤ 0 = dentro il
+        // target): sulla massa grassa la media di oggi, altrimenti il minimo. I punti veri li
+        // dà ps_punti; questo è solo il modo di scoprirlo.
+        var FRASI_KO = [
+            'Un giorno storto non cambia la strada: domani si riparte.',
+            'La bilancia oggi fa la difficile. Tu no: tieni duro!',
+            'Il piano è lungo, e una curva non è un precipizio.',
+            'Acqua, passi e pazienza: il numero arriva.',
+            'Anche i campioni sbagliano un tiro. Il prossimo è tuo.'
+        ];
+        function rivelaPesata(btn) {
+            var esito = btn.getAttribute('data-esito');
+            var manca = Number(btn.getAttribute('data-manca'));
+            try { localStorage.setItem(btn.getAttribute('data-chiave'), esito); } catch (e) {}
+            if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj);
+            var kg = Math.abs(manca).toFixed(1) + ' kg';
+            if (esito === 'ok') {
+                fuochiArtificio();
+                mostraEsito('🎉', 'Target rispettato!',
+                    manca < 0 ? kg + ' sotto il target. Grande!' : 'Esattamente sul target. Grande!');
+            } else {
+                musichettaTriste();
+                mostraEsito('😅', 'Questa volta no…',
+                    kg + ' sopra il target. ' + FRASI_KO[Math.floor(Math.random() * FRASI_KO.length)]);
+            }
+        }
+
+        function mostraEsito(emoji, titolo, testo) {
+            var vecchio = document.getElementById('esitoOverlay');
+            if (vecchio) vecchio.remove();
+            var ov = document.createElement('div');
+            ov.id = 'esitoOverlay';
+            ov.innerHTML = '<div class="box"><div class="em">' + emoji + '</div><h3>' + titolo + '</h3>'
+                         + '<p>' + testo + '</p><button type="button">OK</button></div>';
+            ov.addEventListener('click', function(e) {
+                if (e.target === ov || e.target.tagName === 'BUTTON') ov.remove();
+            });
+            document.body.appendChild(ov);
+        }
+
+        function fuochiArtificio() {
+            var c = document.createElement('canvas');
+            c.id = 'fuochiCanvas';
+            document.body.appendChild(c);
+            var ctx = c.getContext('2d'), W, H, dpr = window.devicePixelRatio || 1;
+            function misura() { W = innerWidth; H = innerHeight; c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+            misura();
+            var colori = ['#FF3366', '#FCB131', '#00B894', '#0081C8', '#6C5CE7', '#FFD700'];
+            var particelle = [], inizio = performance.now(), DURATA = 4500, prossimo = 0;
+            function scoppio() {
+                var x = W * (0.15 + Math.random() * 0.7), y = H * (0.15 + Math.random() * 0.35);
+                var col = colori[Math.floor(Math.random() * colori.length)], n = 60 + Math.floor(Math.random() * 30);
+                for (var i = 0; i < n; i++) {
+                    var a = Math.PI * 2 * i / n, v = 2 + Math.random() * 3.5;
+                    particelle.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vita: 1,
+                        col: Math.random() < 0.2 ? '#FFFFFF' : col });
+                }
+            }
+            function giro(t) {
+                var trascorso = t - inizio;
+                if (trascorso < DURATA - 1200 && trascorso >= prossimo) { scoppio(); prossimo = trascorso + 280 + Math.random() * 320; }
+                ctx.clearRect(0, 0, W, H);
+                particelle = particelle.filter(function(p) { return p.vita > 0; });
+                particelle.forEach(function(p) {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.vx *= 0.985; p.vy *= 0.985; p.vita -= 0.012;
+                    ctx.globalAlpha = Math.max(0, p.vita);
+                    ctx.fillStyle = p.col;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+                if (trascorso < DURATA || particelle.length) requestAnimationFrame(giro);
+                else c.remove();
+            }
+            requestAnimationFrame(giro);
+        }
+
+        // «Wah wah wah waaah»: quattro note che scendono, l'ultima che si affloscia.
+        function musichettaTriste() {
+            try {
+                var AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                var ac = new AC(), t0 = ac.currentTime + 0.05;
+                [[392, 0.35], [370, 0.35], [349, 0.35], [330, 1.1]].forEach(function(n, i) {
+                    var o = ac.createOscillator(), g = ac.createGain(), t = t0 + i * 0.42;
+                    o.type = 'triangle';
+                    o.frequency.setValueAtTime(n[0], t);
+                    if (i === 3) {
+                        o.frequency.linearRampToValueAtTime(n[0] * 0.9, t + n[1]);
+                        var lfo = ac.createOscillator(), lg = ac.createGain();
+                        lfo.frequency.value = 6; lg.gain.value = 6;
+                        lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + n[1]);
+                    }
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.25, t + 0.04);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + n[1]);
+                    o.connect(g); g.connect(ac.destination);
+                    o.start(t); o.stop(t + n[1] + 0.05);
+                });
+                setTimeout(function() { ac.close(); }, 3500);
+            } catch (e) { console.warn('Musichetta:', e); }
         }
 
         function calculateTotalScores(data) {
