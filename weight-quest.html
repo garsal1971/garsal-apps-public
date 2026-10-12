@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.14.2</title>
+  <title>Peso e Calorie v4.14.3</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1813,8 +1813,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.14.2';
-        var BUILD_TIME  = '2026-10-12T12:00:00Z';
+        var APP_VERSION = 'v4.14.3';
+        var BUILD_TIME  = '2026-10-12T12:30:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5835,11 +5835,16 @@
 
             function kg(v) { return v == null || !isFinite(v) ? '—' : v.toFixed(1) + ' kg'; }
 
-            // v4.14.2: il peso totale MISURATO, poi le tre medie mobili (ps_daily_ema) dello
+            // v4.14.2/3: peso totale, massa grassa e % MISURATI, poi le tre medie mobili (ps_daily_ema) dello
             // stesso giorno — sulla prossima pesata, quelle di oggi. Una media stimata col
             // trend (giorno senza pesata) si scrive in corsivo.
             var grasso = obiettivoGrasso(userData.currentObjective);
             var totale = rif ? (grasso ? (rif.peso_totale != null ? Number(rif.peso_totale) : null) : rif.weight) : null;
+            // I valori misurati di grasso: sulla massa grassa rif.weight È già i kg di grasso.
+            var mPctMis = rif ? (grasso ? rif.grasso_pct : rif.body_fat_pct) : null;
+            mPctMis = (mPctMis != null && isFinite(Number(mPctMis))) ? Number(mPctMis) : null;
+            var mGrMis = rif ? (grasso ? rif.weight
+                : (mPctMis != null && rif.weight != null ? Number(rif.weight) * mPctMis / 100 : null)) : null;
             var gEma = tipo === 'dopo' ? oggi : day;
             if (userData.ema && !userData.ema[gEma]) {
                 var giorni = Object.keys(userData.ema).filter(function(g) { return g <= gEma; }).sort();
@@ -5865,6 +5870,9 @@
             return '<div class="pesata-card ' + tipo + '">'
                  + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
                  + '<div class="pc-row"><span>Peso totale</span><b>' + kg(totale) + '</b></div>'
+                 + ((grasso || mPctMis != null)
+                    ? '<div class="pc-row"><span>Massa grassa</span><b>' + kg(mGrMis) + '</b></div>'
+                    + '<div class="pc-row"><span>Grasso</span><b>' + (mPctMis == null ? '—' : (Math.round(mPctMis * 10) / 10) + ' %') + '</b></div>' : '')
                  + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
                  + '<div class="pc-row"><span>📈 Media peso</span><b style="color:#7C3AED">' + mPeso + '</b></div>'
                  + (conGrasso
