@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.14.0</title>
+  <title>Peso e Calorie v4.14.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1813,8 +1813,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.14.0';
-        var BUILD_TIME  = '2026-10-12T10:00:00Z';
+        var APP_VERSION = 'v4.14.1';
+        var BUILD_TIME  = '2026-10-12T11:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5809,22 +5809,22 @@
                 quando += gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
             }
 
-            var peso = null, nota = '', target = getInterpolatedTarget(day), info = '';
+            var peso = null, nota = '', target = getInterpolatedTarget(day), rif = null;
             if (tipo === 'dopo') {
                 var ult = ultimoPesoFinoA(data, oggi);
-                if (ult) { peso = ult.weight; nota = 'ultimo peso, del ' + ult.date.slice(8, 10) + '/' + ult.date.slice(5, 7); info = notaTotale(ult); }
+                if (ult) { peso = ult.weight; nota = 'ultimo peso, del ' + ult.date.slice(8, 10) + '/' + ult.date.slice(5, 7); rif = ult; }
             } else {
                 var min = minimoDelGiorno(data, day);
                 if (min) {
                     peso = min.weight;
-                    info = notaTotale(min);
+                    rif = min;
                     // Il target congelato sulla riga, come nei punti.
                     if (min.target_weight) target = min.target_weight;
                 } else {
                     var prima = ultimoPesoFinoA(data, day);
                     if (prima) {
                         peso = prima.weight;
-                        info = notaTotale(prima);
+                        rif = prima;
                         nota = (tipo === 'oggi' ? 'non ancora pesato: ' : 'non pesato: ')
                              + 'ultimo peso del ' + prima.date.slice(8, 10) + '/' + prima.date.slice(5, 7);
                     } else {
@@ -5837,12 +5837,16 @@
             var coloreManca = manca == null ? '#999' : (Math.round(manca * 10) / 10 <= 0 ? '#00B894' : '#E74C3C');
             function kg(v) { return v == null || !isFinite(v) ? '—' : v.toFixed(1) + ' kg'; }
 
+            // Sulla massa grassa (v4.14.1): kg e % sulla stessa riga, il peso totale su una riga sua.
+            var grasso = obiettivoGrasso(userData.currentObjective);
+            var pct = (grasso && rif && rif.grasso_pct != null) ? ' · ' + (Math.round(rif.grasso_pct * 10) / 10) + ' %' : '';
             return '<div class="pesata-card ' + tipo + '">'
                  + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                 + '<div class="pc-row"><span>' + (obiettivoGrasso(userData.currentObjective) ? 'Minimo massa grassa' : 'Minimo') + '</span><b>' + kg(peso) + '</b></div>'
-                 // Totale e % e da quando viene il peso: una riga sola, separati da « · ».
-                 + ((info || nota) ? '<div class="pc-note">' + [info, nota].filter(Boolean).join(' · ') + '</div>' : '')
-                 + '<div class="pc-row"><span>Target</span><b style="color:#00B894">' + kg(target) + '</b></div>'
+                 + '<div class="pc-row"><span>' + (grasso ? 'Massa grassa' : 'Peso') + '</span><b>' + kg(peso) + pct + '</b></div>'
+                 + ((grasso && rif && rif.peso_totale != null)
+                    ? '<div class="pc-row"><span>Peso totale</span><b>' + kg(Number(rif.peso_totale)) + '</b></div>' : '')
+                 + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
+                 + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
                  + '<div class="pc-row"><span>Mancano</span><b style="color:' + coloreManca + '">'
                  + (manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg') + '</b></div>'
                  + righeCaloriePesata(day, tipo)
