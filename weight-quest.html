@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.14.3</title>
+  <title>Peso e Calorie v4.14.4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -388,6 +388,9 @@
         .pesata-card .pc-row b { font-size: 16px; }
         .pesata-card .pc-note { font-size: 11px; color: #888; }
         .pesata-card .pc-sep { border-top: 1px dashed #ddd; margin: 6px 0 4px; }
+        .pesata-card .pc-big { display: flex; flex-direction: column; padding: 4px 0; }
+        .pesata-card .pc-big span { font-size: 13px; color: #555; }
+        .pesata-card .pc-big b { font-size: 26px; line-height: 1.15; color: #00B894; }
 
         .stat-box.gradient {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1813,8 +1816,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.14.3';
-        var BUILD_TIME  = '2026-10-12T12:30:00Z';
+        var APP_VERSION = 'v4.14.4';
+        var BUILD_TIME  = '2026-10-12T13:30:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5807,6 +5810,25 @@
             if (tipo === 'dopo') {
                 var gg = Math.round((new Date(day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
                 quando += gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
+            }
+
+            // v4.14.4: la prossima pesata è nel futuro, quindi niente misure né medie: solo
+            // quel che il piano si aspetta quel giorno, in grande. Peso di piano dai traguardi
+            // (targetTotale), grasso = peso − massa magra (aGrasso), % = grasso / peso.
+            if (tipo === 'dopo') {
+                var wAtt = targetTotale(day);
+                var gAtt = obiettivoGrasso(userData.currentObjective) ? aGrasso(wAtt, userData.currentObjective) : null;
+                function big(lbl, val) {
+                    return '<div class="pc-big"><span>' + lbl + '</span><b>' + val + '</b></div>';
+                }
+                function kgA(v) { return v == null || !isFinite(v) ? '—' : Number(v).toFixed(1) + ' kg'; }
+                return '<div class="pesata-card ' + tipo + '">'
+                     + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
+                     + '<div class="pc-note">Target attesi dal piano</div>'
+                     + big('Peso totale', kgA(wAtt))
+                     + (gAtt != null ? big('Massa grassa', kgA(gAtt))
+                        + big('Grasso', (wAtt > 0 ? (Math.round(gAtt / wAtt * 1000) / 10) + ' %' : '—')) : '')
+                     + '</div>';
             }
 
             var peso = null, nota = '', target = getInterpolatedTarget(day), rif = null;
