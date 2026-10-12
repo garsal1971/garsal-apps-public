@@ -2693,6 +2693,29 @@ serviva era l'andamento — e il codice sta nella storia di git (`allocBarHtml` 
 Resta invece la correzione che ne è uscita: `drawChart` **ripete** la tavolozza oltre la nona fetta
 invece di finirla con uno `slice`, che lasciava senza colore le posizioni dalla decima in poi.
 
+### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
+
+(12 ottobre 2026, `20261012100000_fnz_saldi_crypto.sql`, Finanza v1.29.0, save-snapshot v1.3.0,
+APK 1.0.128.) `fnz_portfolios.gestione` vale `'transazioni'` (la regola di sempre, DEFAULT) o
+`'saldi'`: per un portafoglio a saldi le posizioni **non vengono più dai carichi/scarichi** ma
+dall'**ultima quantità scritta** in `fnz_saldi_crypto` per ogni moneta. La migration ha scritto
+nel registro le quantità che risultavano dalle transazioni e ha passato il portafoglio `CRYPTO` a
+`'saldi'`; le transazioni restano in archivio e non contano più.
+
+- ⚠️ **Il registro si scrive e non si riscrive**: ogni ✏️ Aggiorna quantità è una riga nuova
+  (portafoglio, moneta, quantità, `recorded_at`, nota); vale la più recente. Zero = «non ne ho più»
+  e la posizione sparisce. Il ✕ toglie una riga sbagliata e torna a valere la precedente.
+- ⚠️ **Niente costo**: `fnz_posizioni` manda `cost_basis` **NULL** per quelle posizioni, e i
+  client lo leggono come «sconosciuto» — niente P&L, niente tasse, e il valore **non** entra nel
+  P&L totale (`senzaCosto` in `computeHoldings` di finanza.html e di `save-snapshot`, gemelle da
+  cambiare insieme). Senza prezzo una moneta vale 0: non c'è un costo su cui ripiegare. Dal
+  12 ottobre 2026 costo e P&L totali degli snapshot non contano più le crypto.
+- La regola sta in `fnz_posizioni`, quindi home, recap e snapshot si allineano da soli.
+- **Si scrive dal web e dall'APK**: `registroSaldiHtml` / `openSaldoModal` in finanza.html,
+  `registroSaldi` / `DialogoSaldo` + `FinanzaRepository.scriviSaldo` nel nativo — l'**unica
+  scrittura** di Finanza nativa, che dopo il salvataggio rifà lo snapshot e rilegge. Il form delle
+  transazioni non offre i portafogli a saldi.
+
 ### La descrizione di un prodotto (`fnz_products.description`)
 
 Che cos'è quello strumento e, se è un fondo o un ETF, che cosa contiene. Si scrive dal form del

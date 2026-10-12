@@ -3,6 +3,7 @@ package com.garsal.appsphere.finanza
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garsal.appsphere.core.AuthRepo
 import com.garsal.appsphere.core.Supabase
 import com.garsal.appsphere.BuildConfig
 import com.garsal.appsphere.core.Jwt
@@ -24,6 +25,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
 import java.net.ConnectException
 import java.net.HttpURLConnection
@@ -50,6 +53,12 @@ import java.time.LocalDate
 // delle tasse, che lo snapshot non conosce — ed è stato chiesto così) e ai prezzi
 // dell'ultimo aggiornamento orario. Se `save-snapshot` non risponde si mostra l'ultimo
 // snapshot in archivio, e la pagina dice di che giorno è.
+//
+// ✏️ L'UNICA SCRITTURA (APK 1.0.128): le quantità dei portafogli a saldi
+// (`fnz_portfolios.gestione = 'saldi'`, il CRYPTO). Si aggiunge una riga a
+// `fnz_saldi_crypto` — mai riscritta — e si rifà lo snapshot, così i numeri a schermo
+// restano quelli dello snapshot. Gemella di `openSaldoModal` / `registroSaldiHtml` in
+// finanza.html: cambiarle insieme.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Lettura permissiva del JSON ─────────────────────────────────────────────
@@ -156,6 +165,15 @@ data class PortafoglioSnap(
         )
     }
 }
+
+/** Un prodotto di `fnz_products`, per scegliere la moneta da aggiornare. */
+data class Moneta(val id: String, val simbolo: String, val nome: String, val tipo: String?)
+
+/** Una riga del registro `fnz_saldi_crypto`: la quantità scritta a mano quel momento. */
+data class SaldoRiga(
+    val id: String, val portafoglio: String, val prodotto: String,
+    val quantita: Double, val quando: String, val nota: String?,
+)
 
 data class VoceSemplice(val id: String, val nome: String, val valore: Double?)
 
@@ -269,6 +287,56 @@ object FinanzaRepository {
         return runCatching { auth.refreshCurrentSession(); auth.currentSessionOrNull()?.accessToken }.getOrNull()
     }
 
+    /**
+     * I portafogli a saldi, il loro registro e i prodotti. ⚠️ Se la colonna `gestione` non c'è
+     * ancora (migration non applicata) torna vuoto: la pagina resta in sola lettura come prima.
+     */
+    suspend fun saldi(): Triple<Set<String>, List<SaldoRiga>, List<Moneta>> = withContext(Dispatchers.IO) {
+        val pf = runCatching {
+            db.from("fnz_portfolios").select(Columns.raw("id")) { filter { eq("gestione", "saldi") } }
+                .decodeList<JsonObject>().mapNotNull { it["id"].testo() }.toSet()
+        }.getOrElse { Log.w("Finanza", "gestione non letta", it); emptySet() }
+        if (pf.isEmpty()) return@withContext Triple(emptySet(), emptyList(), emptyList())
+        val registro = db.from("fnz_saldi_crypto").select(Columns.raw("id,portfolio_id,product_id,qty,recorded_at,note")) {
+            order("recorded_at", Order.DESCENDING)
+            order("created_at", Order.DESCENDING)
+        }.decodeList<JsonObject>().mapNotNull { o ->
+            SaldoRiga(
+                id = o["id"].testo() ?: return@mapNotNull null,
+                portafoglio = o["portfolio_id"].testo() ?: return@mapNotNull null,
+                prodotto = o["product_id"].testo() ?: return@mapNotNull null,
+                quantita = o["qty"].numero() ?: 0.0,
+                quando = o["recorded_at"].testo().orEmpty(),
+                nota = o["note"].testo(),
+            )
+        }
+        val monete = db.from("fnz_products").select(Columns.raw("id,symbol,name,asset_type")) {
+            order("symbol", Order.ASCENDING)
+        }.decodeList<JsonObject>().mapNotNull { o ->
+            Moneta(o["id"].testo() ?: return@mapNotNull null, o["symbol"].testo().orEmpty(),
+                o["name"].testo().orEmpty(), o["asset_type"].testo())
+        }
+        Triple(pf, registro, monete)
+    }
+
+    /** Una riga nuova nel registro: il registro si scrive e non si riscrive. */
+    suspend fun scriviSaldo(portafoglio: String, prodotto: String, quantita: Double, nota: String?) = withContext(Dispatchers.IO) {
+        val utente = AuthRepo.userId() ?: error("Sessione scaduta: rientra e riprova.")
+        db.from("fnz_saldi_crypto").insert(buildJsonObject {
+            put("user_id", utente)
+            put("portfolio_id", portafoglio)
+            put("product_id", prodotto)
+            put("qty", quantita)
+            if (!nota.isNullOrBlank()) put("note", nota.trim())
+        })
+        Unit
+    }
+
+    suspend fun eliminaSaldo(id: String) = withContext(Dispatchers.IO) {
+        db.from("fnz_saldi_crypto").delete { filter { eq("id", id) } }
+        Unit
+    }
+
     /** Le colonne di testa di tutti gli snapshot, dal più vecchio. A pagine da 1000. */
     suspend fun storico(): List<Snapshot> = withContext(Dispatchers.IO) { conRiprova {
         val out = mutableListOf<Snapshot>()
@@ -336,7 +404,16 @@ data class FinanzaState(
     val periodoPortafoglio: Periodo = Periodo.TRE_MESI,
     val serie: List<Snapshot>? = null,
     val serieErrore: String? = null,
+    /** Portafogli con `gestione = 'saldi'`: le loro quantità si scrivono a mano. */
+    val saldi: Set<String> = emptySet(),
+    val registro: List<SaldoRiga> = emptyList(),
+    val monete: List<Moneta> = emptyList(),
+    val salvataggio: Boolean = false,
 ) {
+    /** La quantità in vigore di una moneta in un portafoglio a saldi: l'ultima del registro. */
+    fun quantitaInVigore(portafoglio: String, prodotto: String): Double? =
+        registro.firstOrNull { it.portafoglio == portafoglio && it.prodotto == prodotto }?.quantita
+
     /** Il valore di un portafoglio nello snapshot precedente, per la variazione. */
     fun valorePrecedente(id: String): Double? =
         precedente?.dettaglioPortafogli?.firstOrNull { it.id == id }?.valore
@@ -417,9 +494,44 @@ class FinanzaViewModel : ViewModel() {
                 storico = storico,
                 caricamento = false,
             )
+            runCatching { FinanzaRepository.saldi() }
+                .onSuccess { (pf, reg, mon) -> _state.value = _state.value.copy(saldi = pf, registro = reg, monete = mon) }
+                .onFailure { Log.w(TAG, "registro saldi non letto", it) }
         } catch (e: Exception) {
             Log.w(TAG, "lettura snapshot fallita", e)
             _state.value = _state.value.copy(caricamento = false, errore = "Snapshot non letti: " + e.testoFinanza())
+        }
+    }
+
+    /**
+     * ✏️ Aggiorna la quantità di una moneta, poi rifà lo snapshot e rilegge: i numeri a
+     * schermo sono quelli dello snapshot, e senza rifarlo la quantità nuova non si vedrebbe.
+     */
+    fun salvaSaldo(portafoglio: String, prodotto: String, quantita: Double, nota: String?, fatto: () -> Unit) =
+        scriviERileggi(fatto) { FinanzaRepository.scriviSaldo(portafoglio, prodotto, quantita, nota) }
+
+    fun eliminaSaldo(id: String) = scriviERileggi({}) { FinanzaRepository.eliminaSaldo(id) }
+
+    private fun scriviERileggi(fatto: () -> Unit, scrivi: suspend () -> Unit) {
+        if (_state.value.salvataggio) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(salvataggio = true, errore = null, avvisi = emptyList())
+            try {
+                scrivi()
+                fatto()
+                _state.value = _state.value.copy(fase = "Rifaccio lo snapshot di oggi…")
+                FinanzaRepository.aggiornaSnapshot()?.let {
+                    _state.value = _state.value.copy(avvisi = listOf("Quantità salvata, ma snapshot non rifatto: $it"))
+                }
+                leggi()
+                _state.value = _state.value.copy(serie = null)
+                _state.value.portafoglioAperto?.let { caricaSerie() }
+            } catch (e: Exception) {
+                Log.w(TAG, "saldo non scritto", e)
+                _state.value = _state.value.copy(errore = "Non salvato: " + e.testoFinanza())
+            } finally {
+                _state.value = _state.value.copy(salvataggio = false, fase = null)
+            }
         }
     }
 

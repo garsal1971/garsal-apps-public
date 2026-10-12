@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.28.0</title>
+  <title>GarsalFinanza v1.29.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -613,8 +613,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.28.0';
-const APP_BUILD   = '2026-10-08T10:00:00Z';
+const APP_VERSION = 'v1.29.0';
+const APP_BUILD   = '2026-10-12T10:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -627,7 +627,7 @@ const S = {
   portfolioId: null,
   dossierId: null,
   fundId: null,
-  portfolios: [], transactions: [], products: [], tagCats: [], dossiers: [], loans: [], loanRepayments: [],
+  portfolios: [], saldiCrypto: [], transactions: [], products: [], tagCats: [], dossiers: [], loans: [], loanRepayments: [],
   // Posizioni e liquidità dei portafogli, calcolate dal database (`fnz_posizioni` /
   // `fnz_liquidita`): vedi `loadPosizioni`. `posizioniOk` falso = non lette. Lo snapshot
   // non ne dipende più: lo scrive `save-snapshot`, che senza posizioni non scrive niente.
@@ -838,7 +838,7 @@ async function loadAll() {
   S.foiIndex     = foiIndex;
   S.bankConnections   = bankConnections;
   S.institutions      = institutions;
-  await Promise.all([loadPosizioni(), loadQuoteFondi()]);
+  await Promise.all([loadPosizioni(), loadQuoteFondi(), loadSaldi()]);
   if (tagCats.length === 0) {
     await Promise.all(DEFAULT_TAG_CATS.map(tc => sbIns('fnz_tag_categories', { ...tc, user_id: S.session.user.id })));
     S.tagCats = await sbQ('fnz_tag_categories', 'select=*&order=name.asc');
@@ -888,7 +888,7 @@ async function reload() {
   S.foiIndex     = foiIndex;
   S.bankConnections   = bankConnections;
   S.institutions      = institutions;
-  await Promise.all([loadPosizioni(), loadQuoteFondi()]);
+  await Promise.all([loadPosizioni(), loadQuoteFondi(), loadSaldi()]);
   await loadPricesFromCache();
   S.priceHistory = await sbQ('fnz_price_history', 'select=*&order=price_date.desc');
   computePricesFromHistory();
@@ -994,6 +994,16 @@ async function loadPosizioni() {
     S.posizioni = []; S.liquidita = new Map(); S.posizioniOk = false;
   }
 }
+/* Il registro delle quantità scritte a mano (`fnz_saldi_crypto`), per i portafogli con
+   `gestione = 'saldi'`. Le posizioni le dà comunque `fnz_posizioni`: questo serve solo a
+   mostrare lo storico degli aggiornamenti. Se la tabella non c'è ancora, resta vuoto. */
+async function loadSaldi() {
+  try { S.saldiCrypto = await sbQ('fnz_saldi_crypto', 'select=*&order=recorded_at.desc,created_at.desc'); }
+  catch (e) { console.warn('[saldi] non letti:', e.message); S.saldiCrypto = []; }
+}
+const isSaldi = p => p?.gestione === 'saldi';
+// Le quantità crypto vanno fino all'ottavo decimale (1 satoshi): fmtNum si ferma al sesto.
+const fmtQty = n => n == null ? '—' : new Intl.NumberFormat('it-IT', { maximumFractionDigits: 8 }).format(n);
 function computeHoldings(filter = null) {
   const portfolioId = typeof filter === 'string' ? filter : (filter?.portfolioId ?? null);
   const dossierId   = (filter && typeof filter === 'object') ? (filter.dossierId ?? null) : null;
@@ -1007,11 +1017,21 @@ function computeHoldings(filter = null) {
       const product = S.products.find(p => p.id === r.product_id);
       if (!product) return null;
       const qty       = Number(r.qty);
-      const costBasis = Number(r.cost_basis);
-      const avgCost     = qty > 0 ? costBasis / qty : 0;
       const pd          = S.prices[product.symbol] || null;
       const currentPrice = pd?.price ?? null;
       const currentValue = currentPrice != null ? qty * currentPrice : null;
+      /* ⚠️ Un portafoglio a saldi (`fnz_portfolios.gestione = 'saldi'`, il CRYPTO) non ha un
+         costo: `fnz_posizioni` lo manda NULL. Allora niente P&L e niente tasse — non zero
+         costo, che direbbe che tutto il valore è guadagno — e `costBasis` vale 0 così i totali
+         del costo lo saltano. Senza prezzo il valore è 0: non c'è un costo su cui ripiegare. */
+      if (r.cost_basis == null) {
+        const { rate, dichiarata } = taxRateOf(product);
+        return { product, qty, avgCost: null, costBasis: 0, senzaCosto: true, currentPrice,
+                 currentValue: currentValue ?? 0, pnl: null, pnlPct: null, pd,
+                 taxRate: rate, taxDeclared: dichiarata, taxDue: 0, netValue: currentValue ?? 0 };
+      }
+      const costBasis = Number(r.cost_basis);
+      const avgCost     = qty > 0 ? costBasis / qty : 0;
       const pnl          = currentValue != null ? currentValue - costBasis : null;
       const pnlPct       = costBasis > 0 && pnl != null ? (pnl / costBasis) * 100 : null;
       // Senza prezzo il valore ripiega sul costo, come in tutti i totali della pagina: la
@@ -1056,7 +1076,9 @@ function portfolioStats() {
     const cost = h.reduce((s, x) => s + x.costBasis, 0) * own;
     // P&L e variazione giornaliera restano sui soli titoli: la liquidità non guadagna né
     // perde, e sommarla qui la farebbe comparire come utile il giorno che entra sul conto.
-    const pnl  = titoli - cost;
+    // ⚠️ E sui soli titoli CON un costo: le monete di un portafoglio a saldi non ne hanno.
+    const titoliSenzaCosto = h.filter(x => x.senzaCosto).reduce((s, x) => s + x.currentValue, 0) * own;
+    const pnl  = titoli - titoliSenzaCosto - cost;
     const previousCloseValue = h.reduce((s, x) => {
       const prevClose = x.pd?.prev_close ?? null;
       return s + (prevClose != null ? x.qty * prevClose : (x.currentValue ?? x.costBasis));
@@ -1073,6 +1095,7 @@ function portfolioStats() {
       securitiesValue: titoli,
       cash,
       totalCost: cost,
+      valueSenzaCosto: titoliSenzaCosto,
       pnl,
       pnlPct: cost > 0 ? (pnl / cost) * 100 : 0,
       previousCloseValue,
@@ -1900,7 +1923,8 @@ function renderDashboard() {
   const stats      = portfolioStats();
   const grandValue = stats.reduce((s, x) => s + x.totalValue, 0);
   const grandCost  = stats.reduce((s, x) => s + x.totalCost, 0);
-  const grandPnl   = grandValue - grandCost;
+  // Le monete di un portafoglio a saldi non hanno costo: il loro valore non è guadagno.
+  const grandPnl   = grandValue - grandCost - stats.reduce((s, x) => s + x.valueSenzaCosto, 0);
   const grandPct   = grandCost > 0 ? (grandPnl / grandCost) * 100 : 0;
   
   const grandFullValue = stats.reduce((s, x) => s + (x.totalValue / ((parseFloat(x.portfolio.ownership_percentage) || 100) / 100)), 0);
@@ -2186,6 +2210,103 @@ function ptfAndamentoHtml(portfolio) {
       · ${validi.length} giorn${validi.length === 1 ? 'o' : 'i'} in archivio
     </p>`;
 }
+/* Il registro degli aggiornamenti di un portafoglio a saldi, dal più recente: per ogni riga la
+   quantità scritta e di quanto è cambiata rispetto alla volta prima per quella moneta.
+   ✕ toglie una riga sbagliata (vale di nuovo la precedente). Le transazioni di prima restano
+   sotto, chiuse: raccontano com'era ma non contano più. */
+function registroSaldiHtml(portfolio, txs) {
+  const righe = S.saldiCrypto.filter(r => r.portfolio_id === portfolio.id);
+  // Variazione: si scorre dal più vecchio, ricordando l'ultima quantità vista per moneta.
+  const prec = new Map(), ultimaVista = new Map();
+  [...righe].reverse().forEach(r => {
+    prec.set(r.id, ultimaVista.has(r.product_id) ? ultimaVista.get(r.product_id) : null);
+    ultimaVista.set(r.product_id, Number(r.qty));
+  });
+  const quando = iso => { const d = new Date(iso);
+    return `${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`; };
+  return `
+    <div class="card mb-16">
+      <div class="card-title">📝 Registro delle quantità</div>
+      ${righe.length === 0 ? `<div class="empty-sm">Nessun aggiornamento ancora.</div>` : `
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th></th><th>Quando</th><th>Moneta</th><th>Quantità</th><th>Variazione</th><th>Note</th></tr></thead>
+        <tbody>${righe.map(r => {
+          const pr = S.products.find(p => p.id === r.product_id);
+          const pq = prec.get(r.id);
+          const d  = pq == null ? null : Number(r.qty) - pq;
+          return `<tr>
+            <td><button class="btn-icon btn-icon-danger" data-action="saldo-elimina" data-id="${r.id}" title="Elimina questo aggiornamento">✕</button></td>
+            <td class="mono text-sm" style="white-space:nowrap">${quando(r.recorded_at)}</td>
+            <td class="mono fw-600">${esc(pr?.symbol ?? '—')}</td>
+            <td class="mono">${fmtQty(Number(r.qty))}</td>
+            <td class="mono ${d == null ? 'text-muted' : pnlCls(d)}">${d == null ? 'iniziale' : (d > 0 ? '+' : '') + fmtQty(d)}</td>
+            <td><div class="truncate" style="max-width:200px">${esc(r.note || '—')}</div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`}
+      ${txs.length ? `<details class="mt-12"><summary class="text-muted text-sm" style="cursor:pointer">${txs.length} transazioni di prima (in archivio, non contano più)</summary>
+        <div class="table-wrap"><table class="table table-storico">
+          <thead><tr><th>Data</th><th>Tipo</th><th>Simbolo</th><th>Qtà</th><th>Prezzo</th></tr></thead>
+          <tbody>${txs.map(t => {
+            const pr = S.products.find(p => p.id === t.product_id);
+            return `<tr><td class="mono text-sm">${fmtDate(t.date)}</td><td>${t.type === 'BUY' ? 'CARICO' : 'SCARICO'}</td>
+              <td class="mono">${esc(pr?.symbol ?? '—')}</td><td class="mono">${fmtQty(Number(t.quantity))}</td><td class="mono">${fmtEURc(t.price)}</td></tr>`;
+          }).join('')}</tbody></table></div></details>` : ''}
+    </div>`;
+}
+/* ✏️ Aggiorna quantità: una riga nuova nel registro, mai una riscritta. Con `productId` la moneta
+   è già scelta e la casella parte dalla quantità in vigore; senza, si sceglie (le crypto prima).
+   Zero vuol dire «non ne ho più» e fa sparire la posizione. */
+function openSaldoModal(portfolioId, productId = null) {
+  const pf = S.portfolios.find(p => p.id === portfolioId);
+  if (!pf) return;
+  const ultima = pid => S.saldiCrypto.find(r => r.portfolio_id === portfolioId && r.product_id === pid);
+  const prod = productId ? S.products.find(p => p.id === productId) : null;
+  const ora = new Date(); ora.setSeconds(0, 0);
+  const oraLocale = new Date(ora.getTime() - ora.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const scelta = [...S.products].sort((a, b) =>
+    ((a.asset_type === 'crypto' ? 0 : 1) - (b.asset_type === 'crypto' ? 0 : 1)) || a.symbol.localeCompare(b.symbol));
+  const qAtt = prod ? ultima(prod.id) : null;
+  openModal(`✏️ Aggiorna quantità — ${esc(pf.name)}`, `
+    <form id="modal-form">
+      <div class="form-group">
+        <label class="form-label">Moneta *</label>
+        ${prod
+          ? `<input type="hidden" name="product_id" value="${prod.id}" /><div class="fw-600">${esc(prod.symbol)} — ${esc(prod.name)}</div>
+             <div class="text-muted text-sm">Quantità in vigore: <span class="mono">${qAtt ? fmtQty(Number(qAtt.qty)) : '—'}</span></div>`
+          : `<select name="product_id" class="form-input form-select" required>
+              <option value="">— Scegli —</option>
+              ${scelta.map(p => { const u = ultima(p.id); return `<option value="${p.id}">${esc(p.symbol)} — ${esc(p.name)}${u ? ` (ora ${fmtQty(Number(u.qty))})` : ''}</option>`; }).join('')}
+            </select>
+            <div class="text-muted text-sm mt-2">Se la moneta non c'è, aggiungila prima da 📋 Prodotti.</div>`}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nuova quantità totale *</label>
+        <input name="qty" type="number" step="any" min="0" class="form-input mono" required value="${qAtt ? Number(qAtt.qty) : ''}" placeholder="0.05" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quando *</label>
+        <input name="quando" type="datetime-local" class="form-input" required value="${oraLocale}" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <input name="note" class="form-input" placeholder="Opzionale — es. staking di settembre" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-action="close-modal">Annulla</button>
+        <button type="submit" class="btn btn-primary">Salva</button>
+      </div>
+    </form>
+  `, async data => {
+    const qty = parseFloat(String(data.qty).replace(',', '.'));
+    if (!data.product_id || !Number.isFinite(qty) || qty < 0) throw new Error('scegli la moneta e scrivi una quantità (zero o più).');
+    await sbIns('fnz_saldi_crypto', {
+      user_id: S.session.user.id, portfolio_id: portfolioId, product_id: data.product_id,
+      qty, recorded_at: new Date(data.quando).toISOString(), note: (data.note || '').trim() || null,
+    });
+    await reload(); closeModal();
+  });
+}
 function renderPortafoglioDetail() {
   const portfolio = S.portfolios.find(p => p.id === S.portfolioId);
   if (!portfolio) { navigate('portafogli'); return; }
@@ -2197,7 +2318,10 @@ function renderPortafoglioDetail() {
   const totalCash = computePortfolioCash(portfolio.id) * own;
   const totalVal  = totalTitoli + totalCash;
   const totalCost = holdings.reduce((s, h) => s + h.costBasis, 0) * own;
-  const totalPnl  = totalTitoli - totalCost;
+  // ⚠️ Un portafoglio a saldi (il CRYPTO) non ha costo: niente Investito, P&L né rendimento.
+  const saldi     = isSaldi(portfolio);
+  const totalSenzaCosto = holdings.filter(h => h.senzaCosto).reduce((s, h) => s + h.currentValue, 0) * own;
+  const totalPnl  = totalTitoli - totalSenzaCosto - totalCost;
   const totalPct  = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
   const totalDailyPnl = holdings.reduce((s, h) => s + (h.pd?.change_amt != null ? h.pd.change_amt * h.qty * own : 0), 0);
   const totalDailyPct = (totalTitoli - totalDailyPnl) > 0 ? (totalDailyPnl / (totalTitoli - totalDailyPnl)) * 100 : 0;
@@ -2221,18 +2345,22 @@ function renderPortafoglioDetail() {
           ${portfolio.description ? `<p class="page-sub">${portfolio.description}</p>` : ''}
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" data-action="new-transaction" data-portfolio-id="${portfolio.id}">+ Transazione</button>
+      ${saldi
+        ? `<button class="btn btn-primary btn-sm" data-action="saldo-modifica" data-portfolio-id="${portfolio.id}">✏️ Aggiorna quantità</button>`
+        : `<button class="btn btn-primary btn-sm" data-action="new-transaction" data-portfolio-id="${portfolio.id}">+ Transazione</button>`}
     </div>
+    ${saldi ? `<p class="text-muted text-sm mb-12">Qui le quantità si scrivono a mano: tocca una moneta per aggiornarla, o ✏️ Aggiorna quantità per aggiungerne una. Il valore è quantità × prezzo; costo, P&amp;L e tasse non si calcolano.</p>` : ''}
     <div class="kpi-grid">
       ${kpi('Valore portafoglio (quota)', fmtEUR(totalVal),  'neutral')}
-      ${kpi('Netto tasse (quota)',         fmtEUR(totalNet),  'neutral')}
+      ${saldi ? '' : kpi('Netto tasse (quota)',         fmtEUR(totalNet),  'neutral')}
       ${totalCash > 0 ? kpi('di cui liquidità (quota)', fmtEUR(totalCash), 'neutral') : ''}
+      ${saldi ? kpi('Var. % 1d', fmtPct(totalDailyPct), pnlCls(totalDailyPct)) : `
       ${kpi('Investito (quota)',          fmtEUR(totalCost), 'neutral')}
       ${kpi('P&amp;L (quota)',            fmtEUR(totalPnl),  pnlCls(totalPnl))}
       <div class="kpi-card" data-action="toggle-ptf-pnl-mode" style="cursor:pointer" title="${S.ptfPnlMode === 'daily' ? 'Clicca per rendimento totale' : 'Clicca per rendimento giornaliero'}">
         <div class="kpi-label">${S.ptfPnlMode === 'daily' ? 'Var. % 1d ⇄' : 'Rendimento ⇄'}</div>
         <div class="kpi-value mono ${S.ptfPnlMode === 'daily' ? pnlCls(totalDailyPct) : pnlCls(totalPct)}">${S.ptfPnlMode === 'daily' ? fmtPct(totalDailyPct) : fmtPct(totalPct)}</div>
-      </div>
+      </div>`}
     </div>
     <div class="card mb-16" id="ptf-andamento">${ptfAndamentoHtml(portfolio)}</div>
     <div class="grid-2 mb-16">
@@ -2243,7 +2371,7 @@ function renderPortafoglioDetail() {
         </div>
         ${senzaTax ? `<p class="text-muted text-sm mb-12">⚠️ ${senzaTax === 1 ? 'Una posizione in guadagno non ha' : `${senzaTax} posizioni in guadagno non hanno`} il tag TASSAZIONE: ${senzaTax === 1 ? 'le è' : 'gli è'} stato applicato il ${TAX_DEFAULT} %, che è l'aliquota ordinaria — mettere il tag dà il numero vero.</p>` : ''}
         ${holdings.length === 0
-          ? `<div class="empty-sm">Nessuna posizione. Aggiungi una transazione BUY.</div>`
+          ? `<div class="empty-sm">${saldi ? 'Nessuna moneta. Aggiungine una con ✏️ Aggiorna quantità.' : 'Nessuna posizione. Aggiungi una transazione BUY.'}</div>`
           : `<div class="table-wrap"><table class="table table-posizioni">
             <thead><tr>
               <th>Simbolo</th><th>Nome</th>
@@ -2269,19 +2397,19 @@ function renderPortafoglioDetail() {
             <tbody>${visibleHoldings.length === 0
               ? `<tr><td colspan="${12 + S.tagCats.length}" style="text-align:center;padding:20px;color:var(--c-muted)">Nessuna posizione corrisponde ai filtri attivi.</td></tr>`
               : visibleHoldings.map(h => `
-              <tr data-action="open-position-transactions" data-product-id="${h.product.id}" style="cursor:pointer">
-                <td class="mono fw-600">${h.product.symbol}</td>
+              <tr data-action="${saldi ? 'saldo-modifica' : 'open-position-transactions'}" data-product-id="${h.product.id}" data-portfolio-id="${portfolio.id}" style="cursor:pointer"${saldi ? ' title="Tocca per aggiornare la quantità"' : ''}>
+                <td class="mono fw-600">${saldi ? '✏️ ' : ''}${h.product.symbol}</td>
                 <td><div class="truncate" style="max-width:160px">${h.product.name}${infoProdotto(h.product)}</div></td>
                 <td>${assetBadge(h.product.asset_type)}</td>
-                <td class="mono">${fmtNum(h.qty)}</td>
+                <td class="mono">${saldi ? fmtQty(h.qty) : fmtNum(h.qty)}</td>
                 <td class="mono">${fmtEURc(h.avgCost)}</td>
                 <td class="mono ${pnlCls(h.pd?.change_pct ?? null)}">${h.currentPrice != null ? fmtEURc(h.currentPrice) : '—'}</td>
                 <td class="mono ${pnlCls(h.pd?.change_pct ?? null)}">${h.pd ? fmtPct(h.pd.change_pct) : '—'}</td>
                 <td class="mono fw-600">${fmtEUR(h.currentValue * own)}</td>
                 <td class="mono text-muted" title="${h.taxDeclared ? `Aliquota ${h.taxRate}% dal tag TASSAZIONE` : `Tassazione non indicata: applicato il ${TAX_DEFAULT}%`}">${h.taxDue > 0 ? `−${fmtEUR(h.taxDue * own)}${h.taxDeclared ? '' : ' ⚠️'}` : '—'}</td>
                 <td class="mono fw-600">${fmtEUR(h.netValue * own)}</td>
-                <td class="mono ${pnlCls(h.pnl * own)}">${fmtEUR(h.pnl * own)}</td>
-                <td>${S.ptfPnlMode === 'daily'
+                <td class="mono ${h.pnl != null ? pnlCls(h.pnl * own) : ''}">${h.pnl != null ? fmtEUR(h.pnl * own) : '—'}</td>
+                <td>${S.ptfPnlMode === 'daily' || h.senzaCosto
                   ? `<span class="badge ${h.pd?.change_pct != null && h.pd.change_pct >= 0 ? 'badge-pos' : 'badge-neg'}">${h.pd ? fmtPct(h.pd.change_pct) : '—'}</span>`
                   : `<span class="badge ${h.pnlPct != null && h.pnlPct >= 0 ? 'badge-pos' : 'badge-neg'}">${fmtPct(h.pnlPct)}</span>`
                 }</td>
@@ -2291,7 +2419,8 @@ function renderPortafoglioDetail() {
         }
       </div>
     </div>
-    ${txs.length > 0 ? `
+    ${saldi ? registroSaldiHtml(portfolio, txs) : ''}
+    ${!saldi && txs.length > 0 ? `
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Storico transazioni<button class="btn btn-outline btn-sm" data-action="reload-portfolio-detail">🔄 Aggiorna</button></div>
         <div class="table-wrap"><table class="table table-storico">
@@ -6718,7 +6847,10 @@ function openNewProductModal(productId = null) {
 function openNewTransactionModal(prePortfolioId = null, preProductId = null, preDossierId = null) {
   console.log('🔵 openNewTransactionModal CHIAMATA', { prePortfolioId, preProductId });
   console.log('🔵 S.portfolios:', S.portfolios.length, 'S.products:', S.products.length);
-  if (!S.portfolios.length) { alert('Crea prima un portafoglio.'); return; }
+  // ⚠️ Un portafoglio a saldi non prende transazioni: le sue quantità si scrivono col
+  // ✏️ Aggiorna quantità, e una transazione lì dentro non conterebbe niente.
+  const pfTx = S.portfolios.filter(p => !isSaldi(p));
+  if (!pfTx.length) { alert('Crea prima un portafoglio.'); return; }
   if (!S.products.length)   { alert('Aggiungi prima almeno un prodotto nella sezione Prodotti.'); return; }
   const today = new Date().toISOString().slice(0, 10);
 
@@ -6743,7 +6875,7 @@ function openNewTransactionModal(prePortfolioId = null, preProductId = null, pre
         <div class="form-group">
           <label class="form-label">Portafoglio *</label>
           <select name="portfolio_id" class="form-input form-select" required>
-            ${S.portfolios.map(p => `<option value="${p.id}" ${prePortfolioId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+            ${pfTx.map(p => `<option value="${p.id}" ${prePortfolioId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -8538,6 +8670,13 @@ document.addEventListener('click', async e => {
         await sbDel('fnz_portfolios', `id=eq.${t.dataset.id}`);
         if (S.portfolioId === t.dataset.id) navigate('portafogli');
         else await reload();
+      }
+      break;
+    case 'saldo-modifica':
+      openSaldoModal(t.dataset.portfolioId, t.dataset.productId || null); break;
+    case 'saldo-elimina':
+      if (confirm('Eliminare questo aggiornamento? Per quella moneta tornerà a valere la quantità precedente.')) {
+        await sbDel('fnz_saldi_crypto', `id=eq.${t.dataset.id}`); await reload();
       }
       break;
     case 'del-transaction':

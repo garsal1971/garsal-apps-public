@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -65,9 +65,9 @@ function pricesFromHistory(priceHistory: Row[]): Record<string, number> {
 }
 
 type Holding = {
-  product: Row; qty: number; avgCost: number; costBasis: number;
+  product: Row; qty: number; avgCost: number | null; costBasis: number;
   currentPrice: number | null; currentValue: number | null;
-  pnl: number | null; pnlPct: number | null;
+  pnl: number | null; pnlPct: number | null; senzaCosto: boolean;
 };
 
 // Le posizioni di un portafoglio, dalle righe di `fnz_posizioni` (già nell'ordine
@@ -81,13 +81,21 @@ function computeHoldings(
     const product = products.get(r.product_id);
     if (!product) continue;
     const qty = num(r.qty);
-    const costBasis = num(r.cost_basis);
-    const avgCost = qty > 0 ? costBasis / qty : 0;
     const currentPrice = product.symbol in prices ? prices[product.symbol] : null;
     const currentValue = currentPrice != null ? qty * currentPrice : null;
+    // ⚠️ Portafoglio a saldi (il CRYPTO, `fnz_portfolios.gestione = 'saldi'`): costo NULL.
+    // Niente P&L — non costo zero, che farebbe tutto il valore guadagno — e senza prezzo
+    // vale 0. Gemella di computeHoldings in finanza.html: cambiarle insieme.
+    if (r.cost_basis == null) {
+      out.push({ product, qty, avgCost: null, costBasis: 0, currentPrice,
+                 currentValue: currentValue ?? 0, pnl: null, pnlPct: null, senzaCosto: true });
+      continue;
+    }
+    const costBasis = num(r.cost_basis);
+    const avgCost = qty > 0 ? costBasis / qty : 0;
     const pnl = currentValue != null ? currentValue - costBasis : null;
     const pnlPct = costBasis > 0 && pnl != null ? (pnl / costBasis) * 100 : null;
-    out.push({ product, qty, avgCost, costBasis, currentPrice, currentValue, pnl, pnlPct });
+    out.push({ product, qty, avgCost, costBasis, currentPrice, currentValue, pnl, pnlPct, senzaCosto: false });
   }
   return out;
 }
@@ -109,7 +117,9 @@ function portfolioStats(
     const totalCost = holdings.reduce((s, x) => s + x.costBasis, 0) * own;
     // P&L sui soli titoli: la liquidità non guadagna né perde, e sommarla al valore senza
     // sommarla al costo la farebbe comparire come utile il giorno che entra sul conto.
-    const pnl = titoli - totalCost;
+    // …e sui soli titoli CON un costo: le monete di un portafoglio a saldi non ne hanno.
+    const senzaCosto = holdings.filter((x) => x.senzaCosto).reduce((s, x) => s + (x.currentValue ?? 0), 0) * own;
+    const pnl = titoli - senzaCosto - totalCost;
     return {
       portfolio: p, holdings, totalValue: titoli + cash, cash, totalCost, pnl,
       pnlPct: totalCost > 0 ? (pnl / totalCost) * 100 : 0,
