@@ -631,4 +631,3 @@ private fun DialogoSaldo(
         dismissButton = { TextButton(onAnnulla) { Text("Annulla") } },
     )
 }
-}
