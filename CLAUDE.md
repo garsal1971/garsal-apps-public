@@ -1367,7 +1367,7 @@ badge.
 posto **tre schede** (`renderPesate`, web v4.14.0): la **precedente** pesata dell'obiettivo, la
 giornaliera di **oggi** in mezzo (ci si pesa tutti i giorni per la media mobile; se oggi è anche
 pesata dell'obiettivo lo scrive «conta per i punti»), e la **prossima** — ognuna con peso
-(v4.14.3: **peso totale, massa grassa e % misurati** e sotto le **tre medie mobili** di `ps_daily_ema` — peso, massa grassa, % — di quel giorno, oggi per la prossima, in corsivo se stimate), target e quanto manca — sulla massa grassa contro la **media**, che è quella dei punti. ⚠️ Nel nativo restano due schede (oggi + prossima o precedente + prossima). Un giorno senza
+(v4.14.3: **peso totale, massa grassa e % misurati** e sotto le **tre medie mobili** di `ps_daily_ema` — peso, massa grassa, % — di quel giorno, in corsivo se stimate; la **prossima** dalla v4.14.4 mostra solo i **target attesi dal piano**, in grande: peso totale, massa grassa e %), target e quanto manca — sulla massa grassa contro la **media**, che è quella dei punti. ⚠️ Nel nativo restano due schede (oggi + prossima o precedente + prossima). Un giorno senza
 pesata prende l'**ultimo peso di prima** e lo scrive; la prossima prende l'ultimo peso
 registrato. Il target di un giorno pesato è quello **congelato sulla riga**, come nei punti.
 
