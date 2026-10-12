@@ -47,8 +47,25 @@ data class SchedaPesata(
     val info: String? = null,
     /** Sulla massa grassa: «di X kg · Y %» sotto il target. */
     val infoTarget: String? = null,
+    /** L'obiettivo della scheda: la chiave con cui l'esito rivelato si ricorda. */
+    val obiettivoId: String = "",
+    /** Quel giorno ci si è pesati davvero (non è l'ultimo peso di prima). */
+    val pesato: Boolean = false,
+    /**
+     * Con cosa si confronta il target: sulla massa grassa la MEDIA del giorno
+     * (`ps_daily_ema`, quella dei punti), altrimenti il peso. Come il «Mancano»
+     * del web v4.14.
+     */
+    val base: Double? = null,
+    /** Sulla prossima pesata: il peso totale che il piano si aspetta quel giorno. */
+    val pesoAtteso: Double? = null,
+    /** Sulla prossima pesata, su un obiettivo a massa grassa: il grasso atteso. */
+    val grassoAtteso: Double? = null,
 ) {
-    val manca: Double? get() = if (peso != null && target != null) peso - target else null
+    val manca: Double? get() {
+        val b = base ?: peso
+        return if (b != null && target != null) b - target else null
+    }
 }
 
 data class PesoState(
@@ -191,10 +208,18 @@ data class PesoState(
                 }
             }
         }
+        // v1.0.127: sulla massa grassa si confronta la media del giorno, come il web.
+        val base = if (tipo != TipoScheda.DOPO && obj.usaGrasso) (medie[giorno]?.emaGrassoKg ?: peso) else peso
+        val pesoAtteso = if (tipo == TipoScheda.DOPO) PesoRegole.targetInterpolato(obj.traguardi, giorno) else null
         return SchedaPesata(
             tipo, giorno, peso, nota, target, caloriePer(obj, giorno, tipo),
             info = info,
             infoTarget = PesoRegole.notaTargetTotale(target, obj),
+            obiettivoId = obj.id,
+            pesato = tipo != TipoScheda.DOPO && vista.any { it.giorno == giorno },
+            base = base,
+            pesoAtteso = pesoAtteso,
+            grassoAtteso = if (obj.usaGrasso) PesoRegole.aGrasso(pesoAtteso, obj) else null,
         )
     }
 
