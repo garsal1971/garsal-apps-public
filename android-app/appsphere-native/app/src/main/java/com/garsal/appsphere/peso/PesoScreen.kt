@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -638,12 +639,27 @@ private fun SchedaPesataCard(s: SchedaPesata) {
         val gg = PesoRegole.giornoDa(s.giorno)?.toEpochDay()?.minus(LocalDate.now().toEpochDay())
         if (gg != null) quando += if (gg == 1L) " · domani" else " · fra $gg gg"
     }
+    // v1.0.127: la prossima pesata è nel futuro — solo i target del piano, centrati e in
+    // grande, come `schedaPesata()` del web v4.15.0.
+    if (s.tipo == TipoScheda.DOPO) {
+        SchedaProssima(s, "$titolo · $quando", colore)
+        return
+    }
     val manca = s.manca
     val coloreManca = when {
         manca == null -> Palette.muted
         PesoRegole.arrotonda(manca, 1) <= 0 -> Verde
         else -> Palette.danger
     }
+    // v1.0.127: oggi è una pesata che conta e ci si è pesati → l'esito si scopre col ❓
+    // (`rivelaPesata()` nel web). Rivelato, resta scritto su questo telefono.
+    val contesto = LocalContext.current
+    val rivelabile = s.tipo == TipoScheda.OGGI && s.pesato && manca != null
+    val chiaveEsito = "esito_${s.obiettivoId}_${s.giorno}"
+    var visto by remember(chiaveEsito) { mutableStateOf(prefsEsiti(contesto).getString(chiaveEsito, null)) }
+    var mostraEsito by remember { mutableStateOf(false) }
+    val mancaR = manca?.let { PesoRegole.arrotonda(it, 1) }
+    val esitoOk = mancaR != null && mancaR <= 0
     Column(
         Modifier
             .fillMaxWidth()
@@ -660,7 +676,42 @@ private fun SchedaPesataCard(s: SchedaPesata) {
         s.nota?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
         RigaScheda("Target", "${kg(s.target)} kg", Verde)
         s.infoTarget?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
-        RigaScheda("Mancano", if (manca == null) "–" else "${conSegno(manca)} kg", coloreManca)
+        if (rivelabile && visto == null) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Palette.secondary, Palette.primary)))
+                    .clickable {
+                        prefsEsiti(contesto).edit().putString(chiaveEsito, if (esitoOk) "ok" else "ko").apply()
+                        visto = if (esitoOk) "ok" else "ko"
+                        mostraEsito = true
+                        if (!esitoOk) musichettaTriste()
+                    }
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("❓", fontSize = 34.sp, color = Color.White)
+                Text("Com'è andata? Tocca per scoprirlo", color = Color.White, textAlign = TextAlign.Center)
+            }
+        } else {
+            RigaScheda("Mancano", if (manca == null) "–" else "${conSegno(manca)} kg", coloreManca)
+            if (rivelabile) {
+                Text(
+                    if (esitoOk) "🎉 Target rispettato!" else "💪 Questa volta no, si recupera!",
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (esitoOk) Color(0xFFE8FFF8) else Color(0xFFFFF1F3))
+                        .padding(6.dp),
+                    color = if (esitoOk) Color(0xFF00967A) else Palette.danger,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
         s.calorie?.let { c ->
             HorizontalDivider(color = Palette.border, modifier = Modifier.padding(vertical = 4.dp))
             if (c.motivo != null) {
@@ -677,6 +728,203 @@ private fun SchedaPesataCard(s: SchedaPesata) {
             }
         }
     }
+    if (mostraEsito && mancaR != null) {
+        DialogoEsito(esitoOk, mancaR) { mostraEsito = false }
+    }
+}
+
+// ── v1.0.127: la prossima pesata e l'esito della pesata che conta ─────────
+// Gemelli di `schedaPesata()` (ramo «dopo»), `rivelaPesata()`, `fuochiArtificio()`
+// e `musichettaTriste()` di weight-quest.html v4.15.0: vanno cambiati insieme.
+
+private fun prefsEsiti(context: android.content.Context) =
+    context.applicationContext.getSharedPreferences("peso_esiti", android.content.Context.MODE_PRIVATE)
+
+private val FRASI_KO = listOf(
+    "Un giorno storto non cambia la strada: domani si riparte.",
+    "La bilancia oggi fa la difficile. Tu no: tieni duro!",
+    "Il piano è lungo, e una curva non è un precipizio.",
+    "Acqua, passi e pazienza: il numero arriva.",
+    "Anche i campioni sbagliano un tiro. Il prossimo è tuo.",
+)
+
+@Composable
+private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(3.dp, colore, RoundedCornerShape(12.dp))
+            .background(Palette.light)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(intestazione, fontWeight = FontWeight.Bold, color = Palette.dark, modifier = Modifier.fillMaxWidth())
+        Text("🎯 Target attesi dal piano", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+        Gettone("Peso totale", "${kg(s.pesoAtteso)} kg")
+        val g = s.grassoAtteso
+        val w = s.pesoAtteso
+        if (g != null) {
+            Gettone("Massa grassa", "${kg(g)} kg")
+            Gettone("Grasso", if (w != null && w > 0) "${PesoRegole.arrotonda(g / w * 100, 1)} %" else "–")
+        }
+    }
+}
+
+@Composable
+private fun Gettone(etichetta: String, valore: String) {
+    Column(
+        Modifier
+            .fillMaxWidth(0.8f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFE8FFF8), Color(0xFFC6F3E5))))
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(etichetta.uppercase(), color = Color(0xFF00806A), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+        Text(valore, color = Color(0xFF00967A), fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun DialogoEsito(ok: Boolean, manca: Double, onChiudi: () -> Unit) {
+    val kgTxt = "${kg(kotlin.math.abs(manca))} kg"
+    val frase = remember { FRASI_KO.random() }
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onChiudi,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color(0x73141428))
+                .clickable(onClick = onChiudi),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (ok) FuochiArtificio(Modifier.fillMaxSize())
+            Column(
+                Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .padding(horizontal = 20.dp, vertical = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(if (ok) "🎉" else "😅", fontSize = 56.sp)
+                Text(
+                    if (ok) "Target rispettato!" else "Questa volta no…",
+                    fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center,
+                )
+                Text(
+                    if (ok) (if (manca < 0) "$kgTxt sotto il target. Grande!" else "Esattamente sul target. Grande!")
+                    else "$kgTxt sopra il target. $frase",
+                    color = Palette.muted, textAlign = TextAlign.Center,
+                )
+                TextButton(onClick = onChiudi) { Text("OK", fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+}
+
+private class Scintilla(var x: Float, var y: Float, var vx: Float, var vy: Float, var vita: Float, val colore: Color)
+
+/** Scoppi colorati per ~4,5 s — `fuochiArtificio()` del web, su un Canvas. */
+@Composable
+private fun FuochiArtificio(modifier: Modifier) {
+    val scintille = remember { mutableListOf<Scintilla>() }
+    var tick by remember { mutableStateOf(0L) }
+    var larghezza by remember { mutableStateOf(0f) }
+    var altezza by remember { mutableStateOf(0f) }
+    val densita = LocalDensity.current.density
+    LaunchedEffect(Unit) {
+        val colori = listOf(Color(0xFFFF3366), Color(0xFFFCB131), Color(0xFF00B894), Color(0xFF0081C8), Color(0xFF6C5CE7), Color(0xFFFFD700))
+        val inizio = androidx.compose.runtime.withFrameNanos { it }
+        var prossimo = 0L
+        while (true) {
+            val t = androidx.compose.runtime.withFrameNanos { it }
+            val ms = (t - inizio) / 1_000_000
+            if (ms < 3300 && ms >= prossimo && larghezza > 0f) {
+                val x = larghezza * (0.15f + Math.random().toFloat() * 0.7f)
+                val y = altezza * (0.15f + Math.random().toFloat() * 0.35f)
+                val col = colori.random()
+                val n = 60 + (Math.random() * 30).toInt()
+                repeat(n) { i ->
+                    val a = (Math.PI * 2 * i / n).toFloat()
+                    val v = (2f + Math.random().toFloat() * 3.5f) * densita * 0.6f
+                    scintille += Scintilla(x, y, kotlin.math.cos(a) * v, kotlin.math.sin(a) * v, 1f,
+                        if (Math.random() < 0.2) Color.White else col)
+                }
+                prossimo = ms + 280 + (Math.random() * 320).toLong()
+            }
+            scintille.removeAll { it.vita <= 0f }
+            scintille.forEach {
+                it.x += it.vx; it.y += it.vy; it.vy += 0.05f * densita * 0.6f
+                it.vx *= 0.985f; it.vy *= 0.985f; it.vita -= 0.012f
+            }
+            tick = t
+            if (ms > 4500 && scintille.isEmpty()) break
+        }
+    }
+    androidx.compose.foundation.Canvas(
+        modifier.onSizeChanged { larghezza = it.width.toFloat(); altezza = it.height.toFloat() }
+    ) {
+        tick
+        val r = 2.6.dp.toPx()
+        scintille.forEach {
+            drawCircle(it.colore.copy(alpha = it.vita.coerceIn(0f, 1f)), radius = r, center = androidx.compose.ui.geometry.Offset(it.x, it.y))
+        }
+    }
+}
+
+/** «Wah wah wah waaah»: quattro note che scendono, l'ultima che si affloscia. */
+private fun musichettaTriste() {
+    Thread {
+        runCatching {
+            val sr = 22050
+            val note = listOf(392.0 to 0.35, 370.0 to 0.35, 349.0 to 0.35, 330.0 to 1.1)
+            val passo = 0.42
+            val totale = ((passo * 3 + 1.1 + 0.1) * sr).toInt()
+            val buf = FloatArray(totale)
+            note.forEachIndexed { i, (f, d) ->
+                val da = (i * passo * sr).toInt()
+                val n = (d * sr).toInt()
+                var fase = 0.0
+                for (k in 0 until n) {
+                    val t = k.toDouble() / sr
+                    val freq = if (i == 3) f * (1 - 0.1 * t / d) + 6 * kotlin.math.sin(2 * Math.PI * 6 * t) else f
+                    fase += 2 * Math.PI * freq / sr
+                    val tri = (2 / Math.PI) * kotlin.math.asin(kotlin.math.sin(fase))
+                    val inviluppo = minOf(1.0, t / 0.04) * kotlin.math.exp(-3 * t / d)
+                    if (da + k < totale) buf[da + k] += (tri * inviluppo * 0.3).toFloat()
+                }
+            }
+            val pcm = ShortArray(totale) { (buf[it].coerceIn(-1f, 1f) * 32767).toInt().toShort() }
+            val track = android.media.AudioTrack.Builder()
+                .setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .setAudioFormat(
+                    android.media.AudioFormat.Builder()
+                        .setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sr)
+                        .setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(pcm.size * 2)
+                .setTransferMode(android.media.AudioTrack.MODE_STATIC)
+                .build()
+            track.write(pcm, 0, pcm.size)
+            track.play()
+            Thread.sleep((totale * 1000L / sr) + 200)
+            track.release()
+        }
+    }.start()
 }
 
 @Composable
