@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.13.7</title>
+  <title>Peso e Calorie v4.14.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1813,8 +1813,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.13.7';
-        var BUILD_TIME  = '2026-10-09T15:40:00Z';
+        var APP_VERSION = 'v4.14.0';
+        var BUILD_TIME  = '2026-10-12T10:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5799,6 +5799,11 @@
             var p = day.split('-');
             var titolo = tipo === 'oggi' ? '⚖️ Oggi' : tipo === 'prima' ? '↩️ Precedente' : '➡️ Prossima';
             var quando = p[2] + '/' + p[1];
+            // Ci si pesa tutti i giorni (serve alla media mobile): Oggi c'è sempre, e dice se
+            // è anche una pesata dell'obiettivo, cioè una di quelle che contano per i punti.
+            var obCorr = userData.currentObjective;
+            if (tipo === 'oggi' && obCorr && obCorr.start_date && day >= obCorr.start_date
+                && (!obCorr.end_date || day <= obCorr.end_date) && giornoDiPesata(obCorr, day)) quando += ' · conta per i punti';
             if (tipo === 'dopo') {
                 var gg = Math.round((new Date(day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
                 quando += gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
@@ -5848,12 +5853,10 @@
            vive in calcolaTarget / targetTrattoAl, e una seconda formula sarebbero due target
            diversi per lo stesso giorno.
 
-           Tre righe, e la differenza fra le ultime due è il punto:
-           - Fabbisogno   = basale × attività, cioè quel che si consuma senza nessun deficit;
-           - Kcal da piano = il target del TRATTO, «se stai sul piano» (tabella dei tratti);
-           - Kcal con andamento = quello più il recupero dello scarto fra peso vero e peso di
-             piano — il numero del 📓 Diario. Su un giorno passato o su oggi, se il target è già
-             congelato in al_days, vince quello: è il senso del congelamento.
+           Una riga sola (v4.14.0; fino alla v4.13 c'erano anche Fabbisogno e Kcal da piano):
+           Kcal con andamento = il target del tratto più il recupero dello scarto fra peso vero
+           e peso di piano — il numero del 📓 Diario. Su un giorno passato o su oggi, se il
+           target è già congelato in al_days, vince quello: è il senso del congelamento.
            ⚠️ Sulla prossima pesata il peso non si conosce: pesoAl ripiega sull'ultimo noto, ed
            è la stessa scelta della riga «Minimo» sopra.
            ⚠️ Finché la metà «calorie» non ha caricato i suoi dati (S.pronto) non si scrive
@@ -5865,15 +5868,12 @@
                 var obj = userData.currentObjective;
                 if (!obj || String(S.objective.id) !== String(obj.id)) return '';
                 var t = tipo === 'dopo' ? calcolaTarget(day) : targetDelGiorno(day);
-                var piano = targetTrattoAl(day);
                 if (!t || !t.ok) {
                     var perche = t && t.motivo === 'profilo' ? 'mancano data di nascita, altezza o sesso nel profilo'
                                : t && t.motivo === 'peso' ? 'nessun peso registrato' : 'dati non disponibili';
                     return '<div class="pc-sep"></div><div class="pc-note">🔥 Calorie: ' + perche + '.</div>';
                 }
                 return '<div class="pc-sep"></div>'
-                     + '<div class="pc-row"><span>Fabbisogno</span><b>' + fmtKcal(t.tdee) + ' kcal</b></div>'
-                     + '<div class="pc-row"><span>Kcal da piano</span><b>' + (piano == null ? '—' : fmtKcal(piano) + ' kcal') + '</b></div>'
                      + '<div class="pc-row"><span>Kcal con andamento</span><b style="color:#6C5CE7">' + fmtKcal(t.kcal) + ' kcal</b></div>'
                      + (t.congelato ? '<div class="pc-note">target già fissato nel diario per quel giorno</div>'
                         : tipo === 'dopo' ? '<div class="pc-note">con l\'ultimo peso noto</div>' : '');
@@ -5896,17 +5896,18 @@
                     + '<div class="pc-note">Nessun obiettivo in corso: niente target.</div></div>';
                 return;
             }
+            // Sempre tre schede (v4.14.0): la pesata dell'obiettivo prima di oggi, la giornaliera
+            // di oggi in mezzo, e la pesata dell'obiettivo dopo oggi.
             var html = '';
-            var dentro = oggi >= obj.start_date && oggi <= obj.end_date;
-            if (dentro && giornoDiPesata(obj, oggi)) {
-                html += schedaPesata(data, oggi, 'oggi');
-            } else {
-                // A dieta finita la «precedente» è l'ultima del piano: si parte dal giorno dopo la fine.
-                var da = oggi;
-                if (oggi > obj.end_date) { var f = new Date(obj.end_date + 'T12:00:00'); f.setDate(f.getDate() + 1); da = localDateStr(f); }
-                var prec = pesataPrecedente(obj, da);
-                if (prec) html += schedaPesata(data, prec, 'prima');
-            }
+            // A dieta finita la «precedente» è l'ultima del piano: si parte dal giorno dopo la fine.
+            var da = oggi;
+            if (oggi > obj.end_date) { var f = new Date(obj.end_date + 'T12:00:00'); f.setDate(f.getDate() + 1); da = localDateStr(f); }
+            var prec = pesataPrecedente(obj, da);
+            if (prec) html += schedaPesata(data, prec, 'prima');
+            else html += '<div class="pesata-card prima"><div class="pc-head">↩️ Precedente</div>'
+                       + '<div class="pc-note">Nessuna pesata prima di oggi: il piano comincia il '
+                       + obj.start_date.slice(8, 10) + '/' + obj.start_date.slice(5, 7) + '.</div></div>';
+            html += schedaPesata(data, oggi, 'oggi');
             var dopo = prossimaPesata(obj, (function() {
                 var d = new Date(oggi + 'T12:00:00'); d.setDate(d.getDate() + 1); return localDateStr(d);
             })());

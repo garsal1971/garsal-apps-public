@@ -1364,13 +1364,15 @@ o dopo la fine non sono storico di quell'obiettivo. Il filtro è di sola lettura
 badge.
 
 ⚠️ **I tre riquadri «Minimo oggi / Target oggi / Mancano al target» non ci sono più**: al loro
-posto due schede (`renderPesate`) — **oggi + la prossima** se oggi è giorno di pesata, altrimenti
-**la precedente + la prossima** — ognuna con minimo, target e quanto manca. Un giorno senza
+posto **tre schede** (`renderPesate`, web v4.14.0): la **precedente** pesata dell'obiettivo, la
+giornaliera di **oggi** in mezzo (ci si pesa tutti i giorni per la media mobile; se oggi è anche
+pesata dell'obiettivo lo scrive «conta per i punti»), e la **prossima** — ognuna con minimo,
+target e quanto manca. ⚠️ Nel nativo restano due schede (oggi + prossima o precedente + prossima). Un giorno senza
 pesata prende l'**ultimo peso di prima** e lo scrive; la prossima prende l'ultimo peso
 registrato. Il target di un giorno pesato è quello **congelato sulla riga**, come nei punti.
 
-⚠️ **Ogni scheda porta anche le calorie** (v4.3.0, `righeCaloriePesata`): *Fabbisogno* (basale ×
-attività), *Kcal da piano* (`targetTrattoAl`, il target del tratto «se stai sul piano») e *Kcal con
+⚠️ **Ogni scheda porta anche le calorie** (v4.3.0, `righeCaloriePesata`; dalla web v4.14.0 la sola
+*Kcal con andamento*, mentre il nativo ha ancora *Fabbisogno* e *Kcal da piano*): *Kcal con
 andamento* (`calcolaTarget` / `targetDelGiorno`, cioè col recupero dello scarto — il numero del
 📓 Diario, congelato se `al_days` ce l'ha). **Non si ricalcola niente qui**: si leggono le funzioni
 della metà «calorie», e finché quella non ha caricato (`S.pronto`) le righe non compaiono —
