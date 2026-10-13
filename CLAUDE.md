@@ -1367,7 +1367,7 @@ badge.
 posto **tre schede** (`renderPesate`, web v4.14.0): la **precedente** pesata dell'obiettivo, la
 giornaliera di **oggi** in mezzo (ci si pesa tutti i giorni per la media mobile; se oggi è anche
 pesata dell'obiettivo lo scrive «conta per i punti»), e la **prossima** — ognuna con peso
-(v4.14.3: **peso totale, massa grassa e % misurati** e sotto le **tre medie mobili** di `ps_daily_ema` — peso, massa grassa, % — di quel giorno, in corsivo se stimate; la **prossima** dalla v4.14.4 mostra solo i **target attesi dal piano**, in grande: peso totale, massa grassa e %), target e quanto manca — sulla massa grassa contro la **media**, che è quella dei punti. 🎲 **Dalla v4.15.0** (web) i target della prossima stanno centrati in tre «gettoni», e il giorno di una pesata che conta, pesati, al posto del «Mancano» c'è un **❓ da toccare** (`rivelaPesata`): stesso confronto del «Mancano» (a un decimale, ≤ 0 = dentro), poi fuochi d'artificio (`fuochiArtificio`) o una musichetta triste con una frase d'incoraggiamento (`musichettaTriste`). Rivelato, resta scritto su quel dispositivo (`localStorage` `wq_esito_<obiettivo>_<giorno>`): è una sorpresa, non un dato — i punti veri restano di `ps_punti`. ⚠️ **Dalla v4.15.1 (solo web) il ❓ sta sulla «Prossima»**: il giorno di una pesata che conta resta la Prossima (target grandi + ❓, spento con «Pesati prima» finché non c'è la pesata di oggi) fino al tocco, e da lì diventa la Precedente (`giornoCheConta` / `esitoVisto` / `bottoneRivela` in `renderPesate`). Dall'APK 1.0.128 anche il nativo: `PesoState.schede(visto)` (le preferenze `peso_esiti` dicono cosa è già scoperto), `mancaDelGiorno` gemello del web, e senza pesata del giorno le misure sono trattini (web v4.15.3). 🎲 **Le stesse due cose ci sono in nativo** (APK 1.0.127): `SchedaProssima`/`Gettone`, `DialogoEsito`, `FuochiArtificio` e `musichettaTriste` in `PesoScreen.kt`, gemelle di quelle del web e da cambiare insieme; l'esito rivelato sta nelle preferenze `peso_esiti` del telefono, e il «Mancano» sulla massa grassa confronta ora la media del giorno (`SchedaPesata.base`), come il web. ⚠️ Nel nativo restano due schede (oggi + prossima o precedente + prossima). Un giorno senza
+(v4.14.3: **peso totale, massa grassa e % misurati** e sotto le **tre medie mobili** di `ps_daily_ema` — peso, massa grassa, % — di quel giorno, in corsivo se stimate; la **prossima** dalla v4.14.4 mostra solo i **target attesi dal piano**, in grande: peso totale, massa grassa e %), target e quanto manca — sulla massa grassa contro la **media**, che è quella dei punti. 🎲 **Dalla v4.15.0** (web) i target della prossima stanno centrati in tre «gettoni», e il giorno di una pesata che conta, pesati, al posto del «Mancano» c'è un **❓ da toccare** (`rivelaPesata`): stesso confronto del «Mancano» (a un decimale, ≤ 0 = dentro), poi fuochi d'artificio (`fuochiArtificio`) o una musichetta triste con una frase d'incoraggiamento (`musichettaTriste`). Rivelato, resta scritto su quel dispositivo (`localStorage` `wq_esito_<obiettivo>_<giorno>`): è una sorpresa, non un dato — i punti veri restano di `ps_punti`. ⚠️ **Dalla v4.15.1 (solo web) il ❓ sta sulla «Prossima»**: il giorno di una pesata che conta resta la Prossima (target grandi + ❓, spento con «Pesati prima» finché non c'è la pesata di oggi) fino al tocco, e da lì diventa la Precedente (`giornoCheConta` / `esitoVisto` / `bottoneRivela` in `renderPesate`). Dall'APK 1.0.131 anche il nativo: `PesoState.schede(visto)` (le preferenze `peso_esiti` dicono cosa è già scoperto), `mancaDelGiorno` gemello del web, e senza pesata del giorno le misure sono trattini (web v4.15.3). 🎲 **Le stesse due cose ci sono in nativo** (APK 1.0.127): `SchedaProssima`/`Gettone`, `DialogoEsito`, `FuochiArtificio` e `musichettaTriste` in `PesoScreen.kt`, gemelle di quelle del web e da cambiare insieme; l'esito rivelato sta nelle preferenze `peso_esiti` del telefono, e il «Mancano» sulla massa grassa confronta ora la media del giorno (`SchedaPesata.base`), come il web. ⚠️ Nel nativo restano due schede (oggi + prossima o precedente + prossima). Un giorno senza
 pesata prende l'**ultimo peso di prima** e lo scrive; la prossima prende l'ultimo peso
 registrato. Il target di un giorno pesato è quello **congelato sulla riga**, come nei punti.
 
@@ -2692,6 +2692,56 @@ sola col totale e le percentuali dentro le fette. Era un fraintendimento della r
 serviva era l'andamento — e il codice sta nella storia di git (`allocBarHtml` / `allocBarFit`).
 Resta invece la correzione che ne è uscita: `drawChart` **ripete** la tavolozza oltre la nona fetta
 invece di finirla con uno `slice`, che lasciava senza colore le posizioni dalla decima in poi.
+
+### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
+
+(12 ottobre 2026, `20261012100000_fnz_saldi_crypto.sql`, Finanza v1.29.0, save-snapshot v1.3.0,
+APK 1.0.128.) `fnz_portfolios.gestione` vale `'transazioni'` (la regola di sempre, DEFAULT) o
+`'saldi'`: per un portafoglio a saldi le posizioni **non vengono più dai carichi/scarichi** ma
+dall'**ultima quantità scritta** in `fnz_saldi_crypto` per ogni moneta. La migration ha scritto
+nel registro le quantità che risultavano dalle transazioni e ha passato il portafoglio `CRYPTO` a
+`'saldi'`; le transazioni restano in archivio e non contano più.
+
+- ⚠️ **Il registro si scrive e non si riscrive**: ogni ✏️ Aggiorna quantità è una riga nuova
+  (portafoglio, moneta, quantità, `recorded_at`, nota); vale la più recente. Zero = «non ne ho più»
+  e la posizione sparisce. Il ✕ toglie una riga sbagliata e torna a valere la precedente.
+- ✅ **Il P&L c'è, sul portafoglio intero** (Finanza v1.30.0, save-snapshot v1.4.0, APK
+  1.0.130): l'**investito è il VERSATO nel fondo collegato** (`fnz_liquidita.versato`,
+  nominale, quel che fa quota, versamenti futuri compresi — tutto il fondo è convertito in
+  crypto), e P&L = valore − versato. Gemelle da cambiare insieme: `versatoSaldi()` /
+  `portfolioStats` in finanza.html e `versatoSaldi` / `portfolioStats` in `save-snapshot`, che
+  lo scrive in `total_cost` / `pnl` dello snapshot (il nativo legge quelli). Senza fondo
+  collegato il P&L non si calcola. Per moneta invece resta «—».
+- ⚠️ **Niente costo**: `fnz_posizioni` manda `cost_basis` **NULL** per quelle posizioni, e i
+  client lo leggono come «sconosciuto» — niente P&L, niente tasse, e il valore **non** entra nel
+  P&L totale (`senzaCosto` in `computeHoldings` di finanza.html e di `save-snapshot`, gemelle da
+  cambiare insieme). Senza prezzo una moneta vale 0: non c'è un costo su cui ripiegare. Dal
+  12 ottobre 2026 costo e P&L totali degli snapshot non contano più le crypto.
+- La regola sta in `fnz_posizioni`, quindi home, recap e snapshot si allineano da soli.
+- ⚠️ **Un portafoglio a saldi non ha liquidità** (`20261012120000_fnz_liquidita_saldi.sql`):
+  tutto quel che il fondo collegato raccoglie è convertito in crypto, quindi `fnz_liquidita` dà
+  `cash = 0` per `gestione = 'saldi'` — altrimenti ogni versamento comparirebbe come contante in
+  più accanto alle monete. ⚠️ Le monete nuove (es. **TAO**, Bittensor) prendono il prezzo da
+  `get-prices` solo se il prodotto è `asset_type = 'crypto'`; `TAO` sta in `COINGECKO_ID_MAP`
+  (`bittensor`), perché la ricerca per simbolo su CoinGecko potrebbe dare un altro «TAO».
+- **Si scrive dal web e dall'APK**: `registroSaldiHtml` / `openSaldoModal` in finanza.html,
+  `registroSaldi` / `DialogoSaldo` + `FinanzaRepository.scriviSaldo` nel nativo — l'**unica
+  scrittura** di Finanza nativa, che dopo il salvataggio rifà lo snapshot e rilegge. Il form delle
+  transazioni non offre i portafogli a saldi.
+
+### 📑 Report (Configurazione → Report)
+
+(12 ottobre 2026, Finanza v1.31.0.) Elenchi **fissi, scritti in `REPORTS`** dentro `finanza.html`
+(nessuna tabella): ogni voce ha un `build()` che torna `{ columns, numeric, rows, total }`, e i
+cinque formati — ⬇️ PDF (jsPDF + autotable), ⬇️ Excel (.xlsx, SheetJS), ⬇️ CSV, 📋 CSV e 📋 MD
+negli appunti — leggono **la stessa tabella**, così un file non dice una cifra diversa da un
+altro. Le librerie si caricano dal CDN **al primo uso** (`repCarica`). Il CSV usa `;` e la
+virgola decimale (Excel italiano lo apre da sé) e porta il BOM per gli accenti.
+
+Il primo è **Prodotti finanziari in quota**: nome, ISIN e valore in quota, **sommato fra i
+portafogli**, dal più grande. ⚠️ I numeri vengono da `computeHoldings` × `ownership_percentage`,
+come nel dettaglio portafoglio (senza prezzo si ripiega sul costo); **fuori dossier, liquidità e
+portafogli a saldi** (crypto). Aggiungere un report = una voce in `REPORTS` più la sua funzione.
 
 ### La descrizione di un prodotto (`fnz_products.description`)
 

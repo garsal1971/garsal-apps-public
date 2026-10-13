@@ -20,12 +20,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.garsal.appsphere.core.GarsalTopBar
+import com.garsal.appsphere.core.Pillola
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.RigaScorrevole
 import com.garsal.appsphere.core.Tendina
@@ -58,6 +67,9 @@ import kotlin.math.abs
 private val EUR = NumberFormat.getCurrencyInstance(Locale.ITALY)
 private val EUR0 = NumberFormat.getCurrencyInstance(Locale.ITALY).apply { maximumFractionDigits = 0 }
 private val NUM = NumberFormat.getNumberInstance(Locale.ITALY).apply { maximumFractionDigits = 4 }
+// Le quantità crypto arrivano all'ottavo decimale (1 satoshi).
+private val QTA = NumberFormat.getNumberInstance(Locale.ITALY).apply { maximumFractionDigits = 8 }
+private val QTA_CASELLA = NumberFormat.getNumberInstance(Locale.ITALY).apply { maximumFractionDigits = 8; isGroupingUsed = false }
 private val DATA_IT = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
 private fun eur(v: Double?) = v?.let { EUR.format(it) } ?: "—"
@@ -87,6 +99,25 @@ private fun ora(iso: String?): String? = iso?.let {
 fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
     val s by vm.state.collectAsStateWithLifecycle()
     val aperto = s.portafoglioAperto?.let { id -> s.ultimo?.dettaglioPortafogli?.firstOrNull { it.id == id } }
+    // ✏️ La finestra della quantità: (portafoglio, moneta già scelta o null).
+    var dialogo by remember { mutableStateOf<Pair<String, String?>?>(null) }
+    var daEliminare by remember { mutableStateOf<SaldoRiga?>(null) }
+
+    dialogo?.let { (pf, prod) ->
+        DialogoSaldo(s, pf, prod, onAnnulla = { dialogo = null }) { prodotto, q, nota ->
+            vm.salvaSaldo(pf, prodotto, q, nota) { dialogo = null }
+        }
+    }
+    daEliminare?.let { r ->
+        val m = s.monete.firstOrNull { it.id == r.prodotto }
+        AlertDialog(
+            onDismissRequest = { daEliminare = null },
+            title = { Text("Eliminare l'aggiornamento?") },
+            text = { Text("${m?.simbolo ?: "Moneta"} · ${QTA.format(r.quantita)}. Per quella moneta tornerà a valere la quantità precedente.") },
+            confirmButton = { TextButton({ vm.eliminaSaldo(r.id); daEliminare = null }) { Text("Elimina", color = Palette.danger) } },
+            dismissButton = { TextButton({ daEliminare = null }) { Text("Annulla") } },
+        )
+    }
 
     // Dal dettaglio di un portafoglio l'indietro torna all'elenco, non alla home.
     BackHandler(enabled = s.portafoglioAperto != null) { vm.apriPortafoglio(null) }
@@ -131,7 +162,9 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
                     if (aperto == null) item { SchedeViste(s.vista, vm::vista) }
                     item { Intestazione(s) }
                     when {
-                        aperto != null -> dettaglioPortafoglio(aperto, s, vm)
+                        aperto != null -> dettaglioPortafoglio(aperto, s, vm,
+                            onAggiorna = { prod -> dialogo = aperto.id to prod },
+                            onElimina = { daEliminare = it })
                         s.vista == VistaFinanza.DASHBOARD -> dashboard(s, vm)
                         s.vista == VistaFinanza.SVILUPPO -> sviluppo(s, vm)
                         else -> portafogli(s, vm)
@@ -418,21 +451,39 @@ private fun androidx.compose.foundation.lazy.LazyListScope.portafogli(s: Finanza
             val v = variazione(pf.valore, s.valorePrecedente(pf.id))
             Riga("Valore (quota)", eur(pf.valore), grande = true, sotto = v?.first, sottoColore = v?.second ?: Palette.muted)
             Riga("P&L", "${eur(pf.pnl)}  ${pct(pf.pnlPct)}", coloreSegno(pf.pnl))
+            if (pf.id in s.saldi) Text("Quantità scritte a mano · investito = versato nel fondo", color = Palette.muted, fontSize = 12.sp)
             if ((pf.liquidita ?: 0.0) > 0.0) Riga("di cui liquidità", eur(pf.liquidita))
         }
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.dettaglioPortafoglio(pf: PortafoglioSnap, s: FinanzaState, vm: FinanzaViewModel) {
+private fun androidx.compose.foundation.lazy.LazyListScope.dettaglioPortafoglio(
+    pf: PortafoglioSnap, s: FinanzaState, vm: FinanzaViewModel,
+    onAggiorna: (String?) -> Unit, onElimina: (SaldoRiga) -> Unit,
+) {
+    // ⚠️ Portafoglio a saldi (il CRYPTO): le quantità si scrivono a mano, niente costo né P&L.
+    val saldi = pf.id in s.saldi
     item {
         Scheda(bordoColore = coloreDaHex(pf.colore) ?: Palette.muted) {
             val v = variazione(pf.valore, s.valorePrecedente(pf.id))
             Riga("Valore portafoglio (quota)", eur(pf.valore), grande = true, sotto = v?.first, sottoColore = v?.second ?: Palette.muted)
-            Riga("Liquidità", eur(pf.liquidita))
-            Riga("Investito", eur(pf.costo))
-            Riga("P&L", eur(pf.pnl), coloreSegno(pf.pnl), sotto = pct(pf.pnlPct), sottoColore = coloreSegno(pf.pnl))
-            Text("Possesso: ${NUM.format(pf.possessoPct)} % · P&L sui soli titoli: la liquidità non guadagna né perde.",
-                color = Palette.muted, fontSize = 12.sp)
+            // Un portafoglio a saldi non ha liquidità: il fondo collegato è tutto in crypto.
+            if (!saldi) Riga("Liquidità", eur(pf.liquidita))
+            if (saldi) {
+                // L'investito è il versato nel fondo collegato: lo scrive `save-snapshot` in total_cost.
+                Riga("Investito (versato nel fondo)", eur(pf.costo))
+                Riga("P&L", eur(pf.pnl), coloreSegno(pf.pnl), sotto = pct(pf.pnlPct), sottoColore = coloreSegno(pf.pnl))
+                Text("Possesso: ${NUM.format(pf.possessoPct)} % · Le quantità si scrivono a mano; il P&L è sul portafoglio intero, non moneta per moneta.",
+                    color = Palette.muted, fontSize = 12.sp)
+                Pillola(if (s.salvataggio) "Salvo…" else "✏️ Aggiorna quantità", Palette.topBar) {
+                    if (!s.salvataggio) onAggiorna(null)
+                }
+            } else {
+                Riga("Investito", eur(pf.costo))
+                Riga("P&L", eur(pf.pnl), coloreSegno(pf.pnl), sotto = pct(pf.pnlPct), sottoColore = coloreSegno(pf.pnl))
+                Text("Possesso: ${NUM.format(pf.possessoPct)} % · P&L sui soli titoli: la liquidità non guadagna né perde.",
+                    color = Palette.muted, fontSize = 12.sp)
+            }
         }
     }
     item {
@@ -466,12 +517,121 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dettaglioPortafoglio(
                 h.tipo?.let { Text(it, color = Palette.muted, fontSize = 12.sp) }
             }
             // ⚠️ Quantità e prezzi restano interi, solo gli importi vanno in quota — come il web.
-            Riga("Quantità", h.quantita?.let { NUM.format(it) } ?: "—")
-            Riga("Costo medio", eur(h.costoMedio))
+            Riga("Quantità", h.quantita?.let { (if (saldi) QTA else NUM).format(it) } ?: "—")
+            if (!saldi) Riga("Costo medio", eur(h.costoMedio))
             Riga("Prezzo", eur(h.prezzo))
             Riga("Valore (quota)", eur(h.valoreQuota), grande = true)
-            Riga("P&L", eur(h.pnl), coloreSegno(h.pnl), sotto = pct(h.pnlPct), sottoColore = coloreSegno(h.pnl))
+            if (!saldi) Riga("P&L", eur(h.pnl), coloreSegno(h.pnl), sotto = pct(h.pnlPct), sottoColore = coloreSegno(h.pnl))
+            if (saldi) {
+                val m = s.monete.firstOrNull { it.simbolo == h.simbolo }
+                if (m != null) Pillola("✏️ Aggiorna quantità", Palette.topBar) { if (!s.salvataggio) onAggiorna(m.id) }
+            }
         }
     }
+    if (saldi) registroSaldi(pf, s, onElimina)
     item { Spacer(Modifier.width(1.dp).height(24.dp)) }
+}
+
+/** Il registro degli aggiornamenti, dal più recente, con la variazione sulla volta prima. */
+private fun androidx.compose.foundation.lazy.LazyListScope.registroSaldi(
+    pf: PortafoglioSnap, s: FinanzaState, onElimina: (SaldoRiga) -> Unit,
+) {
+    val righe = s.registro.filter { it.portafoglio == pf.id }
+    // Si scorre dal più vecchio ricordando l'ultima quantità vista per moneta.
+    val prima = HashMap<String, Double?>()
+    val vista = HashMap<String, Double>()
+    righe.asReversed().forEach { r -> prima[r.id] = vista[r.prodotto]; vista[r.prodotto] = r.quantita }
+    item { Titolo("📝 Registro delle quantità (${righe.size})") }
+    if (righe.isEmpty()) item { Text("Nessun aggiornamento ancora.", color = Palette.muted) }
+    items(righe, key = { "reg-" + it.id }) { r ->
+        val m = s.monete.firstOrNull { it.id == r.prodotto }
+        val p = prima[r.id]
+        val d = p?.let { r.quantita - it }
+        Scheda {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // ✕ a sinistra, come le altre icone di eliminazione della suite.
+                Text("✕", color = Palette.danger, fontSize = 18.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { if (!s.salvataggio) onElimina(r) }
+                        .padding(horizontal = 8.dp, vertical = 2.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(m?.simbolo ?: "—", fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text(quando(r.quando), color = Palette.muted, fontSize = 12.sp)
+                }
+            }
+            Riga("Quantità", QTA.format(r.quantita),
+                sotto = if (d == null) "iniziale" else (if (d > 0) "+" else "") + QTA.format(d),
+                sottoColore = if (d == null) Palette.muted else coloreSegno(d))
+            r.nota?.let { Text(it, color = Palette.muted, fontSize = 13.sp) }
+        }
+    }
+}
+
+private fun quando(iso: String): String = runCatching {
+    OffsetDateTime.parse(iso).atZoneSameInstant(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+}.getOrDefault(iso)
+
+/**
+ * ✏️ Aggiorna quantità: la nuova quantità TOTALE di una moneta. Con la moneta già scelta la
+ * casella parte da quella in vigore; senza, si sceglie in tendina (le crypto prima). Zero vuol
+ * dire «non ne ho più». Gemella di `openSaldoModal` in finanza.html.
+ */
+@Composable
+private fun DialogoSaldo(
+    s: FinanzaState, portafoglio: String, prodottoFisso: String?,
+    onAnnulla: () -> Unit, onSalva: (String, Double, String?) -> Unit,
+) {
+    var prodotto by remember { mutableStateOf(prodottoFisso) }
+    var testo by remember {
+        mutableStateOf(prodottoFisso?.let { s.quantitaInVigore(portafoglio, it) }?.let { QTA_CASELLA.format(it) } ?: "")
+    }
+    var nota by remember { mutableStateOf("") }
+    // Virgola o punto come separatore decimale; con la virgola i punti sono delle migliaia.
+    val quantita = testo.trim().let { t -> if (',' in t) t.replace(".", "").replace(',', '.') else t }
+        .toDoubleOrNull()?.takeIf { it >= 0 }
+    val voci = s.monete.sortedWith(compareBy({ it.tipo != "crypto" }, { it.simbolo }))
+    AlertDialog(
+        onDismissRequest = onAnnulla,
+        title = { Text("✏️ Aggiorna quantità") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (prodottoFisso != null) {
+                    val m = s.monete.firstOrNull { it.id == prodottoFisso }
+                    Text("${m?.simbolo ?: ""} — ${m?.nome ?: ""}", fontWeight = FontWeight.Bold)
+                    Text("In vigore: " + (s.quantitaInVigore(portafoglio, prodottoFisso)?.let { QTA.format(it) } ?: "—"),
+                        color = Palette.muted, fontSize = 13.sp)
+                } else {
+                    Tendina(
+                        etichetta = "Moneta",
+                        scelto = voci.firstOrNull { it.id == prodotto }?.let { "${it.simbolo} — ${it.nome}" } ?: "— Scegli —",
+                        voci = voci.map { m ->
+                            val q = s.quantitaInVigore(portafoglio, m.id)
+                            m.id to ("${m.simbolo} — ${m.nome}" + (q?.let { " (ora ${QTA.format(it)})" } ?: ""))
+                        },
+                    ) { prodotto = it }
+                    Text("Se la moneta non c'è, aggiungila da 📋 Prodotti nel web.", color = Palette.muted, fontSize = 12.sp)
+                }
+                OutlinedTextField(
+                    value = testo, onValueChange = { testo = it },
+                    label = { Text("Nuova quantità totale") },
+                    singleLine = true,
+                    isError = testo.isNotBlank() && quantita == null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = nota, onValueChange = { nota = it },
+                    label = { Text("Note (facoltative)") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { val p = prodotto; if (p != null && quantita != null) onSalva(p, quantita, nota) },
+                enabled = prodotto != null && quantita != null && !s.salvataggio,
+            ) { Text(if (s.salvataggio) "Salvo…" else "Salva") }
+        },
+        dismissButton = { TextButton(onAnnulla) { Text("Annulla") } },
+    )
 }

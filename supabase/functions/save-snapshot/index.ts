@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "1.2.0";
+const VERSION = "1.4.0";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -65,9 +65,9 @@ function pricesFromHistory(priceHistory: Row[]): Record<string, number> {
 }
 
 type Holding = {
-  product: Row; qty: number; avgCost: number; costBasis: number;
+  product: Row; qty: number; avgCost: number | null; costBasis: number;
   currentPrice: number | null; currentValue: number | null;
-  pnl: number | null; pnlPct: number | null;
+  pnl: number | null; pnlPct: number | null; senzaCosto: boolean;
 };
 
 // Le posizioni di un portafoglio, dalle righe di `fnz_posizioni` (già nell'ordine
@@ -81,13 +81,21 @@ function computeHoldings(
     const product = products.get(r.product_id);
     if (!product) continue;
     const qty = num(r.qty);
-    const costBasis = num(r.cost_basis);
-    const avgCost = qty > 0 ? costBasis / qty : 0;
     const currentPrice = product.symbol in prices ? prices[product.symbol] : null;
     const currentValue = currentPrice != null ? qty * currentPrice : null;
+    // ⚠️ Portafoglio a saldi (il CRYPTO, `fnz_portfolios.gestione = 'saldi'`): costo NULL.
+    // Niente P&L — non costo zero, che farebbe tutto il valore guadagno — e senza prezzo
+    // vale 0. Gemella di computeHoldings in finanza.html: cambiarle insieme.
+    if (r.cost_basis == null) {
+      out.push({ product, qty, avgCost: null, costBasis: 0, currentPrice,
+                 currentValue: currentValue ?? 0, pnl: null, pnlPct: null, senzaCosto: true });
+      continue;
+    }
+    const costBasis = num(r.cost_basis);
+    const avgCost = qty > 0 ? costBasis / qty : 0;
     const pnl = currentValue != null ? currentValue - costBasis : null;
     const pnlPct = costBasis > 0 && pnl != null ? (pnl / costBasis) * 100 : null;
-    out.push({ product, qty, avgCost, costBasis, currentPrice, currentValue, pnl, pnlPct });
+    out.push({ product, qty, avgCost, costBasis, currentPrice, currentValue, pnl, pnlPct, senzaCosto: false });
   }
   return out;
 }
@@ -99,7 +107,7 @@ type PortfolioStat = {
 
 function portfolioStats(
   portfolios: Row[], positions: Row[], products: Map<string, Row>, prices: Record<string, number>,
-  cashOf: Map<string, number>,
+  cashOf: Map<string, number>, versatoSaldi: Map<string, number> = new Map(),
 ): PortfolioStat[] {
   return portfolios.map((p) => {
     const own = (num(p.ownership_percentage) || 100) / 100;
@@ -109,10 +117,18 @@ function portfolioStats(
     const totalCost = holdings.reduce((s, x) => s + x.costBasis, 0) * own;
     // P&L sui soli titoli: la liquidità non guadagna né perde, e sommarla al valore senza
     // sommarla al costo la farebbe comparire come utile il giorno che entra sul conto.
-    const pnl = titoli - totalCost;
+    // …e sui soli titoli CON un costo: le monete di un portafoglio a saldi non ne hanno.
+    const senzaCosto = holdings.filter((x) => x.senzaCosto).reduce((s, x) => s + (x.currentValue ?? 0), 0) * own;
+    let pnl = titoli - senzaCosto - totalCost;
+    // ⚠️ Portafoglio a saldi col fondo collegato: l'investito è il VERSATO nel fondo
+    // (nominale, quel che fa quota), e il P&L è tutto il valore meno quello. Gemella di
+    // portfolioStats in finanza.html: cambiarle insieme.
+    let cost = totalCost;
+    const versato = versatoSaldi.get(p.id);
+    if (versato != null) { cost = totalCost + versato * own; pnl = titoli - cost; }
     return {
-      portfolio: p, holdings, totalValue: titoli + cash, cash, totalCost, pnl,
-      pnlPct: totalCost > 0 ? (pnl / totalCost) * 100 : 0,
+      portfolio: p, holdings, totalValue: titoli + cash, cash, totalCost: cost, pnl,
+      pnlPct: cost > 0 ? (pnl / cost) * 100 : 0,
     };
   });
 }
@@ -175,8 +191,9 @@ type SnapshotPayload = {
 function buildSnapshotPayload(
   portfolios: Row[], positions: Row[], products: Map<string, Row>, prices: Record<string, number>,
   loans: Row[], loanRepayments: Row[], otherAssets: Row[], cashOf: Map<string, number>,
+  versatoSaldi: Map<string, number> = new Map(),
 ): SnapshotPayload {
-  const stats = portfolioStats(portfolios, positions, products, prices, cashOf);
+  const stats = portfolioStats(portfolios, positions, products, prices, cashOf, versatoSaldi);
   const grandValue = stats.reduce((s, x) => s + x.totalValue, 0);
   const totalLoans = loans.reduce((s, l) => s + (computeLoanValue(l, loanRepayments) || 0), 0);
   // danaro_rosa è escluso dai totali del patrimonio (come in finanza.html)
@@ -332,7 +349,7 @@ serve(async (req) => {
   // ── 2. Caricamento dati (service role: vede tutti gli utenti) ───────────
   try {
     const [portfolios, products, priceHistory, loans, loanRepayments, otherAssets] = await Promise.all([
-      fetchAll("fnz_portfolios", "id,user_id,name,color,ownership_percentage", "id"),
+      fetchAll("fnz_portfolios", "id,user_id,name,color,ownership_percentage,gestione", "id"),
       fetchAll("fnz_products", "id,symbol,name,asset_type", "id"),
       fetchAll("fnz_price_history", "id,symbol,price,price_date", "id"),
       fetchAll("fnz_loans", "*", "id"),
@@ -380,6 +397,12 @@ serve(async (req) => {
       const cashOf = new Map<string, number>(
         ((liqRes.data ?? []) as Row[]).map((r) => [r.portfolio_id, num(r.cash)]),
       );
+      const saldiIds = new Set(userPortfolios.filter((p: Row) => p.gestione === "saldi").map((p: Row) => p.id));
+      const versatoSaldi = new Map<string, number>(
+        ((liqRes.data ?? []) as Row[])
+          .filter((r) => saldiIds.has(r.portfolio_id) && r.versato != null)
+          .map((r) => [r.portfolio_id, num(r.versato)]),
+      );
       const userLoans = loans.filter((l: Row) => l.user_id === userId);
       const loanIds = new Set(userLoans.map((l: Row) => l.id));
       const userRepayments = loanRepayments.filter((r: Row) => loanIds.has(r.loan_id));
@@ -387,7 +410,7 @@ serve(async (req) => {
 
       const { topLevel, details } = buildSnapshotPayload(
         userPortfolios, userPositions, productMap, prices, userLoans, userRepayments, userAssets,
-        cashOf,
+        cashOf, versatoSaldi,
       );
 
       const { error } = await supabase.from("fnz_dashboard_snapshots").upsert({
