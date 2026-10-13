@@ -644,6 +644,7 @@ private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
         TipoScheda.DOPO -> "➡️ Prossima"
     }
     var quando = dataItaliana(s.giorno).take(5)
+    if (s.conta) quando += " · conta per i punti"
     if (s.tipo == TipoScheda.DOPO) {
         val gg = PesoRegole.giornoDa(s.giorno)?.toEpochDay()?.minus(LocalDate.now().toEpochDay())
         if (gg != null) quando += when (gg) { 0L -> " · oggi"; 1L -> " · domani"; else -> " · fra $gg gg" }
