@@ -63,6 +63,7 @@ fun TaskForm(
     id: String?,
     categorie: List<CmCategoria>,
     priorita: List<CmPriorita>,
+    preset: List<TsPreset> = emptyList(),
     onAnnulla: () -> Unit,
     onSalva: (BozzaTask) -> Unit,
 ) {
@@ -286,6 +287,43 @@ fun TaskForm(
                 }
             }
 
+            // ── Promemoria ──────────────────────────────────────────────
+            // Gemello della sezione promemoria di `tasks.html`: tre canali
+            // indipendenti, Telegram e Telefono coi loro anticipi, Smart Block
+            // all'ora del task. Le regole le scrive `TasksRepository.salva`.
+            Titoletto("🔔 Promemoria")
+            if (b.tipo == "free_repeat") {
+                Nota("Un task a libera ripetizione non ha una data: non c'è niente a cui far suonare un promemoria.")
+            } else {
+                val canali = listOf("📱 Telegram", "📲 Telefono", "🔐 Smart Block")
+                val larghezzaCanali = larghezzaPulsanti(canali)
+                RigaScorrevole(Arrangement.spacedBy(8.dp)) {
+                    Pillola(canali[0], b.telegram, true, Palette.accent, larghezzaCanali) {
+                        b = b.copy(telegram = !b.telegram)
+                    }
+                    Pillola(canali[1], b.telefono, true, Palette.accent, larghezzaCanali) {
+                        b = b.copy(telefono = !b.telefono)
+                    }
+                    Pillola(canali[2], b.smartBlock, true, Palette.secondary, larghezzaCanali) {
+                        b = b.copy(smartBlock = !b.smartBlock)
+                    }
+                }
+                if (b.telegram) {
+                    Nota("📱 Telegram — quanto prima")
+                    Anticipi(preset, b.anticipiTelegram) { b = b.copy(anticipiTelegram = it) }
+                    Pillola(
+                        if (b.pulsanteFatto) "✅ Pulsante Fatto: sì" else "✅ Pulsante Fatto: no",
+                        b.pulsanteFatto, true, Palette.success,
+                    ) { b = b.copy(pulsanteFatto = !b.pulsanteFatto) }
+                }
+                if (b.telefono) {
+                    Nota("📲 Telefono — quanto prima")
+                    Anticipi(preset, b.anticipiTelefono) { b = b.copy(anticipiTelefono = it) }
+                }
+                if (b.smartBlock) Nota("🔐 Blocca il telefono all'ora del task.")
+                if (!b.telegram && !b.telefono && !b.smartBlock) Nota("Nessun promemoria.")
+            }
+
             if (!b.valida) {
                 Nota(
                     when {
@@ -350,6 +388,21 @@ private fun scegliOra(context: Context, iniziale: String, poi: (String) -> Unit)
 }
 
 // ── Pezzi ────────────────────────────────────────────────────────────────
+
+/** Gli anticipi di un canale, gemelli delle pillole di `tasks.html`. */
+@Composable
+private fun Anticipi(preset: List<TsPreset>, scelti: List<Int>, onCambia: (List<Int>) -> Unit) {
+    if (preset.isEmpty()) { Nota("Anticipi dei promemoria non disponibili."); return }
+    val larghezza = larghezzaPulsanti(preset.map { it.etichetta })
+    RigaScorrevole(Arrangement.spacedBy(6.dp)) {
+        preset.forEach { p ->
+            Pillola(p.etichetta, p.id in scelti, true, Palette.accent, larghezza) {
+                onCambia(if (p.id in scelti) scelti - p.id else scelti + p.id)
+            }
+        }
+    }
+    if (scelti.isEmpty()) Nota("⚠️ Senza anticipi questo canale resta spento.")
+}
 
 @Composable
 private fun Titoletto(testo: String) {

@@ -69,6 +69,9 @@ data class TasksState(
     val categorie: List<CmCategoria> = emptyList(),
     val priorita: List<CmPriorita> = emptyList(),
     val impostazioni: Map<String, String> = emptyMap(),
+    val preset: List<TsPreset> = emptyList(),
+    /** Le regole dei promemoria per id del task: servono a riaprire il form com'era. */
+    val promemoria: Map<String, PromemoriaTask> = emptyMap(),
     val caricamento: Boolean = true,
     val errore: String? = null,
     val messaggio: String? = null,
@@ -353,6 +356,8 @@ class TasksViewModel : ViewModel() {
                     // giorni di default invece di quelli configurati.
                     impostazioni = runCatching { TasksRepository.impostazioni() }
                         .getOrDefault(emptyMap()),
+                    preset = TasksRepository.preset(),
+                    promemoria = TasksRepository.promemoria(),
                     caricamento = false,
                 )
             } catch (e: Exception) {
@@ -432,9 +437,10 @@ class TasksViewModel : ViewModel() {
     fun salva(bozza: BozzaTask, id: String?, poi: () -> Unit) {
         viewModelScope.launch {
             try {
-                TasksRepository.salva(bozza, id)
+                val avviso = TasksRepository.salva(bozza, id)
                 _state.value = _state.value.copy(
-                    messaggio = if (id == null) "Task creato" else "Task aggiornato"
+                    messaggio = avviso ?: if (id == null) "Task creato" else "Task aggiornato",
+                    promemoria = TasksRepository.promemoria(),
                 )
                 ricaricaTask()
                 poi()
