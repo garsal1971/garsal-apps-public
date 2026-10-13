@@ -70,6 +70,8 @@ data class SchedaPesata(
     val rivela: Boolean = false,
     val rivelaManca: Double? = null,
     val rivelaMotivo: String? = null,
+    /** v1.0.132: sulla scheda «Oggi», oggi è anche una pesata dell'obiettivo. */
+    val conta: Boolean = false,
 ) {
     val manca: Double? get() {
         val b = base ?: peso
@@ -181,22 +183,16 @@ data class PesoState(
         val schede = mutableListOf<SchedaPesata>()
         val oggiConta = oggi >= obj.inizio && oggi <= obj.fine && PesoRegole.giornoDiPesata(obj, oggi)
         val oggiVisto = oggiConta && visto(obj.id, oggi)
-        if (oggiConta && !oggiVisto) {
-            // Esito ancora da scoprire: la precedente vera, e oggi come «Prossima» col ❓.
-            PesoRegole.pesataPrecedente(obj, oggi)?.let { schede += scheda(obj, it, TipoScheda.PRIMA) }
-            schede += scheda(obj, oggi, TipoScheda.DOPO)
-            return schede
-        }
-        if (oggiVisto) {
-            schede += scheda(obj, oggi, TipoScheda.PRIMA)
-        } else {
-            // A dieta finita la «precedente» è l'ultima del piano: si parte dal
-            // giorno dopo la fine.
-            val da = if (oggi > obj.fine) (PesoRegole.giornoDa(obj.fine)?.plusDays(1)?.toString() ?: oggi) else oggi
-            PesoRegole.pesataPrecedente(obj, da)?.let { schede += scheda(obj, it, TipoScheda.PRIMA) }
-        }
+        // Tre schede come `renderPesate` del web: precedente, oggi (sempre), prossima.
+        // Nel giorno che conta, finché l'esito non è scoperto, oggi resta la «Prossima»
+        // col ❓; scoperto, diventa la «Precedente».
+        val da = if (oggi > obj.fine) (PesoRegole.giornoDa(obj.fine)?.plusDays(1)?.toString() ?: oggi) else oggi
+        val prec = if (oggiVisto) oggi else PesoRegole.pesataPrecedente(obj, da)
+        prec?.let { schede += scheda(obj, it, TipoScheda.PRIMA) }
+        schede += scheda(obj, oggi, TipoScheda.OGGI)
         val domani = LocalDate.now().plusDays(1).toString()
-        PesoRegole.prossimaPesata(obj, domani)?.let { schede += scheda(obj, it, TipoScheda.DOPO) }
+        val dopo = if (oggiConta && !oggiVisto) oggi else PesoRegole.prossimaPesata(obj, domani)
+        dopo?.let { schede += scheda(obj, it, TipoScheda.DOPO) }
         return schede
     }
 
@@ -249,6 +245,8 @@ data class PesoState(
             rivela = rivela,
             rivelaManca = rivelaManca,
             rivelaMotivo = rivelaMotivo,
+            conta = tipo == TipoScheda.OGGI && giorno >= obj.inizio && giorno <= obj.fine &&
+                PesoRegole.giornoDiPesata(obj, giorno),
         )
     }
 
