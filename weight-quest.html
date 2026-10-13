@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.15.1</title>
+  <title>Peso e Calorie v4.15.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1868,8 +1868,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.15.1';
-        var BUILD_TIME  = '2026-10-13T10:00:00Z';
+        var APP_VERSION = 'v4.15.2';
+        var BUILD_TIME  = '2026-10-13T11:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5860,28 +5860,39 @@
             try { return localStorage.getItem(chiaveEsito(obj, day)); } catch (e) { return null; }
         }
         // Lo stesso confronto del «Mancano» della scheda Oggi: sulla massa grassa la media del
-        // giorno, altrimenti il minimo; target congelato sulla riga. null = non ancora pesato.
-        function mancaDelGiorno(data, day) {
-            var min = minimoDelGiorno(data, day);
-            if (!min) return null;
-            var target = min.target_weight ? min.target_weight : getInterpolatedTarget(day);
-            var base = min.weight;
-            if (obiettivoGrasso(userData.currentObjective)) {
-                var m = emaDi(day, 'ema_fat_kg');
-                if (m != null) base = m;
+        // giorno, altrimenti il minimo; target congelato sulla riga. v4.15.2: si leggono le
+        // pesate VERE (userData.weights) e non la vista filtrata, e quando non si può dire
+        // l'esito si dice perché ({motivo}) invece di lasciare un ❓ spento e muto.
+        function mancaDelGiorno(day) {
+            var obj = userData.currentObjective;
+            var righe = (userData.weights || []).filter(function(r) {
+                return r.date === day && r.weight != null && isFinite(Number(r.weight));
+            });
+            if (!righe.length) return { motivo: 'Pesati prima, poi tocca qui' };
+            var min = righe.reduce(function(a, b) { return Number(a.weight) <= Number(b.weight) ? a : b; });
+            var totale = min.target_weight ? Number(min.target_weight) : targetTotale(day);
+            if (totale == null || !isFinite(totale)) return { motivo: 'Manca il target di oggi' };
+            var base = Number(min.weight), target = totale;
+            if (obiettivoGrasso(obj)) {
+                target = aGrasso(totale, obj);
+                base = emaDi(day, 'ema_fat_kg');
+                if (base == null) {
+                    var conGrasso = righe.map(massaGrassa).filter(function(v) { return v != null; });
+                    base = conGrasso.length ? Math.min.apply(null, conGrasso) : null;
+                }
+                if (base == null) return { motivo: 'La pesata di oggi non ha la % di grasso: sincronizza da Renpho' };
             }
-            if (base == null || target == null || !isFinite(target)) return null;
-            return Math.round((base - target) * 10) / 10;
+            return { manca: Math.round((base - target) * 10) / 10 };
         }
         function bottoneRivela(obj, data, day) {
-            var mancaR = mancaDelGiorno(data, day);
-            if (mancaR == null) {
+            var r = mancaDelGiorno(day);
+            if (r.manca == null) {
                 return '<button type="button" class="pc-rivela" disabled>'
-                     + '<span class="q">❓</span><span class="t">Pesati prima, poi tocca qui</span></button>';
+                     + '<span class="q">❓</span><span class="t">' + r.motivo + '</span></button>';
             }
             return '<button type="button" class="pc-rivela" onclick="rivelaPesata(this)"'
-                 + ' data-chiave="' + chiaveEsito(obj, day) + '" data-esito="' + (mancaR <= 0 ? 'ok' : 'ko')
-                 + '" data-manca="' + mancaR + '">'
+                 + ' data-chiave="' + chiaveEsito(obj, day) + '" data-esito="' + (r.manca <= 0 ? 'ok' : 'ko')
+                 + '" data-manca="' + r.manca + '">'
                  + '<span class="q">❓</span><span class="t">Com\'è andata? Tocca per scoprirlo</span></button>';
         }
 
