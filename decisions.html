@@ -2043,8 +2043,6 @@
                         <button class="btn btn-primary" onclick="saveSettings()">💾 Salva Impostazioni</button>
                     </div>
 
-                    <!-- Categories list kept hidden for JavaScript compatibility -->
-                    <div id="categoriesList" style="display: none;"></div>
                 </div>
 
                 <div class="card" style="margin-top:1.5rem;">
@@ -2242,37 +2240,6 @@
         </div>
     </div>
 
-    <!-- New Category Modal -->
-    <div id="newCategoryModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2 class="modal-title">🏷️ Nuova Categoria</h2>
-                <span class="modal-close" onclick="closeModal('newCategoryModal')">✕</span>
-            </div>
-
-            <form onsubmit="saveCategory(event)">
-                <div class="form-group">
-                    <label class="form-label">Nome *</label>
-                    <input type="text" class="form-input" id="categoryName" placeholder="Es: Salute" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Icona</label>
-                    <input type="text" class="form-input" id="categoryIcon" placeholder="💪" maxlength="2">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Colore</label>
-                    <input type="color" class="form-input" id="categoryColor" value="#FF3366">
-                </div>
-
-                <div style="display: flex; gap: 1rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Salva</button>
-                    <button type="button" class="btn btn-outline" onclick="closeModal('newCategoryModal')">Annulla</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Debug Console Toggle -->
     <!-- Review Decision Modal -->
@@ -2665,7 +2632,6 @@ ON CONFLICT (html_file) DO UPDATE SET
                 if (categoriesData) {
                     categories = categoriesData;
                     renderCategoriesSelect();
-                    renderCategoriesList();
                 }
 
                 const userId = getTokenUserId();
@@ -2778,9 +2744,6 @@ ON CONFLICT (html_file) DO UPDATE SET
             document.getElementById('newDecisionModal').classList.add('active');
         }
 
-        function openNewCategoryModal() {
-            document.getElementById('newCategoryModal').classList.add('active');
-        }
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
@@ -3026,60 +2989,7 @@ ON CONFLICT (html_file) DO UPDATE SET
                 `).join('');
         }
 
-        function renderCategoriesList() {
-            const container = document.getElementById('categoriesList');
-            if (categories.length === 0) {
-                container.innerHTML = '<p style="color: var(--muted);">Nessuna categoria</p>';
-                return;
-            }
 
-            container.innerHTML = categories.map(cat => `
-                <div class="category-pill" style="background: ${cat.color}; color: white; margin-bottom: 0.5rem;">
-                    ${cat.icon} ${cat.name}
-                </div>
-            `).join('');
-        }
-
-        async function saveCategory(event) {
-            event.preventDefault();
-
-            if (!supabaseClient) {
-                showToast('Connetti prima il database', 'error');
-                return;
-            }
-
-            const category = {
-                name: document.getElementById('categoryName').value.trim(),
-                icon: document.getElementById('categoryIcon').value || '📌',
-                color: document.getElementById('categoryColor').value
-            };
-
-            // ⚠️ cm_categories ha un indice unico su lower(btrim(name)) (uq_cm_categories_nome):
-            // il nome si controlla prima, per dirlo a parole invece di far parlare il database.
-            const k = category.name.toLowerCase();
-            const gia = (categories || []).find(c => String(c.name || '').trim().toLowerCase() === k);
-            if (gia) {
-                showToast(`Esiste già la categoria ${gia.icon || ''} ${gia.name}: usa quella`, 'error');
-                return;
-            }
-
-            try {
-                const { error } = await supabaseClient
-                    .from('cm_categories')
-                    .insert([category]);
-
-                if (error) throw error;
-
-                showToast('✅ Categoria creata!');
-                closeModal('newCategoryModal');
-                loadData();
-
-            } catch (error) {
-                console.error('❌ Errore:', error);
-                const doppio = error && (error.code === '23505' || /uq_cm_categories_nome/.test(error.message || ''));
-                showToast(doppio ? 'Esiste già una categoria con questo nome' : 'Errore salvataggio', 'error');
-            }
-        }
 
         function updateTotalScore() {
             const total = allDecisionsTotal;

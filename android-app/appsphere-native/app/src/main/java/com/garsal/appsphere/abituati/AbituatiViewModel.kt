@@ -1,7 +1,6 @@
 package com.garsal.appsphere.abituati
 
 import android.util.Log
-import com.garsal.appsphere.core.messaggioBreve
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.async
@@ -479,45 +478,8 @@ class AbituatiViewModel : ViewModel() {
         }
     }
 
-    // ── 🏷️ Categorie ─────────────────────────────────────────────────────
 
-    fun salvaCategoria(id: String?, nome: String, icona: String, colore: String, onFatto: () -> Unit) {
-        // ⚠️ cm_categories ha un indice unico su lower(btrim(name)) (uq_cm_categories_nome):
-        // il nome si controlla prima, come `nomeCategoriaGiaUsato()` nel web.
-        val chiave = nome.trim().lowercase()
-        val gia = _state.value.categorie.firstOrNull { it.id != id && it.nome.trim().lowercase() == chiave }
-        if (gia != null) {
-            _state.value = _state.value.copy(errore = "Esiste già la categoria ${gia.nome}: usa quella")
-            return
-        }
-        viewModelScope.launch {
-            try {
-                AbituatiRepository.salvaCategoria(id, nome, icona, colore)
-                log((if (id == null) "Creata" else "Modificata") + " la categoria «${nome.trim()}»")
-                onFatto()
-                carica()
-            } catch (e: Exception) {
-                Log.w(TAG, "categoria non salvata", e)
-                val doppio = (e.message ?: "").let { "uq_cm_categories_nome" in it || "23505" in it }
-                _state.value = _state.value.copy(
-                    errore = if (doppio) "Esiste già una categoria con questo nome" else e.messaggioBreve("Categoria non salvata")
-                )
-            }
-        }
-    }
 
-    fun eliminaCategoria(categoria: HbCategoria) {
-        viewModelScope.launch {
-            try {
-                AbituatiRepository.eliminaCategoria(categoria.id)
-                log("Eliminata la categoria «${categoria.nome}»")
-                carica()
-            } catch (e: Exception) {
-                Log.w(TAG, "categoria non eliminata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Categoria non eliminata")
-            }
-        }
-    }
 
     // ── ⚙️ Registro ──────────────────────────────────────────────────────
 

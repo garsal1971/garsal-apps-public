@@ -56,7 +56,7 @@ import java.util.Locale
 
 // ════════════════════════════════════════════════════════════════════════════
 // Le pagine di `habit-tracker.html` che il nativo non aveva: 📊 Statistiche,
-// 🏷️ Categorie, ⚙️ Impostazioni, e lo storico di finestre e settimane.
+// ⚙️ Impostazioni, e lo storico di finestre e settimane.
 //
 // ⚠️ Nessuna regola nuova: le statistiche sono le stesse somme di
 // `renderStats()` sui dati già letti, e lo storico disegna le righe che
@@ -179,128 +179,6 @@ private fun Riquadro(titolo: String, contenuto: @Composable () -> Unit) {
             contenuto()
         }
     }
-}
-
-// ── 🏷️ Categorie ────────────────────────────────────────────────────────────
-
-/**
- * Gemella di `renderCategories()`: le categorie ordinate per quante abitudini
- * attive le usano, con 📋 Vedi abitudini, ✏️ Modifica e 🗑 Elimina — quest'ultimo
- * **solo se nessuna abitudine attiva la usa**, come nel web.
- *
- * ⚠️ `cm_categories` è **condivisa con Tasks**: cambiare qui nome o colore li
- * cambia anche ai task, e l'avviso in cima lo dice.
- */
-@Composable
-internal fun Categorie(
-    stato: AbituatiState,
-    onModifica: (HbCategoria) -> Unit,
-    onElimina: (HbCategoria) -> Unit,
-) {
-    var vedi by remember { mutableStateOf<HbCategoria?>(null) }
-    val elenco = stato.categorie.sortedByDescending { stato.abitudiniDi(it.id).size }
-    val etichette = listOf("📋 Vedi abitudini", "✏️ Modifica", "🗑 Elimina")
-    val larghezza = larghezzaPulsanti(etichette)
-
-    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            Text(
-                "Le categorie sono le stesse di Tasks: cambiandole qui cambiano anche là.",
-                color = Palette.muted, style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        if (elenco.isEmpty()) item { Text("Nessuna categoria. Creane una col +", color = Palette.muted) }
-        items(elenco, key = { it.id }) { cat ->
-            val n = stato.abitudiniDi(cat.id).size
-            val colore = coloreDaHex(cat.colore) ?: Palette.muted
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Palette.cardBg)) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Box(
-                            Modifier.size(44.dp).background(colore),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(cat.icona.ifBlank { "📌" }, fontSize = 20.sp) }
-                        Column(Modifier.weight(1f)) {
-                            Text(cat.nome, fontWeight = FontWeight.Bold, color = Palette.dark)
-                            Text("$n ${if (n == 1) "abitudine" else "abitudini"}", color = Palette.muted,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    RigaScorrevole(Arrangement.spacedBy(8.dp)) {
-                        Pillola(etichette[0], Palette.accent, larghezza) { vedi = cat }
-                        Pillola(etichette[1], Palette.primary, larghezza) { onModifica(cat) }
-                        if (n == 0) Pillola(etichette[2], Palette.danger, larghezza) { onElimina(cat) }
-                    }
-                }
-            }
-        }
-    }
-
-    vedi?.let { cat ->
-        val abitudini = stato.abitudiniDi(cat.id)
-        AlertDialog(
-            onDismissRequest = { vedi = null },
-            title = { Text(cat.etichetta) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (abitudini.isEmpty()) Text("Nessuna abitudine attiva in questa categoria.", color = Palette.muted)
-                    abitudini.forEach { a -> Text("• ${a.nome} — 🔥 ${stato.streakDi(a)}") }
-                }
-            },
-            confirmButton = { TextButton(onClick = { vedi = null }) { Text("Chiudi") } },
-        )
-    }
-}
-
-/** I sei colori proposti dal modale del web. */
-private val COLORI_CATEGORIA = listOf("#FF3366", "#6C5CE7", "#00B894", "#F39C12", "#E74C3C", "#2563EB")
-
-/** Il modale «Nuova / Modifica categoria»: nome, icona, colore. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-internal fun FormCategoria(
-    categoria: HbCategoria?,
-    onAnnulla: () -> Unit,
-    onSalva: (String, String, String) -> Unit,
-) {
-    var nome by remember { mutableStateOf(categoria?.nome.orEmpty()) }
-    var icona by remember { mutableStateOf(categoria?.icona.orEmpty()) }
-    var colore by remember { mutableStateOf(categoria?.colore ?: COLORI_CATEGORIA.first()) }
-    // Un colore già scritto che non è fra i sei resta sceglibile, o salvando lo si perderebbe.
-    val colori = (COLORI_CATEGORIA + listOfNotNull(categoria?.colore)).distinctBy { it.uppercase() }
-
-    AlertDialog(
-        onDismissRequest = onAnnulla,
-        title = { Text(if (categoria == null) "Nuova categoria" else "Modifica categoria") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(nome, { nome = it }, label = { Text("Nome *") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(icona, { icona = it.take(8) }, label = { Text("Icona (emoji)") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                Text("Colore", color = Palette.muted)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    colori.forEach { hex ->
-                        val scelto = hex.equals(colore, ignoreCase = true)
-                        Box(
-                            Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(coloreDaHex(hex) ?: Palette.muted)
-                                .border(if (scelto) 4.dp else 0.dp, Palette.dark, CircleShape)
-                                .clickable { colore = hex },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = nome.isNotBlank(), onClick = { onSalva(nome, icona, colore) }) {
-                Text("Salva", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla", color = Palette.muted) } },
-    )
 }
 
 // ── ⚙️ Impostazioni ─────────────────────────────────────────────────────────

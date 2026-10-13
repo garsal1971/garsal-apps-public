@@ -195,19 +195,34 @@ Tables are namespaced by app prefix:
 |---|---|
 | `cm_apps` | App registry for the launcher (title, description, html_file, score_query, active) |
 | `cm_categories` | Shared category taxonomy used by Tasks and Habit Tracker |
-
-⚠️ **Un nome, una categoria** (`20261013120000_cm_categories_nome_unico.sql`): indice unico
-`uq_cm_categories_nome` su `lower(btrim(name))` (con `user_id` davanti se la colonna c'è). Prima
-non c'era nessun vincolo, e le tre strade che creano una categoria — `habit-tracker.html`,
-`decisions.html` e Abituati nativo — facevano un insert senza guardare: così sono nate due
-«Salute». La migration ha fuso i doppioni (riferimenti spostati in `ts_tasks`, `dc_decisions`,
-`ob_actions`, `hb_habits`, `hb_archived_stacks`, `mm_card_categories` e ogni FK verso la
-tabella). Le tre strade controllano il nome **prima** di scrivere e, se c'è già, lo dicono.
 | `cm_profile` | La scheda personale, **una riga per utente**: `nome`, `cognome`, `data_nascita`, `sesso` (`M`\|`F`\|`Altro`), `altezza_cm`, più patologie, farmaci e note mediche. Si compila da AppSphere → ☰ → 👤 Profilo, o direttamente da **`/#profilo`** |
 | `cm_institutions` | Censimento di banche e broker. `connectable = false` per chi non è nel catalogo Enable Banking (broker senza PSD2): sta in anagrafica ma non si collega |
 | `cm_bank_connections` | Un conto per riga, nato da un consenso. `uses text[]` dice a cosa serve |
 | `cm_sync_log` | Storico delle sincronizzazioni bancarie |
 | `cm_push_devices` | I telefoni a cui mandare le notifiche push. Una riga per **installazione**: `token` è la chiave, e l'app lo riscrive a ogni avvio |
+
+
+### 🏷️ Le categorie condivise (`cm_categories`) si gestiscono SOLO da AppSphere
+
+AppSphere → ☰ → 🏷️ **Categorie** (`openCategorie()` in `index.html`, v1.14.0) è l'**unico posto**
+dove si creano, si modificano (nome, icona, colore, *in panoramica Tasks* = `show_in_dashboard`)
+e si cancellano. Tasks, Abituati (web e nativo), Memo, Decisioni e Obiettivi le **scelgono e
+basta**: la gestione che stava in `habit-tracker.html` (pagina già irraggiungibile dal menù),
+in `decisions.html` (modale mai aperto) e in Abituati nativo (vista 🏷️ Categorie, APK 1.0.108 →
+tolta nella 1.0.134) è stata **tolta** il 13 ottobre 2026.
+
+⚠️ **Un nome, una categoria** (`20261013120000_cm_categories_nome_unico.sql`): indice unico
+`uq_cm_categories_nome` su `lower(btrim(name))` (con `user_id` davanti se la colonna c'è). Prima
+non c'era nessun vincolo e così sono nate due «Salute»: la migration ha fuso i doppioni
+spostandone i riferimenti. La finestra controlla il nome **prima** di scrivere e lo dice.
+
+⚠️ **Si cancella solo una categoria che nessuno usa**: gli array `categories` di `ts_tasks`,
+`dc_decisions` e `ob_actions` non hanno una chiave esterna, e cancellandola resterebbero id che
+puntano al nulla. La finestra conta gli usi su `ts_tasks`, `hb_habits` (tutti gli stati),
+`hb_archived_stacks`, `mm_card_categories`, `dc_decisions` e `ob_actions` (`CAT_USI`), li scrive
+sotto ogni riga, e **se anche una sola lettura fallisce l'eliminazione si sospende**: «non lo
+so» non è zero. Aggiungendo una tabella che usa le categorie, va aggiunta a `CAT_USI` e alla
+migration di fusione.
 
 Le due tabelle bancarie nascono come `ca_bank_connections` / `ca_sync_log` (Analisi Costi) e
 sono state rinominate quando i conti sono diventati condivisi con i Fondi
@@ -3998,9 +4013,8 @@ degli stack finiti, più le due cerimonie del web — lo stack vinto e il game o
 
 ⚠️ **Dalla APK 1.0.108 ci sono anche le altre pagine del web**, nella stessa riga di viste che
 scorre di lato: 📊 **Statistiche** (i quattro numeri, l'andamento degli ultimi sei mesi, la
-classifica per streak — gemelle di `renderStats()` / `renderMonthlyChart()`), 🏷️ **Categorie**
-(crea, modifica, elimina `cm_categories`, l'🗑 solo se nessuna abitudine attiva la usa; ⚠️ sono
-**condivise con Tasks** e la pagina lo dice), ⚙️ **Impostazioni** (la console di debug: contatori
+classifica per streak — gemelle di `renderStats()` / `renderMonthlyChart()`; la vista
+🏷️ Categorie c'era fino alla 1.0.133, ora le categorie si gestiscono solo da AppSphere web), ⚙️ **Impostazioni** (la console di debug: contatori
 e registro delle operazioni della sessione) e i 🔔 **promemoria nel form**: orario di riferimento
 e le due Tab 📱 Telegram / 📲 Telefono coi loro anticipi. Le regole le scrive
 `AbituatiRepository.sincronizzaPromemoria`, **gemella campo per campo di
@@ -5272,7 +5286,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   `show_in_panoramica` (👁️ NON IN PANORAMICA), che è per sempre. Gemelli da cambiare insieme:
   `isNascosto` / `nascondiTask` / `scriviNascostoFino` in `tasks.html`, `TasksState.scadutiNascosti`
   / `TasksViewModel.nascondi` / `TasksRepository.nascondiFino` nel nativo.
-- `cm_priorities` e `cm_categories` sono **sola lettura** in tasks.html. ⚠️ La gestione delle categorie **non** sta più in AppSphere: si creano, modificano e cancellano da `habit-tracker.html` (e da Abituati nativo), e si creano anche da `decisions.html`
+- `cm_priorities` e `cm_categories` sono **sola lettura** in tasks.html — si gestiscono da AppSphere → ☰ → 🚦 Priorità / 🏷️ Categorie
 - Significant file (~8 500 lines); sections delineated by `// ========================================` comments
 
 ### `habit-tracker.html` — Habit Stack Tracker
