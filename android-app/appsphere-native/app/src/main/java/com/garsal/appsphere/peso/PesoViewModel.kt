@@ -61,6 +61,15 @@ data class SchedaPesata(
     val pesoAtteso: Double? = null,
     /** Sulla prossima pesata, su un obiettivo a massa grassa: il grasso atteso. */
     val grassoAtteso: Double? = null,
+    /**
+     * v1.0.128: sulla «Prossima» che è OGGI (pesata che conta, esito non ancora
+     * scoperto) c'è il ❓. [rivelaManca] è il confronto per l'esito; quando è
+     * `null`, [rivelaMotivo] dice perché il ❓ è spento. Gemello di
+     * `mancaDelGiorno()` / `bottoneRivela()` del web v4.15.2.
+     */
+    val rivela: Boolean = false,
+    val rivelaManca: Double? = null,
+    val rivelaMotivo: String? = null,
 ) {
     val manca: Double? get() {
         val b = base ?: peso
@@ -155,17 +164,31 @@ data class PesoState(
     // pesata, altrimenti la precedente + la prossima. Gemelle di
     // `renderPesate()` / `schedaPesata()` / `righeCaloriePesata()`.
 
-    val schede: List<SchedaPesata> by lazy { calcolaSchede() }
+    /**
+     * v1.0.128: [visto] dice se l'esito di (obiettivo, giorno) è già stato scoperto su
+     * questo telefono — sta nelle preferenze, che lo stato non conosce. Come il web
+     * v4.15.1: il giorno della pesata che conta resta la «Prossima» col ❓ fino al
+     * tocco, e da lì diventa la «Precedente».
+     */
+    fun schede(visto: (String, String) -> Boolean): List<SchedaPesata> = calcolaSchede(visto)
 
     /** La prossima pesata dovuta dopo oggi, per quando non ce n'è nessuna. */
     val finePiano: String? get() = inCorso?.fine
 
-    private fun calcolaSchede(): List<SchedaPesata> {
+    private fun calcolaSchede(visto: (String, String) -> Boolean): List<SchedaPesata> {
         val obj = inCorso ?: return emptyList()
         val oggi = LocalDate.now().toString()
         val schede = mutableListOf<SchedaPesata>()
-        if (oggi >= obj.inizio && oggi <= obj.fine && PesoRegole.giornoDiPesata(obj, oggi)) {
-            schede += scheda(obj, oggi, TipoScheda.OGGI)
+        val oggiConta = oggi >= obj.inizio && oggi <= obj.fine && PesoRegole.giornoDiPesata(obj, oggi)
+        val oggiVisto = oggiConta && visto(obj.id, oggi)
+        if (oggiConta && !oggiVisto) {
+            // Esito ancora da scoprire: la precedente vera, e oggi come «Prossima» col ❓.
+            PesoRegole.pesataPrecedente(obj, oggi)?.let { schede += scheda(obj, it, TipoScheda.PRIMA) }
+            schede += scheda(obj, oggi, TipoScheda.DOPO)
+            return schede
+        }
+        if (oggiVisto) {
+            schede += scheda(obj, oggi, TipoScheda.PRIMA)
         } else {
             // A dieta finita la «precedente» è l'ultima del piano: si parte dal
             // giorno dopo la fine.
@@ -200,8 +223,9 @@ data class PesoState(
                 val prima = ultimoPesoFinoA(giorno)
                 val lab = if (tipo == TipoScheda.OGGI) "non ancora pesato" else "non pesato"
                 if (prima != null) {
+                    // v1.0.128: le misure si mostrano a trattini (pesato = false); l'ultimo
+                    // peso serve solo al «Mancano», e lo dice la nota.
                     peso = prima.peso
-                    info = PesoRegole.notaTotale(prima)
                     nota = "$lab: ultimo peso del ${ddmm(prima.giorno)}"
                 } else {
                     nota = lab
@@ -211,6 +235,8 @@ data class PesoState(
         // v1.0.127: sulla massa grassa si confronta la media del giorno, come il web.
         val base = if (tipo != TipoScheda.DOPO && obj.usaGrasso) (medie[giorno]?.emaGrassoKg ?: peso) else peso
         val pesoAtteso = if (tipo == TipoScheda.DOPO) PesoRegole.targetInterpolato(obj.traguardi, giorno) else null
+        val rivela = tipo == TipoScheda.DOPO && giorno == oggi
+        val (rivelaManca, rivelaMotivo) = if (rivela) mancaDelGiorno(obj, giorno) else (null to null)
         return SchedaPesata(
             tipo, giorno, peso, nota, target, caloriePer(obj, giorno, tipo),
             info = info,
@@ -220,7 +246,30 @@ data class PesoState(
             base = base,
             pesoAtteso = pesoAtteso,
             grassoAtteso = if (obj.usaGrasso) PesoRegole.aGrasso(pesoAtteso, obj) else null,
+            rivela = rivela,
+            rivelaManca = rivelaManca,
+            rivelaMotivo = rivelaMotivo,
         )
+    }
+
+    /**
+     * Gemello di `mancaDelGiorno()` del web v4.15.2: legge le pesate VERE ([pesate]) e
+     * non la vista, e quando l'esito non si può dire torna il perché.
+     */
+    private fun mancaDelGiorno(obj: Obiettivo, giorno: String): Pair<Double?, String?> {
+        val righe = pesate.filter { it.giorno == giorno }
+        if (righe.isEmpty()) return null to "Pesati prima, poi tocca qui"
+        val minima = righe.minBy { it.peso }
+        val totale = minima.target ?: PesoRegole.targetInterpolato(obj.traguardi, giorno)
+            ?: return null to "Manca il target di oggi"
+        var base: Double? = minima.peso
+        var target: Double = totale
+        if (obj.usaGrasso) {
+            target = PesoRegole.aGrasso(totale, obj) ?: totale
+            base = medie[giorno]?.emaGrassoKg ?: righe.mapNotNull { PesoRegole.massaGrassa(it) }.minOrNull()
+            if (base == null) return null to "La pesata di oggi non ha la % di grasso: sincronizza da Renpho"
+        }
+        return PesoRegole.arrotonda(base!! - target, 1) to null
     }
 
     /** Il minimo dell'ultimo giorno pesato fino a [giorno] compreso. */
