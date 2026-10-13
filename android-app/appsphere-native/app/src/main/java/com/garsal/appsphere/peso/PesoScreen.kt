@@ -342,6 +342,15 @@ private fun VistaOggi(
     onPesati: () -> Unit,
     onGestisci: () -> Unit,
 ) {
+    // v1.0.128: quali esiti sono già stati scoperti lo sanno le preferenze, non lo stato.
+    // Dopo un tocco sul ❓ esitiVer cresce e le schede si ricalcolano (il giorno passa da
+    // «Prossima» a «Precedente»).
+    val contestoSchede = LocalContext.current
+    var esitiVer by remember { mutableStateOf(0) }
+    val schede = remember(stato, esitiVer) {
+        val prefs = prefsEsiti(contestoSchede)
+        stato.schede { o, g -> prefs.contains("esito_${o}_$g") }
+    }
     LazyColumn(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -378,7 +387,7 @@ private fun VistaOggi(
         // «Minimo oggi / Target oggi / Mancano al target», come nel web v4.2.0.
         // Una sotto l'altra e non affiancate: coi caratteri di sistema grandi
         // due schede da sette righe in mezza larghezza vanno a capo ovunque.
-        if (stato.schede.isEmpty()) {
+        if (schede.isEmpty()) {
             item {
                 SchedaVuota(
                     titolo = "⚖️ Oggi",
@@ -387,8 +396,8 @@ private fun VistaOggi(
                 )
             }
         } else {
-            items(stato.schede, key = { "${it.tipo}-${it.giorno}" }) { SchedaPesataCard(it) }
-            if (stato.schede.none { it.tipo == TipoScheda.DOPO }) {
+            items(schede, key = { "${it.tipo}-${it.giorno}" }) { SchedaPesataCard(it) { esitiVer++ } }
+            if (schede.none { it.tipo == TipoScheda.DOPO }) {
                 item {
                     SchedaVuota(
                         titolo = "➡️ Prossima",
@@ -623,7 +632,7 @@ private fun DettaglioObiettivo(obiettivo: Obiettivo) {
  * la riga può andare a capo: sono i caratteri di sistema grandi.
  */
 @Composable
-private fun SchedaPesataCard(s: SchedaPesata) {
+private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
     val colore = when (s.tipo) {
         TipoScheda.OGGI -> Palette.primary
         TipoScheda.DOPO -> Verde
@@ -637,12 +646,12 @@ private fun SchedaPesataCard(s: SchedaPesata) {
     var quando = dataItaliana(s.giorno).take(5)
     if (s.tipo == TipoScheda.DOPO) {
         val gg = PesoRegole.giornoDa(s.giorno)?.toEpochDay()?.minus(LocalDate.now().toEpochDay())
-        if (gg != null) quando += if (gg == 1L) " · domani" else " · fra $gg gg"
+        if (gg != null) quando += when (gg) { 0L -> " · oggi"; 1L -> " · domani"; else -> " · fra $gg gg" }
     }
     // v1.0.127: la prossima pesata è nel futuro — solo i target del piano, centrati e in
     // grande, come `schedaPesata()` del web v4.15.0.
     if (s.tipo == TipoScheda.DOPO) {
-        SchedaProssima(s, "$titolo · $quando", colore)
+        SchedaProssima(s, "$titolo · $quando", colore, onRivelato)
         return
     }
     val manca = s.manca
@@ -654,12 +663,10 @@ private fun SchedaPesataCard(s: SchedaPesata) {
     // v1.0.127: oggi è una pesata che conta e ci si è pesati → l'esito si scopre col ❓
     // (`rivelaPesata()` nel web). Rivelato, resta scritto su questo telefono.
     val contesto = LocalContext.current
-    val rivelabile = s.tipo == TipoScheda.OGGI && s.pesato && manca != null
-    val chiaveEsito = "esito_${s.obiettivoId}_${s.giorno}"
-    var visto by remember(chiaveEsito) { mutableStateOf(prefsEsiti(contesto).getString(chiaveEsito, null)) }
-    var mostraEsito by remember { mutableStateOf(false) }
-    val mancaR = manca?.let { PesoRegole.arrotonda(it, 1) }
-    val esitoOk = mancaR != null && mancaR <= 0
+    // v1.0.128: il ❓ sta sulla «Prossima»; qui, scoperto, resta scritto l'esito.
+    val visto = remember(s.obiettivoId, s.giorno) {
+        prefsEsiti(contesto).getString("esito_${s.obiettivoId}_${s.giorno}", null)
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -670,47 +677,27 @@ private fun SchedaPesataCard(s: SchedaPesata) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text("$titolo · $quando", fontWeight = FontWeight.Bold, color = Palette.dark)
-        RigaScheda("Minimo", "${kg(s.peso)} kg")
+        // v1.0.128: senza pesata quel giorno, trattini (come il web v4.15.3).
+        RigaScheda("Minimo", if (s.pesato) "${kg(s.peso)} kg" else "–")
         // Sulla massa grassa il totale e la % della pesata, a titolo informativo.
-        s.info?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
+        s.info?.takeIf { s.pesato }?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
         s.nota?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
         RigaScheda("Target", "${kg(s.target)} kg", Verde)
         s.infoTarget?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
-        if (rivelabile && visto == null) {
-            Column(
+        RigaScheda("Mancano", if (manca == null) "–" else "${conSegno(manca)} kg", coloreManca)
+        if (s.pesato && visto != null) {
+            val ok = visto == "ok"
+            Text(
+                if (ok) "🎉 Target rispettato!" else "💪 Questa volta no, si recupera!",
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 72.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Palette.secondary, Palette.primary)))
-                    .clickable {
-                        prefsEsiti(contesto).edit().putString(chiaveEsito, if (esitoOk) "ok" else "ko").apply()
-                        visto = if (esitoOk) "ok" else "ko"
-                        mostraEsito = true
-                        if (!esitoOk) musichettaTriste()
-                    }
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("❓", fontSize = 34.sp, color = Color.White)
-                Text("Com'è andata? Tocca per scoprirlo", color = Color.White, textAlign = TextAlign.Center)
-            }
-        } else {
-            RigaScheda("Mancano", if (manca == null) "–" else "${conSegno(manca)} kg", coloreManca)
-            if (rivelabile) {
-                Text(
-                    if (esitoOk) "🎉 Target rispettato!" else "💪 Questa volta no, si recupera!",
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (esitoOk) Color(0xFFE8FFF8) else Color(0xFFFFF1F3))
-                        .padding(6.dp),
-                    color = if (esitoOk) Color(0xFF00967A) else Palette.danger,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                )
-            }
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (ok) Color(0xFFE8FFF8) else Color(0xFFFFF1F3))
+                    .padding(6.dp),
+                color = if (ok) Color(0xFF00967A) else Palette.danger,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
         }
         s.calorie?.let { c ->
             HorizontalDivider(color = Palette.border, modifier = Modifier.padding(vertical = 4.dp))
@@ -727,9 +714,6 @@ private fun SchedaPesataCard(s: SchedaPesata) {
                 }?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
             }
         }
-    }
-    if (mostraEsito && mancaR != null) {
-        DialogoEsito(esitoOk, mancaR) { mostraEsito = false }
     }
 }
 
@@ -749,7 +733,11 @@ private val FRASI_KO = listOf(
 )
 
 @Composable
-private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color) {
+private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color, onRivelato: () -> Unit) {
+    val contesto = LocalContext.current
+    var mostraEsito by remember { mutableStateOf(false) }
+    val mancaR = s.rivelaManca
+    val esitoOk = mancaR != null && mancaR <= 0
     Column(
         Modifier
             .fillMaxWidth()
@@ -769,6 +757,42 @@ private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color)
             Gettone("Massa grassa", "${kg(g)} kg")
             Gettone("Grasso", if (w != null && w > 0) "${PesoRegole.arrotonda(g / w * 100, 1)} %" else "–")
         }
+        // v1.0.128: oggi è la pesata che conta → il ❓, spento col suo perché finché non si
+        // può dire l'esito (gemello di `bottoneRivela()` del web v4.15.2).
+        if (s.rivela) {
+            val attivo = mancaR != null
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            if (attivo) listOf(Palette.secondary, Palette.primary)
+                            else listOf(Color(0xFF9CA3AF), Color(0xFF6B7280))
+                        )
+                    )
+                    .then(
+                        if (attivo) Modifier.clickable {
+                            prefsEsiti(contesto).edit().putString("esito_${s.obiettivoId}_${s.giorno}", if (esitoOk) "ok" else "ko").apply()
+                            mostraEsito = true
+                            if (!esitoOk) musichettaTriste()
+                        } else Modifier
+                    )
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("❓", fontSize = 34.sp, color = Color.White)
+                Text(
+                    if (attivo) "Com'è andata? Tocca per scoprirlo" else (s.rivelaMotivo ?: "Pesati prima, poi tocca qui"),
+                    color = Color.White, textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+    if (mostraEsito && mancaR != null) {
+        DialogoEsito(esitoOk, mancaR) { mostraEsito = false; onRivelato() }
     }
 }
 
