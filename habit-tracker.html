@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Stack Tracker v9.6.2</title>
+    <title>Habit Stack Tracker v9.6.3</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
@@ -1886,8 +1886,8 @@
         // ==========================================
         // VERSION
         // ==========================================
-        const APP_VERSION = 'v9.6.2';
-        const BUILD_TIME  = '2026-10-06T21:40:00Z';
+        const APP_VERSION = 'v9.6.3';
+        const BUILD_TIME  = '2026-10-13T20:30:00Z';
         console.log('%c Habit Stack ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
             'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -2413,12 +2413,28 @@
             }
         }
 
+        // ⚠️ cm_categories ha un indice unico su lower(btrim(name)) (uq_cm_categories_nome):
+        // il nome si controlla prima, per dirlo a parole invece di far parlare il database.
+        function nomeCategoriaGiaUsato(name, escludiId) {
+            const k = String(name || '').trim().toLowerCase();
+            return categories.find(c => c.id !== escludiId && String(c.name || '').trim().toLowerCase() === k);
+        }
+        function erroreNomeDoppio(error) {
+            return error && (error.code === '23505' || /uq_cm_categories_nome/.test(error.message || ''));
+        }
+
         async function addCategory(event) {
             event.preventDefault();
             
-            const name = document.getElementById('categoryName').value;
+            const name = document.getElementById('categoryName').value.trim();
             const icon = document.getElementById('categoryIcon').value || '📌';
             const color = document.getElementById('categoryColor').value;
+
+            const gia = nomeCategoriaGiaUsato(name);
+            if (gia) {
+                showToast(`Esiste già la categoria ${gia.icon || ''} ${gia.name}: usa quella`);
+                return;
+            }
 
             try {
                 const { data, error } = await supabaseClient
@@ -2443,7 +2459,7 @@
                 document.getElementById('categoryIcon').value = '';
             } catch (error) {
                 console.error('Error adding category:', error);
-                showToast('Errore nella creazione della categoria');
+                showToast(erroreNomeDoppio(error) ? 'Esiste già una categoria con questo nome' : 'Errore nella creazione della categoria');
             }
         }
 
@@ -4635,9 +4651,15 @@
             event.preventDefault();
             
             const id = document.getElementById('editCategoryId').value;
-            const name = document.getElementById('editCategoryName').value;
+            const name = document.getElementById('editCategoryName').value.trim();
             const icon = document.getElementById('editCategoryIcon').value || '📌';
             const color = document.getElementById('editCategoryColor').value;
+
+            const gia = nomeCategoriaGiaUsato(name, id);
+            if (gia) {
+                showToast(`Esiste già la categoria ${gia.icon || ''} ${gia.name}`);
+                return;
+            }
             
             console.log('✏️ Aggiornamento categoria:', { id, name, icon, color });
             
@@ -4663,7 +4685,7 @@
                 refreshDebugStats();
             } catch (error) {
                 console.error('❌ Errore aggiornamento categoria:', error);
-                showToast('Errore nell\'aggiornamento della categoria');
+                showToast(erroreNomeDoppio(error) ? 'Esiste già una categoria con questo nome' : 'Errore nell\'aggiornamento della categoria');
             }
         }
         

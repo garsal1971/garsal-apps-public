@@ -195,6 +195,14 @@ Tables are namespaced by app prefix:
 |---|---|
 | `cm_apps` | App registry for the launcher (title, description, html_file, score_query, active) |
 | `cm_categories` | Shared category taxonomy used by Tasks and Habit Tracker |
+
+⚠️ **Un nome, una categoria** (`20261013120000_cm_categories_nome_unico.sql`): indice unico
+`uq_cm_categories_nome` su `lower(btrim(name))` (con `user_id` davanti se la colonna c'è). Prima
+non c'era nessun vincolo, e le tre strade che creano una categoria — `habit-tracker.html`,
+`decisions.html` e Abituati nativo — facevano un insert senza guardare: così sono nate due
+«Salute». La migration ha fuso i doppioni (riferimenti spostati in `ts_tasks`, `dc_decisions`,
+`ob_actions`, `hb_habits`, `hb_archived_stacks`, `mm_card_categories` e ogni FK verso la
+tabella). Le tre strade controllano il nome **prima** di scrivere e, se c'è già, lo dicono.
 | `cm_profile` | La scheda personale, **una riga per utente**: `nome`, `cognome`, `data_nascita`, `sesso` (`M`\|`F`\|`Altro`), `altezza_cm`, più patologie, farmaci e note mediche. Si compila da AppSphere → ☰ → 👤 Profilo, o direttamente da **`/#profilo`** |
 | `cm_institutions` | Censimento di banche e broker. `connectable = false` per chi non è nel catalogo Enable Banking (broker senza PSD2): sta in anagrafica ma non si collega |
 | `cm_bank_connections` | Un conto per riga, nato da un consenso. `uses text[]` dice a cosa serve |
@@ -5264,7 +5272,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   `show_in_panoramica` (👁️ NON IN PANORAMICA), che è per sempre. Gemelli da cambiare insieme:
   `isNascosto` / `nascondiTask` / `scriviNascostoFino` in `tasks.html`, `TasksState.scadutiNascosti`
   / `TasksViewModel.nascondi` / `TasksRepository.nascondiFino` nel nativo.
-- `cm_priorities` e `cm_categories` sono **sola lettura** in tasks.html — la gestione CRUD è in AppSphere → Dati Comuni
+- `cm_priorities` e `cm_categories` sono **sola lettura** in tasks.html. ⚠️ La gestione delle categorie **non** sta più in AppSphere: si creano, modificano e cancellano da `habit-tracker.html` (e da Abituati nativo), e si creano anche da `decisions.html`
 - Significant file (~8 500 lines); sections delineated by `// ========================================` comments
 
 ### `habit-tracker.html` — Habit Stack Tracker
