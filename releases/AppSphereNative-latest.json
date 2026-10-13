@@ -1,9 +1,9 @@
 {
   "app": "AppSphere nativa",
-  "version": "1.0.130",
-  "versionCode": 131,
-  "builtAt": "2026-10-12T15:22:21Z",
-  "commit": "dfe47c21aad10e235ad61c18a1860b38868e689a",
-  "bytes": 47024748,
-  "sha256": "f14d4d47807065e3b2d812e145d7cd1f7dcc0ea87ae5763fc6847986efbc1f70"
+  "version": "1.0.128",
+  "versionCode": 129,
+  "builtAt": "2026-10-13T09:17:50Z",
+  "commit": "d122922708fb3e726f931896370eff59d77fef2f",
+  "bytes": 46975600,
+  "sha256": "bd3f278723a206377bba35b064a0ccf9b1bd5c6c058efce6bd135bb4937fd156"
 }
