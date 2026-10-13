@@ -435,23 +435,8 @@ object AbituatiRepository {
             .onFailure { Log.w(TAG, "fill-notification-queue: ${it.message}") }
     }
 
-    // ── Categorie (`cm_categories`, condivise con Tasks) ─────────────────
 
-    /** Come `addCategory()` / `updateCategory()` del web: nome, icona e colore. */
-    suspend fun salvaCategoria(id: String?, nome: String, icona: String, colore: String) =
-        withContext(Dispatchers.IO) {
-            val riga = buildJsonObject {
-                put("name", nome.trim()); put("icon", icona.trim().ifBlank { "📌" }); put("color", colore)
-            }
-            if (id == null) db.from("cm_categories").insert(riga)
-            else db.from("cm_categories").update(riga) { filter { eq("id", id) } }
-            Unit
-        }
 
-    suspend fun eliminaCategoria(id: String) = withContext(Dispatchers.IO) {
-        db.from("cm_categories").delete { filter { eq("id", id) } }
-        Unit
-    }
 
     /**
      * INTERROMPI: l'abitudine passa a `stopped`. Non si cancella niente — la

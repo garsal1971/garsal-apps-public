@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Stack Tracker v9.6.2</title>
+    <title>Habit Stack Tracker v9.6.3</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
@@ -1310,19 +1310,6 @@
                 </div>
             </div>
 
-            <!-- Categories Page -->
-            <div id="page-categories" class="page" style="display: none;">
-                <div class="page-header">
-                    <h1 class="page-title">Categorie</h1>
-                    <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Nuova Categoria</button>
-                </div>
-
-                <div class="card">
-                    <div id="categoriesList">
-                        <!-- Categories will be rendered here -->
-                    </div>
-                </div>
-            </div>
 
             <!-- Settings Page -->
             <div id="page-settings" class="page" style="display: none;">
@@ -1802,92 +1789,15 @@
         }
     </style>
 
-    <!-- Add Category Modal -->
-    <div id="addCategoryModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Nuova Categoria</h2>
-                <span class="modal-close" onclick="closeModal('addCategoryModal')">✕</span>
-            </div>
-            <form onsubmit="addCategory(event)">
-                <div class="form-group">
-                    <label class="form-label">Nome Categoria *</label>
-                    <input type="text" class="form-input" id="categoryName" required placeholder="es. Salute">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Icona</label>
-                    <input type="text" class="form-input" id="categoryIcon" placeholder="es. 💪" maxlength="2">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Colore</label>
-                    <div class="color-picker">
-                        <div class="color-option" style="background: #FF3366;"></div>
-                        <div class="color-option" style="background: #6C5CE7;"></div>
-                        <div class="color-option" style="background: #00B894;"></div>
-                        <div class="color-option" style="background: #F39C12;"></div>
-                        <div class="color-option" style="background: #E74C3C;"></div>
-                        <div class="color-option" style="background: #2563EB;"></div>
-                    </div>
-                    <input type="hidden" id="categoryColor" value="#FF3366">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Crea Categoria</button>
-            </form>
-        </div>
-    </div>
 
-    <!-- Edit Category Modal -->
-    <div id="editCategoryModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Modifica Categoria</h2>
-                <span class="modal-close" onclick="closeModal('editCategoryModal')">✕</span>
-            </div>
-            <form onsubmit="updateCategory(event)">
-                <input type="hidden" id="editCategoryId">
-                <div class="form-group">
-                    <label class="form-label">Nome Categoria *</label>
-                    <input type="text" class="form-input" id="editCategoryName" required placeholder="es. Salute">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Icona</label>
-                    <input type="text" class="form-input" id="editCategoryIcon" placeholder="es. 💪" maxlength="2">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Colore</label>
-                    <div class="color-picker">
-                        <div class="color-option" style="background: #FF3366;"></div>
-                        <div class="color-option" style="background: #6C5CE7;"></div>
-                        <div class="color-option" style="background: #00B894;"></div>
-                        <div class="color-option" style="background: #F39C12;"></div>
-                        <div class="color-option" style="background: #E74C3C;"></div>
-                        <div class="color-option" style="background: #2563EB;"></div>
-                    </div>
-                    <input type="hidden" id="editCategoryColor" value="#FF3366">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Salva Modifiche</button>
-            </form>
-        </div>
-    </div>
 
-    <!-- View Category Habits Modal -->
-    <div id="viewCategoryModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h2 class="modal-title">Dettagli Categoria</h2>
-                <span class="modal-close" onclick="closeViewCategoryModal()">✕</span>
-            </div>
-            <div id="viewCategoryContent" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Content will be rendered here -->
-            </div>
-        </div>
-    </div>
 
     <script>
         // ==========================================
         // VERSION
         // ==========================================
-        const APP_VERSION = 'v9.6.2';
-        const BUILD_TIME  = '2026-10-06T21:40:00Z';
+        const APP_VERSION = 'v9.6.3';
+        const BUILD_TIME  = '2026-10-13T20:30:00Z';
         console.log('%c Habit Stack ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
             'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -2413,39 +2323,7 @@
             }
         }
 
-        async function addCategory(event) {
-            event.preventDefault();
-            
-            const name = document.getElementById('categoryName').value;
-            const icon = document.getElementById('categoryIcon').value || '📌';
-            const color = document.getElementById('categoryColor').value;
 
-            try {
-                const { data, error } = await supabaseClient
-                    .from('cm_categories')
-                    .insert([{
-                        name: name,
-                        icon: icon,
-                        color: color
-                    }])
-                    .select();
-
-                if (error) throw error;
-
-                categories.push(data[0]);
-                closeModal('addCategoryModal');
-                showToast('Categoria creata con successo! 🎉');
-                renderCategories();
-                updateCategorySelects();
-                
-                // Reset form
-                document.getElementById('categoryName').value = '';
-                document.getElementById('categoryIcon').value = '';
-            } catch (error) {
-                console.error('Error adding category:', error);
-                showToast('Errore nella creazione della categoria');
-            }
-        }
 
         async function setTimeState(habitId, time, dateStr, newState) {
             const targetDate = dateStr || localDateStr();
@@ -4432,113 +4310,10 @@
             document.getElementById('monthlyChart').innerHTML = html;
         }
 
-        function renderCategories() {
-            // Aggiungi conteggio abitudini per ordinamento
-            const categoriesWithCount = categories.map(cat => {
-                const habitCount = habits.filter(h => h.category_id === cat.id && h.status === 'active').length;
-                return { ...cat, habitCount };
-            });
-            
-            // Ordina per numero abitudini (decrescente)
-            categoriesWithCount.sort((a, b) => b.habitCount - a.habitCount);
-            
-            const html = categoriesWithCount.map(cat => {
-                const habitCount = cat.habitCount;
-                const canDelete = habitCount === 0;
-                
-                return `
-                    <div class="card" style="background: white; border-radius: 0; padding: 0.75rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                        <!-- Header: icona + nome + info -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
-                                <div style="width: 44px; height: 44px; background: ${cat.color}; border-radius: 0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0;">
-                                    ${cat.icon}
-                                </div>
-                                <div style="min-width: 0;">
-                                    <h3 style="margin: 0; font-size: 1.1rem; color: #333; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cat.name}</h3>
-                                    <p style="margin: 0.15rem 0 0 0; opacity: 0.6; font-size: 0.8rem;">${habitCount} ${habitCount === 1 ? 'abitudine' : 'abitudini'}</p>
-                                </div>
-                            </div>
-                            <div style="padding: 0.4rem 0.8rem; background: ${cat.color}20; border-radius: 20px;">
-                                <span style="color: ${cat.color}; font-weight: 700; font-size: 0.9rem;">${cat.color}</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div style="display: flex; gap: 0.8rem; justify-content: flex-start; align-items: center; flex-wrap: wrap;">
-                            <button onclick="viewCategoryHabits('${cat.id}')" style="
-                                background: var(--accent);
-                                color: white;
-                                border: none;
-                                padding: 0.5rem 1rem;
-                                border-radius: 0;
-                                font-size: 0.9rem;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                                white-space: nowrap;
-                            " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-                                📋 Vedi Abitudini
-                            </button>
-                            <button onclick="editCategory('${cat.id}')" style="
-                                background: var(--primary);
-                                color: white;
-                                border: none;
-                                padding: 0.5rem 1rem;
-                                border-radius: 0;
-                                font-size: 0.9rem;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                                white-space: nowrap;
-                            " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-                                ✏️ Modifica
-                            </button>
-                            ${canDelete ? 
-                                `<button onclick="deleteCategory('${cat.id}')" style="
-                                    background: var(--danger);
-                                    color: white;
-                                    border: none;
-                                    padding: 0.5rem 1rem;
-                                    border-radius: 0;
-                                    font-size: 0.9rem;
-                                    font-weight: 600;
-                                    cursor: pointer;
-                                    transition: all 0.2s ease;
-                                    white-space: nowrap;
-                                " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-                                    🗑️ Elimina
-                                </button>` :
-                                `<button disabled title="Ci sono abitudini associate" style="
-                                    background: #D1D5DB;
-                                    color: #9CA3AF;
-                                    border: none;
-                                    padding: 0.5rem 1rem;
-                                    border-radius: 0;
-                                    font-size: 0.9rem;
-                                    font-weight: 600;
-                                    cursor: not-allowed;
-                                    white-space: nowrap;
-                                ">
-                                    🗑️ Elimina
-                                </button>`
-                            }
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            if (categoriesWithCount.length === 0) {
-                document.getElementById('categoriesList').innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 2rem;">Nessuna categoria creata. Crea la tua prima categoria!</p>';
-                return;
-            }
-            
-            document.getElementById('categoriesList').innerHTML = html;
-        }
 
         // UI Functions
         function renderActivePage() {
-            const pages = ['dashboard', 'habits', 'archive', 'stats', 'categories', 'calendar', 'settings'];
+            const pages = ['dashboard', 'habits', 'archive', 'stats', 'calendar', 'settings'];
             for (const p of pages) {
                 const el = document.getElementById('page-' + p);
                 if (el && el.style.display !== 'none') {
@@ -4547,7 +4322,6 @@
                         case 'habits':     renderHabits();     break;
                         case 'archive':    renderArchive();    break;
                         case 'stats':      renderStats();      break;
-                        case 'categories': renderCategories(); break;
                     }
                     return;
                 }
@@ -4602,146 +4376,12 @@
                 case 'stats':
                     renderStats();
                     break;
-                case 'categories':
-                    renderCategories();
-                    break;
             }
         }
         
-        function editCategory(categoryId) {
-            const cat = categories.find(c => c.id === categoryId);
-            if (!cat) return;
-            
-            // Popola il modal di modifica
-            document.getElementById('editCategoryId').value = cat.id;
-            document.getElementById('editCategoryName').value = cat.name;
-            document.getElementById('editCategoryIcon').value = cat.icon;
-            document.getElementById('editCategoryColor').value = cat.color;
-            
-            // Seleziona il colore attuale
-            document.querySelectorAll('#editCategoryModal .color-option').forEach(opt => {
-                opt.classList.remove('selected');
-                const optColor = window.getComputedStyle(opt).backgroundColor;
-                const hex = rgbToHex(optColor);
-                if (hex === cat.color.toUpperCase()) {
-                    opt.classList.add('selected');
-                }
-            });
-            
-            document.getElementById('editCategoryModal').classList.add('active');
-        }
         
-        async function updateCategory(event) {
-            event.preventDefault();
-            
-            const id = document.getElementById('editCategoryId').value;
-            const name = document.getElementById('editCategoryName').value;
-            const icon = document.getElementById('editCategoryIcon').value || '📌';
-            const color = document.getElementById('editCategoryColor').value;
-            
-            console.log('✏️ Aggiornamento categoria:', { id, name, icon, color });
-            
-            try {
-                const { data, error } = await supabaseClient
-                    .from('cm_categories')
-                    .update({ name, icon, color })
-                    .eq('id', id)
-                    .select();
-                
-                if (error) throw error;
-                
-                const index = categories.findIndex(c => c.id === id);
-                if (index !== -1 && data) {
-                    categories[index] = data[0];
-                }
-                
-                console.log('✅ Categoria aggiornata');
-                closeModal('editCategoryModal');
-                showToast('Categoria aggiornata con successo! ✨');
-                renderCategories();
-                updateCategorySelects();
-                refreshDebugStats();
-            } catch (error) {
-                console.error('❌ Errore aggiornamento categoria:', error);
-                showToast('Errore nell\'aggiornamento della categoria');
-            }
-        }
         
-        function viewCategoryHabits(categoryId) {
-            const cat = categories.find(c => c.id === categoryId);
-            if (!cat) return;
-            
-            const categoryHabits = habits.filter(h => 
-                h.category_id === categoryId && h.status === 'active'
-            );
-            
-            let html = `
-                <div style="margin-bottom: 2rem; padding: 1.5rem; background: ${cat.color}10; border-left: 4px solid ${cat.color};">
-                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                        <div style="width: 50px; height: 50px; background: ${cat.color}; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
-                            ${cat.icon}
-                        </div>
-                        <div>
-                            <h2 style="margin: 0; color: ${cat.color};">${cat.name}</h2>
-                            <p style="margin: 0.3rem 0 0 0; opacity: 0.7;">${categoryHabits.length} ${categoryHabits.length === 1 ? 'abitudine' : 'abitudini'}</p>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 2rem; margin-top: 1rem;">
-                        <div>
-                            <span style="font-weight: 700;">Colore:</span>
-                            <div style="display: inline-block; width: 24px; height: 24px; background: ${cat.color}; margin-left: 0.5rem; vertical-align: middle;"></div>
-                            <span style="margin-left: 0.5rem; opacity: 0.7;">${cat.color}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <h3 style="margin-bottom: 1rem; color: var(--accent);">📋 Abitudini in questa categoria:</h3>
-            `;
-            
-            if (categoryHabits.length === 0) {
-                html += '<p style="opacity: 0.7; text-align: center; padding: 2rem;">Nessuna abitudine in questa categoria</p>';
-            } else {
-                html += categoryHabits.map(habit => {
-                    const completionCount = completions.filter(c => c.habit_id === habit.id).length;
-                    return `
-                        <div class="card" style="cursor: pointer; margin-bottom: 1rem;" onclick="closeViewCategoryModal()">
-                            <div style="display: flex; justify-content: space-between; align-items: start;">
-                                <div style="flex: 1;">
-                                    <h3 style="margin-bottom: 0.5rem;">${habit.name}</h3>
-                                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                                        <span style="font-size: 0.85rem; opacity: 0.7;">
-                                            📅 ${habit.frequency === 'daily' ? 'Giornaliera' : 'Settimanale'}
-                                        </span>
-                                        ${(habit._streak ?? computeHabitStreak(habit)) > 0 ? `
-                                            <span style="background: var(--warning); color: white; padding: 0.2rem 0.6rem; font-size: 0.85rem; font-weight: 700;">
-                                                🔥 ${(habit._streak ?? computeHabitStreak(habit))} giorni
-                                            </span>
-                                        ` : ''}
-                                        <span style="font-size: 0.85rem; opacity: 0.7;">
-                                            ✓ ${completionCount} completamenti
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="margin-top: 1rem;">
-                                <div class="progress-bar" style="height: 20px;">
-                                    <div class="progress-fill" style="width: ${((habit._streak ?? computeHabitStreak(habit)) / habit.goal) * 100}%; font-size: 0.8rem;">
-                                        ${Math.round(((habit._streak ?? computeHabitStreak(habit)) / habit.goal) * 100)}%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-            
-            document.getElementById('viewCategoryContent').innerHTML = html;
-            document.getElementById('viewCategoryModal').classList.add('active');
-        }
         
-        function closeViewCategoryModal() {
-            document.getElementById('viewCategoryModal').classList.remove('active');
-        }
         
         function editHabit(habitId) {
             // TODO: Implementare modal di modifica abitudini
@@ -5015,9 +4655,6 @@
             document.getElementById('addHabitModal').classList.add('active');
         }
 
-        function showAddCategoryModal() {
-            document.getElementById('addCategoryModal').classList.add('active');
-        }
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
@@ -5334,29 +4971,6 @@
             }
         }
 
-        async function deleteCategory(categoryId) {
-            if (!confirm('Sei sicuro di voler eliminare questa categoria?')) return;
-
-            try {
-                const { error } = await supabaseClient.from('cm_categories').delete().eq('id', categoryId);
-                if (error) throw error;
-
-                categories = categories.filter(c => c.id !== categoryId);
-                
-                // Update habits that had this category
-                habits.forEach(h => {
-                    if (h.category_id === categoryId) {
-                        h.category_id = null;
-                    }
-                });
-
-                showToast('Categoria eliminata');
-                renderCategories();
-            } catch (error) {
-                console.error('Error deleting category:', error);
-                showToast('Errore nell\'eliminazione');
-            }
-        }
 
         function setupEventListeners() {
             // Frequency change
@@ -5402,34 +5016,6 @@
                 });
             });
             
-            // Color picker click handling
-            document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('color-option')) {
-                    const style = window.getComputedStyle(e.target);
-                    const color = style.backgroundColor;
-                    // Convert rgb to hex
-                    const hex = rgbToHex(color);
-                    
-                    // Determina quale modal è aperto
-                    const addModal = document.getElementById('addCategoryModal');
-                    const editModal = document.getElementById('editCategoryModal');
-                    
-                    if (addModal && addModal.classList.contains('active')) {
-                        document.getElementById('categoryColor').value = hex;
-                        document.querySelectorAll('#addCategoryModal .color-option').forEach(opt => {
-                            opt.classList.remove('selected');
-                        });
-                    } else if (editModal && editModal.classList.contains('active')) {
-                        document.getElementById('editCategoryColor').value = hex;
-                        document.querySelectorAll('#editCategoryModal .color-option').forEach(opt => {
-                            opt.classList.remove('selected');
-                        });
-                    }
-                    
-                    e.target.classList.add('selected');
-                }
-            });
-
             // EVENT DELEGATION per i bottoni semplici
             document.addEventListener('click', (e) => {
                 const btn = e.target.closest('.simple-btn');

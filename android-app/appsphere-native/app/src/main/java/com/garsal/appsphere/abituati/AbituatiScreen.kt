@@ -68,7 +68,6 @@ private enum class Vista(val etichetta: String) {
     TUTTE("📋 Tutte"),
     ARCHIVIO("📦 Archivio"),
     STATISTICHE("📊 Statistiche"),
-    CATEGORIE("🏷️ Categorie"),
     IMPOSTAZIONI("⚙️ Impostazioni"),
 }
 
@@ -117,9 +116,6 @@ fun AbituatiScreen(
     var daEliminare by remember { mutableStateOf<HbAbitudine?>(null) }
     var daInterrompere by remember { mutableStateOf<HbAbitudine?>(null) }
     var daRiprendere by remember { mutableStateOf<HbAbitudine?>(null) }
-    // La categoria nel form: (categoria o null per una nuova). Null = form chiuso.
-    var categoriaInForm by remember { mutableStateOf<Pair<HbCategoria?, Boolean>?>(null) }
-    var categoriaDaEliminare by remember { mutableStateOf<HbCategoria?>(null) }
 
     inCompilazione?.let { (bozza, id) ->
         AbituatiForm(
@@ -142,10 +138,7 @@ fun AbituatiScreen(
         },
         floatingActionButton = {
             if (vista != Vista.STATISTICHE && vista != Vista.IMPOSTAZIONI) FloatingActionButton(
-                onClick = {
-                    if (vista == Vista.CATEGORIE) categoriaInForm = null to true
-                    else inCompilazione = BozzaAbitudine() to null
-                },
+                onClick = { inCompilazione = BozzaAbitudine() to null },
                 containerColor = NeroAbituati,
                 contentColor = Palette.light,
             ) { Text("+", fontSize = 26.sp) }
@@ -194,11 +187,6 @@ fun AbituatiScreen(
 
                     vista == Vista.ARCHIVIO -> Archivio(stato.archivio)
                     vista == Vista.STATISTICHE -> Statistiche(stato)
-                    vista == Vista.CATEGORIE -> Categorie(
-                        stato,
-                        onModifica = { categoriaInForm = it to true },
-                        onElimina = { categoriaDaEliminare = it },
-                    )
                     vista == Vista.IMPOSTAZIONI -> Impostazioni(
                         stato,
                         onAggiorna = { vm.carica() },
@@ -316,33 +304,6 @@ fun AbituatiScreen(
                 daRiprendere = null
             },
             onChiudi = { daRiprendere = null },
-        )
-    }
-
-    categoriaInForm?.let { (cat, _) ->
-        FormCategoria(
-            categoria = cat,
-            onAnnulla = { categoriaInForm = null },
-            onSalva = { nome, icona, colore ->
-                vm.salvaCategoria(cat?.id, nome, icona, colore) { categoriaInForm = null }
-            },
-        )
-    }
-
-    categoriaDaEliminare?.let { cat ->
-        AlertDialog(
-            onDismissRequest = { categoriaDaEliminare = null },
-            title = { Text("Eliminare la categoria?") },
-            text = { Text("«${cat.nome}» sparisce anche da Tasks, perché le categorie sono condivise.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    vm.eliminaCategoria(cat)
-                    categoriaDaEliminare = null
-                }) { Text("Elimina", color = Palette.danger, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { categoriaDaEliminare = null }) { Text("Annulla", color = Palette.muted) }
-            },
         )
     }
 

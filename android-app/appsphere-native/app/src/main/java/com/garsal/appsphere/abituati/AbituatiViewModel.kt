@@ -478,34 +478,8 @@ class AbituatiViewModel : ViewModel() {
         }
     }
 
-    // ── 🏷️ Categorie ─────────────────────────────────────────────────────
 
-    fun salvaCategoria(id: String?, nome: String, icona: String, colore: String, onFatto: () -> Unit) {
-        viewModelScope.launch {
-            try {
-                AbituatiRepository.salvaCategoria(id, nome, icona, colore)
-                log((if (id == null) "Creata" else "Modificata") + " la categoria «${nome.trim()}»")
-                onFatto()
-                carica()
-            } catch (e: Exception) {
-                Log.w(TAG, "categoria non salvata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Categoria non salvata")
-            }
-        }
-    }
 
-    fun eliminaCategoria(categoria: HbCategoria) {
-        viewModelScope.launch {
-            try {
-                AbituatiRepository.eliminaCategoria(categoria.id)
-                log("Eliminata la categoria «${categoria.nome}»")
-                carica()
-            } catch (e: Exception) {
-                Log.w(TAG, "categoria non eliminata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Categoria non eliminata")
-            }
-        }
-    }
 
     // ── ⚙️ Registro ──────────────────────────────────────────────────────
 

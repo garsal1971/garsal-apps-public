@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.13.0</title>
+<title>AppSphere v1.14.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1056,6 +1056,68 @@
   }
   #badge-reload-btn:hover { opacity: 0.8; }
 
+  /* ── 🏷️ CATEGORIE (cm_categories) MODAL ──
+     Le righe vanno a capo (flex-wrap): coi caratteri di sistema grandi una riga
+     sola non ci sta, e un pulsante oltre il bordo destro non si vede. */
+  #cat-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 8000; align-items: center; justify-content: center;
+  }
+  #cat-modal-overlay.open { display: flex; }
+  #cat-modal {
+    background: #fff; border-radius: 14px; border: 2px solid #111;
+    width: min(600px, 94vw); max-height: 86vh; display: flex; flex-direction: column;
+    overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  #cat-modal-header {
+    padding: 16px 20px 12px; border-bottom: 1px solid #eee;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+  }
+  #cat-modal-header h2 { font-size: 16px; font-weight: 600; color: #111; }
+  #cat-modal-header span {
+    font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; flex: 1; min-width: 0;
+  }
+  #cat-modal-close {
+    background: none; border: none; font-size: 20px; cursor: pointer; color: #888;
+    line-height: 1; padding: 0 2px; flex-shrink: 0; margin-left: auto;
+  }
+  #cat-modal-body {
+    overflow-y: auto; overflow-x: hidden; padding: 14px 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #cat-modal-footer {
+    padding: 10px 20px; border-top: 1px solid #eee;
+    font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
+  }
+  .cat-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding-bottom: 12px; border-bottom: 1px solid #f0f0f0;
+  }
+  .cat-row.nuova { border-bottom: none; padding-top: 4px; border-top: 2px dashed #e5e5e5; }
+  .cat-icon-input {
+    width: 3em; text-align: center; font-size: 18px; padding: 4px;
+    border: 1px solid #ddd; border-radius: 8px;
+  }
+  .cat-name-input {
+    flex: 1 1 9rem; min-width: 0; font-size: 14px; padding: 6px 8px;
+    border: 1px solid #ddd; border-radius: 8px;
+  }
+  .cat-icon-input:focus, .cat-name-input:focus { outline: none; border-color: #0081C8; }
+  .cat-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .cat-usi { flex: 1 1 100%; font-family: 'DM Mono', monospace; font-size: 11px; color: #888; }
+  .cat-usi.zero { color: #bbb; }
+  .cat-btns { display: flex; gap: 8px; margin-left: auto; }
+  .cat-btns button {
+    border: 2px solid #111; border-radius: 8px; padding: 5px 12px; font-size: 13px;
+    font-weight: 600; cursor: pointer; min-height: 2.2em;
+  }
+  .cat-btns .salva { background: #0081C8; color: #fff; border-color: #0081C8; }
+  .cat-btns .elimina { background: #fff; color: #EE334E; border-color: #EE334E; }
+  .cat-btns .elimina:disabled { opacity: 0.35; cursor: default; }
+  .cat-btns .aggiungi { background: #00A651; color: #fff; border-color: #00A651; }
+  .cat-status { font-family: 'DM Mono', monospace; font-size: 11px; color: #00A651; }
+  .cat-status.err { color: #EE334E; }
+
   /* ── PRIORITÀ (cm_priorities) MODAL ── */
   #priorities-modal-overlay {
     display: none;
@@ -1877,6 +1939,7 @@
   <button class="hm-item" onclick="closeHamburgerMenu(); window.open('relazione.html','_blank');">🗄️ Backup</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openProfilo();">👤 Profilo</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openBadgeSettings();">⚙ Badge</button>
+  <button class="hm-item" onclick="closeHamburgerMenu(); openCategorie();">🏷️ Categorie</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openPrioritiesSettings();">🚦 Priorità</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openNotifiche();">🔔 Notifiche</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openNqv();">⚡ Notifica al Volo</button>
@@ -2039,6 +2102,19 @@
     <div id="badge-modal-footer">
       <button id="badge-reload-btn" onclick="closeBadgeSettings(); loadApps(true);">Ricarica</button>
     </div>
+  </div>
+</div>
+
+<!-- 🏷️ CATEGORIE (cm_categories) — l'unico posto dove si gestiscono -->
+<div id="cat-modal-overlay">
+  <div id="cat-modal">
+    <div id="cat-modal-header">
+      <h2>🏷️ Categorie</h2>
+      <span>condivise da Tasks, Abituati, Memo, Decisioni, Obiettivi</span>
+      <button id="cat-modal-close" onclick="closeCategorie()" aria-label="Chiudi">✕</button>
+    </div>
+    <div id="cat-modal-body"></div>
+    <div id="cat-modal-footer">le modifiche sono immediate · si elimina solo una categoria che nessuno usa</div>
   </div>
 </div>
 
@@ -2212,8 +2288,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.13.0';
-const BUILD_TIME  = '2026-10-11T16:30:00Z';
+const APP_VERSION = 'v1.14.0';
+const BUILD_TIME  = '2026-10-13T21:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4934,6 +5010,197 @@ document.getElementById('badge-modal-overlay').addEventListener('click', functio
   if (e.target === this) closeBadgeSettings();
 });
 
+// ── 🏷️ CATEGORIE (cm_categories) ──
+// È l'UNICO posto dove le categorie condivise si creano, si modificano e si
+// cancellano: Tasks, Abituati (web e nativo), Memo, Decisioni e Obiettivi le
+// scelgono e basta. ⚠️ Il nome è unico (indice uq_cm_categories_nome su
+// lower(btrim(name))): lo si controlla prima, per dirlo a parole.
+// ⚠️ Si elimina solo una categoria che NESSUNO usa: gli array `categories` di
+// task, decisioni e azioni non hanno una chiave esterna, e cancellandola
+// resterebbero id che puntano al nulla. Gli usi si contano su tutte le tabelle,
+// e se anche una sola non si legge l'eliminazione si ferma: «non lo so» non è zero.
+let _cat = { righe: [], usi: {}, letturaOk: true };
+
+const CAT_USI = [
+  { path: 'ts_tasks?select=categories',           campo: 'categories',  nome: ['task', 'task'] },
+  { path: 'hb_habits?select=category_id',         campo: 'category_id', nome: ['abitudine', 'abitudini'] },
+  { path: 'hb_archived_stacks?select=category_id', campo: 'category_id', nome: ['stack archiviato', 'stack archiviati'] },
+  { path: 'mm_card_categories?select=category_id', campo: 'category_id', nome: ['scheda Memo', 'schede Memo'] },
+  { path: 'dc_decisions?select=categories',       campo: 'categories',  nome: ['decisione', 'decisioni'] },
+  { path: 'ob_actions?select=categories',         campo: 'categories',  nome: ['azione', 'azioni'] },
+];
+
+const catChiave = n => String(n || '').trim().toLowerCase();
+
+async function openCategorie() {
+  const body = document.getElementById('cat-modal-body');
+  body.innerHTML = '<div class="cat-usi">Caricamento…</div>';
+  document.getElementById('cat-modal-overlay').classList.add('open');
+  try {
+    const [righe, ...usi] = await Promise.all([
+      ptLeggi('cm_categories?select=id,name,icon,color,show_in_dashboard&order=name'),
+      ...CAT_USI.map(u => ptLeggi(u.path).then(r => ({ u, r }), err => ({ u, err }))),
+    ]);
+    _cat = { righe, usi: {}, letturaOk: true };
+    for (const { u, r, err } of usi) {
+      if (err) { console.warn('🏷️ usi non letti:', u.path, err); _cat.letturaOk = false; continue; }
+      for (const riga of r) {
+        const v = riga[u.campo];
+        const ids = Array.isArray(v) ? v : (v ? [v] : []);
+        for (const id of new Set(ids.map(String))) {
+          const m = (_cat.usi[id] = _cat.usi[id] || {});
+          m[u.path] = (m[u.path] || 0) + 1;
+        }
+      }
+    }
+    renderCategorie();
+  } catch (err) {
+    console.error('🏷️ Categorie:', err);
+    body.innerHTML = '<div class="cat-usi" style="color:#EE334E">Errore caricamento categorie.</div>';
+  }
+}
+
+function closeCategorie() {
+  document.getElementById('cat-modal-overlay').classList.remove('open');
+}
+
+function catUsiTesto(id) {
+  const m = _cat.usi[String(id)] || {};
+  const parti = CAT_USI.filter(u => m[u.path]).map(u => m[u.path] + ' ' + u.nome[m[u.path] === 1 ? 0 : 1]);
+  if (parti.length) return parti.join(' · ');
+  return _cat.letturaOk ? 'non usata' : 'usi non verificati';
+}
+const catUsata = id => Object.values(_cat.usi[String(id)] || {}).some(n => n > 0);
+
+function renderCategorie() {
+  const riga = c => {
+    const colore = (c.color || '#888888').trim();
+    const usata = catUsata(c.id);
+    const bloccata = usata || !_cat.letturaOk;
+    return `
+    <div class="cat-row" data-id="${c.id}">
+      <input type="text" class="cat-icon-input" id="cat-icon-${c.id}" value="${escapeHtml(c.icon || '')}" aria-label="Icona">
+      <input type="text" class="cat-name-input" id="cat-name-${c.id}" value="${escapeHtml(c.name || '')}" aria-label="Nome">
+      <div class="pr-dot" id="cat-dot-${c.id}" style="background:${colore}">
+        <input type="color" class="pr-color-input" id="cat-color-${c.id}" value="${colore}"
+          oninput="document.getElementById('cat-dot-${c.id}').style.background=this.value">
+      </div>
+      <label class="cat-check"><input type="checkbox" id="cat-dash-${c.id}" ${c.show_in_dashboard ? 'checked' : ''}> in panoramica Tasks</label>
+      <div class="cat-usi ${usata ? '' : 'zero'}">${catUsiTesto(c.id)}</div>
+      <span class="cat-status" id="cat-status-${c.id}"></span>
+      <div class="cat-btns">
+        <button class="salva" onclick="salvaCategoria('${c.id}')">Salva</button>
+        <button class="elimina" onclick="eliminaCategoria('${c.id}')" ${bloccata ? 'disabled' : ''}
+          title="${usata ? 'In uso: si elimina solo una categoria che nessuno usa' : (!_cat.letturaOk ? 'Non ho potuto verificare dove è usata' : 'Elimina')}">Elimina</button>
+      </div>
+    </div>`;
+  };
+  const nuova = `
+    <div class="cat-row nuova">
+      <input type="text" class="cat-icon-input" id="cat-icon-new" placeholder="📌" aria-label="Icona">
+      <input type="text" class="cat-name-input" id="cat-name-new" placeholder="Nuova categoria" aria-label="Nome">
+      <div class="pr-dot" id="cat-dot-new" style="background:#0081C8">
+        <input type="color" class="pr-color-input" id="cat-color-new" value="#0081C8"
+          oninput="document.getElementById('cat-dot-new').style.background=this.value">
+      </div>
+      <label class="cat-check"><input type="checkbox" id="cat-dash-new"> in panoramica Tasks</label>
+      <span class="cat-status" id="cat-status-new"></span>
+      <div class="cat-btns"><button class="aggiungi" onclick="aggiungiCategoria()">+ Aggiungi</button></div>
+    </div>`;
+  const avviso = _cat.letturaOk ? '' :
+    '<div class="cat-usi" style="color:#EE334E">⚠️ Non ho potuto leggere tutti gli usi: l\'eliminazione è sospesa.</div>';
+  document.getElementById('cat-modal-body').innerHTML =
+    avviso + (_cat.righe.map(riga).join('') || '<div class="cat-usi">Nessuna categoria.</div>') + nuova;
+}
+
+function catDoppione(nome, escludiId) {
+  const k = catChiave(nome);
+  return _cat.righe.find(c => c.id !== escludiId && catChiave(c.name) === k);
+}
+
+function catLeggiForm(id) {
+  return {
+    name:  document.getElementById('cat-name-' + id).value.trim(),
+    icon:  document.getElementById('cat-icon-' + id).value.trim() || '📌',
+    color: document.getElementById('cat-color-' + id).value,
+    show_in_dashboard: document.getElementById('cat-dash-' + id).checked,
+  };
+}
+
+function catStato(id, testo, errore) {
+  const el = document.getElementById('cat-status-' + id);
+  if (!el) return;
+  el.className = 'cat-status' + (errore ? ' err' : '');
+  el.textContent = testo;
+}
+
+async function catScrivi(metodo, query, corpo) {
+  const token = localStorage.getItem('sb_token');
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/cm_categories${query}`, {
+    method: metodo,
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token,
+               'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  });
+  const testo = await res.text();
+  if (!res.ok) {
+    const doppio = res.status === 409 || /23505|uq_cm_categories_nome/.test(testo);
+    throw new Error(doppio ? 'Esiste già una categoria con questo nome' : 'Errore ' + res.status);
+  }
+  return testo ? JSON.parse(testo) : [];
+}
+
+async function salvaCategoria(id) {
+  const dati = catLeggiForm(id);
+  if (!dati.name) return catStato(id, 'Inserisci un nome', true);
+  const gia = catDoppione(dati.name, id);
+  if (gia) return catStato(id, `Esiste già: ${gia.icon || ''} ${gia.name}`, true);
+  try {
+    const [r] = await catScrivi('PATCH', `?id=eq.${encodeURIComponent(id)}`, dati);
+    const i = _cat.righe.findIndex(c => c.id === id);
+    if (i >= 0) _cat.righe[i] = r || { ..._cat.righe[i], ...dati };
+    catStato(id, '✓ salvato');
+    setTimeout(() => catStato(id, ''), 2000);
+  } catch (err) {
+    catStato(id, '✗ ' + err.message, true);
+  }
+}
+
+async function aggiungiCategoria() {
+  const dati = catLeggiForm('new');
+  if (!dati.name) return catStato('new', 'Inserisci un nome', true);
+  const gia = catDoppione(dati.name, null);
+  if (gia) return catStato('new', `Esiste già: ${gia.icon || ''} ${gia.name}`, true);
+  try {
+    const [r] = await catScrivi('POST', '', dati);
+    _cat.righe.push(r);
+    _cat.righe.sort((a, b) => String(a.name).localeCompare(String(b.name), 'it'));
+    renderCategorie();
+  } catch (err) {
+    catStato('new', '✗ ' + err.message, true);
+  }
+}
+
+async function eliminaCategoria(id) {
+  const c = _cat.righe.find(x => x.id === id);
+  if (!c) return;
+  // Il pulsante spento è un suggerimento: la regola si ricontrolla qui.
+  if (!_cat.letturaOk) return alert('Non ho potuto verificare dove è usata: non la elimino.');
+  if (catUsata(id)) return alert(`«${c.name}» è in uso (${catUsiTesto(id)}): toglila prima da lì.`);
+  if (!confirm(`Eliminare la categoria ${c.icon || ''} ${c.name}?`)) return;
+  try {
+    await catScrivi('DELETE', `?id=eq.${encodeURIComponent(id)}`);
+    _cat.righe = _cat.righe.filter(x => x.id !== id);
+    renderCategorie();
+  } catch (err) {
+    alert('Eliminazione non riuscita: ' + err.message);
+  }
+}
+
+document.getElementById('cat-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeCategorie();
+});
+
 // ── PRIORITÀ (cm_priorities) CRUD ──
 let _prioritiesRows = [];
 
@@ -5957,6 +6224,7 @@ if ('serviceWorker' in navigator) {
   { sel: '#recap-overlay',             chiudi: () => chiudiRecap() },
   { sel: '#rw-form-overlay',           chiudi: () => closeRewardForm() },
   { sel: '#badge-modal-overlay',       chiudi: () => closeBadgeSettings() },
+  { sel: '#cat-modal-overlay',         chiudi: () => closeCategorie() },
   { sel: '#priorities-modal-overlay',  chiudi: () => closePrioritiesSettings() },
   { sel: '#nqv-overlay',               chiudi: () => closeNqv() },
   { sel: '#notifiche-overlay',         chiudi: () => closeNotifiche() },
