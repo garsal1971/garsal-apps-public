@@ -78,6 +78,7 @@ fun TasksScreen(
             id = id,
             categorie = stato.categorie,
             priorita = stato.priorita,
+            preset = stato.preset,
             onAnnulla = { inCompilazione = null },
             onSalva = { compilata -> vm.salva(compilata, id) { inCompilazione = null } },
         )
@@ -147,7 +148,7 @@ fun TasksScreen(
                             onFiltri = { filtri = it },
                             onNuovo = { inCompilazione = BozzaTask() to null },
                             onVedi = { azioniSu = it },
-                            onModifica = { inCompilazione = BozzaTask.da(it) to it.id },
+                            onModifica = { inCompilazione = BozzaTask.da(it, stato.promemoria[it.id]) to it.id },
                             // La copia nasce **senza id**: si salva come task
                             // nuovo, col titolo numerato come fa `cloneTask()`.
                             onClona = {

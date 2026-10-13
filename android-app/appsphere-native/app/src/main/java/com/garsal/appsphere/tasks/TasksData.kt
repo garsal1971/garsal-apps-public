@@ -1,6 +1,9 @@
 package com.garsal.appsphere.tasks
 
+import android.util.Log
+import com.garsal.appsphere.core.AuthRepo
 import com.garsal.appsphere.core.Supabase
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +16,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -344,6 +348,23 @@ fun dataOraItaliana(iso: String?): String {
 fun isoDa(giorno: LocalDate, ora: String): String =
     "%04d-%02d-%02dT%s:00".format(giorno.year, giorno.monthValue, giorno.dayOfMonth, ora)
 
+// ── Promemoria ───────────────────────────────────────────────────────────────
+
+/** Un anticipo di `cm_reminder_presets` (l'`int_id` è quel che le regole archiviano). */
+data class TsPreset(val id: Int, val etichetta: String)
+
+/**
+ * I promemoria di un task, letti dalle sue righe di `cm_notification_rules`:
+ * **la riga basta a dire che il canale è acceso**, come in `editTask()` del web.
+ * Liste vuote = canale spento.
+ */
+data class PromemoriaTask(
+    val telegram: List<Int> = emptyList(),
+    val telefono: List<Int> = emptyList(),
+    val smartBlock: Boolean = false,
+    val pulsanteFatto: Boolean = true,
+)
+
 // ── Repository ───────────────────────────────────────────────────────────────
 
 object TasksRepository {
@@ -465,7 +486,107 @@ object TasksRepository {
 
     suspend fun elimina(id: String) = withContext(Dispatchers.IO) {
         db.from("ts_tasks").delete { filter { eq("id", id) } }
+        // Le regole dei promemoria se ne vanno col task, come `deleteNotificationRules()`
+        // nel web: una regola orfana suonerebbe per un task che non c'è più.
+        runCatching {
+            db.from("cm_notification_rules").delete { filter { eq("app", APP); eq("entity_id", id) } }
+        }.onFailure { Log.w("TasksRepository", "regole non tolte: ${it.message}") }
         Unit
+    }
+
+    // ── Promemoria (`cm_notification_rules`, app = 'tasks') ──────────────
+
+    private const val APP = "tasks"
+
+    private fun utente(): String = AuthRepo.userId() ?: error("Sessione scaduta: rientra e riprova.")
+
+    /** Gli anticipi attivi, come `loadReminderPresets()`. Se non si leggono, il form lo dice. */
+    suspend fun preset(): List<TsPreset> = withContext(Dispatchers.IO) {
+        runCatching {
+            db.from("cm_reminder_presets").select(Columns.raw("int_id,label,sort_order")) {
+                filter { eq("active", true) }
+                order("sort_order", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+            }.decodeList<JsonObject>().mapNotNull { p ->
+                val id = numero(p, "int_id") ?: return@mapNotNull null
+                TsPreset(id, testo(p, "label") ?: "$id")
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /** Le regole di tutti i task, per id del task. Non sono di questa app: se mancano, i task restano. */
+    suspend fun promemoria(): Map<String, PromemoriaTask> = withContext(Dispatchers.IO) {
+        runCatching {
+            val righe = db.from("cm_notification_rules").select(Columns.raw("entity_id,channel,reminder_presets")) {
+                filter { eq("app", APP) }
+            }.decodeList<JsonObject>()
+            val mappa = mutableMapOf<String, PromemoriaTask>()
+            righe.forEach { r ->
+                val id = testo(r, "entity_id") ?: return@forEach
+                val presets = when (val rp = r["reminder_presets"]) {
+                    is JsonObject -> rp
+                    is JsonPrimitive -> runCatching { Json.parseToJsonElement(rp.content).jsonObject }.getOrNull()
+                    else -> null
+                }
+                val anticipi = presets?.let { listaNumeri(it, "reminders") }.orEmpty()
+                val fatto = presets?.let { booleano(it, "telegram_complete_button") }
+                val p = mappa[id] ?: PromemoriaTask()
+                mappa[id] = when (testo(r, "channel")) {
+                    "telegram" -> p.copy(telegram = anticipi, pulsanteFatto = fatto ?: p.pulsanteFatto)
+                    "android" -> p.copy(telefono = anticipi)
+                    "smart_block" -> p.copy(smartBlock = true)
+                    // `both`: le righe salvate durante la transizione v19.19.2, lette come nel web.
+                    "both" -> p.copy(telegram = anticipi, smartBlock = true, pulsanteFatto = fatto ?: p.pulsanteFatto)
+                    else -> p
+                }
+            }
+            mappa
+        }.getOrDefault(emptyMap())
+    }
+
+    /**
+     * Una riga per canale, gemella di `syncNotificationRules()` in `tasks.html`:
+     * Telegram coi suoi anticipi (e `telegram_complete_button` se acceso), il
+     * telefono coi **suoi** (senza quel flag: i pulsanti li disegna l'app),
+     * Smart Block all'ora del task. Un canale spento o senza anticipi **toglie**
+     * la sua riga. `due_at` è la stessa stringa che il web passa
+     * (`next_occurrence_date || start_date`), ora di Roma senza fuso.
+     */
+    private suspend fun scriviRegole(id: String, b: BozzaTask, dueAt: String?) {
+        val senzaData = dueAt == null
+        val tg = if (!senzaData && b.telegram) b.anticipiTelegram.distinct() else emptyList()
+        val an = if (!senzaData && b.telefono) b.anticipiTelefono.distinct() else emptyList()
+        val sbk = !senzaData && b.smartBlock
+        suspend fun togli(canale: String) {
+            db.from("cm_notification_rules").delete {
+                filter { eq("app", APP); eq("entity_id", id); eq("user_id", utente()); eq("channel", canale) }
+            }
+        }
+        suspend fun scrivi(canale: String, presets: JsonObject) {
+            val esistente = db.from("cm_notification_rules").select(Columns.raw("id")) {
+                filter { eq("app", APP); eq("entity_id", id); eq("user_id", utente()); eq("channel", canale) }
+            }.decodeList<JsonObject>().firstOrNull()?.let { testo(it, "id") }
+            val regola = buildJsonObject {
+                put("user_id", utente()); put("app", APP); put("entity_id", id)
+                put("entity_type", "task"); put("entity_title", b.titolo.trim())
+                put("reminder_presets", presets); put("notification_spec", buildJsonObject {})
+                put("channel", canale); put("enabled", true)
+            }
+            if (esistente != null) db.from("cm_notification_rules").update(regola) { filter { eq("id", esistente) } }
+            else db.from("cm_notification_rules").insert(regola)
+        }
+        fun presets(anticipi: List<Int>, completa: Boolean) = buildJsonObject {
+            put("reminders", buildJsonArray { anticipi.forEach { add(it) } })
+            put("due_at", dueAt)
+            if (completa) put("telegram_complete_button", true)
+        }
+        if (tg.isNotEmpty()) scrivi("telegram", presets(tg, b.tipo != "workflow" && b.pulsanteFatto)) else togli("telegram")
+        if (an.isNotEmpty()) scrivi("android", presets(an, false)) else togli("android")
+        if (sbk) scrivi("smart_block", presets(emptyList(), false)) else togli("smart_block")
+        // Il cron gira ogni sei ore: un promemoria di stasera non può aspettarlo.
+        if (tg.isNotEmpty() || an.isNotEmpty() || sbk) {
+            runCatching { Supabase.client().functions.invoke("fill-notification-queue") {} }
+                .onFailure { Log.w("TasksRepository", "fill-notification-queue: ${it.message}") }
+        }
     }
 
     /**
@@ -474,11 +595,21 @@ object TasksRepository {
      * (dove va la prossima occorrenza), non com'è fatto il task.
      * `saveTask()` nel web fa lo stesso insert/update.
      */
-    suspend fun salva(bozza: BozzaTask, id: String?) = withContext(Dispatchers.IO) {
+    suspend fun salva(bozza: BozzaTask, id: String?): String? = withContext(Dispatchers.IO) {
         val corpo = bozza.aJson()
-        if (id == null) db.from("ts_tasks").insert(corpo)
-        else db.from("ts_tasks").update(corpo) { filter { eq("id", id) } }
-        Unit
+        val idTask = if (id == null) {
+            db.from("ts_tasks").insert(corpo) { select(Columns.raw("id")) }
+                .decodeList<JsonObject>().firstOrNull()?.let { testo(it, "id") }
+                ?: error("Il task non ha restituito un id.")
+        } else {
+            db.from("ts_tasks").update(corpo) { filter { eq("id", id) } }
+            id
+        }
+        // Il task è salvato: un promemoria che non passa non lo deve far sembrare perso.
+        val dueAt = (corpo["next_occurrence_date"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+            ?: (corpo["start_date"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        runCatching { scriviRegole(idTask, bozza, if (bozza.tipo == "free_repeat") null else dueAt) }
+            .exceptionOrNull()?.let { "Promemoria non salvati: ${it.message}" }
     }
 
     /**
@@ -538,6 +669,13 @@ data class BozzaTask(
     val ripetiDopoGiorni: Int = 7,
     // date multiple
     val dateMultiple: List<String> = emptyList(),
+    // promemoria (tre canali indipendenti, ciascuno coi suoi anticipi)
+    val telegram: Boolean = false,
+    val anticipiTelegram: List<Int> = emptyList(),
+    val telefono: Boolean = false,
+    val anticipiTelefono: List<Int> = emptyList(),
+    val smartBlock: Boolean = false,
+    val pulsanteFatto: Boolean = true,
 ) {
     val valida: Boolean
         get() = titolo.isNotBlank() && when (tipo) {
@@ -627,7 +765,7 @@ data class BozzaTask(
 
     companion object {
         /** Riempie il form da un task che esiste già: modifica e clonazione. */
-        fun da(t: TsTask): BozzaTask {
+        fun da(t: TsTask, promemoria: PromemoriaTask? = null): BozzaTask {
             val riferimento = t.dataDiRiferimento ?: t.dataInizio
             return BozzaTask(
                 titolo = t.titolo,
@@ -650,6 +788,12 @@ data class BozzaTask(
                 dateAnnuali = t.dateAnnuali,
                 ripetiDopoGiorni = t.ripetiDopoGiorni ?: 7,
                 dateMultiple = t.dateMultiple,
+                telegram = promemoria?.telegram?.isNotEmpty() == true,
+                anticipiTelegram = promemoria?.telegram.orEmpty(),
+                telefono = promemoria?.telefono?.isNotEmpty() == true,
+                anticipiTelefono = promemoria?.telefono.orEmpty(),
+                smartBlock = promemoria?.smartBlock == true,
+                pulsanteFatto = promemoria?.pulsanteFatto ?: true,
             )
         }
     }

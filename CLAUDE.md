@@ -3545,7 +3545,17 @@ task ha, e cambiarlo lascerebbe dietro quelle del tipo di prima — `multiple_da
 ricorrente — che nessuno ripulisce. Scrivere un task è un `insert`/`update` diretto e non una RPC,
 e non è un'eccezione alla regola: le RPC governano il ciclo di vita, cioè dove va la prossima
 occorrenza, non com'è fatto il task — `saveTask()` nel web fa lo stesso. Restano su `tasks.html`
-reminder, storico, impostazioni e l'import di un backup JSON.
+la pagina Reminder, storico, impostazioni e l'import di un backup JSON.
+
+🔔 **I promemoria si impostano anche dal form nativo** (APK 1.0.135): 📱 Telegram e 📲 Telefono
+coi loro anticipi (`cm_reminder_presets`), il ✅ pulsante Fatto di Telegram e 🔐 Smart Block
+all'ora del task. `TasksRepository.scriviRegole` è **gemella di `syncNotificationRules()`** e va
+cambiata insieme: una riga per canale, canale spento o senza anticipi = riga tolta,
+`telegram_complete_button` solo su Telegram, `due_at` = `next_occurrence_date || start_date` (la
+stessa stringa che scrive il web), poi `fill-notification-queue`. La riga basta a dire che il
+canale è acceso (`TasksRepository.promemoria`, come `editTask()`). Un `free_repeat` non ha
+promemoria, la copia di un task nasce senza (come `cloneTask()`), ed eliminando un task se ne
+vanno anche le sue regole.
 
 La **Gestione** (`tasks/Gestione.kt`) è l'elenco completo con i due riquadri richiudibili del web —
 📊 Vista (*espandi tutti*, *raggruppa per* categoria/priorità/tipo) e 🔎 Cerca e filtra (testo,
