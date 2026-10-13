@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.15.0</title>
+  <title>Peso e Calorie v4.15.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -414,6 +414,10 @@
         }
         .pesata-card .pc-rivela .q { font-size: 34px; line-height: 1; font-weight: bold; }
         .pesata-card .pc-rivela .t { font-size: 13px; margin-top: 4px; }
+        .pesata-card .pc-rivela:disabled {
+            cursor: default; animation: none; opacity: .55;
+            background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%);
+        }
         @keyframes pcPulsa { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
         .pesata-card .pc-esito {
             margin: 6px 0; padding: 6px 10px; border-radius: 12px; text-align: center; font-weight: bold;
@@ -1864,8 +1868,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.15.0';
-        var BUILD_TIME  = '2026-10-12T14:15:00Z';
+        var APP_VERSION = 'v4.15.1';
+        var BUILD_TIME  = '2026-10-13T10:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5845,6 +5849,42 @@
             return null;
         }
 
+        // v4.15.1: il giorno di una pesata che conta. Finché l'esito non è scoperto (❓ toccato,
+        // localStorage per giorno) quel giorno resta la «Prossima»; dopo diventa la «Precedente».
+        function chiaveEsito(obj, day) { return 'wq_esito_' + obj.id + '_' + day; }
+        function giornoCheConta(obj, day) {
+            return !!(obj && obj.start_date && day >= obj.start_date
+                && (!obj.end_date || day <= obj.end_date) && giornoDiPesata(obj, day));
+        }
+        function esitoVisto(obj, day) {
+            try { return localStorage.getItem(chiaveEsito(obj, day)); } catch (e) { return null; }
+        }
+        // Lo stesso confronto del «Mancano» della scheda Oggi: sulla massa grassa la media del
+        // giorno, altrimenti il minimo; target congelato sulla riga. null = non ancora pesato.
+        function mancaDelGiorno(data, day) {
+            var min = minimoDelGiorno(data, day);
+            if (!min) return null;
+            var target = min.target_weight ? min.target_weight : getInterpolatedTarget(day);
+            var base = min.weight;
+            if (obiettivoGrasso(userData.currentObjective)) {
+                var m = emaDi(day, 'ema_fat_kg');
+                if (m != null) base = m;
+            }
+            if (base == null || target == null || !isFinite(target)) return null;
+            return Math.round((base - target) * 10) / 10;
+        }
+        function bottoneRivela(obj, data, day) {
+            var mancaR = mancaDelGiorno(data, day);
+            if (mancaR == null) {
+                return '<button type="button" class="pc-rivela" disabled>'
+                     + '<span class="q">❓</span><span class="t">Pesati prima, poi tocca qui</span></button>';
+            }
+            return '<button type="button" class="pc-rivela" onclick="rivelaPesata(this)"'
+                 + ' data-chiave="' + chiaveEsito(obj, day) + '" data-esito="' + (mancaR <= 0 ? 'ok' : 'ko')
+                 + '" data-manca="' + mancaR + '">'
+                 + '<span class="q">❓</span><span class="t">Com\'è andata? Tocca per scoprirlo</span></button>';
+        }
+
         function schedaPesata(data, day, tipo) {
             var oggi = localDateStr();
             var p = day.split('-');
@@ -5858,7 +5898,7 @@
             if (contaOggi) quando += ' · conta per i punti';
             if (tipo === 'dopo') {
                 var gg = Math.round((new Date(day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
-                quando += gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
+                quando += gg === 0 ? ' · oggi' : gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
             }
 
             // v4.14.4: la prossima pesata è nel futuro, quindi niente misure né medie: solo
@@ -5878,6 +5918,8 @@
                      + big('Peso totale', kgA(wAtt))
                      + (gAtt != null ? big('Massa grassa', kgA(gAtt))
                         + big('Grasso', (wAtt > 0 ? (Math.round(gAtt / wAtt * 1000) / 10) + ' %' : '—')) : '')
+                     + (day === oggi && giornoCheConta(userData.currentObjective, day)
+                        ? bottoneRivela(userData.currentObjective, data, day) : '')
                      + '</div></div>';
             }
 
@@ -5944,17 +5986,12 @@
             function rigaMancano() {
                 var riga = '<div class="pc-row"><span>Mancano</span><b style="color:' + coloreManca + '">'
                      + (manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg') + '</b></div>';
+                // v4.15.1: il ❓ sta sulla «Prossima»; qui, scoperto, resta scritto l'esito.
                 if (!contaOggi || mancaR == null || !minimoDelGiorno(data, day)) return riga;
-                var chiave = 'wq_esito_' + obCorr.id + '_' + day, visto = null;
-                try { visto = localStorage.getItem(chiave); } catch (e) {}
-                var esito = mancaR <= 0 ? 'ok' : 'ko';
-                if (visto) {
-                    return riga + '<div class="pc-esito ' + esito + '">'
-                         + (esito === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
-                }
-                return '<button type="button" class="pc-rivela" onclick="rivelaPesata(this)"'
-                     + ' data-chiave="' + chiave + '" data-esito="' + esito + '" data-manca="' + mancaR + '">'
-                     + '<span class="q">❓</span><span class="t">Com\'è andata? Tocca per scoprirlo</span></button>';
+                var visto = esitoVisto(obCorr, day);
+                if (!visto) return riga;
+                return riga + '<div class="pc-esito ' + visto + '">'
+                     + (visto === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
             }
             var notaEma = gEma !== (tipo === 'dopo' ? oggi : day)
                 ? '<div class="pc-note">medie del ' + gEma.slice(8, 10) + '/' + gEma.slice(5, 7) + '</div>' : '';
@@ -6029,13 +6066,17 @@
             // A dieta finita la «precedente» è l'ultima del piano: si parte dal giorno dopo la fine.
             var da = oggi;
             if (oggi > obj.end_date) { var f = new Date(obj.end_date + 'T12:00:00'); f.setDate(f.getDate() + 1); da = localDateStr(f); }
-            var prec = pesataPrecedente(obj, da);
+            // v4.15.1: oggi è una pesata che conta → finché l'esito non è scoperto resta la
+            // «Prossima» (col ❓); scoperto, diventa la «Precedente».
+            var oggiConta = giornoCheConta(obj, oggi);
+            var oggiVisto = oggiConta && !!esitoVisto(obj, oggi);
+            var prec = oggiVisto ? oggi : pesataPrecedente(obj, da);
             if (prec) html += schedaPesata(data, prec, 'prima');
             else html += '<div class="pesata-card prima"><div class="pc-head">↩️ Precedente</div>'
                        + '<div class="pc-note">Nessuna pesata prima di oggi: il piano comincia il '
                        + obj.start_date.slice(8, 10) + '/' + obj.start_date.slice(5, 7) + '.</div></div>';
             html += schedaPesata(data, oggi, 'oggi');
-            var dopo = prossimaPesata(obj, (function() {
+            var dopo = (oggiConta && !oggiVisto) ? oggi : prossimaPesata(obj, (function() {
                 var d = new Date(oggi + 'T12:00:00'); d.setDate(d.getDate() + 1); return localDateStr(d);
             })());
             if (dopo) html += schedaPesata(data, dopo, 'dopo');
