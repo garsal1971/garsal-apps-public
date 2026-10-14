@@ -19,6 +19,10 @@
 // case-insensitive): quello che non lo è viene scartato qui e il chiamante ripiega sul merchant
 // normalizzato, perché una regola che non aggancia nemmeno la transazione da cui nasce è peggio
 // di nessun suggerimento.
+// v4 — 2026-10-14: il modello Groq non è più scritto nel codice. `llama-3.3-70b-versatile` è
+// stato ritirato da Groq e la funzione rispondeva «model does not exist»: ora si legge l'elenco
+// /models (cache di un'ora) e si prende il primo dei preferiti che c'è ancora, altrimenti il più
+// grande — la stessa scelta di scegliModelloGroq in pv-ai, da cambiare insieme.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +47,39 @@ function extractJson(text: string): unknown {
     }
     return null;
   }
+}
+
+const GROQ_URL = 'https://api.groq.com/openai/v1';
+const GROQ_PREFERITI = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'moonshotai/kimi-k2-instruct', 'qwen/qwen3-32b'];
+let groqCache: { quando: number; ids: string[] } | null = null;
+
+/** Quanti miliardi di parametri dice il nome («…-70b-…», «120b»); 0 se non lo dice. */
+function taglia(id: string): number {
+  const m = [...id.matchAll(/(\d+)b(?![a-z])/gi)].map((x) => Number(x[1]));
+  return m.length ? Math.max(...m) : 0;
+}
+
+/** Un modello di chat che Groq offre oggi: mai un nome scritto fisso, Groq li toglie senza preavviso. */
+async function scegliModelloGroq(apiKey: string): Promise<string> {
+  if (!groqCache || Date.now() - groqCache.quando >= 3600_000) {
+    const r = await fetch(`${GROQ_URL}/models`, {
+      headers: { Authorization: 'Bearer ' + apiKey },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401) throw new Error('la chiave GROQ_API_KEY non è valida');
+    if (!r.ok) throw new Error(`non riesco a leggere l'elenco dei modelli (${j?.error?.message || 'HTTP ' + r.status})`);
+    const ids = (j?.data ?? [])
+      .filter((m: { active?: boolean }) => m?.active !== false)
+      .map((m: { id: string }) => String(m.id))
+      // fuori ciò che non è una chat: trascrizione, voce, filtri di sicurezza, sistemi composti
+      .filter((id: string) => !/whisper|tts|playai|guard|orpheus|distil|compound/i.test(id));
+    groqCache = { quando: Date.now(), ids };
+  }
+  const ids = groqCache.ids;
+  if (!ids.length) throw new Error('Groq non offre nessun modello di chat');
+  for (const id of GROQ_PREFERITI) if (ids.includes(id)) return id;
+  return [...ids].sort((a, b) => taglia(b) - taglia(a))[0];
 }
 
 async function nominatimLookup(query: string): Promise<string | null> {
@@ -147,17 +184,21 @@ Rispondi SOLO con un oggetto JSON compatto, senza markdown né spiegazioni, con 
 dove ogni chiave è l'indice della descrizione.`;
 
   try {
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const modello = await scegliModelloGroq(apiKey);
+    const groqRes = await fetch(`${GROQ_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: modello,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0,
-        max_tokens: 1024,
+        // gpt-oss ragiona prima di rispondere e quei token contano nel tetto: con 1024 il JSON
+        // poteva restare tagliato. Il ragionamento si tiene basso, qui si classifica e basta.
+        max_tokens: 4096,
+        ...(/gpt-oss/i.test(modello) ? { reasoning_effort: 'low' } : {}),
       }),
     });
 
