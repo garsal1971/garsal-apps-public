@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Conto Risparmio Teresa v1.2.1</title>
+  <title>Conto Risparmio Teresa v1.2.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -222,8 +222,8 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v1.2.1';
-    const APP_BUILD   = '2026-08-14T10:40:00Z';
+    const APP_VERSION = 'v1.2.2';
+    const APP_BUILD   = '2026-10-14T12:00:00Z';
     // Aperta dentro finanza.html (voce «🏡 conto risparmio») invece che da sola.
     const EMBED = document.documentElement.classList.contains('embed');
     console.log('%c CONTO RISPARMIO ' + APP_VERSION + ' %c build: ' + APP_BUILD,
@@ -1418,5 +1418,6 @@
   { sel: '#import-review-overlay', chiudi: el => el.classList.add('hidden') },
 ]);
 </script>
+<script src="offusca-importi.js"></script>
 </body>
 </html>
