@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.31.0</title>
+  <title>GarsalFinanza v1.32.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -415,6 +415,12 @@
     .prod-info { background: none; border: 0; padding: 0 2px; margin-left: 4px; cursor: pointer; font-size: .8em; line-height: 1; opacity: .7; vertical-align: middle; }
     .prod-info:hover, .prod-info:focus-visible { opacity: 1; }
     #prod-tip { position: fixed; z-index: 3000; display: none; max-width: min(340px, calc(100vw - 16px)); background: var(--c-text); color: #fff; padding: 10px 12px; border-radius: var(--radius-sm); font-size: .82rem; line-height: 1.45; box-shadow: 0 8px 26px rgba(0,0,0,.28); white-space: pre-wrap; overflow-wrap: anywhere; }
+    /* 🙈 Importi offuscati (v1.32.0): il FAB in basso a destra sfoca ogni importo in €. */
+    #fab-offusca { position: fixed; right: 18px; bottom: 18px; z-index: 450; min-width: 52px; min-height: 52px; border-radius: 50%; border: none; background: #0081C8; color: #fff; font-size: 1.5rem; line-height: 1; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    body.offusca #fab-offusca { background: #374151; }
+    body.offusca .ofs { filter: blur(6px); user-select: none; }
+    body.offusca svg text.ofs { filter: blur(3px); }
+    body.offusca canvas { filter: blur(6px); }
   </style>
 </head>
 <body>
@@ -615,8 +621,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.31.0';
-const APP_BUILD   = '2026-10-12T18:00:00Z';
+const APP_VERSION = 'v1.32.0';
+const APP_BUILD   = '2026-10-14T11:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -9165,6 +9171,97 @@ if (window.AndroidBridge && window.AndroidBridge.isAndroid()) {
   { sel: '#modal-overlay',      chiudi: () => closeModal() },
   { sel: '#hist-modal-overlay', chiudi: () => closeHistModal() },
 ]);
+
+/* ── 🙈 Offusca gli importi ─────────────────────────────────────
+   Un FAB sfoca tutti gli importi in € della pagina (saldi, valori, P&L, assi e fumetti).
+   Percentuali, quantità e date restano leggibili. La scelta resta su questo dispositivo
+   (localStorage `fnz_offusca`): è una lente di lettura, non un dato di Finanza.
+
+   ⚠️ I formattatori (fmtEUR & C.) NON si toccano: finiscono anche in attributi, CSV, PDF e
+   negli appunti, dove uno <span> sarebbe un difetto. Si lavora sul DOM già disegnato: un
+   MutationObserver avvolge in `.ofs` i pezzi di testo che sono un importo in €, e la classe
+   `offusca` sul body decide se sfocarli. Spento il FAB gli span restano e non fanno niente.
+   ⚠️ I grafici Chart.js sono disegnati su canvas, dove un testo non si può prendere da solo:
+   a modalità accesa il canvas si sfoca per intero. Le caselle dei form restano leggibili —
+   lì si sta scrivendo. */
+(function offuscaImporti() {
+  const CHIAVE = 'fnz_offusca';
+  const IMPORTO = /[+\-−]?\d[\d.,]*\s?€|€\s?[+\-−]?\d[\d.,]*/g;
+  const SALTA = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'BUTTON']);
+  let attivo = false;
+  try { attivo = localStorage.getItem(CHIAVE) === '1'; } catch (_) {}
+
+  function avvolgi(nodo) {
+    const testo = nodo.nodeValue;
+    if (!testo || testo.indexOf('€') < 0) return;
+    const padre = nodo.parentNode;
+    if (!padre || SALTA.has(padre.nodeName) || padre.closest?.('.ofs, #fab-offusca')) return;
+    IMPORTO.lastIndex = 0;
+    if (!IMPORTO.test(testo)) return;
+    // Dentro un SVG uno <span> non si disegna: si marca il <text> intero.
+    if (padre.namespaceURI === 'http://www.w3.org/2000/svg') { padre.classList.add('ofs'); return; }
+    const frag = document.createDocumentFragment();
+    let ultimo = 0;
+    IMPORTO.lastIndex = 0;
+    for (const m of testo.matchAll(IMPORTO)) {
+      if (m.index > ultimo) frag.appendChild(document.createTextNode(testo.slice(ultimo, m.index)));
+      const sp = document.createElement('span');
+      sp.className = 'ofs';
+      sp.textContent = m[0];
+      frag.appendChild(sp);
+      ultimo = m.index + m[0].length;
+    }
+    if (ultimo < testo.length) frag.appendChild(document.createTextNode(testo.slice(ultimo)));
+    padre.replaceChild(frag, nodo);
+  }
+
+  function scorri(radice) {
+    if (radice.nodeType === Node.TEXT_NODE) { avvolgi(radice); return; }
+    if (radice.nodeType !== Node.ELEMENT_NODE || SALTA.has(radice.nodeName)) return;
+    const w = document.createTreeWalker(radice, NodeFilter.SHOW_TEXT);
+    const nodi = [];
+    while (w.nextNode()) nodi.push(w.currentNode);
+    nodi.forEach(avvolgi);
+  }
+
+  const osservatore = new MutationObserver(lista => {
+    for (const m of lista) {
+      if (m.type === 'characterData') avvolgi(m.target);
+      else m.addedNodes.forEach(scorri);
+    }
+  });
+
+  function applica() {
+    document.body.classList.toggle('offusca', attivo);
+    const b = document.getElementById('fab-offusca');
+    if (b) {
+      b.textContent = attivo ? '👁' : '🙈';
+      b.title = attivo ? 'Mostra gli importi' : 'Nascondi gli importi';
+      b.setAttribute('aria-label', b.title);
+    }
+    if (attivo) {
+      scorri(document.body);
+      osservatore.observe(document.body, { childList: true, subtree: true, characterData: true });
+    } else {
+      osservatore.disconnect();
+    }
+  }
+
+  function avvia() {
+    const b = document.createElement('button');
+    b.id = 'fab-offusca';
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      attivo = !attivo;
+      try { localStorage.setItem(CHIAVE, attivo ? '1' : '0'); } catch (_) {}
+      applica();
+    });
+    document.body.appendChild(b);
+    applica();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+})();
 </script>
 </body>
 </html>
