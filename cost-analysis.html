@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisi Costi v1.0.78</title>
+    <title>Analisi Costi v1.0.79</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Le regole dei totali di Spese Famiglia (SF), condivise con finanza.html e situazione-teresa.html -->
@@ -926,8 +926,8 @@
     // ==========================================
     // VERSION
     // ==========================================
-    var APP_VERSION = 'v1.0.78';
-    var BUILD_TIME  = '2026-10-06T21:40:00Z';
+    var APP_VERSION = 'v1.0.79';
+    var BUILD_TIME  = '2026-10-14T10:40:00Z';
     console.log('%c Analisi Costi ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
         'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
         'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -3575,6 +3575,7 @@
         const remaining = uncategorized.length - batch.length;
         const allResults = [];
         let failedBatches = 0;
+        let motivoErrore = '';
         showProcessing(`🌍 Ricerca geografica su ${GEO_LOOKUP_CITY} e categorizzazione di ${batch.length} merchant...`);
         try {
             const res = await fetch(SUPABASE_URL + '/functions/v1/geo-lookup-transactions', {
@@ -3593,7 +3594,8 @@
             });
             const data = await res.json();
             if (!res.ok || data.error) {
-                console.error('Batch geo fallito:', data?.error?.message || res.status);
+                motivoErrore = data?.error?.message || ('HTTP ' + res.status);
+                console.error('Batch geo fallito:', motivoErrore);
                 failedBatches++;
             } else {
                 // Il pattern proposto dall'AI è già stato verificato lato edge function come
@@ -3609,6 +3611,7 @@
             }
         } catch (e) {
             console.error('Errore batch geo:', e);
+            motivoErrore = e?.message || String(e);
             failedBatches++;
         }
         hideProcessing();
@@ -3620,7 +3623,8 @@
 
         if (failedBatches) {
             const msg = `⚠️ Richiesta fallita`
-                + (_aiSuggestions.length ? ` — ${_aiSuggestions.length} regole comunque disponibili` : '. Verifica che GROQ_API_KEY sia configurata correttamente nei Supabase Secrets.');
+                + (motivoErrore ? `: ${motivoErrore}` : '')
+                + (_aiSuggestions.length ? ` — ${_aiSuggestions.length} regole comunque disponibili` : '');
             showToast(msg, true);
         } else if (remaining > 0) {
             showToast(`ℹ️ Elaborati ${batch.length} merchant, altri ${remaining} in attesa: salva queste regole e ripeti "Suggerisci regole con AI" per continuare`);
