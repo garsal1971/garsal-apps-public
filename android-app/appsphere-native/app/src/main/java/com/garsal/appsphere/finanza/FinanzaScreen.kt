@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,8 +74,19 @@ private val QTA = NumberFormat.getNumberInstance(Locale.ITALY).apply { maximumFr
 private val QTA_CASELLA = NumberFormat.getNumberInstance(Locale.ITALY).apply { maximumFractionDigits = 8; isGroupingUsed = false }
 private val DATA_IT = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
-private fun eur(v: Double?) = v?.let { EUR.format(it) } ?: "—"
-private fun eur0(v: Double?) = v?.let { EUR0.format(it) } ?: "—"
+// ── $ Importi nascosti ──────────────────────────────────────────────────────
+// Il FAB $ in basso a destra nasconde ogni importo in €, come il FAB di finanza.html
+// (v1.32): percentuali, quantità e date restano leggibili. Qui gli importi passano tutti da
+// eur()/eur0()/variazione(), quindi basta che leggano lo stato: è uno stato Compose, e chi li
+// chiama si ridisegna da sé. Si mascherano e non si sfocano: Modifier.blur c'è solo da
+// Android 12, e su un telefono più vecchio un «nascosto» che si legge benissimo è il peggio.
+// La scelta resta su questo telefono (preferenze `finanza`, chiave `offusca`), indipendente
+// da quella del browser.
+private const val MASCHERA = "••••• €"
+private var nascondiImporti by mutableStateOf(false)
+
+private fun eur(v: Double?) = v?.let { if (nascondiImporti) MASCHERA else EUR.format(it) } ?: "—"
+private fun eur0(v: Double?) = v?.let { if (nascondiImporti) MASCHERA else EUR0.format(it) } ?: "—"
 private fun pct(v: Double?) = v?.let { String.format(Locale.ITALY, "%+.2f %%", it) } ?: "—"
 private fun dataIt(iso: String) = runCatching { LocalDate.parse(iso.take(10)).format(DATA_IT) }.getOrDefault(iso)
 private val VERDE_FONDO = Color(0xFFDCFCE7)
@@ -119,6 +132,11 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
         )
     }
 
+    val prefs = LocalContext.current.getSharedPreferences("finanza", android.content.Context.MODE_PRIVATE)
+    // Si legge PRIMA del primo disegno (non in un LaunchedEffect): altrimenti per un istante
+    // gli importi comparirebbero in chiaro proprio a chi aveva chiesto di nasconderli.
+    remember(prefs) { nascondiImporti = prefs.getBoolean("offusca", false); Unit }
+
     // Dal dettaglio di un portafoglio l'indietro torna all'elenco, non alla home.
     BackHandler(enabled = s.portafoglioAperto != null) { vm.apriPortafoglio(null) }
 
@@ -141,6 +159,16 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
                 },
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    nascondiImporti = !nascondiImporti
+                    prefs.edit().putBoolean("offusca", nascondiImporti).apply()
+                },
+                containerColor = if (nascondiImporti) Color(0xFF374151) else Palette.topBar,
+                contentColor = Palette.light,
+            ) { SimboloDollaro(barrato = nascondiImporti) }
+        },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).background(Color(0xFFF3F4F6))) {
             when {
@@ -157,7 +185,8 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
                 else -> LazyColumn(
                     Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+                    // In fondo c'è posto per il FAB $, che altrimenti coprirebbe l'ultima riga.
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
                 ) {
                     if (aperto == null) item { SchedeViste(s.vista, vm::vista) }
                     item { Intestazione(s) }
@@ -273,13 +302,25 @@ private fun Riga(
     }
 }
 
+/** $ = importi in chiaro, $ barrato = nascosti (🙈 è già della modalità nascosta). Gemello del FAB di finanza.html. */
+@Composable
+private fun SimboloDollaro(barrato: Boolean) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp)) {
+        Text("$", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Palette.light)
+        if (barrato) Canvas(Modifier.size(26.dp)) {
+            drawLine(Color(0xFFFCA5A5), Offset(size.width * 0.12f, size.height * 0.12f),
+                Offset(size.width * 0.88f, size.height * 0.88f), strokeWidth = 2.6.dp.toPx())
+        }
+    }
+}
+
 /** La variazione rispetto allo snapshot precedente, come `deltaHtml` nel web. */
 private fun variazione(ora: Double, prima: Double?): Pair<String, Color>? {
     if (prima == null) return null
     val d = ora - prima
     if (abs(d) < 0.5) return null
     val segno = if (d > 0) "▲ +" else "▼ −"
-    return "$segno${EUR0.format(abs(d))} dal giorno prima" to coloreSegno(d)
+    return "$segno${if (nascondiImporti) MASCHERA else EUR0.format(abs(d))} dal giorno prima" to coloreSegno(d)
 }
 
 @Composable
