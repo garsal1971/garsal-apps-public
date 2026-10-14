@@ -1,7 +1,8 @@
 /* offusca-importi.js v1.0.0 — il FAB $ che sfoca gli importi in €
    ═══════════════════════════════════════════════════════════════════════════
    Lo caricano finanza.html e le pagine che Finanza richiama (Spese Familiari,
-   Contribuzione, Conto Risparmio, Spese Ada, Spese Personali, Casa Rosa).
+   Contribuzione, Conto Risparmio, Spese Ada, Spese Personali, Casa Rosa), più
+   situazione-teresa.html.
    ⚠️ È una deroga dichiarata a «un'app = un file HTML», come spese-famiglia.js:
    sette copie dello stesso blocco sarebbero sette comportamenti diversi il giorno
    che una cambia. Si carica in fondo al <body>, dopo gli script della pagina.
