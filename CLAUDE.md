@@ -149,7 +149,7 @@ There is **no** `package.json`, `node_modules`, `build/`, or `dist/` directory. 
 ### Single-file HTML apps
 Each `.html` file is fully standalone: HTML structure, `<style>` CSS, and `<script>` JavaScript all in one file. There are no imports, no modules (except for the CDN scripts), and no transpilation.
 
-Tre eccezioni dichiarate: `/vendor/` (le librerie del Forziere), `spese-famiglia.js`, le regole e la vista di Spese Famiglia condivise da tre pagine, e `offusca-importi.js`, il FAB $ che sfoca gli importi in € in `finanza.html`, nelle sei pagine che richiama e in `situazione-teresa.html` (scelta unica in `localStorage.fnz_offusca`, gemello nativo in `finanza/FinanzaScreen.kt`).
+Tre eccezioni dichiarate: `/vendor/` (le librerie del Forziere), `spese-famiglia.js`, le regole e la vista di Spese Famiglia condivise da tre pagine, e `offusca-importi.js`, il FAB $ che sfoca gli importi in € in `finanza.html`, nelle sei pagine che richiama e in `situazione-teresa.html` / `situazione-rosa.html` (scelta unica in `localStorage.fnz_offusca`, gemello nativo in `finanza/FinanzaScreen.kt`).
 
 ### Supabase backend
 All apps share **one Supabase project**:
