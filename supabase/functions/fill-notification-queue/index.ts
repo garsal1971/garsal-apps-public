@@ -6,6 +6,9 @@
 //                          completion_update { app: 'plants' }
 // Aggiornato: 2026-10-07 — azioni di Obiettivi (app='objectives'): stessa forma,
 //                          completion_update { app: 'objectives' }
+// Aggiornato: 2026-10-15 — app='tasks': due_at è l'ora di ROMA (anche quando porta
+//                          «+00:00»), non UTC. Le notifiche dei task arrivavano 2 ore
+//                          dopo (1 con l'ora solare). Vedi scadenzaDi().
 //
 // Concetti chiave:
 //   REGOLA  = 1 row in cm_notification_rules (configurazione persistente)
@@ -255,7 +258,7 @@ Deno.serve(async (_req) => {
         }
         const deviceToken = deviceTokenMap.get(rule.user_id)
         console.log(`[fill-queue] smart_block rule=${rule.id} due_at=${sbrp.due_at} token=${deviceToken ? deviceToken.slice(0,8)+'…' : 'none'}`)
-        entries = generateSmartBlockEntry(sbrp, now, horizon, rule.id)
+        entries = generateSmartBlockEntry(sbrp, now, horizon, rule.id, rule.app)
         console.log(`[fill-queue] smart_block entries generati: ${entries.length}`)
       } else if (isQuick) {
         const qrp = rp as QuickReminderPresets
@@ -284,7 +287,7 @@ Deno.serve(async (_req) => {
           skipped++
           continue
         }
-        entries = generateTaskEntries(trp, presetsMap, now, horizon, rule.id)
+        entries = generateTaskEntries(trp, presetsMap, now, horizon, rule.id, rule.app)
       }
 
       // 3. Elimina entry pending stale per questa regola.
@@ -425,6 +428,36 @@ Deno.serve(async (_req) => {
 })
 
 // ---------------------------------------------------------------------------
+// Da `due_at` all'istante vero, più giorno e ora dell'occorrenza (per occurrence_id
+// e per il testo «ore HH:MM»).
+//
+// ⚠️ Per app='tasks' le cifre di due_at sono l'ora di ROMA, qualunque fuso dichiari
+// la stringa: tasks.html e l'APK nativa scrivono «2026-10-15T15:00:00» senza fuso,
+// e le RPC task_complete/task_skip/task_fail riscrivono `next_occurrence_date` così
+// com'è in ts_tasks — cioè l'ora di Roma salvata come se fosse UTC («…T15:00:00+00:00»).
+// Letta come UTC, ogni promemoria di un task partiva 2 ore dopo (1 con l'ora solare).
+// Giorno e ora restano quelli delle cifre: occurrence_id non cambia.
+//
+// Le altre app (Piante, Obiettivi, Ta Firi?) scrivono un istante UTC vero
+// (toISOString / dateTimeToRomeUTC) e si leggono come prima.
+// ---------------------------------------------------------------------------
+function scadenzaDi(dueAt: string, app: string): { istante: Date; dateStr: string; timeStr: string } {
+  if (app === 'tasks') {
+    const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/.exec(dueAt)
+    if (m) {
+      return {
+        istante: romaInUtc(m[1], Number(m[2]), Number(m[3])),
+        dateStr: m[1],
+        timeStr: `${m[2]}:${m[3]}`,
+      }
+    }
+  }
+  const istante = new Date(dueAt)
+  const iso     = istante.toISOString()
+  return { istante, dateStr: iso.slice(0, 10), timeStr: iso.slice(11, 16) }
+}
+
+// ---------------------------------------------------------------------------
 // Genera entry per un task (struttura: due_at singolo)
 // Una regola task → una occorrenza (la data di scadenza) → K notifiche (una per preset)
 // Tutte le notifiche della stessa occorrenza condividono occurrence_id, differiscono per fire_at
@@ -435,10 +468,9 @@ function generateTaskEntries(
   now:        Date,
   horizon:    Date,
   ruleId:     string,
+  app:        string,
 ): QueueEntry[] {
-  const dueAt   = new Date(rp.due_at)
-  const dateStr = dueAt.toISOString().slice(0, 10)  // YYYY-MM-DD
-  const timeStr = `${String(dueAt.getUTCHours()).padStart(2,'0')}:${String(dueAt.getUTCMinutes()).padStart(2,'0')}`
+  const { istante: dueAt, dateStr, timeStr } = scadenzaDi(rp.due_at, app)
   // occurrence_id uniforme con habit: ruleId:YYYY-MM-DD:HH:MM
   const occurrenceId = `${ruleId}:${dateStr}:${timeStr}`
   const results: QueueEntry[] = []
@@ -543,12 +575,11 @@ function generateSmartBlockEntry(
   now:     Date,
   horizon: Date,
   ruleId:  string,
+  app:     string,
 ): QueueEntry[] {
-  const fireAt = new Date(rp.due_at)
+  const { istante: fireAt, dateStr, timeStr } = scadenzaDi(rp.due_at, app)
   if (fireAt <= now || fireAt > horizon) return []
   const fireAtIso = fireAt.toISOString()
-  const dateStr   = fireAtIso.slice(0, 10)
-  const timeStr   = fireAtIso.slice(11, 16)
   return [{
     fire_at:         fireAtIso,
     label:           '',
