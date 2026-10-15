@@ -110,10 +110,16 @@ data class RecapVoce(
 data class RecapPromemoria(
     val titolo: String,
     val fireAt: String,
+    /** Giorno LOCALE (yyyy-MM-dd): con il titolo è la chiave dell'accorpamento. */
+    val giorno: String,
+    /** Gli orari locali (HH:mm) di quel giorno, in ordine. */
+    val orari: List<String>,
     val canali: List<String>,
     val riservata: Boolean,
 ) {
-    val chiave: String get() = "p|$titolo|${fireAt.take(16)}"
+    // Titolo + giorno, come recapChiavePromemoria del web: togliere il box toglie
+    // tutti gli orari di quel giorno.
+    val chiave: String get() = "p|$titolo|$giorno"
 }
 
 data class DatiRecap(
@@ -523,7 +529,10 @@ object RecapRepository {
         emptyList<String>() to emptyList()
     }
 
-    // ── 🔔 Promemoria: la stessa occorrenza su due canali conta una volta ──
+    // ── 🔔 Promemoria: accorpati per TITOLO + GIORNO LOCALE ──
+    // Gemello di recapPromemoria in index.html: la stessa occorrenza su due canali
+    // e lo stesso promemoria a più orari dello stesso giorno sono un box solo.
+    // Il giorno è locale e non UTC, o un promemoria dell'01:59 cadrebbe il giorno prima.
 
     private suspend fun promemoria(riservati: Set<String>): List<RecapPromemoria> {
         val visti = LinkedHashMap<String, RecapPromemoria>()
@@ -533,14 +542,26 @@ object RecapRepository {
             limit(500)
         }) {
             val fire = r.s("fire_at") ?: ""
-            val k = (r.s("app") ?: "") + "|" + (r.s("entity_id") ?: "") + "|" + fire.take(16)
+            val titolo = r.s("title")?.takeIf { it.isNotEmpty() } ?: "Promemoria"
+            val locale = runCatching {
+                OffsetDateTime.parse(fire.replace(' ', 'T')).atZoneSameInstant(ZoneId.systemDefault())
+            }.getOrNull()
+            val giorno = locale?.toLocalDate()?.toString() ?: fire.take(10)
+            val ora = locale?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: ""
+            val k = "$titolo|$giorno"
             val canale = r.s("channel") ?: ""
+            val nascosto = (r.s("entity_id") ?: "") in riservati
             val c = visti[k]
             if (c != null) {
-                if (canale !in c.canali) visti[k] = c.copy(canali = c.canali + canale)
+                visti[k] = c.copy(
+                    canali = if (canale in c.canali) c.canali else c.canali + canale,
+                    orari = if (ora.isEmpty() || ora in c.orari) c.orari else c.orari + ora,
+                    riservata = c.riservata || nascosto,
+                )
                 continue
             }
-            visti[k] = RecapPromemoria(r.s("title") ?: "Promemoria", fire, listOf(canale), (r.s("entity_id") ?: "") in riservati)
+            // fireAt resta il primo istante (le righe arrivano in ordine).
+            visti[k] = RecapPromemoria(titolo, fire, giorno, if (ora.isEmpty()) emptyList() else listOf(ora), listOf(canale), nascosto)
         }
         return visti.values.toList()
     }
@@ -657,8 +678,8 @@ private fun CorpoRecap(
     val zona = ZoneId.systemDefault()
     prom.forEach { p ->
         val quando = runCatching {
-            OffsetDateTime.parse(p.fireAt.replace(' ', 'T')).atZoneSameInstant(zona).format(DateTimeFormatter.ofPattern("dd/MM HH:mm"))
-        }.getOrDefault("")
+            OffsetDateTime.parse(p.fireAt.replace(' ', 'T')).atZoneSameInstant(zona).format(DateTimeFormatter.ofPattern("dd/MM"))
+        }.getOrDefault("") + " " + p.orari.joinToString(" · ")
         BoxRecap(p.chiave, onTogli, GrigioSfondo, GrigioBordo, null) {
             Text(quando + " " + p.canali.joinToString("") { icona[it] ?: "" }, color = GrigioTesto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Text(p.titolo, color = GrigioTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
