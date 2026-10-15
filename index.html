@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.14.0</title>
+<title>AppSphere v1.14.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2288,8 +2288,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.14.0';
-const BUILD_TIME  = '2026-10-13T21:00:00Z';
+const APP_VERSION = 'v1.14.1';
+const BUILD_TIME  = '2026-10-15T08:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -3990,8 +3990,11 @@ async function recapPeso(headers) {
 }
 
 // Promemoria aperti: tutte le righe della coda non ancora consegnate né chiuse,
-// di qualunque app. ⚠️ La stessa occorrenza su due canali sono due righe (e due
-// rule_id): si contano una volta, riconosciute da app + entità + istante.
+// di qualunque app. ⚠️ Si accorpano per TITOLO + GIORNO LOCALE: la stessa
+// occorrenza su due canali (due righe, due rule_id) e lo stesso promemoria a più
+// orari dello stesso giorno sono un box solo, con gli orari in fila e i canali
+// di tutti. Il giorno è quello locale e non quello UTC, o un promemoria
+// dell'01:59 finirebbe nel giorno prima.
 async function recapPromemoria(headers, riservati) {
   try {
     const res = await fetch(
@@ -4002,10 +4005,22 @@ async function recapPromemoria(headers, riservati) {
     if (!res.ok) return [];
     const visti = new Map();
     for (const r of await res.json()) {
-      const chiave = r.app + '|' + r.entity_id + '|' + String(r.fire_at).slice(0, 16);
+      const title = r.title || 'Promemoria';
+      const d = new Date(r.fire_at);
+      const giorno = isNaN(d.getTime()) ? String(r.fire_at).slice(0, 10)
+        : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const ora = isNaN(d.getTime()) ? '' : d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      const chiave = title + '|' + giorno;
+      const nascosto = riservati.has(String(r.entity_id));
       const c = visti.get(chiave);
-      if (c) { if (!c.canali.includes(r.channel)) c.canali.push(r.channel); continue; }
-      visti.set(chiave, { title: r.title || 'Promemoria', fire_at: r.fire_at, canali: [r.channel], hidden: riservati.has(String(r.entity_id)) });
+      if (c) {
+        if (!c.canali.includes(r.channel)) c.canali.push(r.channel);
+        if (ora && !c.orari.includes(ora)) c.orari.push(ora);
+        c.hidden = c.hidden || nascosto;
+        continue;
+      }
+      // fire_at resta il primo istante (le righe arrivano in ordine): serve all'ordinamento.
+      visti.set(chiave, { title, giorno, fire_at: r.fire_at, orari: ora ? [ora] : [], canali: [r.channel], hidden: nascosto });
     }
     return [...visti.values()];
   } catch (e) { console.warn('[recap] promemoria:', e); return []; }
@@ -4116,7 +4131,8 @@ function recapRimettiTutti() {
 }
 
 const recapChiaveScadenza = i => 's|' + i.app + '|' + i.title + '|' + i.day + '|' + (i.ora || '');
-const recapChiavePromemoria = p => 'p|' + p.title + '|' + String(p.fire_at).slice(0, 16);
+// Titolo + giorno, come l'accorpamento: togliere il box toglie tutti gli orari di quel giorno.
+const recapChiavePromemoria = p => 'p|' + p.title + '|' + (p.giorno || String(p.fire_at).slice(0, 10));
 
 // Trascinamento verso destra: delegato su #recap-body, che si ridisegna intero.
 // ⚠️ `touch-action: pan-y` sui box (CSS) lascia al browser lo scorrimento verticale
@@ -4245,7 +4261,7 @@ function disegnaRecap(caricamento) {
   html += prom.length
     ? '<div class="home-alert-chips">' + prom.map(p => {
         const d = new Date(p.fire_at);
-        const quando = isNaN(d.getTime()) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        const quando = isNaN(d.getTime()) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + (p.orari || []).join(' · ');
         return '<span class="home-alert-chip promemoria" data-rk="' + escapeHtml(recapChiavePromemoria(p)) + '"><span class="recap-quando">' + escapeHtml(quando) + ' ' + p.canali.map(c => icona[c] || '').join('') + '</span>' + escapeHtml(p.title) + '</span>';
       }).join('') + '</div>'
     : '<div class="recap-vuoto">Nessun promemoria in coda.</div>';
