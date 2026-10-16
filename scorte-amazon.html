@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scorte Amazon v1.0.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #C45500;
+            --primary-soft: #FFF3E0;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow-wrap: anywhere;
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light); color: var(--dark);
+            min-height: 100vh; padding-top: 56px; font-size: 1.1rem;
+        }
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; min-height: 56px;
+            background: #0081C8; display: flex; align-items: center; padding: 0 20px; gap: 10px; z-index: 3000;
+        }
+        #garsal-top-bar-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+        #garsal-top-bar-ver { margin-left: auto; font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.8); }
+
+        .wrap { max-width: 60rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+        .page-title { font-size: 2.3rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
+        .page-hint { color: var(--muted); margin: 0.2rem 0 1rem; }
+        .section-title { font-size: 1.6rem; font-weight: 900; margin: 1.2rem 0 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+        .muted { color: var(--muted); }
+        .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: stretch; }
+        .row > .grow { flex: 1 1 9rem; min-width: 0; }
+
+        /* I numeri in cima: vanno a capo da sé, soglia in rem che cresce col testo. */
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.6rem; margin-bottom: 0.4rem; }
+        .kpi { border: 2px solid var(--border); padding: 0.6rem 0.8rem; min-height: 4.5rem; }
+        .kpi-l { color: var(--muted); font-weight: 700; font-size: 0.95rem; }
+        .kpi-v { font-size: 1.7rem; font-weight: 900; line-height: 1.1; }
+
+        .avviso { border-left: 6px solid var(--warning); background: #FFF8E6; padding: 0.5rem 0.8rem; margin-bottom: 0.4rem; }
+        .avviso.rosso { border-color: var(--danger); background: #FDECEA; }
+        .avviso.verde { border-color: var(--success); background: #E6F8F3; }
+        .avviso.blu { border-color: #2563EB; background: #EEF4FF; }
+
+        .card { border: 2px solid var(--border); background: var(--card-bg); padding: 0.9rem; margin-bottom: 0.9rem; }
+        .card.spento { opacity: 0.55; }
+        /* ✏️ in testa alla riga: è l'unico posto che si vede sempre. */
+        .card-head { display: flex; gap: 0.5rem; align-items: flex-start; }
+        .card-titolo { flex: 1; min-width: 0; font-weight: 900; font-size: 1.2rem; line-height: 1.2; }
+        .card-sub { color: var(--muted); margin: 0.2rem 0 0.5rem; }
+        .icon-btn { border: none; background: none; font-size: 1.3rem; cursor: pointer; min-width: 2.4rem; min-height: 2.4rem; flex-shrink: 0; }
+        .prezzi { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.4rem; margin: 0.4rem 0; }
+        .prezzo { background: var(--primary-soft); padding: 0.35rem 0.6rem; min-height: 3.6rem; }
+        .prezzo .l { font-size: 0.9rem; color: var(--muted); font-weight: 700; }
+        .prezzo .v { font-size: 1.3rem; font-weight: 900; }
+        .scorta { margin-top: 0.5rem; }
+        .barra { height: 0.8rem; background: #F3F4F6; border: 1px solid var(--border); margin: 0.25rem 0; }
+        .barra > div { height: 100%; background: var(--success); }
+        .badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+        .badge { font-size: 0.9rem; font-weight: 700; padding: 0.05rem 0.5rem; border: 1.5px solid currentColor; }
+        .b-rosso { color: var(--danger); } .b-giallo { color: #B7791F; } .b-verde { color: #00876C; } .b-blu { color: #2563EB; }
+
+        .form-label { display: block; font-weight: 700; margin: 0.6rem 0 0.3rem; }
+        .form-input, select.form-input, textarea.form-input {
+            width: 100%; font: inherit; font-size: 1.05rem; padding: 0.5rem 0.7rem;
+            border: 2px solid var(--border); background: var(--input-bg); color: var(--dark); min-height: 2.8rem;
+        }
+        textarea.form-input { min-height: 5rem; resize: vertical; }
+        .form-input:focus { outline: none; border-color: var(--primary); }
+        .form-hint { color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
+        .btn {
+            font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
+            padding: 0.45rem 1rem; min-height: 2.8rem; border: 2px solid var(--primary);
+            background: var(--light); color: var(--primary);
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-danger { border-color: var(--danger); color: var(--danger); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .form-error { color: var(--danger); font-weight: 700; padding: 0.4rem 0; }
+        .storico { margin-top: 0.6rem; font-size: 1rem; }
+        .storico-riga { display: flex; gap: 0.6rem; border-bottom: 1px solid var(--border); padding: 0.25rem 0; flex-wrap: wrap; }
+        .storico-riga .g { font-family: 'Space Mono', monospace; font-size: 0.85rem; min-width: 6rem; }
+        .chiave { font-family: 'Space Mono', monospace; font-size: 0.85rem; background: #F3F4F6; padding: 0.5rem; word-break: break-all; user-select: all; }
+
+        #authOverlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.97); z-index: 2500;
+            display: none; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .auth-box { text-align: center; font-size: 1.2rem; }
+        .auth-icon { font-size: 3rem; }
+        .auth-title { font-size: 2rem; font-weight: 900; color: var(--primary); }
+
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 4000;
+            display: none; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal.active { display: flex; }
+        .modal-box { background: #fff; padding: 1.1rem; width: min(100%, 32rem); max-height: 90vh; overflow-y: auto; overflow-x: hidden; }
+        .modal-title { font-size: 1.5rem; font-weight: 900; margin-bottom: 0.4rem; }
+        .modal-btns { display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; margin-top: 1rem; }
+        #toast {
+            position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%);
+            background: var(--dark); color: #fff; padding: 0.6rem 1rem; font-weight: 700;
+            z-index: 5000; display: none; max-width: calc(100% - 2rem);
+        }
+    </style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+    <div id="garsal-top-bar-ver"></div>
+</div>
+
+<div id="authOverlay">
+    <div class="auth-box">
+        <div class="auth-icon">📦</div>
+        <div class="auth-title">Scorte Amazon</div>
+        <div>Apri questa app da AppSphere per accedere.</div>
+    </div>
+</div>
+
+<div class="wrap">
+    <div class="page-title">📦 Scorte Amazon</div>
+    <div class="page-hint">Gli abbonamenti «Iscriviti e risparmia»: prezzi per confezione, per pezzo e al kg/l, e la scorta stimata fino alla prossima consegna. I prezzi arrivano dalle mail di Amazon.</div>
+
+    <div id="kpis" class="kpis"></div>
+    <div class="section-title">🔔 Avvisi</div>
+    <div id="avvisi"></div>
+
+    <div class="section-title">
+        <span style="flex:1">🛒 Abbonamenti</span>
+        <button class="btn btn-primary" onclick="apriForm(null)">＋ Nuovo</button>
+        <button class="btn" onclick="apriChiavi()" title="Chiavi dell'attività programmata">⚙️</button>
+    </div>
+    <div id="elenco"></div>
+    <div id="spenti"></div>
+</div>
+
+<!-- Abbonamento: nuovo / modifica -->
+<div class="modal" id="modalForm">
+    <div class="modal-box">
+        <div class="modal-title" id="formTitolo">Abbonamento</div>
+        <label class="form-label" for="fTitolo">Prodotto</label>
+        <input id="fTitolo" class="form-input" maxlength="300">
+        <label class="form-label" for="fAsin">ASIN <span class="muted" style="font-weight:500">(facoltativo, dal link Amazon)</span></label>
+        <input id="fAsin" class="form-input" maxlength="20" placeholder="es. B0XXXXXXXX">
+
+        <div class="form-label">Formato di UNA confezione</div>
+        <div class="row">
+            <div class="grow"><input id="fPezzi" class="form-input" type="number" min="0.01" step="any" placeholder="Pezzi" title="Pezzi per confezione"></div>
+            <div class="grow"><input id="fMisura" class="form-input" type="number" min="0.01" step="any" placeholder="Misura per pezzo" title="Grammi o ml di ciascun pezzo"></div>
+            <div class="grow"><select id="fUnita" class="form-input"><option value="ml">ml</option><option value="g">g</option><option value="pz">solo pezzi</option></select></div>
+        </div>
+        <div class="form-hint">Es. «5 × 650 ml» → 5 · 650 · ml. Carta igienica 40 rotoli → 40 · vuoto · solo pezzi.</div>
+
+        <label class="form-label">Consegna</label>
+        <div class="row">
+            <div class="grow"><input id="fQuantita" class="form-input" type="number" min="1" step="1" placeholder="Confezioni" title="Confezioni per consegna"></div>
+            <div class="grow"><input id="fFreq" class="form-input" type="number" min="1" step="1" placeholder="Ogni…"></div>
+            <div class="grow"><select id="fFreqU" class="form-input"><option value="mesi">mesi</option><option value="settimane">settimane</option></select></div>
+        </div>
+        <label class="form-label" for="fProssima">Prossima consegna</label>
+        <input id="fProssima" class="form-input" type="date">
+
+        <label class="form-label" for="fPrezzo">Prezzo per confezione (€)</label>
+        <input id="fPrezzo" class="form-input" type="number" min="0" step="0.01" placeholder="vuoto = non noto">
+        <div class="form-hint">Cambiandolo si aggiunge una riga allo storico dei prezzi.</div>
+
+        <label class="form-label">Scorta contata <span class="muted" style="font-weight:500">(facoltativa)</span></label>
+        <div class="row">
+            <div class="grow"><input id="fScorta" class="form-input" type="number" min="0" step="any" placeholder="Confezioni in casa"></div>
+            <div class="grow"><input id="fScortaIl" class="form-input" type="date"></div>
+        </div>
+        <div class="form-hint">Senza conteggio la scorta si stima piena all'ultima consegna e vuota alla prossima. Col conteggio l'app ti avvisa se finisce prima o se puoi saltare una consegna.</div>
+
+        <label class="form-label" for="fNote">Note</label>
+        <textarea id="fNote" class="form-input"></textarea>
+        <label class="form-label"><input type="checkbox" id="fAttivo"> Attivo</label>
+
+        <div id="fStorico" class="storico"></div>
+        <div id="fErr" class="form-error"></div>
+        <div class="modal-btns">
+            <button class="btn btn-danger" id="fElimina" onclick="elimina()">🗑 Elimina</button>
+            <button class="btn" onclick="closeModal('modalForm')">Annulla</button>
+            <button class="btn btn-primary" onclick="salva()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- Chiavi dell'attività programmata -->
+<div class="modal" id="modalChiavi">
+    <div class="modal-box">
+        <div class="modal-title">⚙️ Lettura delle mail</div>
+        <div class="form-hint" style="font-size:1.05rem">L'attività programmata che legge le mail di Amazon scrive qui con una chiave. La chiave si vede per intero <b>una volta sola</b>: copiala subito. Revocandola l'attività smette di scrivere.</div>
+        <div id="chiaveNuova"></div>
+        <div id="elencoChiavi" style="margin-top:0.6rem"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalChiavi')">Chiudi</button>
+            <button class="btn btn-primary" onclick="creaChiave()">＋ Nuova chiave</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// SCORTE AMAZON — versione
+// ════════════════════════════════════════════════════════════
+var APP_VERSION = 'v1.0.0';
+var BUILD_TIME  = '2026-10-16T12:00:00Z';
+console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+function log(...a) { console.log('[scorte-amazon]', ...a); }
+log('SCORTE AMAZON ' + APP_VERSION + ' — build: ' + BUILD_TIME);
+
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+
+let sb = null, currentUserId = null;
+const S = {
+    righe: [],       // amz_situazione(): abbonamenti con prezzi, scorta e avvisi già calcolati
+    editId: null,
+};
+
+// ════════════════════════════════════════════════════════════
+// AUTH — lo stesso giro delle altre app della suite
+// ════════════════════════════════════════════════════════════
+function initWithToken(token) {
+    if (sb) return;
+    localStorage.setItem('sb_token', token);
+    sb = creaClient(token);
+    try { currentUserId = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub || null; }
+    catch { currentUserId = null; }
+    document.getElementById('authOverlay').style.display = 'none';
+    carica();
+}
+function creaClient(token) {
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+}
+function handleAuthError(error) {
+    if (!error) return false;
+    const msg = (error.message || '').toLowerCase();
+    const isAuth = error.status === 401 || msg.includes('jwt expired') || msg.includes('invalid jwt')
+        || msg.includes('not authenticated') || msg.includes('non autenticato');
+    if (!isAuth) return false;
+    sb = null;
+    localStorage.removeItem('sb_token');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return true;
+}
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SB_TOKEN' && e.data.token) initWithToken(e.data.token);
+});
+const _authChannel = new BroadcastChannel('appsphere_auth');
+_authChannel.onmessage = (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'LOGOUT') {
+        sb = null; localStorage.removeItem('sb_token');
+        document.getElementById('authOverlay').style.display = 'flex';
+    } else if (e.data.type === 'TOKEN_REFRESH' && e.data.sbToken) {
+        const t = e.data.sbToken;
+        localStorage.setItem('sb_token', t);
+        if (sb) sb = creaClient(t); else initWithToken(t);
+    }
+};
+window.addEventListener('load', () => {
+    document.getElementById('garsal-top-bar-ver').textContent = APP_VERSION + (_IS_DEV ? ' · DEV' : '');
+    const stored = localStorage.getItem('sb_token');
+    if (stored) initWithToken(stored);
+    else document.getElementById('authOverlay').style.display = 'flex';
+});
+
+// ════════════════════════════════════════════════════════════
+// UTILITÀ
+// ════════════════════════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer = null;
+function showToast(msg, ms = 2600) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.style.display = 'none', ms);
+}
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+// ⚠️ La data di oggi coi campi LOCALI: toISOString() è UTC, e a mezzanotte
+// italiana sarebbe ancora ieri.
+function oggiIso() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function giorniFra(iso) {
+    return Math.round((new Date(iso + 'T12:00:00') - new Date(oggiIso() + 'T12:00:00')) / 86400000);
+}
+function fmtData(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+}
+function fmtFra(iso) {
+    const n = giorniFra(iso);
+    return n === 0 ? 'oggi' : n === 1 ? 'domani' : n > 0 ? 'fra ' + n + ' giorni' : n === -1 ? 'ieri' : Math.abs(n) + ' giorni fa';
+}
+function euro(v, dec = 2) {
+    if (v == null) return '—';
+    return Number(v).toLocaleString('it-IT', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + ' €';
+}
+function num(v) { return v == null ? '' : Number(v).toLocaleString('it-IT', { maximumFractionDigits: 2 }); }
+function formato(r) {
+    const pezzi = Number(r.pezzi);
+    if (r.unita === 'pz' || r.misura == null) return pezzi === 1 ? '1 pezzo' : num(pezzi) + ' pezzi';
+    return (pezzi === 1 ? '' : num(pezzi) + ' × ') + num(r.misura) + ' ' + r.unita;
+}
+function frequenza(r) {
+    if (!r.freq_valore) return 'frequenza non nota';
+    const u = r.freq_unita === 'settimane' ? (r.freq_valore === 1 ? 'settimana' : 'settimane') : (r.freq_valore === 1 ? 'mese' : 'mesi');
+    return `${r.quantita} ${r.quantita === 1 ? 'confezione' : 'confezioni'} ogni ${r.freq_valore === 1 ? '' : r.freq_valore + ' '}${u}`;
+}
+// L'etichetta del prezzo al kg/l segue l'unità di misura.
+function etichettaKg(r) { return r.unita === 'ml' ? 'al litro' : 'al kg'; }
+
+// I testi degli avvisi: i codici li dà amz__situazione() nel database.
+// ⚠️ Gemella di recapAmazon() in index.html: cambiando un testo, cambialo anche là.
+const AVVISI = {
+    consegna_passata: { c: 'rosso',  t: r => `Consegna del ${fmtData(r.prossima_consegna)} passata e non aggiornata` },
+    consegna_vicina:  { c: 'blu',    t: r => `Consegna ${fmtFra(r.prossima_consegna)} (${fmtData(r.prossima_consegna)}): ancora in tempo per saltarla o modificarla` },
+    finisce_prima:    { c: 'rosso',  t: r => `Scorta finita verso il ${fmtData(r.esaurimento)}, prima della consegna del ${fmtData(r.prossima_consegna)}` },
+    troppa_scorta:    { c: 'verde',  t: r => `Alla consegna avrai ancora ${num(r.scorta_alla_consegna)} confezioni: puoi saltarla` },
+    prezzo_su:        { c: 'rosso',  t: r => `Prezzo salito: ${euro(r.prezzo_prima)} → ${euro(r.prezzo)}` },
+    prezzo_giu:       { c: 'verde',  t: r => `Prezzo sceso: ${euro(r.prezzo_prima)} → ${euro(r.prezzo)}` },
+    senza_prezzo:     { c: 'giallo', t: () => 'Prezzo non ancora noto: arriverà con la prossima mail' },
+    dati_mancanti:    { c: 'giallo', t: () => 'Manca la frequenza o la prossima consegna' },
+    da_verificare:    { c: 'giallo', t: () => 'Creato o cambiato da una mail: controlla formato e frequenza' },
+};
+// Nella sezione avvisi in cima non finiscono i «senza prezzo»: sono lo stato
+// normale finché non arriva la prima mail, e riempirebbero la lista.
+const AVVISI_IN_CIMA = ['consegna_passata', 'finisce_prima', 'prezzo_su', 'prezzo_giu', 'troppa_scorta', 'consegna_vicina', 'da_verificare', 'dati_mancanti'];
+
+// ════════════════════════════════════════════════════════════
+// CARICAMENTO E DISEGNO
+// ════════════════════════════════════════════════════════════
+async function carica() {
+    const { data, error } = await sb.rpc('amz_situazione', { p_oggi: oggiIso() });
+    if (error) {
+        if (handleAuthError(error)) return;
+        document.getElementById('elenco').innerHTML = `<div class="form-error">❌ ${esc(error.message)}</div>`;
+        return;
+    }
+    S.righe = data || [];
+    disegna();
+}
+
+function disegna() {
+    const attivi = S.righe.filter(r => r.attivo), spenti = S.righe.filter(r => !r.attivo);
+    const spesa = attivi.reduce((s, r) => s + (r.spesa_mese || 0), 0);
+    const conPrezzo = attivi.filter(r => r.spesa_mese != null).length;
+    const prossima = attivi.map(r => r.prossima_consegna).filter(Boolean).filter(d => d >= oggiIso()).sort()[0];
+    document.getElementById('kpis').innerHTML = [
+        ['Abbonamenti attivi', attivi.length],
+        ['Spesa al mese (stima)', conPrezzo ? euro(spesa) : '—', conPrezzo < attivi.length ? `${conPrezzo} su ${attivi.length} col prezzo` : ''],
+        ['Prossima consegna', prossima ? fmtData(prossima) : '—', prossima ? fmtFra(prossima) : ''],
+    ].map(([l, v, s]) => `<div class="kpi"><div class="kpi-l">${esc(l)}</div><div class="kpi-v">${esc(v)}</div>${s ? `<div class="muted">${esc(s)}</div>` : ''}</div>`).join('');
+
+    const avv = [];
+    for (const r of attivi) for (const c of r.avvisi || []) if (AVVISI_IN_CIMA.includes(c)) avv.push({ r, c });
+    avv.sort((a, b) => AVVISI_IN_CIMA.indexOf(a.c) - AVVISI_IN_CIMA.indexOf(b.c));
+    document.getElementById('avvisi').innerHTML = avv.length
+        ? avv.map(({ r, c }) => `<div class="avviso ${AVVISI[c].c === 'giallo' ? '' : AVVISI[c].c}"><b>${esc(r.titolo)}</b><br>${esc(AVVISI[c].t(r))}</div>`).join('')
+        : '<div class="muted">Nessun avviso.</div>';
+
+    document.getElementById('elenco').innerHTML = attivi.length
+        ? attivi.map(scheda).join('')
+        : '<div class="muted">Nessun abbonamento. Aggiungilo con ＋ Nuovo, o aspetta la lettura delle mail.</div>';
+    document.getElementById('spenti').innerHTML = spenti.length
+        ? `<div class="section-title" style="font-size:1.3rem">⏸ Non attivi · ${spenti.length}</div>` + spenti.map(scheda).join('')
+        : '';
+}
+
+function scheda(r) {
+    const kg = r.prezzo_kg != null
+        ? `<div class="prezzo"><div class="l">${etichettaKg(r)}</div><div class="v">${euro(r.prezzo_kg)}</div></div>` : '';
+    const pezzo = Number(r.pezzi) > 1
+        ? `<div class="prezzo"><div class="l">a pezzo</div><div class="v">${euro(r.prezzo_pezzo)}</div></div>` : '';
+    const prezzi = r.prezzo != null
+        ? `<div class="prezzi">
+             <div class="prezzo"><div class="l">a confezione</div><div class="v">${euro(r.prezzo)}</div></div>
+             ${pezzo}${kg}
+             <div class="prezzo"><div class="l">al mese</div><div class="v">${euro(r.spesa_mese)}</div></div>
+           </div>
+           <div class="muted" style="font-size:0.95rem">prezzo del ${fmtData(r.prezzo_del)}</div>`
+        : '<div class="muted">Prezzo non ancora noto.</div>';
+    let scorta = '';
+    if (r.attivo && r.scorta != null) {
+        const pct = Math.max(0, Math.min(100, r.scorta / r.quantita * 100));
+        scorta = `<div class="scorta">Scorta stimata: <b>${num(r.scorta)}</b> ${r.scorta === 1 ? 'confezione' : 'confezioni'}${r.scorta_contata != null ? ' (dal conteggio del ' + fmtData(r.scorta_contata_il) + ')' : ''}
+                  <div class="barra"><div style="width:${pct}%;background:${pct < 20 ? 'var(--danger)' : pct < 45 ? 'var(--warning)' : 'var(--success)'}"></div></div></div>`;
+    }
+    // «senza prezzo» lo dice già la riga dei prezzi: un badge ripeterebbe la stessa frase.
+    const badges = (r.avvisi || []).filter(c => c !== 'senza_prezzo').map(c => AVVISI[c]
+        ? `<span class="badge b-${AVVISI[c].c}">${esc(AVVISI[c].t(r))}</span>` : '').join('');
+    const consegna = r.prossima_consegna ? ` · prossima <b>${fmtData(r.prossima_consegna)}</b> (${fmtFra(r.prossima_consegna)})` : '';
+    const arrivata = r.attivo && (r.avvisi || []).includes('consegna_passata')
+        ? `<div style="margin-top:0.5rem"><button class="btn" onclick="segnaArrivata('${r.id}')">📦 È arrivata: sposta alla prossima</button></div>` : '';
+    return `<div class="card${r.attivo ? '' : ' spento'}">
+        <div class="card-head">
+            <button class="icon-btn" onclick="apriForm('${r.id}')" title="Modifica">✏️</button>
+            <div class="card-titolo">${esc(r.titolo)}</div>
+        </div>
+        <div class="card-sub">${esc(formato(r))} · ${esc(frequenza(r))}${consegna}</div>
+        ${prezzi}${scorta}
+        ${badges ? `<div class="badges">${badges}</div>` : ''}
+        ${arrivata}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// FORM
+// ════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+async function apriForm(id) {
+    S.editId = id;
+    const r = id ? S.righe.find(x => x.id === id) : null;
+    $('formTitolo').textContent = r ? '✏️ Abbonamento' : '＋ Nuovo abbonamento';
+    $('fTitolo').value = r?.titolo || '';
+    $('fAsin').value = r?.asin || '';
+    $('fPezzi').value = r?.pezzi ?? 1;
+    $('fMisura').value = r?.misura ?? '';
+    $('fUnita').value = r?.unita || 'ml';
+    $('fQuantita').value = r?.quantita ?? 1;
+    $('fFreq').value = r?.freq_valore ?? '';
+    $('fFreqU').value = r?.freq_unita || 'mesi';
+    $('fProssima').value = r?.prossima_consegna || '';
+    $('fPrezzo').value = r?.prezzo ?? '';
+    $('fScorta').value = r?.scorta_contata ?? '';
+    $('fScortaIl').value = r?.scorta_contata_il || '';
+    $('fNote').value = r?.note || '';
+    $('fAttivo').checked = r ? !!r.attivo : true;
+    $('fElimina').style.display = r ? '' : 'none';
+    $('fErr').textContent = '';
+    $('fStorico').innerHTML = '';
+    openModal('modalForm');
+    if (r) {
+        const { data } = await sb.from('amz_consegne').select('giorno, tipo, prezzo, quantita, nota')
+            .eq('abbonamento_id', id).order('giorno', { ascending: false }).order('created_at', { ascending: false }).limit(30);
+        if (S.editId !== id) return;
+        $('fStorico').innerHTML = (data || []).length
+            ? '<div class="form-label">📜 Storico</div>' + data.map(c => `<div class="storico-riga"><span class="g">${fmtData(c.giorno)}</span><span>${esc(c.tipo)}</span><b>${c.prezzo != null ? euro(c.prezzo) : ''}</b>${c.nota ? `<span class="muted">${esc(c.nota)}</span>` : ''}</div>`).join('')
+            : '';
+    }
+}
+const numOrNull = v => (String(v).trim() === '' ? null : Number(String(v).replace(',', '.')));
+
+async function salva() {
+    const titolo = $('fTitolo').value.trim();
+    if (!titolo) { $('fErr').textContent = 'Scrivi il nome del prodotto.'; return; }
+    const pezzi = numOrNull($('fPezzi').value) || 1;
+    const unita = $('fUnita').value;
+    const misura = unita === 'pz' ? null : numOrNull($('fMisura').value);
+    const scorta = numOrNull($('fScorta').value);
+    const scortaIl = $('fScortaIl').value || null;
+    if ((scorta == null) !== (scortaIl == null)) { $('fErr').textContent = 'La scorta contata vuole sia il numero sia la data.'; return; }
+    const riga = {
+        titolo,
+        asin: $('fAsin').value.trim().toUpperCase() || null,
+        pezzi, misura, unita,
+        quantita: Math.max(1, parseInt($('fQuantita').value, 10) || 1),
+        freq_valore: parseInt($('fFreq').value, 10) || null,
+        freq_unita: $('fFreqU').value,
+        prossima_consegna: $('fProssima').value || null,
+        scorta_contata: scorta, scorta_contata_il: scortaIl,
+        note: $('fNote').value.trim() || null,
+        attivo: $('fAttivo').checked,
+        da_verificare: false,              // salvato dal form = guardato da qualcuno
+        updated_at: new Date().toISOString(),
+    };
+    const prima = S.editId ? S.righe.find(x => x.id === S.editId) : null;
+    let id = S.editId, error;
+    if (id) ({ error } = await sb.from('amz_abbonamenti').update(riga).eq('id', id));
+    else {
+        const res = await sb.from('amz_abbonamenti').insert(riga).select('id').single();
+        error = res.error; id = res.data?.id;
+    }
+    if (error) { if (!handleAuthError(error)) $('fErr').textContent = '❌ ' + error.message; return; }
+    // Un prezzo cambiato a mano entra nello storico: è lì che vive il prezzo.
+    const prezzo = numOrNull($('fPrezzo').value);
+    if (prezzo != null && prezzo !== (prima?.prezzo ?? null)) {
+        const r2 = await sb.from('amz_consegne').insert({ abbonamento_id: id, giorno: oggiIso(), tipo: 'manuale', prezzo });
+        if (r2.error) showToast('Abbonamento salvato, ma il prezzo no: ' + r2.error.message, 5000);
+    }
+    closeModal('modalForm');
+    showToast('Salvato');
+    carica();
+}
+
+async function elimina() {
+    const r = S.righe.find(x => x.id === S.editId);
+    if (!r) return;
+    if (!confirm(`Eliminare «${r.titolo}» con tutto il suo storico dei prezzi?\n\nSe l'abbonamento è solo sospeso, togli la spunta «Attivo» invece: lo storico resta.`)) return;
+    const { error } = await sb.from('amz_abbonamenti').delete().eq('id', r.id);
+    if (error) { if (!handleAuthError(error)) $('fErr').textContent = '❌ ' + error.message; return; }
+    closeModal('modalForm');
+    carica();
+}
+
+// La consegna in programma è arrivata ma nessuna mail l'ha detto: la prossima
+// scivola di un periodo (finché non è nel futuro) e resta una riga nello storico.
+async function segnaArrivata(id) {
+    const r = S.righe.find(x => x.id === id);
+    if (!r || !r.freq_valore || !r.prossima_consegna) return;
+    const d = new Date(r.prossima_consegna + 'T12:00:00');
+    const passo = () => r.freq_unita === 'settimane' ? d.setDate(d.getDate() + 7 * r.freq_valore) : d.setMonth(d.getMonth() + r.freq_valore);
+    const arrivata = r.prossima_consegna;
+    do passo(); while (d.toISOString().slice(0, 10) < oggiIso());
+    const p = n => String(n).padStart(2, '0');
+    const nuova = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    const { error } = await sb.from('amz_abbonamenti').update({ prossima_consegna: nuova, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { if (!handleAuthError(error)) showToast('❌ ' + error.message, 5000); return; }
+    await sb.from('amz_consegne').insert({ abbonamento_id: id, giorno: arrivata, tipo: 'consegnato', quantita: r.quantita, nota: 'segnata a mano' });
+    showToast('Prossima consegna: ' + fmtData(nuova));
+    carica();
+}
+
+// ════════════════════════════════════════════════════════════
+// CHIAVI DELL'ATTIVITÀ PROGRAMMATA
+// ════════════════════════════════════════════════════════════
+async function apriChiavi() {
+    $('chiaveNuova').innerHTML = '';
+    openModal('modalChiavi');
+    await disegnaChiavi();
+}
+async function disegnaChiavi() {
+    const { data, error } = await sb.from('amz_chiavi').select('token, nome, created_at, ultimo_uso').order('created_at');
+    if (error) { $('elencoChiavi').innerHTML = `<div class="form-error">❌ ${esc(error.message)}</div>`; return; }
+    $('elencoChiavi').innerHTML = (data || []).length
+        ? data.map(k => `<div class="storico-riga" style="align-items:center">
+            <span style="flex:1;min-width:0"><b>…${esc(k.token.slice(-4))}</b> · ${esc(k.nome)}<br>
+            <span class="muted">creata il ${new Date(k.created_at).toLocaleDateString('it-IT')} · ${k.ultimo_uso ? 'usata il ' + new Date(k.ultimo_uso).toLocaleString('it-IT') : 'mai usata'}</span></span>
+            <button class="btn btn-danger" onclick="revoca('${esc(k.token)}')">Revoca</button></div>`).join('')
+        : '<div class="muted">Nessuna chiave.</div>';
+}
+async function creaChiave() {
+    const { data, error } = await sb.rpc('amz_chiave_crea', { p_nome: 'Attività programmata' });
+    if (error || !data?.ok) { showToast('❌ ' + (error?.message || data?.error), 5000); return; }
+    $('chiaveNuova').innerHTML = `<div class="form-label">🔑 La nuova chiave (copiala ora)</div><div class="chiave">${esc(data.token)}</div>`;
+    disegnaChiavi();
+}
+async function revoca(token) {
+    if (!confirm('Revocare questa chiave? L\'attività programmata che la usa smetterà di aggiornare gli abbonamenti.')) return;
+    const { error } = await sb.from('amz_chiavi').delete().eq('token', token);
+    if (error) { showToast('❌ ' + error.message, 5000); return; }
+    disegnaChiavi();
+}
+</script>
+</body>
+</html>

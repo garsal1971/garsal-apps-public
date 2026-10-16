@@ -2128,6 +2128,32 @@ esterna c'è davvero e cancellando un tag i collegamenti spariscono da sé — l
 
 ⚠️ **Nessun prompt di sistema**: è un tunnel, e quel che arriva all'IA è quel che si è scritto.
 
+### Scorte Amazon (`amz_`)
+| Table | Purpose |
+|---|---|
+| `amz_abbonamenti` | Un abbonamento «Iscriviti e risparmia»: formato di una confezione (`pezzi` × `misura` `unita` g\|ml\|pz), `quantita` per consegna, frequenza (`freq_valore` + `freq_unita` settimane\|mesi), `prossima_consegna`, `attivo`, `da_verificare`, e la `scorta_contata` facoltativa con la sua data |
+| `amz_consegne` | Lo storico: ogni promemoria/spedizione/consegna letto, col **prezzo per confezione di allora**. `mail_id` (Gmail) unico per abbonamento: rileggere una mail non raddoppia |
+| `amz_chiavi` | Le chiavi con cui l'attività programmata che legge Gmail scrive qui senza login (come `sos_devices`) |
+
+Migration: `20261016100000_amz_scorte_amazon.sql`. Pagina: `scorte-amazon.html`. Bolla = abbonamenti attivi, `conta_punti = false`.
+
+✅ **Prezzi e scorte sono UNA regola, nel database**: `amz__situazione(p_user, p_oggi)` dà per ogni
+abbonamento l'ultimo prezzo e il precedente, prezzo a pezzo, al kg/l (`prezzo / (pezzi × misura / 1000)`),
+spesa al mese, scorta stimata, data di esaurimento e i **codici** degli avvisi (`consegna_passata`,
+`consegna_vicina`, `finisce_prima`, `troppa_scorta`, `prezzo_su`, `prezzo_giu`, `senza_prezzo`,
+`dati_mancanti`, `da_verificare`). La leggono la pagina (`amz_situazione`, col JWT), il 📋 recap di
+AppSphere (`recapAmazon`) e l'attività programmata (`amz_task_stato`, con la chiave). ⚠️ I **testi**
+degli avvisi stanno in due posti, `AVVISI` in `scorte-amazon.html` e `recapAmazon` in `index.html`:
+cambiali insieme.
+
+⚠️ **La scorta senza conteggio è piena all'ultima consegna e vuota alla prossima** (consumo uniforme):
+per costruzione non finisce mai prima, quindi `finisce_prima` e `troppa_scorta` compaiono **solo con
+la scorta contata** — da lì si sommano le consegne arrivate e si toglie il consumo.
+
+⚠️ **Nessun dato in repo**: gli abbonamenti entrano dalla pagina o da `amz_task_registra(p_token,
+p_eventi)`, che riconosce l'articolo per ASIN, titolo identico o un inizio di titolo che aggancia un
+abbonamento solo; quello che non riconosce nasce `da_verificare`. Prezzo NULL = non ancora noto, non zero.
+
 ### Obiettivi (`ob_`)
 | Table | Purpose |
 |---|---|
