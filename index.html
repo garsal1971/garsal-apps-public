@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.14.1</title>
+<title>AppSphere v1.15.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2288,8 +2288,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.14.1';
-const BUILD_TIME  = '2026-10-15T08:30:00Z';
+const APP_VERSION = 'v1.15.0';
+const BUILD_TIME  = '2026-10-16T12:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -3459,7 +3459,8 @@ async function loadApps(forceRender = false) {
 // della giornata su questo dispositivo (`appsphere_recap_giorno` in localStorage,
 // giorno locale), e quando si vuole dal 📋 in alto a sinistra.
 // In tre sezioni, in quest'ordine (v1.12.0):
-//   ℹ️ Info      — 💶 Finanza (il totale portafogli) e ⚖️ Peso e Calorie (recapPeso);
+//   ℹ️ Info      — 💶 Finanza (il totale portafogli), ⚖️ Peso e Calorie (recapPeso)
+//                  e 📦 Scorte Amazon (recapAmazon, i soli avvisi);
 //   ✅ Compiti   — 📅 Oggi e ⚠️ Scadute, sempre separate: le scadenze di TUTTE le
 //                  app che hanno una data, di oggi e rimaste indietro;
 //   🔔 Promemoria aperti — le righe di cm_notification_queue non ancora consegnate.
@@ -3989,6 +3990,39 @@ async function recapPeso(headers) {
   } catch (e) { console.warn('[recap] peso:', e); return vuoto; }
 }
 
+// 📦 Scorte Amazon: i soli avvisi di amz_situazione() — prezzi, scorte e
+// consegne vicine li calcola il database, qui si scrivono e basta.
+// ⚠️ I testi sono gemelli di AVVISI in scorte-amazon.html: cambiali insieme.
+async function recapAmazon(headers) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/amz_situazione`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_oggi: localDayStr() })
+    });
+    if (!res.ok) return [];
+    const euro = v => Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    const testi = {
+      consegna_passata: r => 'consegna del ' + recapDataBreve(r.prossima_consegna) + ' da aggiornare',
+      finisce_prima: r => 'finisce verso il ' + recapDataBreve(r.esaurimento) + ', prima della consegna',
+      prezzo_su: r => 'prezzo salito ' + euro(r.prezzo_prima) + ' → ' + euro(r.prezzo),
+      prezzo_giu: r => 'prezzo sceso ' + euro(r.prezzo_prima) + ' → ' + euro(r.prezzo),
+      troppa_scorta: () => 'scorta abbondante: puoi saltare la consegna',
+      consegna_vicina: r => 'consegna il ' + recapDataBreve(r.prossima_consegna) + ', ancora modificabile',
+      da_verificare: () => 'da verificare'
+    };
+    const out = [];
+    for (const r of await res.json()) {
+      if (!r.attivo) continue;
+      for (const c of r.avvisi || []) {
+        if (!testi[c]) continue;
+        const nome = String(r.titolo).split(/[,(|]/)[0].trim();
+        out.push({ title: nome + ': ' + testi[c](r), url: 'scorte-amazon.html' });
+      }
+    }
+    return out;
+  } catch (e) { console.warn('[recap] amazon:', e); return []; }
+}
+
 // Promemoria aperti: tutte le righe della coda non ancora consegnate né chiuse,
 // di qualunque app. ⚠️ Si accorpano per TITOLO + GIORNO LOCALE: la stessa
 // occorrenza su due canali (due righe, due rule_id) e lo stesso promemoria a più
@@ -4035,7 +4069,7 @@ async function caricaRecap() {
   if (!uid) return null;
   const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token };
   // I task riservati servono anche per nascondere i loro promemoria.
-  const [finanza, decisioni, tasks, obiettivi, piante, tafiri, spunt, abitudini, peso] = await Promise.all([
+  const [finanza, decisioni, tasks, obiettivi, piante, tafiri, spunt, abitudini, peso, amazon] = await Promise.all([
     loadHomeAlertPortfolioTotal(headers),
     recapDecisioni(uid, headers),
     recapTasks(headers),
@@ -4044,7 +4078,8 @@ async function caricaRecap() {
     recapTaFiri(headers),
     loadHomeAlertSpuntiamola(headers),
     loadHomeAlertHabits(headers),
-    recapPeso(headers)
+    recapPeso(headers),
+    recapAmazon(headers)
   ]);
   const riservati = new Set();
   try {
@@ -4059,7 +4094,7 @@ async function caricaRecap() {
     ...abitudini.map(i => ({ ...i, app: '🔁 Abituati', day: oggi })),
     ...peso.compito
   ];
-  return { finanza, peso: peso.info, scadenze, promemoria, letto: oggi };
+  return { finanza, peso: peso.info, amazon, scadenze, promemoria, letto: oggi };
 }
 
 function recapAperto() {
@@ -4248,6 +4283,11 @@ function disegnaRecap(caricamento) {
     ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" data-rk="peso" href="weight-quest.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
         _recap.peso.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>'
     : '<div class="recap-vuoto">Dati di peso non disponibili.</div>';
+  html += '<div class="recap-sub">📦 Scorte Amazon</div>';
+  html += tolti.has('amazon') ? toltoOggi : (_recap.amazon || []).length
+    ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" data-rk="amazon" href="scorte-amazon.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
+        _recap.amazon.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>'
+    : '<div class="recap-vuoto">Nessun avviso.</div>';
 
   // ✅ Compiti: Oggi e Scadute, sempre separate.
   html += '<div class="home-alert-section-title">✅ Compiti</div>';
