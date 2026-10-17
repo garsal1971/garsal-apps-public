@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.garsal.appsphere.MainActivity
 import com.garsal.appsphere.R
+import org.json.JSONObject
 
 /**
  * La notifica di un promemoria: come si disegna e quali pulsanti porta.
@@ -93,8 +94,10 @@ object Notifiche {
         testo: String,
         completa: Boolean,
         annulla: Boolean,
+        silenziosa: Boolean = false,
     ) {
         creaCanale(context)
+        archivia(context, queueId, titolo, testo, completa, annulla)
 
         val apri = PendingIntent.getActivity(
             context,
@@ -113,8 +116,13 @@ object Notifiche {
             .setStyle(NotificationCompat.BigTextStyle().bigText(testo))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setAutoCancel(true)
+            // ⚠️ Il tocco apre l'app e la notifica RESTA: se ne va solo con
+            // un'azione (✅, ⏸, ❌) o col 🗑 Cancella dentro «⋯ Altro».
+            .setAutoCancel(false)
             .setContentIntent(apri)
+            // Rimostrata all'apertura dell'app: torna nella tendina senza
+            // suonare, o ogni apertura sarebbe una raffica di squilli.
+            .setSilent(silenziosa)
 
         if (completa) {
             b.addAction(0, "✅ Fatto", intentAzione(context, queueId, "complete"))
@@ -153,5 +161,54 @@ object Notifiche {
 
     fun chiudi(context: Context, queueId: String) {
         runCatching { NotificationManagerCompat.from(context).cancel(idDa(queueId)) }
+    }
+
+    // ── L'archivio delle notifiche aperte ────────────────────────────────
+    //
+    // Ogni notifica ricevuta resta scritta nelle preferenze finché non si
+    // risponde con un'azione andata a buon fine o col 🗑 Cancella. Serve a
+    // rimostrarle all'apertura dell'app: scorrerla via col dito (che da
+    // Android 14 non si può impedire), un riavvio o il processo ucciso non la
+    // fanno sparire per sempre. ⚠️ Sta solo su questo telefono, di proposito.
+
+    private const val PREFS = "notifiche_aperte"
+
+    private fun prefs(context: Context) =
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun archivia(
+        context: Context, queueId: String, titolo: String, testo: String,
+        completa: Boolean, annulla: Boolean,
+    ) {
+        val voce = JSONObject()
+            .put("titolo", titolo).put("testo", testo)
+            .put("completa", completa).put("annulla", annulla)
+        prefs(context).edit().putString(queueId, voce.toString()).apply()
+    }
+
+    /** Toglie la notifica dall'archivio: non verrà più rimostrata. */
+    fun dimentica(context: Context, queueId: String) {
+        prefs(context).edit().remove(queueId).apply()
+    }
+
+    /**
+     * Rimette nella tendina tutte le notifiche archiviate. Riscrivere una
+     * notifica già a schermo con lo stesso id la aggiorna e basta, quindi non
+     * se ne impilano due.
+     */
+    fun rimostraTutte(context: Context) {
+        for ((queueId, valore) in prefs(context).all) {
+            val voce = runCatching { JSONObject(valore as String) }.getOrNull()
+            if (voce == null) { dimentica(context, queueId); continue }
+            mostra(
+                context  = context,
+                queueId  = queueId,
+                titolo   = voce.optString("titolo", "Promemoria"),
+                testo    = voce.optString("testo", ""),
+                completa = voce.optBoolean("completa", false),
+                annulla  = voce.optBoolean("annulla", true),
+                silenziosa = true,
+            )
+        }
     }
 }

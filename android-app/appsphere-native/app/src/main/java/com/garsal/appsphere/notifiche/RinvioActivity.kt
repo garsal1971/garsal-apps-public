@@ -28,7 +28,8 @@ class RinvioActivity : Activity() {
         val titolo     = intent.getStringExtra(EXTRA_TITOLO) ?: "Promemoria"
 
         val voci = Notifiche.RINVII.map { (_, etichetta) -> "⏸ $etichetta" } +
-            if (conAnnulla) listOf("❌ Annulla il promemoria") else emptyList()
+            (if (conAnnulla) listOf("❌ Annulla il promemoria") else emptyList()) +
+            listOf("🗑 Cancella la notifica")
 
         // ⚠️ Il tema del dialogo si passa a mano: l'Activity è trasparente
         // (`Theme.Translucent.NoTitleBar`), che non è un tema Material, e senza
@@ -36,10 +37,12 @@ class RinvioActivity : Activity() {
         AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
             .setTitle(titolo)
             .setItems(voci.toTypedArray()) { _, quale ->
-                if (quale < Notifiche.RINVII.size) {
-                    manda(queueId, "snooze", Notifiche.RINVII[quale].first)
-                } else {
-                    manda(queueId, "cancel", null)
+                when {
+                    quale < Notifiche.RINVII.size ->
+                        manda(queueId, "snooze", Notifiche.RINVII[quale].first)
+                    quale == voci.lastIndex ->
+                        manda(queueId, AzioniNotifica.AZIONE_CANCELLA, null)
+                    else -> manda(queueId, "cancel", null)
                 }
                 finish()
             }

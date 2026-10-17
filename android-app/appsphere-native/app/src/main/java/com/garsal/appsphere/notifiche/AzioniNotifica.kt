@@ -33,6 +33,13 @@ class AzioniNotifica : BroadcastReceiver() {
 
         Notifiche.chiudi(context, queueId)
 
+        // 🗑 Cancella: tocca solo il telefono, il promemoria sul server resta
+        // com'è (e su Telegram pure).
+        if (azione == AZIONE_CANCELLA) {
+            Notifiche.dimentica(context, queueId)
+            return
+        }
+
         // Il receiver muore appena onReceive esce: `goAsync` tiene vivo il
         // processo il tempo della chiamata (una decina di secondi al massimo,
         // che è molto più di quanto serve).
@@ -42,6 +49,9 @@ class AzioniNotifica : BroadcastReceiver() {
             try {
                 val esito = Push.azione(queueId, azione, minuti)
                 Log.i(TAG, "azione=$azione minuti=$minuti esito=${esito ?: "ko"}")
+                // ⚠️ Dall'archivio esce solo se il server ha detto sì: un'azione
+                // fallita lascia la notifica da rimostrare alla prossima apertura.
+                if (esito != null) Notifiche.dimentica(ctx, queueId)
                 mostraMessaggio(ctx, esito ?: "❌ Non è riuscito, riprova dall'app")
             } finally {
                 pending.finish()
@@ -60,5 +70,6 @@ class AzioniNotifica : BroadcastReceiver() {
         const val EXTRA_QUEUE_ID = "queue_id"
         const val EXTRA_AZIONE   = "azione"
         const val EXTRA_MINUTI   = "minuti"
+        const val AZIONE_CANCELLA = "dismiss"
     }
 }
