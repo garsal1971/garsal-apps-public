@@ -7,6 +7,7 @@ import android.os.Environment
 import android.util.Log
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.JsResult
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -95,6 +96,21 @@ class MainActivity : AppCompatActivity() {
         }
         fileChooserCallback = null
         cameraImageUri = null
+    }
+
+    // Posizione chiesta da una pagina (Scorte Amazon: dove si è visto un prezzo).
+    // La WebView non la chiede da sé: tiene il callback finché Android risponde
+    // al permesso, e solo allora la concede o la nega alla pagina.
+    private var geoOrigine: String? = null
+    private var geoCallback: GeolocationPermissions.Callback? = null
+
+    private val geoPermesso = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { esiti ->
+        val ok = esiti.values.any { it }
+        geoCallback?.invoke(geoOrigine, ok, false)
+        geoCallback = null
+        geoOrigine = null
     }
 
     // Flag nativo: true se l'utente ha aperto Renpho e deve tornare
@@ -480,6 +496,7 @@ class MainActivity : AppCompatActivity() {
                 useWideViewPort = true
                 loadWithOverviewMode = true
                 textZoom = 100  // ignora dimensione font di sistema
+                setGeolocationEnabled(true)
             }
             // Espone window.AndroidBridge al JavaScript della pagina
             addJavascriptInterface(AndroidBridge(), "AndroidBridge")
@@ -596,6 +613,29 @@ class MainActivity : AppCompatActivity() {
 
             // Gestisce alert() / confirm() dal JavaScript — senza questo vengono ignorati
             webChromeClient = object : WebChromeClient() {
+                // ⚠️ Senza questo override navigator.geolocation viene negata in silenzio:
+                // la pagina riceve un errore e nessuno chiede niente. Solo le nostre pagine;
+                // il permesso Android si chiede la prima volta e poi lo ricorda il sistema.
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?, callback: GeolocationPermissions.Callback?
+                ) {
+                    val host = origin?.let { Uri.parse(it).host } ?: ""
+                    val nostra = host == "garsal.men" || host.endsWith(".garsal.men") ||
+                        host.endsWith(".pages.dev") || host == "localhost"
+                    if (!nostra) { callback?.invoke(origin, false, false); return }
+                    val fine = android.Manifest.permission.ACCESS_FINE_LOCATION
+                    val coarse = android.Manifest.permission.ACCESS_COARSE_LOCATION
+                    val concesso = ContextCompat.checkSelfPermission(this@MainActivity, fine) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(this@MainActivity, coarse) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+                    if (concesso) { callback?.invoke(origin, true, false); return }
+                    geoCallback?.invoke(geoOrigine, false, false)
+                    geoOrigine = origin
+                    geoCallback = callback
+                    geoPermesso.launch(arrayOf(fine, coarse))
+                }
+
                 override fun onJsAlert(
                     view: WebView?, url: String?, message: String?, result: JsResult?
                 ): Boolean {
