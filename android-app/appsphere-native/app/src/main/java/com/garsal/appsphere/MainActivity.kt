@@ -307,6 +307,8 @@ private fun AppRoot(activity: FragmentActivity) {
     LaunchedEffect(stato, sbloccato) {
         if (stato != AuthRepo.State.DENTRO || !sbloccato) return@LaunchedEffect
         Notifiche.creaCanale(context)
+        // Le notifiche non ancora gestite tornano nella tendina a ogni apertura.
+        Notifiche.rimostraTutte(context)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
