@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.0.0</title>
+    <title>Scorte Amazon v1.0.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -183,10 +183,10 @@
 
         <label class="form-label">Scorta contata <span class="muted" style="font-weight:500">(facoltativa)</span></label>
         <div class="row">
-            <div class="grow"><input id="fScorta" class="form-input" type="number" min="0" step="any" placeholder="Confezioni in casa"></div>
+            <div class="grow"><input id="fScorta" class="form-input" type="number" min="0" step="any" placeholder="Pezzi in casa"></div>
             <div class="grow"><input id="fScortaIl" class="form-input" type="date"></div>
         </div>
-        <div class="form-hint">Senza conteggio la scorta si stima piena all'ultima consegna e vuota alla prossima. Col conteggio l'app ti avvisa se finisce prima o se puoi saltare una consegna.</div>
+        <div class="form-hint">Si contano i <b>pezzi</b> (bottiglie, rotoli, pacchi): la pagina li converte in confezioni col formato qui sopra. Senza conteggio la scorta si stima piena all'ultima consegna e vuota alla prossima. Col conteggio l'app ti avvisa se finisce prima o se puoi saltare una consegna.</div>
 
         <label class="form-label" for="fNote">Note</label>
         <textarea id="fNote" class="form-input"></textarea>
@@ -222,8 +222,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-10-16T12:00:00Z';
+var APP_VERSION = 'v1.0.1';
+var BUILD_TIME  = '2026-10-17T11:30:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -424,7 +424,8 @@ function scheda(r) {
     let scorta = '';
     if (r.attivo && r.scorta != null) {
         const pct = Math.max(0, Math.min(100, r.scorta / r.quantita * 100));
-        scorta = `<div class="scorta">Scorta stimata: <b>${num(r.scorta)}</b> ${r.scorta === 1 ? 'confezione' : 'confezioni'}${r.scorta_contata != null ? ' (dal conteggio del ' + fmtData(r.scorta_contata_il) + ')' : ''}
+        const pz = Number(r.pezzi) > 1 ? ` (circa ${num(Math.round(r.scorta * Number(r.pezzi) * 10) / 10)} pezzi)` : '';
+        scorta = `<div class="scorta">Scorta stimata: <b>${num(r.scorta)}</b> ${r.scorta === 1 ? 'confezione' : 'confezioni'}${pz}${r.scorta_contata != null ? ' (dal conteggio del ' + fmtData(r.scorta_contata_il) + ')' : ''}
                   <div class="barra"><div style="width:${pct}%;background:${pct < 20 ? 'var(--danger)' : pct < 45 ? 'var(--warning)' : 'var(--success)'}"></div></div></div>`;
     }
     // «senza prezzo» lo dice già la riga dei prezzi: un badge ripeterebbe la stessa frase.
@@ -463,7 +464,8 @@ async function apriForm(id) {
     $('fFreqU').value = r?.freq_unita || 'mesi';
     $('fProssima').value = r?.prossima_consegna || '';
     $('fPrezzo').value = r?.prezzo ?? '';
-    $('fScorta').value = r?.scorta_contata ?? '';
+    // Il database tiene la scorta in CONFEZIONI; qui si scrive e si legge in pezzi.
+    $('fScorta').value = r?.scorta_contata != null ? +(r.scorta_contata * Number(r.pezzi)).toFixed(2) : '';
     $('fScortaIl').value = r?.scorta_contata_il || '';
     $('fNote').value = r?.note || '';
     $('fAttivo').checked = r ? !!r.attivo : true;
@@ -488,7 +490,8 @@ async function salva() {
     const pezzi = numOrNull($('fPezzi').value) || 1;
     const unita = $('fUnita').value;
     const misura = unita === 'pz' ? null : numOrNull($('fMisura').value);
-    const scorta = numOrNull($('fScorta').value);
+    const scortaPezzi = numOrNull($('fScorta').value);
+    const scorta = scortaPezzi == null ? null : +(scortaPezzi / pezzi).toFixed(4);
     const scortaIl = $('fScortaIl').value || null;
     if ((scorta == null) !== (scortaIl == null)) { $('fErr').textContent = 'La scorta contata vuole sia il numero sia la data.'; return; }
     const riga = {
