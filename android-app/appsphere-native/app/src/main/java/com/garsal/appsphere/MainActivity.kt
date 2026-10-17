@@ -56,6 +56,7 @@ import com.garsal.appsphere.home.HomeScreen
 import com.garsal.appsphere.home.Route
 import com.garsal.appsphere.memo.MemoScreen
 import com.garsal.appsphere.notifiche.Notifiche
+import com.garsal.appsphere.notifiche.NotificheScreen
 import com.garsal.appsphere.notifiche.Push
 import com.garsal.appsphere.obiettivi.ObiettiviScreen
 import com.garsal.appsphere.obiettivi.PianoScreen
@@ -429,6 +430,9 @@ private fun Navigazione() {
         }
         composable(Route.FINANZA) {
             FinanzaScreen(onIndietro = { nav.popBackStack() })
+        }
+        composable(Route.NOTIFICHE) {
+            NotificheScreen(onIndietro = { nav.popBackStack() })
         }
     }
 }
