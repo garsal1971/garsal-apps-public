@@ -83,6 +83,25 @@
         </activity>
 
         <!--
+            Seconda icona nel cassetto: «Prezzi Amazon» apre scorte-amazon.html.
+            Stesso processo, stesso login, stessa biometria: MainActivity la riconosce
+            dal nome del componente (destinazioneDa). ⚠️ Il nome .PrezziAmazon è un
+            contratto con quel controllo: cambiato qui solo, l'icona apre il launcher.
+        -->
+        <activity-alias
+            android:name=".PrezziAmazon"
+            android:exported="true"
+            android:icon="@mipmap/ic_prezzi"
+            android:roundIcon="@mipmap/ic_prezzi"
+            android:label="@string/alias_prezzi"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
             activity-alias richiesto da Android 14+ per apparire in Health Connect.
             HC usa VIEW_PERMISSION_USAGE + HEALTH_PERMISSIONS per trovare le app compatibili.
             Senza questo, AppSfera Web non compare mai nella lista "Le tue app per la salute".

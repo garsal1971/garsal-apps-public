@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Prezzi Amazon»: i cinque cerchi di AppSphere (copiati IDENTICI da
+     ic_launcher_foreground.xml) su fondo bianco, col badge arancio del cartellino
+     del prezzo in alto a destra. ⚠️ Il badge non sporge: centro (70,38), alone r 13,
+     cioè 35,6 dp dal centro — dentro il cerchio di sicurezza da 36 dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- arancio, in alto a sinistra -->
+    <path
+        android:fillColor="#DE8026"
+        android:pathData="M40.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- rosso, in alto a destra -->
+    <path
+        android:fillColor="#CA372E"
+        android:pathData="M68.0,40.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- verde, in basso a sinistra -->
+    <path
+        android:fillColor="#32974C"
+        android:pathData="M40.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- viola, in basso a destra -->
+    <path
+        android:fillColor="#824FA5"
+        android:pathData="M68.0,68.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- blu, al centro e sopra a tutti -->
+    <path
+        android:fillColor="#067BC0"
+        android:pathData="M54.0,54.0 m-14.0,0 a14.0,14.0 0 1,0 28.0,0 a14.0,14.0 0 1,0 -28.0,0" />
+
+    <!-- alone bianco: stacca il badge dal cerchio rosso -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70.0,38.0 m-13.0,0 a13.0,13.0 0 1,0 26.0,0 a13.0,13.0 0 1,0 -26.0,0" />
+
+    <!-- badge arancio -->
+    <path
+        android:fillColor="#C45500"
+        android:pathData="M70.0,38.0 m-11.0,0 a11.0,11.0 0 1,0 22.0,0 a11.0,11.0 0 1,0 -22.0,0" />
+
+    <!-- cartellino del prezzo, punta a sinistra -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M63.0,38.0 L67.5,33.0 L77.0,33.0 L77.0,43.0 L67.5,43.0 Z" />
+
+    <!-- foro del cartellino -->
+    <path
+        android:fillColor="#C45500"
+        android:pathData="M67.5,38.0 m-1.4,0 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0" />
+</vector>
