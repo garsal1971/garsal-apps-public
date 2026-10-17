@@ -2175,6 +2175,9 @@ di `MainActivity` (icona `ic_prezzi`: il marchio su bianco col badge arancio del
 un'altra copia dei cinque cerchi) che dopo la biometria apre `scorte-amazon.html` invece del
 launcher. Si riconosce dal **nome del componente** (`destinazioneDa`), che si consuma appena
 letto; si ignora a una ricreazione e riaprendo dalle Recenti, come «AppSphere pasto» del nativo.
+⚠️ **Aperta da lì, l'indietro sulla pagina dei prezzi CHIUDE l'app** (1.2.7, `aperturaDiretta`):
+nella cronologia della WebView sotto c'è il launcher, e tornarci farebbe dell'icona una scorciatoia
+invece di un'app a sé. Navigando altrove dai prezzi l'indietro torna normale.
 
 ### Obiettivi (`ob_`)
 | Table | Purpose |

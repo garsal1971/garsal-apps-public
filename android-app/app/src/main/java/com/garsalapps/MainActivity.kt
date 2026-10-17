@@ -137,6 +137,9 @@ class MainActivity : AppCompatActivity() {
     // apre la pagina dei prezzi invece del launcher, dopo la stessa biometria.
     private val SCORTE_URL = "https://garsal.men/scorte-amazon.html"
     private var urlDopoAuth: String? = null
+    // Aperta dall'icona «Prezzi Amazon»: l'indietro sulla pagina dei prezzi chiude l'app
+    // invece di tornare al launcher che sta sotto nella cronologia della WebView.
+    private var aperturaDiretta = false
 
     /**
      * La pagina da aprire se l'intent arriva dall'icona «Prezzi Amazon», o null.
@@ -150,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         if (i.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
         if (i.component?.className?.endsWith(".PrezziAmazon") != true) return null
         i.component = ComponentName(this, MainActivity::class.java)
+        aperturaDiretta = true
         return SCORTE_URL
     }
 
@@ -191,7 +195,10 @@ class MainActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack()
+                val suiPrezzi = webView.url?.substringBefore('?')?.substringBefore('#')
+                    ?.endsWith("/scorte-amazon.html") == true
+                if (aperturaDiretta && suiPrezzi) finish()
+                else if (webView.canGoBack()) webView.goBack()
                 else finish()
             }
         })
