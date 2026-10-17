@@ -2170,6 +2170,12 @@ form, chiavi) sta dietro il FAB 📦.
 Android (`ACCESS_FINE/COARSE_LOCATION` nel manifest), e la concede alle sole pagine di
 `garsal.men` / `*.pages.dev`.
 
+📲 **Icona «Prezzi Amazon» nel cassetto** (AppSfera Web 1.2.6): un `activity-alias` `.PrezziAmazon`
+di `MainActivity` (icona `ic_prezzi`: il marchio su bianco col badge arancio del cartellino — è
+un'altra copia dei cinque cerchi) che dopo la biometria apre `scorte-amazon.html` invece del
+launcher. Si riconosce dal **nome del componente** (`destinazioneDa`), che si consuma appena
+letto; si ignora a una ricreazione e riaprendo dalle Recenti, come «AppSphere pasto» del nativo.
+
 ### Obiettivi (`ob_`)
 | Table | Purpose |
 |---|---|

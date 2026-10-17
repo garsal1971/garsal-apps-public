@@ -1,5 +1,6 @@
 package com.garsalapps
 
+import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -132,6 +133,26 @@ class MainActivity : AppCompatActivity() {
     private var openMemoAfterAuth: Boolean = false  // apri memo.html invece del launcher dopo biometrica
     private val MEMO_URL = "https://garsal.men/memo.html"
 
+    // La seconda icona nel cassetto, «Prezzi Amazon» (activity-alias .PrezziAmazon):
+    // apre la pagina dei prezzi invece del launcher, dopo la stessa biometria.
+    private val SCORTE_URL = "https://garsal.men/scorte-amazon.html"
+    private var urlDopoAuth: String? = null
+
+    /**
+     * La pagina da aprire se l'intent arriva dall'icona «Prezzi Amazon», o null.
+     * Si riconosce dal nome del componente e non dall'azione: dal cassetto l'azione è
+     * MAIN come per l'icona normale. ⚠️ L'intent si consuma riscrivendo il componente,
+     * o ogni ricreazione dell'Activity riaprirebbe i prezzi; e riaprendo dalle Recenti
+     * Android ripresenta l'intent di partenza, quindi quello si ignora.
+     */
+    private fun destinazioneDa(i: Intent?): String? {
+        if (i == null) return null
+        if (i.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
+        if (i.component?.className?.endsWith(".PrezziAmazon") != true) return null
+        i.component = ComponentName(this, MainActivity::class.java)
+        return SCORTE_URL
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -156,6 +177,9 @@ class MainActivity : AppCompatActivity() {
         // Caso: app uccisa da Android mentre Chrome Custom Tabs era aperto.
         // Il deep link torna via onCreate invece di onNewIntent.
         intent?.data?.oauthFragment()?.let { saveTokensToPending(it) }
+
+        // Icona «Prezzi Amazon»: solo a un avvio vero, non a una ricreazione del sistema
+        if (savedInstanceState == null) urlDopoAuth = destinazioneDa(intent)
 
         // Condivisione screenshot → OCR → memo
         if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
@@ -189,6 +213,13 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+
+        // Icona «Prezzi Amazon» con l'app già aperta: se la biometria è passata si va
+        // subito ai prezzi, altrimenti ci si va appena passa.
+        destinazioneDa(intent)?.let { url ->
+            if (webView.visibility == View.VISIBLE) webView.loadUrl(url) else urlDopoAuth = url
+            return
+        }
 
         // Condivisione screenshot con app già aperta
         if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
@@ -755,7 +786,8 @@ class MainActivity : AppCompatActivity() {
             }
             // altrimenti il loadUrl(MEMO_URL) arriva dal callback OCR.
         } else {
-            webView.loadUrl(APP_URL)
+            webView.loadUrl(urlDopoAuth ?: APP_URL)
+            urlDopoAuth = null
         }
     }
 
