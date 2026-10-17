@@ -2,7 +2,6 @@ package com.garsal.appsphere.notifiche
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.Intent
 import android.os.Bundle
 
 /**
@@ -55,16 +54,8 @@ class RinvioActivity : Activity() {
      * cui la notifica si chiude e il messaggio si mostra, e duplicarlo
      * vorrebbe dire due comportamenti per lo stesso rinvio.
      */
-    private fun manda(queueId: String, azione: String, minuti: Int?) {
-        sendBroadcast(
-            Intent(this, AzioniNotifica::class.java).apply {
-                action = "$azione:$queueId:${minuti ?: 0}"
-                putExtra(AzioniNotifica.EXTRA_QUEUE_ID, queueId)
-                putExtra(AzioniNotifica.EXTRA_AZIONE, azione)
-                if (minuti != null) putExtra(AzioniNotifica.EXTRA_MINUTI, minuti)
-            }
-        )
-    }
+    private fun manda(queueId: String, azione: String, minuti: Int?) =
+        Notifiche.esegui(this, queueId, azione, minuti)
 
     companion object {
         const val EXTRA_ANNULLA = "annulla"

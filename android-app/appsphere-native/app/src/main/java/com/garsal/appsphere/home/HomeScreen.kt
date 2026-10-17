@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -176,6 +177,15 @@ fun HomeScreen(
                         modifier = Modifier
                             .size(26.dp * scala)
                             .clickable { vm.ricarica() },
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notifiche ricevute",
+                        tint = Palette.light,
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(26.dp * scala)
+                            .clickable { onApriApp(Route.NOTIFICHE) },
                     )
                     Icon(
                         imageVector = Icons.Default.Settings,

@@ -18,6 +18,9 @@ object Route {
     const val FORZIERE = "forziere"
     const val PIANTE = "piante"
     const val FINANZA = "finanza"
+
+    /** 🔔 Le notifiche ricevute e non ancora gestite (dalla campanella in home). */
+    const val NOTIFICHE = "notifiche"
 }
 
 /**

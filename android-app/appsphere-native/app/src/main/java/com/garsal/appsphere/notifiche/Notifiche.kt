@@ -11,6 +11,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.garsal.appsphere.MainActivity
 import com.garsal.appsphere.R
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 
 /**
@@ -176,19 +179,72 @@ object Notifiche {
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** Una notifica dell'archivio, come la legge la schermata 🔔 Notifiche. */
+    data class Archiviata(
+        val queueId: String,
+        val titolo: String,
+        val testo: String,
+        val completa: Boolean,
+        val annulla: Boolean,
+        /** Quando è arrivata la prima volta (millisecondi). */
+        val ricevuta: Long,
+    )
+
+    /** Cresce a ogni cambio dell'archivio: la schermata lo osserva per rileggerlo. */
+    private val _cambiamenti = MutableStateFlow(0)
+    val cambiamenti: StateFlow<Int> = _cambiamenti
+
     private fun archivia(
         context: Context, queueId: String, titolo: String, testo: String,
         completa: Boolean, annulla: Boolean,
     ) {
+        // ⚠️ L'ora di arrivo si tiene quella della PRIMA volta: rimostrarla
+        // all'apertura dell'app non la fa diventare una notifica di adesso.
+        val prima = prefs(context).getString(queueId, null)
+            ?.let { runCatching { JSONObject(it).optLong("ricevuta", 0L) }.getOrNull() }
+            ?.takeIf { it > 0 }
         val voce = JSONObject()
             .put("titolo", titolo).put("testo", testo)
             .put("completa", completa).put("annulla", annulla)
+            .put("ricevuta", prima ?: System.currentTimeMillis())
         prefs(context).edit().putString(queueId, voce.toString()).apply()
+        _cambiamenti.update { it + 1 }
     }
 
     /** Toglie la notifica dall'archivio: non verrà più rimostrata. */
     fun dimentica(context: Context, queueId: String) {
         prefs(context).edit().remove(queueId).apply()
+        _cambiamenti.update { it + 1 }
+    }
+
+    /** L'archivio, dalla più recente. */
+    fun archivio(context: Context): List<Archiviata> =
+        prefs(context).all.mapNotNull { (queueId, valore) ->
+            val voce = runCatching { JSONObject(valore as String) }.getOrNull() ?: return@mapNotNull null
+            Archiviata(
+                queueId  = queueId,
+                titolo   = voce.optString("titolo", "Promemoria"),
+                testo    = voce.optString("testo", ""),
+                completa = voce.optBoolean("completa", false),
+                annulla  = voce.optBoolean("annulla", true),
+                ricevuta = voce.optLong("ricevuta", 0L),
+            )
+        }.sortedByDescending { it.ricevuta }
+
+    /**
+     * Un'azione su una notifica, da qualunque schermo la si chieda: passa dal
+     * receiver [AzioniNotifica], che è l'unico posto dove la notifica si chiude,
+     * l'archivio si aggiorna e il server viene chiamato.
+     */
+    fun esegui(context: Context, queueId: String, azione: String, minuti: Int? = null) {
+        context.sendBroadcast(
+            Intent(context, AzioniNotifica::class.java).apply {
+                action = "$azione:$queueId:${minuti ?: 0}"
+                putExtra(AzioniNotifica.EXTRA_QUEUE_ID, queueId)
+                putExtra(AzioniNotifica.EXTRA_AZIONE, azione)
+                if (minuti != null) putExtra(AzioniNotifica.EXTRA_MINUTI, minuti)
+            }
+        )
     }
 
     /**
