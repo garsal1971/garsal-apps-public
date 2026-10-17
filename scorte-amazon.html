@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.0.1</title>
+    <title>Scorte Amazon v1.1.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -114,6 +114,33 @@
             background: var(--dark); color: #fff; padding: 0.6rem 1rem; font-weight: 700;
             z-index: 5000; display: none; max-width: calc(100% - 2rem);
         }
+        /* ── Vista prezzi: una barra per prezzo, che si tocca per rilevare quello del negozio ── */
+        .pv-prod { margin-bottom: 1rem; }
+        .pv-titolo { font-weight: 900; font-size: 1.2rem; line-height: 1.2; }
+        .pv-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.3rem; }
+        .pv-bar {
+            display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+            border: 2px solid var(--primary); background: var(--primary-soft);
+            min-height: 3.6rem; padding: 0.35rem 0.7rem; margin-bottom: 0.4rem; cursor: pointer;
+        }
+        .pv-bar.attiva { background: #fff; cursor: default; }
+        .pv-l { font-weight: 700; color: var(--muted); min-width: 4.5rem; }
+        .pv-mid { flex: 1 1 10rem; min-width: 0; text-align: center; }
+        .pv-amz { font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
+        .pv-ult { font-size: 0.9rem; color: var(--muted); }
+        .pv-pct { font-weight: 900; padding: 0.05rem 0.5rem; border: 2px solid currentColor; white-space: nowrap; }
+        .pv-pct.meglio { color: #00876C; } .pv-pct.peggio { color: var(--danger); } .pv-pct.pari { color: var(--muted); }
+        .pv-val { font-size: 1.9rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
+        .pv-range { width: 100%; height: 2.6rem; accent-color: var(--primary); }
+        .pv-scala { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+        .pv-pannello { border: 2px solid var(--primary); border-top: none; padding: 0.6rem 0.7rem; margin: -0.4rem 0 0.4rem; background: #fff; }
+        .pv-gps { font-size: 0.95rem; color: var(--muted); margin-top: 0.3rem; }
+        .fab {
+            position: fixed; right: 1.2rem; bottom: 1.4rem; z-index: 3500;
+            min-width: 3.6rem; min-height: 3.6rem; border-radius: 50%; border: none;
+            background: var(--primary); color: #fff; font-size: 1.6rem; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
     </style>
 </head>
 <body>
@@ -134,7 +161,13 @@
     </div>
 </div>
 
-<div class="wrap">
+<div class="wrap" id="vistaPrezzi" style="padding-bottom:6rem">
+    <div class="page-title">🏷️ Prezzi Amazon</div>
+    <div class="page-hint">Il prezzo Amazon per pezzo e al kg/l. Al supermercato tocca una barra, sposta il cursore sul prezzo che vedi e salvalo: la percentuale dice quanto Amazon conviene.</div>
+    <div id="elencoPrezzi"></div>
+</div>
+
+<div class="wrap" id="vistaGestione" style="display:none">
     <div class="page-title">📦 Scorte Amazon</div>
     <div class="page-hint">Gli abbonamenti «Iscriviti e risparmia»: prezzi per confezione, per pezzo e al kg/l, e la scorta stimata fino alla prossima consegna. I prezzi arrivano dalle mail di Amazon.</div>
 
@@ -150,6 +183,10 @@
     <div id="elenco"></div>
     <div id="spenti"></div>
 </div>
+
+<!-- Il FAB passa dalla vista prezzi alla gestione degli abbonamenti, e ritorno -->
+<button class="fab" id="fab" onclick="cambiaVista()" title="Gestione abbonamenti">📦</button>
+<datalist id="negozi"></datalist>
 
 <!-- Abbonamento: nuovo / modifica -->
 <div class="modal" id="modalForm">
@@ -222,8 +259,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.0.1';
-var BUILD_TIME  = '2026-10-17T11:30:00Z';
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-10-17T16:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -247,6 +284,9 @@ let sb = null, currentUserId = null;
 const S = {
     righe: [],       // amz_situazione(): abbonamenti con prezzi, scorta e avvisi già calcolati
     editId: null,
+    negozio: [],     // amz_prezzi_negozio, dal più recente
+    aperta: null,    // la barra col cursore: { id, unita }
+    pos: null,       // la promessa della posizione GPS per il prezzo in corso
 };
 
 // ════════════════════════════════════════════════════════════
@@ -379,7 +419,11 @@ async function carica() {
         return;
     }
     S.righe = data || [];
+    const pn = await sb.from('amz_prezzi_negozio').select('*').order('rilevato_il', { ascending: false }).limit(1000);
+    if (pn.error) log('prezzi negozio non letti', pn.error.message);
+    S.negozio = pn.data || [];
     disegna();
+    disegnaPrezzi();
 }
 
 function disegna() {
@@ -584,6 +628,162 @@ async function revoca(token) {
     const { error } = await sb.from('amz_chiavi').delete().eq('token', token);
     if (error) { showToast('❌ ' + error.message, 5000); return; }
     disegnaChiavi();
+}
+// ════════════════════════════════════════════════════════════
+// VISTA PREZZI — le barre e il cursore del prezzo visto in negozio
+// ════════════════════════════════════════════════════════════
+function cambiaVista() {
+    const gest = $('vistaGestione').style.display === 'none';
+    $('vistaGestione').style.display = gest ? '' : 'none';
+    $('vistaPrezzi').style.display = gest ? 'none' : '';
+    $('fab').textContent = gest ? '🏷️' : '📦';
+    $('fab').title = gest ? 'Torna ai prezzi' : 'Gestione abbonamenti';
+    window.scrollTo(0, 0);
+}
+// Il prezzo Amazon della barra: per pezzo o al kg/l. NULL = non noto.
+function prezzoAmazon(r, unita) { return unita === 'pezzo' ? r.prezzo_pezzo : r.prezzo_kg; }
+function ultimoNegozio(id, unita) { return S.negozio.find(x => x.abbonamento_id === id && x.unita === unita) || null; }
+// ⚠️ La percentuale è di quanto Amazon sta sopra o sotto il negozio: «Amazon −12%»
+// vuol dire che su Amazon costa il 12 % in meno di quel che si è visto.
+function pctAmazon(amz, neg) {
+    if (amz == null || neg == null || Number(neg) === 0) return null;
+    return (Number(amz) - Number(neg)) / Number(neg) * 100;
+}
+function badgePct(p) {
+    if (p == null) return '';
+    const r = Math.round(p);
+    const cl = r < 0 ? 'meglio' : r > 0 ? 'peggio' : 'pari';
+    return `<span class="pv-pct ${cl}">Amazon ${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r)}%</span>`;
+}
+// Il cursore parte dal prezzo Amazon e va dal −50 % al +50 %. Senza un prezzo Amazon
+// parte dall'ultimo prezzo visto; senza nemmeno quello, da 5 €.
+function scalaCursore(r, unita) {
+    const amz = prezzoAmazon(r, unita), ult = ultimoNegozio(r.id, unita);
+    const c = Number(amz ?? ult?.prezzo ?? 5) || 5;
+    return { c, min: Math.max(0.01, Math.floor(c * 50) / 100), max: Math.ceil(c * 150) / 100 };
+}
+function disegnaPrezzi() {
+    const attivi = S.righe.filter(r => r.attivo);
+    const neg = [...new Set(S.negozio.map(x => x.negozio).filter(Boolean))];
+    $('negozi').innerHTML = neg.map(n => `<option value="${esc(n)}">`).join('');
+    $('elencoPrezzi').innerHTML = attivi.length
+        ? attivi.map(r => `<div class="pv-prod">
+              <div class="pv-titolo">${esc(r.titolo)}</div>
+              <div class="pv-sub">${esc(formato(r))}</div>
+              ${barra(r, 'pezzo')}
+              ${r.unita !== 'pz' && r.misura != null ? barra(r, 'kg_l') : ''}
+          </div>`).join('')
+        : '<div class="muted">Nessun abbonamento attivo.</div>';
+}
+function barra(r, unita) {
+    const amz = prezzoAmazon(r, unita), ult = ultimoNegozio(r.id, unita);
+    const etichetta = unita === 'pezzo' ? 'a pezzo' : etichettaKg(r);
+    const aperta = S.aperta && S.aperta.id === r.id && S.aperta.unita === unita;
+    if (aperta) {
+        const sc = scalaCursore(r, unita), v = S.aperta.valore;
+        return `<div class="pv-bar attiva">
+            <div class="pv-l">${esc(etichetta)}</div>
+            <div class="pv-mid">
+                <div class="pv-val" id="pvVal">${euro(v)}</div>
+                <input type="range" class="pv-range" min="${sc.min}" max="${sc.max}" step="0.01" value="${v}"
+                       oninput="cursoreMuove(this.value)" onchange="cursoreRilascia(this.value)">
+                <div class="pv-scala"><span>${euro(sc.min)}</span><span>Amazon ${euro(amz)}</span><span>${euro(sc.max)}</span></div>
+            </div>
+        </div>${S.aperta.pannello ? pannello(r, unita) : ''}`;
+    }
+    const ultTxt = ult ? `negozio ${euro(ult.prezzo)}${ult.negozio ? ' · ' + esc(ult.negozio) : ''} · ${fmtData(ult.rilevato_il.slice(0, 10))}` : 'tocca per inserire il prezzo del negozio';
+    return `<div class="pv-bar" onclick="apriCursore('${r.id}','${unita}')">
+        <div class="pv-l">${esc(etichetta)}</div>
+        <div class="pv-mid"><div class="pv-amz">${euro(amz)}</div><div class="pv-ult">${ultTxt}</div></div>
+        ${badgePct(pctAmazon(amz, ult?.prezzo))}
+    </div>`;
+}
+function pannello(r, unita) {
+    const amz = prezzoAmazon(r, unita);
+    return `<div class="pv-pannello">
+        <label class="form-label" style="margin-top:0">Prezzo visto (${unita === 'pezzo' ? 'per pezzo' : etichettaKg(r)})</label>
+        <input id="pvPrezzo" class="form-input" type="number" min="0" step="0.01" value="${S.aperta.valore}" oninput="pannelloPrezzo(this.value)">
+        <div class="form-hint" id="pvConfronto">${confrontoTxt(amz, S.aperta.valore)}</div>
+        <label class="form-label">Negozio (facoltativo)</label>
+        <input id="pvNegozio" class="form-input" list="negozi" maxlength="80" value="${esc(S.aperta.negozio || '')}" oninput="S.aperta.negozio=this.value">
+        <div class="pv-gps" id="pvGps">${esc(S.aperta.gps || '📍 cerco la posizione…')}</div>
+        <div id="pvErr" class="form-error"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="chiudiCursore()">Annulla</button>
+            <button class="btn btn-primary" id="pvSalva" onclick="salvaPrezzoNegozio()">💾 Salva</button>
+        </div>
+    </div>`;
+}
+function confrontoTxt(amz, v) {
+    const p = pctAmazon(amz, v);
+    if (p == null) return 'Prezzo Amazon non noto: si salva lo stesso, il confronto arriverà col prezzo.';
+    const r = Math.round(p);
+    return r < 0 ? `Su Amazon costa il ${-r}% in meno` : r > 0 ? `Su Amazon costa il ${r}% in più` : 'Stesso prezzo di Amazon';
+}
+function apriCursore(id, unita) {
+    const r = S.righe.find(x => x.id === id);
+    const sc = scalaCursore(r, unita);
+    S.aperta = { id, unita, valore: Number(sc.c.toFixed(2)), pannello: false, negozio: ultimoNegozio(id, unita)?.negozio || '' };
+    S.pos = null;
+    disegnaPrezzi();
+}
+// ⚠️ Mentre si trascina si aggiorna il SOLO numero: ridisegnando, il cursore verrebbe
+// sostituito sotto il dito e il trascinamento si fermerebbe.
+function cursoreMuove(v) {
+    S.aperta.valore = Number(v);
+    $('pvVal').textContent = euro(v);
+    const c = $('pvConfronto'); if (c) c.textContent = confrontoTxt(prezzoAmazon(S.righe.find(x => x.id === S.aperta.id), S.aperta.unita), v);
+    const i = $('pvPrezzo'); if (i) i.value = Number(v).toFixed(2);
+}
+// Al rilascio compare il riquadro col prezzo, il negozio e il Salva, e parte il GPS:
+// si salva col pulsante, così un tocco per sbaglio non lascia un prezzo falso.
+function cursoreRilascia(v) {
+    S.aperta.valore = Number(v);
+    if (S.aperta.pannello) { cursoreMuove(v); return; }
+    S.aperta.pannello = true;
+    disegnaPrezzi();
+    cercaPosizione();
+}
+function pannelloPrezzo(v) {
+    S.aperta.valore = Number(v);
+    $('pvVal').textContent = euro(v);
+    $('pvConfronto').textContent = confrontoTxt(prezzoAmazon(S.righe.find(x => x.id === S.aperta.id), S.aperta.unita), v);
+}
+function chiudiCursore() { S.aperta = null; S.pos = null; disegnaPrezzi(); }
+function scriviGps(t) { if (S.aperta) S.aperta.gps = t; const g = $('pvGps'); if (g) g.textContent = t; }
+// La posizione si chiede una volta per prezzo e non blocca niente: se non arriva,
+// il prezzo si salva senza e la riga lo dice (lat/lon NULL, non zero).
+function cercaPosizione() {
+    if (!navigator.geolocation) { scriviGps('📍 posizione non disponibile su questo dispositivo'); S.pos = Promise.resolve(null); return; }
+    S.pos = new Promise(res => navigator.geolocation.getCurrentPosition(
+        p => { scriviGps(`📍 posizione presa (± ${Math.round(p.coords.accuracy)} m)`); res(p.coords); },
+        e => { scriviGps('📍 posizione non avuta' + (e.code === 1 ? ' (permesso negato)' : '') + ': il prezzo si salva lo stesso'); res(null); },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
+}
+async function salvaPrezzoNegozio() {
+    const a = S.aperta; if (!a) return;
+    const prezzo = Number(a.valore);
+    if (!(prezzo >= 0) || $('pvPrezzo').value === '') { $('pvErr').textContent = 'Scrivi un prezzo.'; return; }
+    $('pvSalva').disabled = true;
+    // Al più qualche secondo di attesa per il GPS: il prezzo non deve aspettare il satellite.
+    const coords = S.pos ? await Promise.race([S.pos, new Promise(r => setTimeout(() => r(null), 6000))]) : null;
+    const riga = {
+        user_id: currentUserId, abbonamento_id: a.id, unita: a.unita, prezzo: Math.round(prezzo * 100) / 100,
+        negozio: (a.negozio || '').trim() || null,
+        lat: coords ? coords.latitude : null, lon: coords ? coords.longitude : null,
+        precisione_m: coords ? Math.round(coords.accuracy) : null,
+    };
+    const { data, error } = await sb.from('amz_prezzi_negozio').insert(riga).select().single();
+    if (error) {
+        if (handleAuthError(error)) return;
+        $('pvSalva').disabled = false;
+        $('pvErr').textContent = '❌ ' + error.message;
+        return;
+    }
+    S.negozio.unshift(data);
+    S.aperta = null; S.pos = null;
+    disegnaPrezzi();
+    showToast(coords ? '💾 Prezzo salvato con la posizione' : '💾 Prezzo salvato (senza posizione)');
 }
 </script>
 </body>
