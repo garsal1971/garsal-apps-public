@@ -2164,6 +2164,12 @@ negozio facoltativo e 💾 Salva, e parte il GPS. La riga va in **`amz_prezzi_ne
 rilascio: un tocco per sbaglio non deve lasciare un prezzo falso. La gestione di prima (schede,
 form, chiavi) sta dietro il FAB 📦.
 
+⚠️ **Il GPS dalla pagina, dentro l'APK WebView, passa da `onGeolocationPermissionsShowPrompt`**
+(`com.garsalapps` 1.2.5, `MainActivity.kt`): senza quell'override la WebView nega
+`navigator.geolocation` in silenzio e nessuno chiede niente. La prima volta chiede il permesso di
+Android (`ACCESS_FINE/COARSE_LOCATION` nel manifest), e la concede alle sole pagine di
+`garsal.men` / `*.pages.dev`.
+
 ### Obiettivi (`ob_`)
 | Table | Purpose |
 |---|---|
