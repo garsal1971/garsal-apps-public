@@ -2154,6 +2154,16 @@ la scorta contata** — da lì si sommano le consegne arrivate e si toglie il co
 p_eventi)`, che riconosce l'articolo per ASIN, titolo identico o un inizio di titolo che aggancia un
 abbonamento solo; quello che non riconosce nasce `da_verificare`. Prezzo NULL = non ancora noto, non zero.
 
+🏷️ **La pagina si apre sui PREZZI** (v1.1.0): per ogni abbonamento attivo una barra col prezzo Amazon
+a pezzo e una al kg/l (solo se la misura è nota). Toccandola il centro diventa un cursore che parte
+dal prezzo Amazon (−50 %…+50 %, passo 1 centesimo); al rilascio compare il riquadro con prezzo,
+negozio facoltativo e 💾 Salva, e parte il GPS. La riga va in **`amz_prezzi_negozio`**
+(`20261017120000_amz_prezzi_negozio.sql`: `unita` `pezzo`|`kg_l`, `prezzo`, `negozio`, `lat`/`lon`/
+`precisione_m` — NULL = posizione non avuta, il prezzo si salva lo stesso). Accanto alla barra
+«Amazon ±N%» = (Amazon − ultimo prezzo visto) / prezzo visto. ⚠️ Si salva col pulsante e non al
+rilascio: un tocco per sbaglio non deve lasciare un prezzo falso. La gestione di prima (schede,
+form, chiavi) sta dietro il FAB 📦.
+
 ### Obiettivi (`ob_`)
 | Table | Purpose |
 |---|---|
