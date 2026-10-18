@@ -5315,7 +5315,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   resto della giornata su quel dispositivo (`localStorage.appsphere_recap_tolti`, col giorno) e
   ricompare il giorno dopo se la cosa c'è ancora. Non scrive niente nel database. La chiave del box
   (`data-rk`) non contiene i numeri che mostra, o un box di Finanza ricomparirebbe al primo
-  ricarico; in fondo c'è *↺ Rimetti i box tolti oggi*. ⚠️ **Un blocco tolto o vuoto non si disegna** (v1.15.1): spariscono riga e sottotitolo, e una sezione senza blocchi perde anche il titolo; tutto vuoto = «Niente da mostrare oggi.». Solo web per ora: il nativo (`home/Recap.kt`) scrive ancora «Tolto fino a domani.». ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
+  ricarico; in fondo c'è *↺ Rimetti i box tolti oggi*. ⚠️ **Un blocco tolto o vuoto non si disegna** (v1.15.1): spariscono riga e sottotitolo, e una sezione senza blocchi perde anche il titolo; tutto vuoto = «Niente da mostrare oggi.». Uguale nel nativo (`CorpoRecap` in `home/Recap.kt`, APK 1.0.140), e così il filtro della prossima scadenza per entità (`promemoria()`): gemelli da cambiare insieme. ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
   e Piante si **convertono** (`recapGiornoDi`). I riservati seguono la modalità nascosta. Solo web:
   la home nativa ha ancora i suoi avvisi.
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·

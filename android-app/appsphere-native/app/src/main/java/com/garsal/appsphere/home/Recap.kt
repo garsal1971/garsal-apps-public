@@ -536,6 +536,7 @@ object RecapRepository {
 
     private suspend fun promemoria(riservati: Set<String>): List<RecapPromemoria> {
         val visti = LinkedHashMap<String, RecapPromemoria>()
+        val primoGiorno = HashMap<String, String>()
         for (r in righe("cm_notification_queue", "app,entity_id,title,fire_at,channel") {
             filter { isIn("status", listOf("pending", "snoozed")) }
             order("fire_at", Order.ASCENDING)
@@ -548,6 +549,11 @@ object RecapRepository {
             }.getOrNull()
             val giorno = locale?.toLocalDate()?.toString() ?: fire.take(10)
             val ora = locale?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: ""
+            // Della stessa entità solo la PROSSIMA scadenza (le righe arrivano
+            // in ordine di fire_at): gemello di recapPromemoria() nel web, v1.15.2.
+            val entita = (r.s("app") ?: "") + "|" + (r.s("entity_id") ?: titolo)
+            val primo = primoGiorno.getOrPut(entita) { giorno }
+            if (primo != giorno) continue
             val k = "$titolo|$giorno"
             val canale = r.s("channel") ?: ""
             val nascosto = (r.s("entity_id") ?: "") in riservati
@@ -644,47 +650,62 @@ private fun CorpoRecap(
     val scadute = scad.filter { it.giorno < oggi }
     val prom = dati.promemoria.filter { (modalitaNascosta || !it.riservata) && it.chiave !in tolti }
 
+    // Un blocco tolto o vuoto non si disegna, e una sezione senza blocchi
+    // perde anche il titolo: gemello di disegnaRecap() nel web (v1.15.1).
+    val finanza = dati.finanza.takeIf { "finanza" !in tolti }
+    val peso = dati.peso.takeIf { "peso" !in tolti }.orEmpty()
+    val info = finanza != null || peso.isNotEmpty()
+    val compiti = diOggi.isNotEmpty() || scadute.isNotEmpty()
+    var primo = true
+
     // ℹ️ Info
-    TitoloSezione("ℹ️ Info", primo = true)
-    Sotto("💶 Finanza")
-    when {
-        "finanza" in tolti -> Vuoto("Tolto fino a domani.")
-        dati.finanza == null -> Vuoto("Totale portafogli non disponibile.")
-        else -> BoxRecap("finanza", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.FINANZA) }) {
-            Text(dati.finanza, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    if (info) {
+        TitoloSezione("ℹ️ Info", primo = primo); primo = false
+        if (finanza != null) {
+            Sotto("💶 Finanza")
+            BoxRecap("finanza", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.FINANZA) }) {
+                Text(finanza, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
         }
-    }
-    Sotto("⚖️ Peso e Calorie")
-    when {
-        "peso" in tolti -> Vuoto("Tolto fino a domani.")
-        dati.peso.isEmpty() -> Vuoto("Dati di peso non disponibili.")
-        // Un box solo: le righe una sotto l'altra, un tocco apre il peso.
-        else -> BoxRecap("peso", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.PESO) }) {
-            dati.peso.forEach { Text(it, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+        if (peso.isNotEmpty()) {
+            Sotto("⚖️ Peso e Calorie")
+            // Un box solo: le righe una sotto l'altra, un tocco apre il peso.
+            BoxRecap("peso", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.PESO) }) {
+                peso.forEach { Text(it, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+            }
         }
     }
 
     // ✅ Compiti: Oggi e Scadute, sempre separate.
-    TitoloSezione("✅ Compiti")
-    Sotto("📅 Oggi · ${diOggi.size}")
-    if (diOggi.isEmpty()) Vuoto("Niente in scadenza oggi.") else Gruppi(diOggi, false, onTogli, onApri)
-    Sotto("⚠️ Scadute · ${scadute.size}")
-    if (scadute.isEmpty()) Vuoto("Niente di arretrato.") else Gruppi(scadute, true, onTogli, onApri)
-
-    // 🔔 Promemoria
-    TitoloSezione("🔔 Promemoria aperti · ${prom.size}")
-    if (prom.isEmpty()) Vuoto("Nessun promemoria in coda.")
-    val icona = mapOf("telegram" to "📱", "android" to "📲", "smart_block" to "🔐")
-    val zona = ZoneId.systemDefault()
-    prom.forEach { p ->
-        val quando = runCatching {
-            OffsetDateTime.parse(p.fireAt.replace(' ', 'T')).atZoneSameInstant(zona).format(DateTimeFormatter.ofPattern("dd/MM"))
-        }.getOrDefault("") + " " + p.orari.joinToString(" · ")
-        BoxRecap(p.chiave, onTogli, GrigioSfondo, GrigioBordo, null) {
-            Text(quando + " " + p.canali.joinToString("") { icona[it] ?: "" }, color = GrigioTesto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(p.titolo, color = GrigioTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    if (compiti) {
+        TitoloSezione("✅ Compiti", primo = primo); primo = false
+        if (diOggi.isNotEmpty()) {
+            Sotto("📅 Oggi · ${diOggi.size}")
+            Gruppi(diOggi, false, onTogli, onApri)
+        }
+        if (scadute.isNotEmpty()) {
+            Sotto("⚠️ Scadute · ${scadute.size}")
+            Gruppi(scadute, true, onTogli, onApri)
         }
     }
+
+    // 🔔 Promemoria
+    if (prom.isNotEmpty()) {
+        TitoloSezione("🔔 Promemoria aperti · ${prom.size}", primo = primo); primo = false
+        val icona = mapOf("telegram" to "📱", "android" to "📲", "smart_block" to "🔐")
+        val zona = ZoneId.systemDefault()
+        prom.forEach { p ->
+            val quando = runCatching {
+                OffsetDateTime.parse(p.fireAt.replace(' ', 'T')).atZoneSameInstant(zona).format(DateTimeFormatter.ofPattern("dd/MM"))
+            }.getOrDefault("") + " " + p.orari.joinToString(" · ")
+            BoxRecap(p.chiave, onTogli, GrigioSfondo, GrigioBordo, null) {
+                Text(quando + " " + p.canali.joinToString("") { icona[it] ?: "" }, color = GrigioTesto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(p.titolo, color = GrigioTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+    }
+
+    if (!info && !compiti && prom.isEmpty()) Vuoto("Niente da mostrare oggi.")
 
     // Un trascinamento per sbaglio non deve costare il box fino a domani.
     if (tolti.isNotEmpty()) {
