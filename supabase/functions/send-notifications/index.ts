@@ -5,6 +5,7 @@
 // Prende le righe pending con fire_at nella finestra ±5 minuti e le consegna:
 //   channel = 'telegram' → messaggio al bot, coi bottoni inline
 //   channel = 'android'  → push FCM ai telefoni di cm_push_devices
+//   channel = 'browser'  → Web Push ai browser di cm_push_devices (platform 'web')
 // Consegna OK → status = 'sent', KO → 'failed' (nessun retry).
 //
 // ⚠️ I due canali sono INDIPENDENTI e arrivano tutt'e due: sono due righe
@@ -18,6 +19,7 @@
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { inviaWebPush, type Abbonamento } from './webpush.ts'
 
 const SUPABASE_URL       = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -26,6 +28,18 @@ const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')!
 // ⚠️ Assente = le push non partono e le righe 'android' finiscono 'failed', ma
 // Telegram continua a funzionare: i due canali non si tengono per mano.
 const FCM_SERVICE_ACCOUNT = Deno.env.get('FCM_SERVICE_ACCOUNT') ?? ''
+// Le chiavi VAPID del canale 'browser'. ⚠️ La pubblica sta anche in index.html.
+// Assenti = le righe 'browser' finiscono 'failed', gli altri canali non se ne accorgono.
+const VAPID_PUBLIC_KEY  = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
+const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
+const VAPID_SUBJECT     = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@garsal.men'
+
+// Dove porta il clic sulla notifica del browser.
+const PAGINA_APP: Record<string, string> = {
+  tasks: '/tasks.html', habits: '/habit-tracker.html', objectives: '/obiettivi.html',
+  plants: '/piante.html', weight: '/weight-quest.html', ta_firi: '/ta-firi.html',
+  events: '/events-log.html', quick: '/',
+}
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -289,7 +303,7 @@ Deno.serve(async (_req) => {
       .from('cm_notification_queue')
       .select('*')
       .eq('status', 'pending')
-      .in('channel', ['telegram', 'android'])
+      .in('channel', ['telegram', 'android', 'browser'])
       .gte('fire_at', windowMin)
       .lte('fire_at', windowMax)
       .order('fire_at', { ascending: true })
@@ -321,8 +335,26 @@ Deno.serve(async (_req) => {
         .select('id, token')
         .eq('user_id', userId)
         .eq('enabled', true)
+        // ⚠️ I browser stanno nella stessa tabella: il loro token è un
+        // endpoint Web Push, e mandato a FCM tornerebbe «token non valido» —
+        // cioè spegnerebbe il browser.
+        .neq('platform', 'web')
       const elenco = (data ?? []) as Telefono[]
       deviceCache.set(userId, elenco)
+      return elenco
+    }
+
+    const browserCache = new Map<string, Array<{ id: string; web_push: Abbonamento | null }>>()
+    async function getBrowser(userId: string) {
+      if (browserCache.has(userId)) return browserCache.get(userId)!
+      const { data } = await sb
+        .from('cm_push_devices')
+        .select('id, web_push')
+        .eq('user_id', userId)
+        .eq('enabled', true)
+        .eq('platform', 'web')
+      const elenco = (data ?? []) as Array<{ id: string; web_push: Abbonamento | null }>
+      browserCache.set(userId, elenco)
       return elenco
     }
 
@@ -387,6 +419,35 @@ Deno.serve(async (_req) => {
                 deviceCache.delete(item.user_id)
                 console.log(`[send-notif] device ${telefono.id} spento: token non più valido`)
               }
+            }
+          }
+        }
+
+      } else if (item.channel === 'browser') {
+        const browser = (await getBrowser(item.user_id)).filter(b => b.web_push?.endpoint)
+        if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+          errorMsg = 'VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY non configurati'
+        } else if (browser.length === 0) {
+          errorMsg = 'nessun browser abbonato e acceso'
+        } else {
+          const dati = {
+            title: item.title, body: item.body, app: item.app,
+            url: PAGINA_APP[item.app] ?? '/', tag: item.occurrence_id ?? item.id,
+          }
+          // Come per i telefoni: basta un browser raggiunto.
+          for (const b of browser) {
+            try {
+              const esito = await inviaWebPush(b.web_push!, dati, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT)
+              if (esito.ok) { consegnata = true; continue }
+              errorMsg = esito.risposta.slice(0, 300)
+              console.warn(`[send-notif] web push fallita device=${b.id}: ${errorMsg}`)
+              if (esito.morto) {
+                await sb.from('cm_push_devices').update({ enabled: false }).eq('id', b.id)
+                browserCache.delete(item.user_id)
+                console.log(`[send-notif] browser ${b.id} spento: abbonamento non più valido`)
+              }
+            } catch (e) {
+              errorMsg = `web push: ${String(e).slice(0, 200)}`
             }
           }
         }

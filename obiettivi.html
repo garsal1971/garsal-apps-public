@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.15.1</title>
+    <title>Obiettivi v1.16.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -1224,6 +1224,8 @@
             <div class="chip-row" id="nTgPresets"></div>
             <label class="notif-check"><input type="checkbox" id="nAn" onchange="renderNotifChips()"> 📲 Telefono (AppSphere nativa)</label>
             <div class="chip-row" id="nAnPresets"></div>
+            <label class="notif-check"><input type="checkbox" id="nBr" onchange="renderNotifChips()"> 💻 Browser (i PC abbonati da AppSphere)</label>
+            <div class="chip-row" id="nBrPresets"></div>
             <label class="notif-check"><input type="checkbox" id="nSb"> 🔐 Smart Block (blocca il telefono all'ora dell'azione)</label>
         </div>
 
@@ -1405,8 +1407,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.15.1';
-var BUILD_TIME  = '2026-10-18T12:00:00Z';
+var APP_VERSION = 'v1.16.0';
+var BUILD_TIME  = '2026-10-18T19:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1443,6 +1445,7 @@ let notifRules   = [];   // cm_notification_rules con app = 'objectives', una ri
 let notifPresets = [];   // cm_reminder_presets: gli anticipi che si possono scegliere
 let presetTg     = new Set();   // anticipi scelti nell'editor, per canale
 let presetAn     = new Set();
+let presetBr     = new Set();
 let priorities   = [];   // cm_priorities (condivise con Tasks)
 let progress     = {};   // { objective_id: risultato RPC }
 
@@ -3417,11 +3420,14 @@ function openActionEditor(objId, actionId) {
     // è acceso (come in Tasks e in Piante), e i suoi preset dicono gli anticipi.
     const tg = a ? regolaDi(a.id, 'telegram') : null;
     const an = a ? regolaDi(a.id, 'android') : null;
+    const br = a ? regolaDi(a.id, 'browser') : null;
     document.getElementById('nTg').checked = !!tg;
     document.getElementById('nAn').checked = !!an;
+    document.getElementById('nBr').checked = !!br;
     document.getElementById('nSb').checked = !!(a && regolaDi(a.id, 'smart_block'));
     presetTg = new Set(tg ? presetsDi(tg) : [primoPreset()].filter(x => x != null));
     presetAn = new Set(an ? presetsDi(an) : [primoPreset()].filter(x => x != null));
+    presetBr = new Set(br ? presetsDi(br) : [primoPreset()].filter(x => x != null));
     actMetrics    = a ? metricsOfAction(a.id).map(m => m.id) : [];
     yearlyDates   = [...(a?.recurring_dates || [])];
     multiDates    = [...(a?.multiple_dates || [])];
@@ -3507,7 +3513,7 @@ function presetsDi(r) {
 }
 function canaliDi(a) {
     const c = notifRules.filter(r => String(r.entity_id) === String(a.id)).map(r => r.channel);
-    return [c.includes('telegram') ? '📱' : '', c.includes('android') ? '📲' : '', c.includes('smart_block') ? '🔐' : ''].join('');
+    return [c.includes('telegram') ? '📱' : '', c.includes('android') ? '📲' : '', c.includes('browser') ? '💻' : '', c.includes('smart_block') ? '🔐' : ''].join('');
 }
 // L'anticipo proposto di partenza è quello più vicino all'ora (0 minuti, se c'è).
 function primoPreset() {
@@ -3525,9 +3531,10 @@ function renderNotifChips() {
     };
     chips(presetTg, 'nTgPresets', document.getElementById('nTg').checked);
     chips(presetAn, 'nAnPresets', document.getElementById('nAn').checked);
+    chips(presetBr, 'nBrPresets', document.getElementById('nBr').checked);
 }
 function togglePreset(boxId, id) {
-    const set = boxId === 'nTgPresets' ? presetTg : presetAn;
+    const set = boxId === 'nTgPresets' ? presetTg : boxId === 'nBrPresets' ? presetBr : presetAn;
     if (set.has(id)) set.delete(id); else set.add(id);
     renderNotifChips();
 }
@@ -3819,6 +3826,8 @@ async function sincronizzaRegole(actionId, payload) {
     const tgOn = document.getElementById('nTg').checked, anOn = document.getElementById('nAn').checked;
     const tg  = !senzaData && tgOn ? [...presetTg] : [];
     const an  = !senzaData && anOn ? [...presetAn] : [];
+    const brOn = document.getElementById('nBr').checked;
+    const br  = !senzaData && brOn ? [...presetBr] : [];
     const sbk = !senzaData && document.getElementById('nSb').checked;
 
     // ⚠️ `telegram_complete_button` anche sul canale del telefono: è il segnale
@@ -3828,13 +3837,16 @@ async function sincronizzaRegole(actionId, payload) {
     else await togli('telegram');
     if (an.length) await scrivi('android', { reminders: an, due_at: dueAt, telegram_complete_button: true });
     else await togli('android');
+    // 💻 Browser: niente pulsanti, quindi niente telegram_complete_button.
+    if (br.length) await scrivi('browser', { reminders: br, due_at: dueAt });
+    else await togli('browser');
     if (sbk) await scrivi('smart_block', { reminders: [], due_at: dueAt });
     else await togli('smart_block');
 
-    if (!senzaData && ((tgOn && !tg.length) || (anOn && !an.length)))
+    if (!senzaData && ((tgOn && !tg.length) || (anOn && !an.length) || (brOn && !br.length)))
         avvisi.push('⚠️ canale acceso senza anticipi: spento');
-    if (tg.length || an.length || sbk) {
-        avvisi.push('🔔 ' + [tg.length ? '📱' : '', an.length ? '📲' : '', sbk ? '🔐' : ''].join(''));
+    if (tg.length || an.length || br.length || sbk) {
+        avvisi.push('🔔 ' + [tg.length ? '📱' : '', an.length ? '📲' : '', br.length ? '💻' : '', sbk ? '🔐' : ''].join(''));
         triggerFillQueue();
     }
     return avvisi.join(' · ');

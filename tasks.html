@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.26.2</title>
+    <title>Tasks v19.27.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2370,8 +2370,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.26.2';
-        const BUILD_TIME  = '2026-10-11T09:00:00Z';
+        const APP_VERSION = 'v19.27.0';
+        const BUILD_TIME  = '2026-10-18T19:00:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -2541,6 +2541,10 @@
         // si spegneva anche il telefono senza che niente lo dicesse.
         let androidEnabled         = false;
         let androidReminders       = []; // le label scelte per il telefono, sue e non di Telegram
+        // Canale 'browser': Web Push sui PC abbonati (AppSphere → ☰ → 💻 Browser). Coi suoi
+        // anticipi, come il telefono, e senza pulsanti.
+        let browserEnabled         = false;
+        let browserReminders       = [];
         let currentReminderTab     = 'telegram'; // Tab attivo nel pannello promemoria
         let sbDeviceToken = null; // Token dispositivo Android (caricato da cm_user_notification_settings)
         let notificationRulesMap = {}; // entity_id → { presetIds: number[], telegramCompleteButton: bool }
@@ -2651,7 +2655,7 @@
                     .from('cm_notification_rules')
                     .select('entity_id, channel, reminder_presets')
                     .eq('app', 'tasks')
-                    .in('channel', ['telegram', 'android']);
+                    .in('channel', ['telegram', 'android', 'browser']);
                 if (error) { console.warn('loadNotificationRulesMap error:', error); return; }
                 // ⚠️ L'unione dei due canali, non il solo Telegram: il badge 🔔 sulla scheda
                 // dice «questo task un promemoria ce l'ha», e da quando il telefono si accende
@@ -2719,7 +2723,7 @@
             }
         }
 
-        async function syncNotificationRules(taskId, taskType, reminderLabels, dueDate, entityTitle, androidLabels) {
+        async function syncNotificationRules(taskId, taskType, reminderLabels, dueDate, entityTitle, androidLabels, browserLabels) {
             try {
                 const token = sbAccessToken;
                 if (!token) {
@@ -2858,6 +2862,20 @@
                         toasts.push(`❌ Telefono: ${errAN.message}`);
                     } else {
                         toasts.push(`📲 Telefono: ${idsAN.length} promemoria`);
+                    }
+                }
+
+                // Browser (Web Push, canale 'browser'): niente pulsanti.
+                const idsBR = browserEnabled ? idsDaLabel(browserLabels) : [];
+                if (idsBR.length === 0) {
+                    await togliRegola('browser');
+                } else {
+                    const errBR = await scriviRegola('browser', { reminders: idsBR, due_at: dueDate || null });
+                    if (errBR) {
+                        console.error('❌ browser error:', errBR);
+                        toasts.push(`❌ Browser: ${errBR.message}`);
+                    } else {
+                        toasts.push(`💻 Browser: ${idsBR.length} promemoria`);
                     }
                 }
 
@@ -5364,6 +5382,8 @@
             smartBlockEnabled      = false;
             androidEnabled         = false;
             androidReminders       = [];
+            browserEnabled         = false;
+            browserReminders       = [];
             currentReminderTab     = 'telegram';
             console.log('🟢 reminders reset to:', reminders);
             yearlyDates = []; // Reset date annuali
@@ -5497,6 +5517,8 @@
             smartBlockEnabled      = false;
             androidEnabled         = false;
             androidReminders       = [];
+            browserEnabled         = false;
+            browserReminders       = [];
             currentReminderTab     = 'telegram';
             try {
                 if (reminderPresets.length === 0) await loadReminderPresets();
@@ -5511,6 +5533,16 @@
                     const tgRule = rules.find(r => r.channel === 'telegram'    && (!editUserId || r.user_id === editUserId));
                     const sbRule = rules.find(r => r.channel === 'smart_block' && (!editUserId || r.user_id === editUserId));
                     const anRule = rules.find(r => r.channel === 'android'     && (!editUserId || r.user_id === editUserId));
+                    const brRule = rules.find(r => r.channel === 'browser'     && (!editUserId || r.user_id === editUserId));
+                    browserEnabled = !!brRule;
+                    if (brRule) {
+                        const brPresetIds = brRule.reminder_presets?.reminders || [];
+                        if (brPresetIds.length > 0 && reminderPresets.length > 0) {
+                            browserReminders = brPresetIds
+                                .map(id => reminderPresets.find(p => String(p.int_id) === String(id))?.label)
+                                .filter(Boolean);
+                        }
+                    }
                     telegramEnabled   = !!tgRule;
                     smartBlockEnabled = !!sbRule;
                     // ⚠️ Adesso il telefono è un canale come gli altri, quindi la sua riga
@@ -6389,6 +6421,7 @@
             const TABS = [
                 { id: 'telegram',    testo: '📱 Telegram',    acceso: telegramEnabled,   colore: 'var(--accent)'    },
                 { id: 'android',     testo: '📲 Telefono',    acceso: androidEnabled,    colore: 'var(--success)'   },
+                { id: 'browser',     testo: '💻 Browser',     acceso: browserEnabled,    colore: 'var(--warning)'   },
                 { id: 'smart_block', testo: '🔐 Smart Block', acceso: smartBlockEnabled, colore: 'var(--secondary)' },
             ];
 
@@ -6459,6 +6492,19 @@
                     Push sull'app <strong>AppSphere</strong>, coi pulsanti ✅ Fatto e ⏸ Rinvia.
                     Indipendente da Telegram: puoi tenere acceso solo questo.
                 </div>` : ''}
+                ` : tab === 'browser' ? `
+                <!-- Contenuto tab Browser (Web Push sui PC abbonati) -->
+                <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:8px;cursor:pointer;">
+                    <input type="checkbox" ${browserEnabled ? 'checked' : ''}
+                           onchange="browserEnabled=this.checked;renderReminders()"
+                           style="width:15px;height:15px;accent-color:var(--warning);">
+                    <span style="font-size:0.85rem;font-weight:600;color:var(--dark);">Attiva notifiche nel browser</span>
+                </label>
+                ${browserEnabled ? `
+                ${pillole(browserReminders, 'selectBrowserReminderInline', 'unselectBrowserReminderInline')}
+                <div style="font-size:0.8rem;color:var(--muted);line-height:1.35;">
+                    Arriva sui browser abbonati e accesi (AppSphere → ☰ → 💻 Browser), senza pulsanti.
+                </div>` : ''}
                 ` : `
                 <!-- Contenuto tab Smart Block -->
                 <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:8px;cursor:pointer;">
@@ -6509,6 +6555,21 @@
             const index = androidReminders.indexOf(value);
             if (index > -1) {
                 androidReminders.splice(index, 1);
+                renderReminders();
+            }
+        }
+
+        function selectBrowserReminderInline(value) {
+            if (!browserReminders.includes(value)) {
+                browserReminders.push(value);
+                renderReminders();
+            }
+        }
+
+        function unselectBrowserReminderInline(value) {
+            const index = browserReminders.indexOf(value);
+            if (index > -1) {
+                browserReminders.splice(index, 1);
                 renderReminders();
             }
         }
@@ -6720,7 +6781,7 @@
                 // Sincronizza regole promemoria SEMPRE dopo update riuscito
                 console.log(`🔵 saveTask UPDATE → reminders al momento del save:`, reminders);
                 const updateDueDate = taskData.next_occurrence_date || taskData.start_date || null;
-                await syncNotificationRules(taskId, taskType, reminders, updateDueDate, taskData.title, androidReminders);
+                await syncNotificationRules(taskId, taskType, reminders, updateDueDate, taskData.title, androidReminders, browserReminders);
             } else {
                 // INSERT
                 console.log('🔵 INSERTING task:', taskData);
@@ -6742,7 +6803,7 @@
                     // Usa taskData (valori dal form, con ora locale corretta) invece di data[0]
                     // (risposta DB che può restituire date-only senza ora).
                     const insertDueDate = taskData.next_occurrence_date || taskData.start_date || null;
-                    await syncNotificationRules(data[0].id, taskType, reminders, insertDueDate, taskData.title, androidReminders);
+                    await syncNotificationRules(data[0].id, taskType, reminders, insertDueDate, taskData.title, androidReminders, browserReminders);
                 } else {
                     console.warn('⚠️ No data returned from insert');
                     debugLog('⚠️ No data returned from insert');

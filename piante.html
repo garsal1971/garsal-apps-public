@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piante v1.4.2</title>
+    <title>Piante v1.5.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -646,6 +646,8 @@
             <div class="pill-row" id="nTgPresets"></div>
             <label class="check" style="margin-top:0.6rem;"><input type="checkbox" id="nAn" onchange="aggiornaNotifiche()"> 📲 Telefono</label>
             <div class="pill-row" id="nAnPresets"></div>
+            <label class="check" style="margin-top:0.6rem;"><input type="checkbox" id="nBr" onchange="aggiornaNotifiche()"> 💻 Browser (i PC abbonati da AppSphere)</label>
+            <div class="pill-row" id="nBrPresets"></div>
             <label class="check" style="margin-top:0.6rem;"><input type="checkbox" id="nSb"> 🔐 Smart Block (blocca il telefono all'ora dell'azione)</label>
         </fieldset>
         <div class="form-error" id="aErr"></div>
@@ -711,8 +713,8 @@
 // ════════════════════════════════════════════════════════════
 // PIANTE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.4.2';
-var BUILD_TIME  = '2026-10-13T09:00:00Z';
+var APP_VERSION = 'v1.5.0';
+var BUILD_TIME  = '2026-10-18T19:00:00Z';
 console.log('%c 🌱 PIANTE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#2E7D32;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1534,7 +1536,7 @@ function descriviRicorrenza(a) {
 
 function canaliDi(a) {
     const c = S.regole.filter(r => String(r.entity_id) === String(a.id)).map(r => r.channel);
-    return [c.includes('telegram') ? '📱' : '', c.includes('android') ? '📲' : '', c.includes('smart_block') ? '🔐' : ''].join('');
+    return [c.includes('telegram') ? '📱' : '', c.includes('android') ? '📲' : '', c.includes('browser') ? '💻' : '', c.includes('smart_block') ? '🔐' : ''].join('');
 }
 
 function schedaAzione(a, conPianta) {
@@ -1748,12 +1750,14 @@ function apriAzione(id, plantId, groupId) {
         const rp = typeof r.reminder_presets === 'string' ? JSON.parse(r.reminder_presets) : (r.reminder_presets || {});
         return (rp.reminders || []).map(Number);
     };
-    const tg = regola('telegram'), an = regola('android'), sbk = regola('smart_block');
+    const tg = regola('telegram'), an = regola('android'), br = regola('browser'), sbk = regola('smart_block');
     document.getElementById('nTg').checked = !!tg;
     document.getElementById('nAn').checked = !!an;
+    document.getElementById('nBr').checked = !!br;
     document.getElementById('nSb').checked = !!sbk;
     S.presetTg = new Set(tg ? presetsDi(tg) : [primoPreset()].filter(x => x != null));
     S.presetAn = new Set(an ? presetsDi(an) : [primoPreset()].filter(x => x != null));
+    S.presetBr = new Set(br ? presetsDi(br) : [primoPreset()].filter(x => x != null));
     document.getElementById('aErr').textContent = '';
     aggiornaCampiTipo();
     aggiornaNotifiche();
@@ -1817,6 +1821,7 @@ function aggiornaNotifiche() {
     };
     chips('presetTg', 'nTgPresets', document.getElementById('nTg').checked);
     chips('presetAn', 'nAnPresets', document.getElementById('nAn').checked);
+    chips('presetBr', 'nBrPresets', document.getElementById('nBr').checked);
 }
 function togglePreset(setName, id) {
     const s = S[setName];
@@ -2074,6 +2079,7 @@ async function sincronizzaRegole(actionId, tipo, titolo, dueAt) {
 
     const tg = !senzaData && document.getElementById('nTg').checked ? [...S.presetTg] : [];
     const an = !senzaData && document.getElementById('nAn').checked ? [...S.presetAn] : [];
+    const br = !senzaData && document.getElementById('nBr').checked ? [...S.presetBr] : [];
     const sbk = !senzaData && document.getElementById('nSb').checked;
 
     // ⚠️ `telegram_complete_button` anche sul canale del telefono: è il segnale
@@ -2083,14 +2089,18 @@ async function sincronizzaRegole(actionId, tipo, titolo, dueAt) {
     else await togli('telegram');
     if (an.length) await scrivi('android', { reminders: an, due_at: dueAt, telegram_complete_button: true });
     else await togli('android');
+    // 💻 Browser: niente pulsanti, quindi niente telegram_complete_button.
+    if (br.length) await scrivi('browser', { reminders: br, due_at: dueAt });
+    else await togli('browser');
     if (sbk) await scrivi('smart_block', { reminders: [], due_at: dueAt });
     else await togli('smart_block');
 
     if ((document.getElementById('nTg').checked && !tg.length && !senzaData) ||
-        (document.getElementById('nAn').checked && !an.length && !senzaData))
+        (document.getElementById('nAn').checked && !an.length && !senzaData) ||
+        (document.getElementById('nBr').checked && !br.length && !senzaData))
         avvisi.push('⚠️ canale acceso senza anticipi: spento');
-    if (tg.length || an.length || sbk) {
-        avvisi.push('🔔 ' + [tg.length ? '📱' : '', an.length ? '📲' : '', sbk ? '🔐' : ''].join(''));
+    if (tg.length || an.length || br.length || sbk) {
+        avvisi.push('🔔 ' + [tg.length ? '📱' : '', an.length ? '📲' : '', br.length ? '💻' : '', sbk ? '🔐' : ''].join(''));
         triggerFillQueue();
     }
     return avvisi.join(' · ');
