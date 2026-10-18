@@ -5311,7 +5311,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   fuori dalle scadute), Obiettivi e Piante (azioni), Ta Firi? (check-in `pending`), Decisioni,
   Spuntiamola, Abituati e la pesata di Peso (questi ultimi solo oggi) — e 🔔 **Promemoria aperti**,
   le righe `pending`/`snoozed` di `cm_notification_queue` di qualunque app, una volta sola anche se
-  sono su più canali. ⚠️ **Ogni box si toglie trascinandolo verso destra** (v1.13.0): resta tolto per il
+  sono su più canali. ⚠️ **Per ogni entità (app + `entity_id`) si mostra solo la PROSSIMA scadenza** (v1.15.2): le pesate del 22 e del 25 non compaiono finché c'è quella del 19. ⚠️ **Ogni box si toglie trascinandolo verso destra** (v1.13.0): resta tolto per il
   resto della giornata su quel dispositivo (`localStorage.appsphere_recap_tolti`, col giorno) e
   ricompare il giorno dopo se la cosa c'è ancora. Non scrive niente nel database. La chiave del box
   (`data-rk`) non contiene i numeri che mostra, o un box di Finanza ricomparirebbe al primo

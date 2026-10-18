@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.15.1</title>
+<title>AppSphere v1.15.2</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2288,8 +2288,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.15.1';
-const BUILD_TIME  = '2026-10-18T12:30:00Z';
+const APP_VERSION = 'v1.15.2';
+const BUILD_TIME  = '2026-10-18T13:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4038,11 +4038,19 @@ async function recapPromemoria(headers, riservati) {
     );
     if (!res.ok) return [];
     const visti = new Map();
+    // Una sola scadenza per entità, la PROSSIMA (v1.15.2): le righe arrivano per
+    // fire_at crescente, quindi il primo giorno visto per un'entità è quello buono e
+    // i giorni dopo (la pesata del 22, del 25…) si saltano. Gli orari e i canali
+    // dello stesso giorno continuano invece ad accorparsi qui sotto.
+    const primoGiorno = new Map();
     for (const r of await res.json()) {
       const title = r.title || 'Promemoria';
       const d = new Date(r.fire_at);
       const giorno = isNaN(d.getTime()) ? String(r.fire_at).slice(0, 10)
         : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const entita = (r.app || '') + '|' + (r.entity_id != null ? r.entity_id : title);
+      if (!primoGiorno.has(entita)) primoGiorno.set(entita, giorno);
+      else if (primoGiorno.get(entita) !== giorno) continue;
       const ora = isNaN(d.getTime()) ? '' : d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
       const chiave = title + '|' + giorno;
       const nascosto = riservati.has(String(r.entity_id));
