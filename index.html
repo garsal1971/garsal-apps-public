@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.15.2</title>
+<title>AppSphere v1.16.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1064,28 +1064,34 @@
     z-index: 8000; align-items: center; justify-content: center;
   }
   #cat-modal-overlay.open { display: flex; }
-  #cat-modal {
+  /* 💻 Browser: la stessa finestra delle Categorie */
+  #br-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 8000; align-items: center; justify-content: center; }
+  #br-modal-overlay.open { display: flex; }
+  #br-modal-overlay .cat-name-input { flex: 1 1 10rem; min-width: 0; }
+  .br-questo { font-size: 12px; color: #00A651; font-weight: 600; }
+  #cat-modal, #br-modal {
     background: #fff; border-radius: 14px; border: 2px solid #111;
     width: min(600px, 94vw); max-height: 86vh; display: flex; flex-direction: column;
     overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   }
-  #cat-modal-header {
+  #cat-modal-header, #br-modal-header {
     padding: 16px 20px 12px; border-bottom: 1px solid #eee;
     display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
   }
-  #cat-modal-header h2 { font-size: 16px; font-weight: 600; color: #111; }
+  #cat-modal-header h2, #br-modal-header h2 { font-size: 16px; font-weight: 600; color: #111; }
   #cat-modal-header span {
     font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; flex: 1; min-width: 0;
   }
-  #cat-modal-close {
+  #cat-modal-close, #br-modal-close {
     background: none; border: none; font-size: 20px; cursor: pointer; color: #888;
     line-height: 1; padding: 0 2px; flex-shrink: 0; margin-left: auto;
   }
-  #cat-modal-body {
+  #cat-modal-body, #br-modal-body {
     overflow-y: auto; overflow-x: hidden; padding: 14px 20px;
     display: flex; flex-direction: column; gap: 12px;
   }
-  #cat-modal-footer {
+  #cat-modal-footer, #br-modal-footer {
     padding: 10px 20px; border-top: 1px solid #eee;
     font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
   }
@@ -1943,6 +1949,7 @@
   <button class="hm-item" onclick="closeHamburgerMenu(); openPrioritiesSettings();">🚦 Priorità</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openNotifiche();">🔔 Notifiche</button>
   <button class="hm-item" onclick="closeHamburgerMenu(); openNqv();">⚡ Notifica al Volo</button>
+  <button class="hm-item" onclick="closeHamburgerMenu(); openBrowserPush();">💻 Browser</button>
   <!-- Solo dentro l'APK Android: sul PC non c'è nessun APK da aggiornare.
        Resta nascosta anche negli APK più vecchi del ponte checkUpdate(). -->
   <button class="hm-item" id="hm-versione" style="display:none"
@@ -2080,6 +2087,10 @@
             <input type="checkbox" id="nqv-android" checked style="width:16px;height:16px;">
             <span>📲 Sul telefono (AppSphere)</span>
           </label>
+          <label class="nqv-label" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:400;">
+            <input type="checkbox" id="nqv-browser" style="width:16px;height:16px;">
+            <span>💻 Nel browser (i PC abbonati)</span>
+          </label>
         </div>
       </div>
       <div class="nqv-form-footer">
@@ -2115,6 +2126,18 @@
     </div>
     <div id="cat-modal-body"></div>
     <div id="cat-modal-footer">le modifiche sono immediate · si elimina solo una categoria che nessuno usa</div>
+  </div>
+</div>
+
+<!-- 💻 BROWSER — i PC che ricevono le notifiche del canale 'browser' (cm_push_devices, platform 'web') -->
+<div id="br-modal-overlay">
+  <div id="br-modal">
+    <div id="br-modal-header">
+      <h2>💻 Browser</h2>
+      <button id="br-modal-close" onclick="closeBrowserPush()" aria-label="Chiudi">✕</button>
+    </div>
+    <div id="br-modal-body"></div>
+    <div id="br-modal-footer">la notifica arriva a tutti i browser accesi · si sceglie per promemoria con la casella 💻 Browser</div>
   </div>
 </div>
 
@@ -2288,8 +2311,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.15.2';
-const BUILD_TIME  = '2026-10-18T13:00:00Z';
+const APP_VERSION = 'v1.16.0';
+const BUILD_TIME  = '2026-10-18T19:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4728,6 +4751,7 @@ function nqvShowView(view) {
     // spenta dalla volta prima spegnerebbe un promemoria senza che nessuno l'abbia deciso.
     const cbTg = document.getElementById('nqv-telegram'); if (cbTg) cbTg.checked = true;
     const cbAn = document.getElementById('nqv-android');  if (cbAn) cbAn.checked = true;
+    const cbBr = document.getElementById('nqv-browser');  if (cbBr) cbBr.checked = false;
     document.getElementById('nqv-testo').focus();
   }
 }
@@ -4767,6 +4791,7 @@ async function nqvLoadList() {
       const dove = [
         canali.includes('telegram') ? '✈ Telegram' : null,
         canali.includes('android')  ? '📲 Telefono' : null,
+        canali.includes('browser')  ? '💻 Browser'  : null,
       ].filter(Boolean).join(' · ') || '—';
       return `
         <div class="nqv-item" id="nqv-item-${r.entity_id || r.id}">
@@ -4852,8 +4877,9 @@ async function saveNqv() {
   // non al suo posto.
   const telegramOn = document.getElementById('nqv-telegram')?.checked ?? true;
   const androidOn  = document.getElementById('nqv-android')?.checked  ?? true;
-  const canali     = [telegramOn && 'telegram', androidOn && 'android'].filter(Boolean);
-  if (canali.length === 0) { alert('Scegli almeno un canale: Telegram o il telefono.'); return; }
+  const browserOn  = document.getElementById('nqv-browser')?.checked  ?? false;
+  const canali     = [telegramOn && 'telegram', androidOn && 'android', browserOn && 'browser'].filter(Boolean);
+  if (canali.length === 0) { alert('Scegli almeno un canale: Telegram, il telefono o il browser.'); return; }
 
   // ⚠️ Niente `android` nei preset: adesso è la RIGA a dire che il canale è acceso, e
   // una riga che c'è non ha bisogno di un campo che lo ripeta — due verità sullo stesso
@@ -5266,6 +5292,152 @@ async function eliminaCategoria(id) {
 
 document.getElementById('cat-modal-overlay').addEventListener('click', function(e) {
   if (e.target === this) closeCategorie();
+});
+
+// ── 💻 BROWSER (notifiche Web Push) ──
+// I browser che ricevono il canale 'browser' sono righe di cm_push_devices con
+// platform = 'web': token = endpoint dell'abbonamento, web_push = l'abbonamento
+// intero (serve a cifrare), device_name = il nome dato qui, enabled = l'interruttore.
+// ⚠️ VAPID_PUBLIC è la stessa chiave del secret VAPID_PUBLIC_KEY che legge
+// send-notifications: cambiandone una sola, il servizio push rifiuta ogni invio.
+const VAPID_PUBLIC = 'BEYSdajFGQIvzUtFrpn3HbzMVIFTyUWM-fOPnOYDXlqdq6qOjAjcfk5yCb1emwn1DMGPeaXTrIawYRLBwIr8Opo';
+let _br = { righe: [], mio: null, msg: '' };
+
+function brSupportato() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+function brChiave(b64) {
+  const s = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(s, c => c.charCodeAt(0));
+}
+async function brScrivi(metodo, query, corpo, prefer) {
+  const token = localStorage.getItem('sb_token');
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/cm_push_devices${query}`, {
+    method: metodo,
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token,
+               'Content-Type': 'application/json', 'Prefer': prefer || 'return=minimal' },
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
+}
+async function brAbbonamento() {
+  if (!brSupportato()) return null;
+  const reg = await navigator.serviceWorker.register('/sw-notifiche.js');
+  return { reg, sub: await reg.pushManager.getSubscription() };
+}
+
+async function openBrowserPush() {
+  document.getElementById('br-modal-overlay').classList.add('open');
+  document.getElementById('br-modal-body').innerHTML = '<div class="cat-usi">Caricamento…</div>';
+  await brCarica();
+}
+function closeBrowserPush() {
+  document.getElementById('br-modal-overlay').classList.remove('open');
+}
+async function brCarica() {
+  try {
+    _br.righe = await ptLeggi('cm_push_devices?select=id,token,device_name,enabled,created_at&platform=eq.web&order=created_at');
+    const ab = await brAbbonamento().catch(e => { console.warn('💻 service worker:', e); return null; });
+    _br.mio = ab?.sub?.endpoint || null;
+  } catch (err) {
+    console.error('💻 Browser:', err);
+    _br.msg = '✗ ' + err.message;
+  }
+  brRender();
+}
+function brRender() {
+  const body = document.getElementById('br-modal-body');
+  const mioRegistrato = _br.mio && _br.righe.some(r => r.token === _br.mio);
+  let testa;
+  if (!brSupportato()) {
+    testa = `<div class="cat-usi">Questo browser non sa ricevere notifiche push. Dentro l'app Android usa il canale 📲 Telefono.</div>`;
+  } else if (Notification.permission === 'denied') {
+    testa = `<div class="cat-usi" style="color:#EE334E">Le notifiche per questo sito sono <strong>bloccate</strong> nel browser: riattivale dalle impostazioni del sito (il lucchetto accanto all'indirizzo), poi riapri questa finestra.</div>`;
+  } else if (mioRegistrato) {
+    testa = `<div class="cat-usi">Questo browser è abbonato. <button class="salva" onclick="brProva()">🔔 Prova</button></div>`;
+  } else {
+    testa = `
+    <div class="cat-row nuova" style="border-top:none;padding-top:0;">
+      <input type="text" class="cat-name-input" id="br-nome-new" placeholder="Nome di questo browser (es. PC casa)" aria-label="Nome">
+      <div class="cat-btns"><button class="salva" onclick="brAbbona()">🔔 Abbona questo browser</button></div>
+    </div>`;
+  }
+  const righe = _br.righe.map(r => `
+    <div class="cat-row" data-id="${r.id}">
+      <input type="text" class="cat-name-input" id="br-nome-${r.id}" value="${escapeHtml(r.device_name || '')}" placeholder="senza nome" aria-label="Nome">
+      <label class="cat-check"><input type="checkbox" id="br-on-${r.id}" ${r.enabled ? 'checked' : ''} onchange="brSalva('${r.id}')"> acceso</label>
+      ${r.token === _br.mio ? '<span class="br-questo">← questo browser</span>' : ''}
+      <span class="cat-status" id="br-status-${r.id}"></span>
+      <div class="cat-btns">
+        <button class="salva" onclick="brSalva('${r.id}')">Salva</button>
+        <button class="elimina" onclick="brElimina('${r.id}')">Elimina</button>
+      </div>
+    </div>`).join('');
+  body.innerHTML = testa + (_br.msg ? `<div class="cat-usi">${escapeHtml(_br.msg)}</div>` : '') +
+    (righe || '<div class="cat-usi zero">Nessun browser abbonato.</div>');
+  _br.msg = '';
+}
+async function brAbbona() {
+  const nome = (document.getElementById('br-nome-new')?.value || '').trim();
+  if (!nome) { _br.msg = 'Dai un nome a questo browser.'; return brRender(); }
+  try {
+    if (await Notification.requestPermission() !== 'granted') {
+      _br.msg = 'Permesso per le notifiche non concesso.'; return brRender();
+    }
+    const { reg, sub: gia } = await brAbbonamento();
+    const sub = gia || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: brChiave(VAPID_PUBLIC) });
+    const json = sub.toJSON();
+    const utente = await getUserInfo(localStorage.getItem('sb_token'));
+    if (!utente?.id) throw new Error('utente non riconosciuto');
+    // Upsert sul token (= endpoint): riabbonando lo stesso browser si aggiorna la sua riga.
+    await brScrivi('POST', '?on_conflict=token', {
+      user_id: utente.id, token: json.endpoint, platform: 'web', device_name: nome,
+      enabled: true, web_push: json, app_version: APP_VERSION, last_seen_at: new Date().toISOString(),
+    }, 'resolution=merge-duplicates,return=minimal');
+    _br.msg = '✓ abbonato: «' + nome + '»';
+  } catch (err) {
+    console.error('💻 abbonamento:', err);
+    _br.msg = '✗ ' + err.message;
+  }
+  await brCarica();
+}
+async function brSalva(id) {
+  const st = document.getElementById('br-status-' + id);
+  try {
+    await brScrivi('PATCH', `?id=eq.${encodeURIComponent(id)}`, {
+      device_name: (document.getElementById('br-nome-' + id).value || '').trim() || null,
+      enabled: document.getElementById('br-on-' + id).checked,
+    });
+    if (st) { st.textContent = '✓ salvato'; setTimeout(() => { st.textContent = ''; }, 2000); }
+  } catch (err) {
+    if (st) st.textContent = '✗ ' + err.message;
+  }
+}
+async function brElimina(id) {
+  const r = _br.righe.find(x => x.id === id);
+  if (!confirm(`Togliere «${r?.device_name || 'senza nome'}»? Non riceverà più notifiche.`)) return;
+  try {
+    // Se è questo browser, si disdice anche l'abbonamento: una riga tolta con
+    // l'abbonamento ancora vivo lascerebbe il browser credere di essere iscritto.
+    if (r && r.token === _br.mio) {
+      const ab = await brAbbonamento();
+      await ab?.sub?.unsubscribe().catch(() => {});
+    }
+    await brScrivi('DELETE', `?id=eq.${encodeURIComponent(id)}`);
+  } catch (err) {
+    _br.msg = '✗ ' + err.message;
+  }
+  await brCarica();
+}
+// Una notifica mostrata da qui: dice che permesso e service worker funzionano.
+// Non passa dal server — quella la si prova con un promemoria al volo 💻.
+async function brProva() {
+  const ab = await brAbbonamento();
+  await ab.reg.showNotification('🔔 AppSphere', { body: 'Le notifiche su questo browser funzionano.', icon: '/icons/icon-192.png' });
+}
+
+document.getElementById('br-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeBrowserPush();
 });
 
 // ── PRIORITÀ (cm_priorities) CRUD ──
@@ -6292,6 +6464,7 @@ if ('serviceWorker' in navigator) {
   { sel: '#rw-form-overlay',           chiudi: () => closeRewardForm() },
   { sel: '#badge-modal-overlay',       chiudi: () => closeBadgeSettings() },
   { sel: '#cat-modal-overlay',         chiudi: () => closeCategorie() },
+  { sel: '#br-modal-overlay',          chiudi: () => closeBrowserPush() },
   { sel: '#priorities-modal-overlay',  chiudi: () => closePrioritiesSettings() },
   { sel: '#nqv-overlay',               chiudi: () => closeNqv() },
   { sel: '#notifiche-overlay',         chiudi: () => closeNotifiche() },

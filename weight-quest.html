@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.15.3</title>
+  <title>Peso e Calorie v4.15.4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1421,6 +1421,7 @@
                                     <label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="objReminderChan" value="telegram" style="width:auto;" checked> 📱 Telegram</label>
                                     <label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="objReminderChan" value="android" style="width:auto;"> 📲 Telefono</label>
                                     <label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="objReminderChan" value="smart_block" style="width:auto;"> 🔐 Smart Block</label>
+                                    <label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="objReminderChan" value="browser" style="width:auto;"> 💻 Browser</label>
                                 </div>
                                 <div style="font-size:11px; color:#999; margin-top:8px; line-height:1.5;">
                                     Suona solo nei giorni in cui la pesata è dovuta. Il ✅ Fatto della notifica
@@ -1868,8 +1869,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.15.3';
-        var BUILD_TIME  = '2026-10-13T11:30:00Z';
+        var APP_VERSION = 'v4.15.4';
+        var BUILD_TIME  = '2026-10-18T19:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -4209,7 +4210,9 @@
             } catch (e) { return null; }
         }
 
-        var CANALI_PESATA = ['telegram', 'android', 'smart_block'];
+        // 'browser' = Web Push sui PC abbonati (AppSphere → ☰ → 💻 Browser). ⚠️ Il
+        // nativo (PesoData.kt) conosce i soli tre di prima e la regola browser non la tocca.
+        var CANALI_PESATA = ['telegram', 'android', 'smart_block', 'browser'];
 
         function triggerFillQueuePesata() {
             fetch(supabase.url + '/functions/v1/fill-notification-queue', {

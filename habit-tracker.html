@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Stack Tracker v9.6.3</title>
+    <title>Habit Stack Tracker v9.7.0</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
@@ -1419,6 +1419,7 @@
                     <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:10px;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;">
                         <button type="button" id="addChanTabTelegram" onclick="switchHabitChan('add','telegram')" style="display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;padding:6px 16px;border:none;background:none;cursor:pointer;font-size:0.88rem;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted);">📱 Telegram<span class="chan-dot" style="width:7px;height:7px;border-radius:50%;display:none;flex-shrink:0;"></span></button>
                         <button type="button" id="addChanTabAndroid"  onclick="switchHabitChan('add','android')"  style="display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;padding:6px 16px;border:none;background:none;cursor:pointer;font-size:0.88rem;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted);">📲 Telefono<span class="chan-dot" style="width:7px;height:7px;border-radius:50%;display:none;flex-shrink:0;"></span></button>
+                        <button type="button" id="addChanTabBrowser"  onclick="switchHabitChan('add','browser')"  style="display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;padding:6px 16px;border:none;background:none;cursor:pointer;font-size:0.88rem;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted);">💻 Browser<span class="chan-dot" style="width:7px;height:7px;border-radius:50%;display:none;flex-shrink:0;"></span></button>
                     </div>
 
                     <div id="addChanPanelTelegram">
@@ -1437,6 +1438,21 @@
                                 </label>
                                 <small style="opacity:0.7;font-size:0.82rem;display:block;margin-top:0.3rem;">Il bot Telegram aggiungerà un bottone per segnare l'abitudine come completata direttamente dal messaggio</small>
                             </div>
+                        </div>
+                    </div>
+
+                    <div id="addChanPanelBrowser" style="display:none;">
+                        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:8px;cursor:pointer;">
+                            <input type="checkbox" id="addHabitBrowser" onchange="toggleHabitChanOn('add','browser',this.checked)">
+                            <span style="font-size:0.88rem;font-weight:600;">Attiva notifiche nel browser</span>
+                        </label>
+                        <div id="addBrowserBody">
+                            <div id="addHabitBrowserChips" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.5rem;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;min-height:38px;">
+                                <span style="opacity:0.5;font-size:0.85rem;align-self:center;">Caricamento preset...</span>
+                            </div>
+                            <small style="opacity:0.7;font-size:0.82rem;display:block;margin-top:0.3rem;">
+                                Arriva sui PC abbonati e accesi (AppSphere → ☰ → 💻 Browser), senza pulsanti.
+                            </small>
                         </div>
                     </div>
 
@@ -1597,6 +1613,7 @@
                     <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:10px;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;">
                         <button type="button" id="editChanTabTelegram" onclick="switchHabitChan('edit','telegram')" style="display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;padding:6px 16px;border:none;background:none;cursor:pointer;font-size:0.88rem;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted);">📱 Telegram<span class="chan-dot" style="width:7px;height:7px;border-radius:50%;display:none;flex-shrink:0;"></span></button>
                         <button type="button" id="editChanTabAndroid"  onclick="switchHabitChan('edit','android')"  style="display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;padding:6px 16px;border:none;background:none;cursor:pointer;font-size:0.88rem;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted);">📲 Telefono<span class="chan-dot" style="width:7px;height:7px;border-radius:50%;display:none;flex-shrink:0;"></span></button>
+                        <button type="button" id="editChanTabBrowser"  onclick="switchHabitChan('edit','browser')"  style="display:flex;align-items:center;gap:4px;flex-shrink:0;white-space:nowrap;padding:6px 16px;border:none;background:none;cursor:pointer;font-size:0.88rem;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted);">💻 Browser<span class="chan-dot" style="width:7px;height:7px;border-radius:50%;display:none;flex-shrink:0;"></span></button>
                     </div>
 
                     <div id="editChanPanelTelegram">
@@ -1615,6 +1632,21 @@
                                 </label>
                                 <small style="opacity:0.7;font-size:0.82rem;display:block;margin-top:0.3rem;">Il bot Telegram aggiungerà un bottone per segnare l'abitudine come completata direttamente dal messaggio</small>
                             </div>
+                        </div>
+                    </div>
+
+                    <div id="editChanPanelBrowser" style="display:none;">
+                        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:8px;cursor:pointer;">
+                            <input type="checkbox" id="editHabitBrowser" onchange="toggleHabitChanOn('edit','browser',this.checked)">
+                            <span style="font-size:0.88rem;font-weight:600;">Attiva notifiche nel browser</span>
+                        </label>
+                        <div id="editBrowserBody">
+                            <div id="editHabitBrowserChips" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.5rem;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;min-height:38px;">
+                                <span style="opacity:0.5;font-size:0.85rem;align-self:center;">Caricamento preset...</span>
+                            </div>
+                            <small style="opacity:0.7;font-size:0.82rem;display:block;margin-top:0.3rem;">
+                                Arriva sui PC abbonati e accesi (AppSphere → ☰ → 💻 Browser), senza pulsanti.
+                            </small>
                         </div>
                     </div>
 
@@ -1796,8 +1828,8 @@
         // ==========================================
         // VERSION
         // ==========================================
-        const APP_VERSION = 'v9.6.3';
-        const BUILD_TIME  = '2026-10-13T20:30:00Z';
+        const APP_VERSION = 'v9.7.0';
+        const BUILD_TIME  = '2026-10-18T19:00:00Z';
         console.log('%c Habit Stack ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
             'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1899,6 +1931,11 @@
         // v9.4.0 il telefono era una spunta dentro il blocco Telegram e ne usava i preset.
         let addHabitAndroidIds     = []; // int_id selezionati per il telefono (modal Add)
         let editHabitAndroidIds    = []; // int_id selezionati per il telefono (modal Edit)
+        // 💻 Browser: terzo canale, coi suoi anticipi, spento di partenza.
+        let addHabitBrowserIds     = [];
+        let editHabitBrowserIds    = [];
+        let addHabitBrowserOn      = false;
+        let editHabitBrowserOn     = false;
         let addHabitTelegramOn     = true;
         let addHabitAndroidOn      = true;
         let editHabitTelegramOn    = true;
@@ -2302,7 +2339,8 @@
                 const reminderTime = document.getElementById('habitReminderTime').value;
                 const addHabitCompleteButtonChecked = document.getElementById('addHabitCompleteButton')?.checked || false;
                 await syncHabitNotificationRule(data[0].id, frequency, daily_times || [], reminderTime, name, addHabitReminderIds, weekdays, startedAt, goal, addHabitCompleteButtonChecked,
-                    { telegram: addHabitTelegramOn, android: addHabitAndroidOn, androidIds: addHabitAndroidIds });
+                    { telegram: addHabitTelegramOn, android: addHabitAndroidOn, androidIds: addHabitAndroidIds,
+                      browser: addHabitBrowserOn, browserIds: addHabitBrowserIds });
 
                 closeModal('addHabitModal');
                 showToast('Abitudine creata con successo! 🎉');
@@ -4432,7 +4470,8 @@
             // Carica orario promemoria e chip selezionati
             const regolaTg = regolaCanale(habit.id, 'telegram');
             const regolaAn = regolaCanale(habit.id, 'android');
-            const regolaOra = regolaTg || regolaAn; // l'orario è lo stesso nei due canali
+            const regolaBr = regolaCanale(habit.id, 'browser');
+            const regolaOra = regolaTg || regolaAn || regolaBr; // l'orario è lo stesso nei due canali
             document.getElementById('editHabitReminderTime').value = regolaOra?.times?.[0] || regolaOra?.time || '';
             editHabitReminderIds = regolaTg?.reminders ? [...regolaTg.reminders] : [];
             renderHabitReminderChips('editHabitReminderChips', editHabitReminderIds, 'toggleEditHabitChip');
@@ -4447,11 +4486,14 @@
             // Un'abitudine con promemoria salvata prima ha già tutt'e due le righe (il
             // telefono nasceva acceso), quindi si riapre com'era; una senza nessuna regola
             // è nuova per questo pannello e parte con tutt'e due accesi, come il modal Add.
-            const senzaRegole = !regolaTg && !regolaAn;
+            const senzaRegole = !regolaTg && !regolaAn && !regolaBr;
             editHabitTelegramOn = senzaRegole ? true : !!regolaTg;
             editHabitAndroidOn  = senzaRegole ? true : !!regolaAn;
             editHabitAndroidIds = regolaAn?.reminders ? [...regolaAn.reminders] : [];
             renderHabitReminderChips('editHabitAndroidChips', editHabitAndroidIds, 'toggleEditHabitAndroidChip');
+            editHabitBrowserOn  = !!regolaBr;
+            editHabitBrowserIds = regolaBr?.reminders ? [...regolaBr.reminders] : [];
+            renderHabitReminderChips('editHabitBrowserChips', editHabitBrowserIds, 'toggleEditHabitBrowserChip');
             editHabitChanTab = 'telegram';
             renderHabitChanTabs('edit');
 
@@ -4613,7 +4655,8 @@
                 const editReminderTime = document.getElementById('editHabitReminderTime').value;
                 const editHabitCompleteButtonChecked = document.getElementById('editHabitCompleteButton')?.checked || false;
                 await syncHabitNotificationRule(habitId, frequency, daily_times || [], editReminderTime, name, editHabitReminderIds, weekdays, startedAt, goal, editHabitCompleteButtonChecked,
-                    { telegram: editHabitTelegramOn, android: editHabitAndroidOn, androidIds: editHabitAndroidIds });
+                    { telegram: editHabitTelegramOn, android: editHabitAndroidOn, androidIds: editHabitAndroidIds,
+                      browser: editHabitBrowserOn, browserIds: editHabitBrowserIds });
 
                 closeModal('editHabitModal');
                 showToast('Abitudine aggiornata! 🎉');
@@ -4647,6 +4690,9 @@
             renderHabitReminderChips('addHabitReminderChips', addHabitReminderIds, 'toggleAddHabitChip');
             addHabitAndroidIds = [];
             renderHabitReminderChips('addHabitAndroidChips', addHabitAndroidIds, 'toggleAddHabitAndroidChip');
+            addHabitBrowserIds = [];
+            renderHabitReminderChips('addHabitBrowserChips', addHabitBrowserIds, 'toggleAddHabitBrowserChip');
+            addHabitBrowserOn  = false;
             addHabitTelegramOn = true;
             addHabitAndroidOn  = true;
             addHabitChanTab    = 'telegram';
@@ -5240,7 +5286,7 @@
         }
         function regolaQualsiasi(habitId) {
             const v = habitNotificationRules[habitId];
-            return v ? (v.telegram || v.android || null) : null;
+            return v ? (v.telegram || v.android || v.browser || null) : null;
         }
 
         function renderHabitReminderChips(containerId, selectedIds, toggleFn) {
@@ -5280,18 +5326,18 @@
         }
 
         // ── Le due Tab dei canali ────────────────────────────────────────────────
-        const CHAN_COLORE = { telegram: 'var(--accent, #2563EB)', android: 'var(--success, #00B894)' };
+        const CHAN_COLORE = { telegram: 'var(--accent, #2563EB)', android: 'var(--success, #00B894)', browser: 'var(--warning, #F39C12)' };
 
         function chanStato(pre) {
             return pre === 'add'
-                ? { tab: addHabitChanTab,  telegram: addHabitTelegramOn,  android: addHabitAndroidOn }
-                : { tab: editHabitChanTab, telegram: editHabitTelegramOn, android: editHabitAndroidOn };
+                ? { tab: addHabitChanTab,  telegram: addHabitTelegramOn,  android: addHabitAndroidOn,  browser: addHabitBrowserOn }
+                : { tab: editHabitChanTab, telegram: editHabitTelegramOn, android: editHabitAndroidOn, browser: editHabitBrowserOn };
         }
 
         function renderHabitChanTabs(pre) {
             const st = chanStato(pre);
-            ['telegram', 'android'].forEach(c => {
-                const suffisso = c === 'telegram' ? 'Telegram' : 'Android';
+            ['telegram', 'android', 'browser'].forEach(c => {
+                const suffisso = c === 'telegram' ? 'Telegram' : c === 'browser' ? 'Browser' : 'Android';
                 const attiva = st.tab === c;
                 const b = document.getElementById(`${pre}ChanTab${suffisso}`);
                 if (b) {
@@ -5309,6 +5355,7 @@
             });
             const cbTg = document.getElementById(`${pre}HabitTelegram`); if (cbTg) cbTg.checked = st.telegram;
             const cbAn = document.getElementById(`${pre}HabitAndroid`);  if (cbAn) cbAn.checked = st.android;
+            const cbBr = document.getElementById(`${pre}HabitBrowser`);  if (cbBr) cbBr.checked = st.browser;
         }
 
         function switchHabitChan(pre, canale) {
@@ -5318,9 +5365,13 @@
 
         function toggleHabitChanOn(pre, canale, acceso) {
             if (pre === 'add') {
-                if (canale === 'telegram') addHabitTelegramOn = acceso; else addHabitAndroidOn = acceso;
+                if (canale === 'telegram') addHabitTelegramOn = acceso;
+                else if (canale === 'browser') addHabitBrowserOn = acceso;
+                else addHabitAndroidOn = acceso;
             } else {
-                if (canale === 'telegram') editHabitTelegramOn = acceso; else editHabitAndroidOn = acceso;
+                if (canale === 'telegram') editHabitTelegramOn = acceso;
+                else if (canale === 'browser') editHabitBrowserOn = acceso;
+                else editHabitAndroidOn = acceso;
             }
             renderHabitChanTabs(pre);
         }
@@ -5339,6 +5390,20 @@
             if (idx > -1) editHabitAndroidIds.splice(idx, 1);
             else editHabitAndroidIds.push(intId);
             renderHabitReminderChips('editHabitAndroidChips', editHabitAndroidIds, 'toggleEditHabitAndroidChip');
+        }
+
+        function toggleAddHabitBrowserChip(intId) {
+            const idx = addHabitBrowserIds.indexOf(intId);
+            if (idx > -1) addHabitBrowserIds.splice(idx, 1);
+            else addHabitBrowserIds.push(intId);
+            renderHabitReminderChips('addHabitBrowserChips', addHabitBrowserIds, 'toggleAddHabitBrowserChip');
+        }
+
+        function toggleEditHabitBrowserChip(intId) {
+            const idx = editHabitBrowserIds.indexOf(intId);
+            if (idx > -1) editHabitBrowserIds.splice(idx, 1);
+            else editHabitBrowserIds.push(intId);
+            renderHabitReminderChips('editHabitBrowserChips', editHabitBrowserIds, 'toggleEditHabitBrowserChip');
         }
 
         function toggleEditHabitChip(intId) {
@@ -5366,9 +5431,9 @@
                 if (error) { console.warn('⚠️ loadHabitNotificationRules:', error.message); return; }
                 habitNotificationRules = {};
                 (data || []).forEach(r => {
-                    const canale = r.channel === 'android' ? 'android' : 'telegram';
+                    const canale = r.channel === 'android' || r.channel === 'browser' ? r.channel : 'telegram';
                     const voce = habitNotificationRules[r.entity_id]
-                        || (habitNotificationRules[r.entity_id] = { telegram: null, android: null });
+                        || (habitNotificationRules[r.entity_id] = { telegram: null, android: null, browser: null });
                     voce[canale] = r.reminder_presets;
                 });
                 console.log('🔔 Regole promemoria caricate:', Object.keys(habitNotificationRules).length);
@@ -5385,13 +5450,15 @@
 
             const idsTg = reminderIds || [];
             const idsAn = canali?.androidIds || [];
+            const idsBr = canali?.browserIds || [];
             const tgOn  = canali?.telegram !== false;
             const anOn  = canali?.android  !== false;
+            const brOn  = canali?.browser === true;
 
             // C'è qualcosa da far suonare? L'orario è dell'abitudine, non del canale.
             const haOrario = (frequency === 'daily_multiple') || !!reminderTime
-                           || idsTg.length > 0 || idsAn.length > 0;
-            if (!haOrario || (!tgOn && !anOn)) {
+                           || idsTg.length > 0 || idsAn.length > 0 || idsBr.length > 0;
+            if (!haOrario || (!tgOn && !anOn && !brOn)) {
                 await supabaseClient.from('cm_notification_rules')
                     .delete()
                     .eq('app', 'habits')
@@ -5491,7 +5558,7 @@
             };
 
             let error = null;
-            const cache = { telegram: null, android: null };
+            const cache = { telegram: null, android: null, browser: null };
 
             if (tgOn) {
                 const presetsTg = presetsPer(idsTg, completeButton
@@ -5510,6 +5577,16 @@
                 else cache.android = presetsAn;
             } else {
                 await togliRegola('android');
+            }
+
+            // 💻 Browser: niente pulsanti, quindi niente completion_update.
+            if (brOn) {
+                const presetsBr = presetsPer(idsBr, {});
+                const errBrowser = await scriviRegola('browser', presetsBr);
+                if (errBrowser) console.error('❌ syncHabitNotificationRule (browser):', errBrowser);
+                else cache.browser = presetsBr;
+            } else {
+                await togliRegola('browser');
             }
 
             if (error) {
@@ -5581,6 +5658,7 @@
                 let error = null;
                 let presetsTelegram = null;
                 let presetsAndroid  = null;
+                let presetsBrowser  = null;
 
                 for (const ruleRecord of regole) {
                     // Aggiorna from-to e habit_id nel completion_update
@@ -5592,6 +5670,7 @@
                     const canale = ruleRecord.channel || 'telegram';
                     if (canale === 'telegram') presetsTelegram = presets;
                     if (canale === 'android')  presetsAndroid  = presets;
+                    if (canale === 'browser')  presetsBrowser  = presets;
 
                     const { error: err } = await supabaseClient.from('cm_notification_rules').insert({
                         user_id: userId,
@@ -5609,7 +5688,7 @@
                 if (error) {
                     console.error('❌ migrateHabitNotificationRule:', error);
                 } else {
-                    habitNotificationRules[newHabitId] = { telegram: presetsTelegram, android: presetsAndroid };
+                    habitNotificationRules[newHabitId] = { telegram: presetsTelegram, android: presetsAndroid, browser: presetsBrowser };
                     delete habitNotificationRules[oldHabitId];
                     console.log(`✅ cm_notification_rules migrate (${regole.length}): ${oldHabitId} → ${newHabitId}`);
                     triggerFillQueue();

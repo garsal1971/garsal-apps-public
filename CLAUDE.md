@@ -2941,7 +2941,7 @@ Il giro è sempre lo stesso e sta tutto attorno a **una riga per canale**:
 ```
 cm_notification_rules  (una riga per user + app + entità + CANALE)
   → fill-notification-queue (cron, ogni 6 h) riempie cm_notification_queue con un fire_at
-      → send-notifications (ogni 5 min) consegna le righe 'telegram' e 'android'
+      → send-notifications (ogni 5 min) consegna le righe 'telegram', 'android' e 'browser'
       → l'APK Smart Blocker si prende in polling le righe 'smart_block'
 ```
 
@@ -2950,6 +2950,7 @@ cm_notification_rules  (una riga per user + app + entità + CANALE)
 | `telegram` | Il bot, coi bottoni inline | `send-notifications` |
 | `android` | L'APK **nativo** (`com.garsal.appsphere`), come push FCM | `send-notifications` |
 | `smart_block` | L'APK Smart Blocker, che blocca lo schermo | l'APK, in polling |
+| `browser` | I PC abbonati, come Web Push (senza pulsanti) | `send-notifications` |
 
 ⚠️ **`telegram` e `android` sono la stessa notifica su due strade e arrivano tutt'e due**: due
 righe di coda, nate da due regole, consegnate indipendentemente. Il telefono spento non deve far
@@ -3100,6 +3101,33 @@ ogni invio successivo e non lo dice a nessuno.
 con «File google-services.json is missing» — cioè un APK che non si compila più per una
 funzionalità che non è ancora accesa. `Push.disponibile()` risponde `false` finché
 `FirebaseApp` non è inizializzata, e ogni chiamata a Firebase sta in un `runCatching`.
+
+### 💻 Il canale `browser` — Web Push sui PC (18 ottobre 2026)
+
+`20261018140000_canale_browser.sql`. Un canale come gli altri: **una regola per canale**, coi
+suoi anticipi, spento di partenza, da spuntare per promemoria nelle pagine **web** (Tasks,
+Abituati, Obiettivi, Piante, pesata di Peso, promemoria al volo di AppSphere). **Senza pulsanti**:
+il clic apre la pagina dell'app (`PAGINA_APP` in `send-notifications`).
+
+- **I browser sono righe di `cm_push_devices` con `platform = 'web'`**: `token` = endpoint
+  dell'abbonamento, `web_push` = l'abbonamento intero (le chiavi servono a cifrare),
+  `device_name` = il nome («PC casa»), `enabled` = l'interruttore. Si gestiscono da AppSphere →
+  ☰ → **💻 Browser**. La notifica va a **tutti** i browser accesi: il server non sa quale si sta
+  usando. ⚠️ **Chi legge `cm_push_devices` per FCM deve escludere `platform = 'web'`**, o
+  manderebbe un endpoint a FCM e il «token non valido» spegnerebbe il browser.
+- **La cifratura è scritta a mano** (`send-notifications/webpush.ts`, RFC 8291 aes128gcm + VAPID
+  RFC 8292, Web Crypto), senza librerie npm. Un 404/410 dal servizio push spegne quel browser.
+- ⚠️ **Le chiavi VAPID sono due posti**: la pubblica è `VAPID_PUBLIC` in `index.html` **e** il
+  secret `VAPID_PUBLIC_KEY`; la privata è il secret `VAPID_PRIVATE_KEY` (più `VAPID_SUBJECT`,
+  `mailto:`). Cambiandole, i browser già abbonati vanno riabbonati.
+- **`sw-notifiche.js`** alla radice è il service worker: deroga dichiarata alla regola del file
+  unico, perché uno scope «/» vuole un file servito dalla radice. Mostra e apre, nient'altro.
+- ⚠️ **Solo web**: il nativo non conosce il canale e la regola `browser` **non la tocca** quando
+  salva per canale. La cancella solo dove cancella tutte le regole di un'entità (eliminazione,
+  interruzione, e in Abituati nativo il salvataggio con Telegram e Telefono spenti tutt'e due).
+- ⚠️ Il vincolo `cm_notification_rules_app_check` non ammetteva `objectives` né `plants`: i
+  promemoria di Obiettivi e Piante venivano rifiutati (23514) fino a
+  `20261018120000_notification_rules_app_objectives_plants.sql`.
 
 ### La notifica sul telefono (`appsphere-native/…/notifiche/`)
 
