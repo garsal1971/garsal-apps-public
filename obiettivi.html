@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.15.0</title>
+    <title>Obiettivi v1.15.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -1405,8 +1405,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.15.0';
-var BUILD_TIME  = '2026-10-07T20:00:00Z';
+var APP_VERSION = 'v1.15.1';
+var BUILD_TIME  = '2026-10-18T12:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -3740,6 +3740,17 @@ async function saveAction() {
     }
     // free_repeat: nessuna prossima occorrenza, per definizione
 
+    // ⚠️ In modifica la prossima occorrenza resta dov'è, se il calendario non è
+    // cambiato. Riportarla a `start_date` faceva tornare l'azione alla prima
+    // volta (fra le scadute) e scriveva nelle regole un `due_at` nel passato:
+    // fill-notification-queue crea solo notifiche future, quindi le spunte dei
+    // promemoria restavano nel form e non arrivava più niente.
+    const prima = editingActionId ? actions.find(x => x.id === editingActionId) : null;
+    if (prima && prima.next_occurrence_date && payload.next_occurrence_date
+        && type !== 'workflow' && !calendarioCambiato(prima, payload)) {
+        payload.next_occurrence_date = prima.next_occurrence_date;
+    }
+
     // Per un'azione nuova serve l'id che il database le assegna: i collegamenti
     // alle metriche si scrivono subito dopo, e prima di salvarla non esiste.
     const res = editingActionId
@@ -3755,6 +3766,21 @@ async function saveAction() {
     closeModal('actionModal');
     showToast('✅ Azione salvata' + (avvisi ? ' · ' + avvisi : ''), avvisi ? 4000 : undefined);
     await loadAll();
+}
+
+// Il calendario di un'azione è cambiato? Inizio (giorno e ora) e le colonne che
+// decidono quando ricade. Il resto del form (titolo, punti, promemoria…) non
+// sposta la prossima occorrenza.
+function calendarioCambiato(a, p) {
+    const ms  = v => v ? new Date(v).getTime() : null;
+    const arr = v => JSON.stringify(v == null ? null : (Array.isArray(v) ? v : [v]).map(String).sort());
+    if (ms(a.start_date) !== ms(p.start_date)) return true;
+    if ((a.repeat_after_days ?? null) !== (p.repeat_after_days ?? null)) return true;
+    if ((a.recurring_frequency || null) !== (p.recurring_frequency || null)) return true;
+    if ((a.recurring_interval ?? null) !== (p.recurring_interval ?? null)) return true;
+    for (const k of ['recurring_days_of_week', 'recurring_day_of_month', 'recurring_dates', 'multiple_dates'])
+        if (arr(a[k]) !== arr(p[k])) return true;
+    return false;
 }
 
 // I promemoria hanno la forma di quelli dei task (reminders + due_at), con
