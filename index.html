@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.15.0</title>
+<title>AppSphere v1.15.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2288,8 +2288,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.15.0';
-const BUILD_TIME  = '2026-10-16T12:00:00Z';
+const APP_VERSION = 'v1.15.1';
+const BUILD_TIME  = '2026-10-18T12:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4266,45 +4266,48 @@ function disegnaRecap(caricamento) {
   const diOggi = scad.filter(i => i.day === oggi);
   const scadute = scad.filter(i => i.day < oggi);
   const prom = vis(_recap.promemoria).filter(p => !tolti.has(recapChiavePromemoria(p)));
-  const toltoOggi = '<div class="recap-vuoto">Tolto fino a domani.</div>';
+  // Un blocco tolto o vuoto non si disegna affatto, sottotitolo compreso, e una
+  // sezione senza nessun blocco perde anche il titolo (v1.15.1): righe come «Tolto
+  // fino a domani.» o «Niente in scadenza oggi.» occupavano lo schermo per dire
+  // che lì non c'era niente da guardare.
+  const chip = (i, cls, rk) => '<a class="home-alert-chip ' + cls + '" data-rk="' + escapeHtml(rk) + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>';
+  const boxRighe = (rk, href, righe) => '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" data-rk="' + rk + '" href="' + href + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
+    righe.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>';
+  const sezione = (titolo, blocchi) => {
+    const pieni = blocchi.filter(Boolean);
+    return pieni.length ? '<div class="home-alert-section-title">' + titolo + '</div>' + pieni.join('') : '';
+  };
+  const sub = (titolo, corpo) => corpo ? '<div class="recap-sub">' + titolo + '</div>' + corpo : '';
 
   let html = '';
-  const chip = (i, cls, rk) => '<a class="home-alert-chip ' + cls + '" data-rk="' + escapeHtml(rk) + '" href="' + escapeHtml(i.url) + '" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' + escapeHtml(i.title) + '</a>';
 
-  // ℹ️ Info: Finanza e Peso e Calorie, due blocchi informativi.
-  html += '<div class="home-alert-section-title">ℹ️ Info</div>';
-  html += '<div class="recap-sub">💶 Finanza</div>';
-  html += tolti.has('finanza') ? toltoOggi : _recap.finanza.length
-    ? '<div class="home-alert-chips">' + _recap.finanza.map(i => chip(i, 'finanza', 'finanza')).join('') + '</div>'
-    : '<div class="recap-vuoto">Totale portafogli non disponibile.</div>';
-  html += '<div class="recap-sub">⚖️ Peso e Calorie</div>';
-  html += tolti.has('peso') ? toltoOggi : (_recap.peso || []).length
+  // ℹ️ Info: Finanza, Peso e Calorie, Scorte Amazon.
+  const finanza = !tolti.has('finanza') && (_recap.finanza || []).length ? _recap.finanza : [];
+  const peso    = !tolti.has('peso')    && (_recap.peso    || []).length ? _recap.peso    : [];
+  const amazon  = !tolti.has('amazon')  && (_recap.amazon  || []).length ? _recap.amazon  : [];
+  html += sezione('ℹ️ Info', [
+    sub('💶 Finanza', finanza.length ? '<div class="home-alert-chips">' + finanza.map(i => chip(i, 'finanza', 'finanza')).join('') + '</div>' : ''),
     // Un box solo: le righe una sotto l'altra, un tocco apre weight-quest.html.
-    ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" data-rk="peso" href="weight-quest.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
-        _recap.peso.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>'
-    : '<div class="recap-vuoto">Dati di peso non disponibili.</div>';
-  html += '<div class="recap-sub">📦 Scorte Amazon</div>';
-  html += tolti.has('amazon') ? toltoOggi : (_recap.amazon || []).length
-    ? '<div class="home-alert-chips"><a class="home-alert-chip finanza recap-peso" data-rk="amazon" href="scorte-amazon.html" onclick="sessionStorage.setItem(\'hidden_mode\', hiddenMode ? \'1\' : \'0\')">' +
-        _recap.amazon.map(i => '<span class="recap-riga">' + escapeHtml(i.title) + '</span>').join('') + '</a></div>'
-    : '<div class="recap-vuoto">Nessun avviso.</div>';
+    sub('⚖️ Peso e Calorie', peso.length ? boxRighe('peso', 'weight-quest.html', peso) : ''),
+    sub('📦 Scorte Amazon', amazon.length ? boxRighe('amazon', 'scorte-amazon.html', amazon) : ''),
+  ]);
 
   // ✅ Compiti: Oggi e Scadute, sempre separate.
-  html += '<div class="home-alert-section-title">✅ Compiti</div>';
-  html += '<div class="recap-sub">📅 Oggi · ' + diOggi.length + '</div>';
-  html += diOggi.length ? recapGruppi(diOggi, false) : '<div class="recap-vuoto">Niente in scadenza oggi.</div>';
-  html += '<div class="recap-sub">⚠️ Scadute · ' + scadute.length + '</div>';
-  html += scadute.length ? recapGruppi(scadute, true) : '<div class="recap-vuoto">Niente di arretrato.</div>';
+  html += sezione('✅ Compiti', [
+    sub('📅 Oggi · ' + diOggi.length, diOggi.length ? recapGruppi(diOggi, false) : ''),
+    sub('⚠️ Scadute · ' + scadute.length, scadute.length ? recapGruppi(scadute, true) : ''),
+  ]);
 
-  html += '<div class="home-alert-section-title">🔔 Promemoria aperti · ' + prom.length + '</div>';
   const icona = { telegram: '📱', android: '📲', smart_block: '🔐' };
-  html += prom.length
-    ? '<div class="home-alert-chips">' + prom.map(p => {
+  html += sezione('🔔 Promemoria aperti · ' + prom.length, [
+    prom.length ? '<div class="home-alert-chips">' + prom.map(p => {
         const d = new Date(p.fire_at);
         const quando = isNaN(d.getTime()) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + (p.orari || []).join(' · ');
         return '<span class="home-alert-chip promemoria" data-rk="' + escapeHtml(recapChiavePromemoria(p)) + '"><span class="recap-quando">' + escapeHtml(quando) + ' ' + p.canali.map(c => icona[c] || '').join('') + '</span>' + escapeHtml(p.title) + '</span>';
-      }).join('') + '</div>'
-    : '<div class="recap-vuoto">Nessun promemoria in coda.</div>';
+      }).join('') + '</div>' : '',
+  ]);
+
+  if (!html) html = '<div class="recap-vuoto">Niente da mostrare oggi.</div>';
 
   // Un trascinamento per sbaglio non deve costare il box fino a domani.
   if (tolti.size) {
