@@ -1294,7 +1294,7 @@ minimo e massimo e «di X kg · Y %» sotto il previsto, e i tre grafici che sco
 
 ### 🚫 Il filtro delle pesate anomale (`trg_ps_weight_tracking_filtro`)
 
-(19 ottobre 2026, `20261019120000_ps_filtro_pesate_anomale.sql`.) Un trigger `BEFORE INSERT`
+(19 ottobre 2026, `20261019190000_ps_filtro_pesate_anomale.sql`.) Un trigger `BEFORE INSERT`
 su `ps_weight_tracking` scarta **in silenzio** (`RETURN NULL`) una pesata **sincronizzata** che
 si scosta di oltre il **10 %** da `ps_daily_ema.ema_weight` dell'ultimo giorno prima (entro 30
 giorni; senza media, l'ultima pesata entro 30 giorni; senza nessun riferimento passa). Nato da
