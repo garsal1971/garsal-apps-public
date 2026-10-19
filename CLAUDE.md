@@ -1292,6 +1292,21 @@ minimo e massimo e «di X kg · Y %» sotto il previsto, e i tre grafici che sco
 `massaGrassa` / `pesiVista` / `notaTotale` in `PesoRegole.kt` contro le omonime del web; la
 `PesoState.vista` è il `pesiInVista()` di là, e `PesoState.pesate` resta il dato vero.
 
+### 🚫 Il filtro delle pesate anomale (`trg_ps_weight_tracking_filtro`)
+
+(19 ottobre 2026, `20261019120000_ps_filtro_pesate_anomale.sql`.) Un trigger `BEFORE INSERT`
+su `ps_weight_tracking` scarta **in silenzio** (`RETURN NULL`) una pesata **sincronizzata** che
+si scosta di oltre il **10 %** da `ps_daily_ema.ema_weight` dell'ultimo giorno prima (entro 30
+giorni; senza media, l'ultima pesata entro 30 giorni; senza nessun riferimento passa). Nato da
+pesate da 46,5 kg scritte in Health Connect dalla bilancia, che ogni sincronizzazione (90 giorni)
+rimetteva in archivio anche dopo averle cancellate.
+- ⚠️ **Le pesate a mano (`time = 'Manuale'`) passano sempre**, e un UPDATE non è filtrato.
+- ⚠️ Nel database e non nelle app: copre da sé le tre sincronizzazioni (web, APK WebView, nativa),
+  ma **nessuna app dice cosa è stato scartato**.
+- ⚠️ Se una pesata sbagliata è già in archivio e la media resta tirata da lei (o è l'unica nella
+  finestra), le pesate vere dopo di lei possono risultare «anomale»: va cancellata e la media
+  ricalcolata (`ps_ema_ricalcola`).
+
 ### 📈 La media mobile (`ps_daily_ema`) — SEMPLICE dal 19 ottobre 2026
 
 (9 ottobre 2026, `20261009100000_ps_media_mobile.sql`, web v4.12.0; dall'APK 1.0.118 la legge anche il
