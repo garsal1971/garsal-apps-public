@@ -1303,11 +1303,11 @@ rimetteva in archivio anche dopo averle cancellate.
 - ⚠️ **Le pesate a mano (`time = 'Manuale'`) passano sempre**, e un UPDATE non è filtrato.
 - ⚠️ Nel database e non nelle app: copre da sé le tre sincronizzazioni (web, APK WebView, nativa),
   ma **nessuna app dice cosa è stato scartato**.
-- ⚠️ Se una pesata sbagliata è già in archivio e la media riparte da lei (buco > 14 giorni), le
-  pesate vere dopo di lei risultano «anomale»: va cancellata e la media ricalcolata
-  (`ps_ema_ricalcola`).
+- ⚠️ Se una pesata sbagliata è già in archivio e la media resta tirata da lei (o è l'unica nella
+  finestra), le pesate vere dopo di lei possono risultare «anomale»: va cancellata e la media
+  ricalcolata (`ps_ema_ricalcola`).
 
-### 📈 La media mobile esponenziale (`ps_daily_ema`)
+### 📈 La media mobile (`ps_daily_ema`) — SEMPLICE dal 19 ottobre 2026
 
 (9 ottobre 2026, `20261009100000_ps_media_mobile.sql`, web v4.12.0; dall'APK 1.0.118 la legge anche il
 nativo: tabella con prima pesata e medie, grafici con prima pesata + media e legenda.) La bilancia a impedenza balla troppo per dare punti sulla singola pesata. Una
@@ -1317,10 +1317,16 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
 - ⚠️ **La calcola il database e basta**: `ps_ema_ricalcola()` rifà la tabella dell'utente da
   capo, e la chiama un trigger **per istruzione** su `ps_weight_tracking` (un errore lì non fa
   fallire la pesata). La pagina legge e disegna.
-- **N** sta in `cm_settings`, chiave `ps_ema_days` (di partenza 7, fra 2 e 90), α = 2/(N+1). Si
-  cambia da ⚙️ Impostazioni, che poi chiama `ps_ema_ricalcola`.
-- **Un giorno senza pesata si stima col trend** (media + trend, riga `*_stimato`). Un buco di più
-  di 14 giorni non si stima: la serie riparte alla pesata dopo.
+- ⚠️ **Dal 19 ottobre 2026 è una media SEMPLICE** (`20261019180000_ps_media_mobile_semplice.sql`,
+  web v4.15.5): la media aritmetica delle pesate **vere** degli ultimi N giorni di calendario,
+  oggi compreso. Prima era esponenziale (α = 2/(N+1)) coi giorni senza pesata stimati col trend.
+  Le colonne si chiamano ancora `ema_*` di proposito: cambia il calcolo, non la tabella, e web,
+  nativo e `ps_punti` leggono le stesse colonne.
+- **N** sta in `cm_settings`, chiave `ps_ema_days` (di partenza 7, fra 2 e 90). Si cambia da
+  ⚙️ Impostazioni, che poi chiama `ps_ema_ricalcola`.
+- **Un giorno senza pesata non si stima**: la sua media è quella delle pesate della finestra, e
+  la riga porta la media come valore, marcata `*_stimato`. Senza pesate negli N giorni non c'è
+  riga. Il trend è media di oggi − media di ieri.
 - La massa grassa media è la **media dei kg giornalieri**, non peso medio × % media.
 - Sugli obiettivi **`use_fat_mass`**: i punti dei giorni di pesata si danno sulla **media della
   massa grassa** contro il grasso previsto (giorno passato senza nessun valore = malus); le
