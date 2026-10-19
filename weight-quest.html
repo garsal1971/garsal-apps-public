@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.15.4</title>
+  <title>Peso e Calorie v4.15.5</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1869,8 +1869,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.15.4';
-        var BUILD_TIME  = '2026-10-18T19:00:00Z';
+        var APP_VERSION = 'v4.15.5';
+        var BUILD_TIME  = '2026-10-19T17:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5655,11 +5655,11 @@
             return caricaEma().then(caricaPuntiServer);
         }
 
-        // ── La media mobile esponenziale (`ps_daily_ema`) ────────────────
+        // ── La media mobile semplice (`ps_daily_ema`) ────────────────────
         // Peso, massa grassa e % di grasso hanno ciascuno la sua media mobile
-        // esponenziale, una riga per giorno: il valore del giorno è la PRIMA
-        // pesata della giornata, e i giorni senza pesata sono stimati col trend
-        // (riga «stimata»). La tabella la riempie il DATABASE — un trigger su
+        // semplice degli ultimi N giorni, una riga per giorno: il valore del
+        // giorno è la PRIMA pesata della giornata; un giorno senza pesata porta
+        // la media (riga «stimata»). Le colonne si chiamano ancora ema_*. La tabella la riempie il DATABASE — un trigger su
         // ps_weight_tracking — e qui si legge e basta: due calcoli della stessa
         // media sarebbero due medie diverse. N sta in `cm_settings.ps_ema_days`
         // e si cambia da ⚙️ Impostazioni (`ps_ema_ricalcola`).
@@ -10821,10 +10821,10 @@ function renderImpostazioni() {
     <div class="form-group">
       <label class="text-sm" for="ema-giorni">Giorni della media (N)</label>
       <input class="form-input" id="ema-giorni" type="number" min="2" max="90" step="1" value="${nEma}" style="max-width:8rem" />
-      <div class="form-hint">Media mobile esponenziale: i giorni recenti pesano di più
-        (α = 2 / (N + 1), con N = ${nEma} vale ${(2 / (nEma + 1)).toFixed(2).replace('.', ',')}).
+      <div class="form-hint">Media mobile semplice: la media delle pesate degli ultimi N giorni
+        (oggi compreso), che pesano tutte uguale.
         Il valore di un giorno è la <strong>prima pesata</strong> della giornata; un giorno senza pesata
-        si stima seguendo il trend, e un buco di più di 14 giorni fa ripartire la media.
+        non si stima, e senza nessuna pesata negli ultimi N giorni la media non c'è.
         Sugli obiettivi sulla massa grassa i punti si danno sulla media della massa grassa,
         le stelline dei traguardi sul peso giornaliero.</div>
     </div>
