@@ -5044,7 +5044,11 @@ Si apre da solo alla prima apertura del giorno (`recap_giorno`) e dal 📋 in al
 bolle scansano. ⚠️ Un compito di un'app che in nativo non c'è (🗳️ Decisioni) si mostra lo stesso e
 il tocco non apre niente; anche i promemoria non si aprono, come sul web. ⚠️ Finanza nel recap si
 vede sempre, anche fuori dalla modalità nascosta. Cambiando una fonte del recap web, va cambiata
-anche in `RecapRepository`. Quel che segue è la storia del fumetto, prima del recap.
+anche in `RecapRepository`. ⚠️ **Dall'APK 1.0.140** c'è anche il box 📦 Scorte Amazon
+(`RecapRepository.amazon`, testi gemelli di `recapAmazon`), e il tocco **non apre niente**: in
+nativo Scorte Amazon non c'è. E valgono le due regole del web v1.15.1 e v1.15.2: blocchi tolti o
+vuoti spariscono (sezione senza blocchi senza titolo, tutto vuoto = «Niente da mostrare oggi.») e
+dei promemoria si mostra la sola prossima scadenza per app + `entity_id`. Quel che segue è la storia del fumetto, prima del recap.
 
 Gli avvisi in home nativa avevano **tre fonti, Spuntiamola, Ta Firi? e le azioni delle Piante**: le altre quattro del web
 (decisioni, task urgenti, totale portafogli, abitudini) porterebbero a schermate che qui non
@@ -5364,7 +5368,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   resto della giornata su quel dispositivo (`localStorage.appsphere_recap_tolti`, col giorno) e
   ricompare il giorno dopo se la cosa c'è ancora. Non scrive niente nel database. La chiave del box
   (`data-rk`) non contiene i numeri che mostra, o un box di Finanza ricomparirebbe al primo
-  ricarico; in fondo c'è *↺ Rimetti i box tolti oggi*. ⚠️ **Un blocco tolto o vuoto non si disegna** (v1.15.1): spariscono riga e sottotitolo, e una sezione senza blocchi perde anche il titolo; tutto vuoto = «Niente da mostrare oggi.». Solo web per ora: il nativo (`home/Recap.kt`) scrive ancora «Tolto fino a domani.». ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
+  ricarico; in fondo c'è *↺ Rimetti i box tolti oggi*. ⚠️ **Un blocco tolto o vuoto non si disegna** (v1.15.1): spariscono riga e sottotitolo, e una sezione senza blocchi perde anche il titolo; tutto vuoto = «Niente da mostrare oggi.». Lo stesso nel nativo dall'APK 1.0.140 (`home/Recap.kt`), insieme alla sola prossima scadenza per entità e al box 📦 Scorte Amazon. ⚠️ Le date di Tasks si **tagliano** (scritte già locali), quelle di Obiettivi
   e Piante si **convertono** (`recapGiornoDi`). I riservati seguono la modalità nascosta. Solo web:
   la home nativa ha ancora i suoi avvisi.
 - **☰ → 🏆 Punti** (v1.9.0): guadagnati, spesi e saldo di un periodo (*ultimo mese · trimestre ·

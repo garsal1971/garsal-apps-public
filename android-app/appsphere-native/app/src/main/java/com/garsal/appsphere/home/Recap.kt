@@ -82,13 +82,17 @@ import kotlin.math.roundToLong
 // fumetto «Avvisi». Si apre da solo alla PRIMA apertura della giornata su
 // questo telefono (preferenza `recap_giorno`) e quando si vuole dal 📋 in alto
 // a sinistra. Tre sezioni, come sul web:
-//   ℹ️ Info      — 💶 Finanza (totale portafogli) e ⚖️ Peso e Calorie, un box solo;
+//   ℹ️ Info      — 💶 Finanza (totale portafogli), ⚖️ Peso e Calorie e
+//                  📦 Scorte Amazon (APK 1.0.140), un box solo ciascuno;
 //   ✅ Compiti   — 📅 Oggi e ⚠️ Scadute, sempre separate;
 //   🔔 Promemoria aperti.
 // ⚠️ Le fonti sono le STESSE del web, query per query: cambiando una di là va
 // cambiata anche qui (recapTasks, recapObiettivi, recapPiante, recapTaFiri,
 // recapDecisioni, loadHomeAlertSpuntiamola, loadHomeAlertHabits, recapPeso,
-// recapPromemoria, loadHomeAlertPortfolioTotal).
+// recapPromemoria, loadHomeAlertPortfolioTotal, recapAmazon).
+// ⚠️ Un blocco tolto o vuoto NON si disegna, sottotitolo compreso, e una sezione
+// senza blocchi perde anche il titolo (web v1.15.1, APK 1.0.140); tutto vuoto =
+// «Niente da mostrare oggi.».
 // ⚠️ Un compito di un'app che in nativo non c'è (Decisioni) si mostra lo
 // stesso ma il tocco non apre niente: `route` è null.
 // ⚠️ Ogni box si toglie trascinandolo a destra, fino a domani e solo su questo
@@ -125,6 +129,8 @@ data class RecapPromemoria(
 data class DatiRecap(
     val finanza: String?,
     val peso: List<String>,
+    /** Gli avvisi di amz_situazione, una riga ciascuno. */
+    val amazon: List<String>,
     val scadenze: List<RecapVoce>,
     val promemoria: List<RecapPromemoria>,
     val letto: String,
@@ -148,6 +154,9 @@ private fun euroInt(v: Double): String {
     val r = v.roundToLong()
     return (if (r < 0) "-" else "") + String.format(ITA, "%,d", abs(r)) + " €"
 }
+
+private fun euro2(v: Double): String =
+    DecimalFormat("#,##0.00", DecimalFormatSymbols(ITA)).format(v) + " €"
 
 private fun kg(v: Double): String =
     DecimalFormat("#,##0.0#", DecimalFormatSymbols(ITA)).format(v) + " kg"
@@ -200,6 +209,7 @@ object RecapRepository {
             val spunt = async { spuntiamola(oggi) }
             val abitudini = async { abitudini(oggi) }
             val peso = async { peso(oggi, zona) }
+            val amazon = async { amazon(oggi) }
             val riservati = async {
                 righe("ts_tasks", "id") { filter { eq("riservato", true) } }.mapNotNull { it.s("id") }.toSet()
             }
@@ -208,6 +218,7 @@ object RecapRepository {
             DatiRecap(
                 finanza = finanza.await(),
                 peso = infoPeso,
+                amazon = amazon.await(),
                 scadenze = decisioni.await() + tasks.await() + obiettivi.await() + piante.await() +
                     tafiri.await() + spunt.await() + abitudini.await() + compitoPeso,
                 promemoria = prom,
@@ -529,13 +540,51 @@ object RecapRepository {
         emptyList<String>() to emptyList()
     }
 
+    // ── 📦 Scorte Amazon: i soli avvisi di amz_situazione ──
+    // Gemello di recapAmazon in index.html: prezzi, scorte e consegne li calcola
+    // il database, qui si scrivono e basta. ⚠️ I testi sono gemelli di quelli del
+    // web (e di AVVISI in scorte-amazon.html): cambiali insieme. Un codice che non
+    // conosco (senza_prezzo, dati_mancanti) non si scrive, come di là.
+
+    private suspend fun amazon(oggi: LocalDate): List<String> {
+        val righe = rpc("amz_situazione", buildJsonObject { put("p_oggi", oggi.toString()) }) as? JsonArray
+            ?: return emptyList()
+        val out = mutableListOf<String>()
+        for (r in righe.mapNotNull { it as? JsonObject }) {
+            if (!r.b("attivo")) continue
+            val nome = (r.s("titolo") ?: "").split(',', '(', '|').first().trim()
+            fun data(k: String) = dataBreve(r.s(k) ?: "")
+            fun e(k: String) = r.n(k)?.let { euro2(it) } ?: "—"
+            for (c in r.a("avvisi")) {
+                val testo = when (c) {
+                    "consegna_passata" -> "consegna del ${data("prossima_consegna")} da aggiornare"
+                    "finisce_prima" -> "finisce verso il ${data("esaurimento")}, prima della consegna"
+                    "prezzo_su" -> "prezzo salito ${e("prezzo_prima")} → ${e("prezzo")}"
+                    "prezzo_giu" -> "prezzo sceso ${e("prezzo_prima")} → ${e("prezzo")}"
+                    "troppa_scorta" -> "scorta abbondante: puoi saltare la consegna"
+                    "consegna_vicina" -> "consegna il ${data("prossima_consegna")}, ancora modificabile"
+                    "da_verificare" -> "da verificare"
+                    else -> null
+                } ?: continue
+                out += "$nome: $testo"
+            }
+        }
+        return out
+    }
+
     // ── 🔔 Promemoria: accorpati per TITOLO + GIORNO LOCALE ──
     // Gemello di recapPromemoria in index.html: la stessa occorrenza su due canali
     // e lo stesso promemoria a più orari dello stesso giorno sono un box solo.
     // Il giorno è locale e non UTC, o un promemoria dell'01:59 cadrebbe il giorno prima.
 
+    // ⚠️ Una sola scadenza per entità, la PROSSIMA (web v1.15.2): le righe arrivano
+    // per fire_at crescente, quindi il primo giorno visto per app + entity_id è
+    // quello buono e i giorni dopo (la pesata del 22, del 25…) si saltano. Orari e
+    // canali dello stesso giorno continuano ad accorparsi.
+
     private suspend fun promemoria(riservati: Set<String>): List<RecapPromemoria> {
         val visti = LinkedHashMap<String, RecapPromemoria>()
+        val primoGiorno = HashMap<String, String>()
         for (r in righe("cm_notification_queue", "app,entity_id,title,fire_at,channel") {
             filter { isIn("status", listOf("pending", "snoozed")) }
             order("fire_at", Order.ASCENDING)
@@ -547,6 +596,9 @@ object RecapRepository {
                 OffsetDateTime.parse(fire.replace(' ', 'T')).atZoneSameInstant(ZoneId.systemDefault())
             }.getOrNull()
             val giorno = locale?.toLocalDate()?.toString() ?: fire.take(10)
+            val entita = (r.s("app") ?: "") + "|" + (r.s("entity_id") ?: titolo)
+            val primo = primoGiorno.getOrPut(entita) { giorno }
+            if (primo != giorno) continue
             val ora = locale?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: ""
             val k = "$titolo|$giorno"
             val canale = r.s("channel") ?: ""
@@ -644,47 +696,67 @@ private fun CorpoRecap(
     val scadute = scad.filter { it.giorno < oggi }
     val prom = dati.promemoria.filter { (modalitaNascosta || !it.riservata) && it.chiave !in tolti }
 
-    // ℹ️ Info
-    TitoloSezione("ℹ️ Info", primo = true)
-    Sotto("💶 Finanza")
-    when {
-        "finanza" in tolti -> Vuoto("Tolto fino a domani.")
-        dati.finanza == null -> Vuoto("Totale portafogli non disponibile.")
-        else -> BoxRecap("finanza", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.FINANZA) }) {
-            Text(dati.finanza, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    val finanza = dati.finanza?.takeIf { "finanza" !in tolti }
+    val peso = if ("peso" in tolti) emptyList() else dati.peso
+    val amazon = if ("amazon" in tolti) emptyList() else dati.amazon
+    var primo = true
+    fun titolo(): Boolean = primo.also { primo = false }
+
+    // ℹ️ Info — un blocco tolto o vuoto non si disegna, e senza blocchi nemmeno il titolo.
+    if (finanza != null || peso.isNotEmpty() || amazon.isNotEmpty()) {
+        TitoloSezione("ℹ️ Info", primo = titolo())
+        if (finanza != null) {
+            Sotto("💶 Finanza")
+            BoxRecap("finanza", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.FINANZA) }) {
+                Text(finanza, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
         }
-    }
-    Sotto("⚖️ Peso e Calorie")
-    when {
-        "peso" in tolti -> Vuoto("Tolto fino a domani.")
-        dati.peso.isEmpty() -> Vuoto("Dati di peso non disponibili.")
-        // Un box solo: le righe una sotto l'altra, un tocco apre il peso.
-        else -> BoxRecap("peso", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.PESO) }) {
-            dati.peso.forEach { Text(it, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+        if (peso.isNotEmpty()) {
+            Sotto("⚖️ Peso e Calorie")
+            // Un box solo: le righe una sotto l'altra, un tocco apre il peso.
+            BoxRecap("peso", onTogli, VerdeSfondo, VerdeBordo, { onApri(Route.PESO) }) {
+                peso.forEach { Text(it, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+            }
+        }
+        if (amazon.isNotEmpty()) {
+            Sotto("📦 Scorte Amazon")
+            // ⚠️ Il tocco non apre niente: in nativo Scorte Amazon non c'è.
+            BoxRecap("amazon", onTogli, VerdeSfondo, VerdeBordo, null) {
+                amazon.forEach { Text(it, color = VerdeTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+            }
         }
     }
 
     // ✅ Compiti: Oggi e Scadute, sempre separate.
-    TitoloSezione("✅ Compiti")
-    Sotto("📅 Oggi · ${diOggi.size}")
-    if (diOggi.isEmpty()) Vuoto("Niente in scadenza oggi.") else Gruppi(diOggi, false, onTogli, onApri)
-    Sotto("⚠️ Scadute · ${scadute.size}")
-    if (scadute.isEmpty()) Vuoto("Niente di arretrato.") else Gruppi(scadute, true, onTogli, onApri)
-
-    // 🔔 Promemoria
-    TitoloSezione("🔔 Promemoria aperti · ${prom.size}")
-    if (prom.isEmpty()) Vuoto("Nessun promemoria in coda.")
-    val icona = mapOf("telegram" to "📱", "android" to "📲", "smart_block" to "🔐")
-    val zona = ZoneId.systemDefault()
-    prom.forEach { p ->
-        val quando = runCatching {
-            OffsetDateTime.parse(p.fireAt.replace(' ', 'T')).atZoneSameInstant(zona).format(DateTimeFormatter.ofPattern("dd/MM"))
-        }.getOrDefault("") + " " + p.orari.joinToString(" · ")
-        BoxRecap(p.chiave, onTogli, GrigioSfondo, GrigioBordo, null) {
-            Text(quando + " " + p.canali.joinToString("") { icona[it] ?: "" }, color = GrigioTesto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(p.titolo, color = GrigioTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    if (diOggi.isNotEmpty() || scadute.isNotEmpty()) {
+        TitoloSezione("✅ Compiti", primo = titolo())
+        if (diOggi.isNotEmpty()) {
+            Sotto("📅 Oggi · ${diOggi.size}")
+            Gruppi(diOggi, false, onTogli, onApri)
+        }
+        if (scadute.isNotEmpty()) {
+            Sotto("⚠️ Scadute · ${scadute.size}")
+            Gruppi(scadute, true, onTogli, onApri)
         }
     }
+
+    // 🔔 Promemoria
+    if (prom.isNotEmpty()) {
+        TitoloSezione("🔔 Promemoria aperti · ${prom.size}", primo = titolo())
+        val icona = mapOf("telegram" to "📱", "android" to "📲", "smart_block" to "🔐")
+        val zona = ZoneId.systemDefault()
+        prom.forEach { p ->
+            val quando = runCatching {
+                OffsetDateTime.parse(p.fireAt.replace(' ', 'T')).atZoneSameInstant(zona).format(DateTimeFormatter.ofPattern("dd/MM"))
+            }.getOrDefault("") + " " + p.orari.joinToString(" · ")
+            BoxRecap(p.chiave, onTogli, GrigioSfondo, GrigioBordo, null) {
+                Text(quando + " " + p.canali.joinToString("") { icona[it] ?: "" }, color = GrigioTesto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(p.titolo, color = GrigioTesto, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+    }
+
+    if (primo) Vuoto("Niente da mostrare oggi.")
 
     // Un trascinamento per sbaglio non deve costare il box fino a domani.
     if (tolti.isNotEmpty()) {

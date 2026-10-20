@@ -34,8 +34,8 @@ android {
         applicationId "com.garsal.appsphere"
         minSdk 28
         targetSdk 36
-        versionCode 140
-        versionName "1.0.139"
+        versionCode 141
+        versionName "1.0.140"
     }
 
     // Le pagine HTML scelgono fra dev e produzione dall'hostname (_IS_DEV).
