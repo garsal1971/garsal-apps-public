@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -44,13 +43,10 @@ private const val PACCHETTO_RENPHO = "com.renpho.health"
 internal val PERMESSI_SALUTE = setOf(
     HealthPermission.getReadPermission(WeightRecord::class),
     HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
-    // Il grasso corporeo, per la massa grassa. ⚠️ Mai fatale: negato, le
-    // pesate arrivano lo stesso, solo senza grasso — vedi [SaluteRepository.leggiPeso].
-    HealthPermission.getReadPermission(BodyFatRecord::class),
 )
 
-/** Una pesata letta da Health Connect: istante, peso in kg e grasso in % (se c'è). */
-data class PuntoSalute(val timestamp: Long, val pesoKg: Double, val grasso: Double? = null)
+/** Una pesata letta da Health Connect: istante e peso in kg. */
+data class PuntoSalute(val timestamp: Long, val pesoKg: Double)
 
 /**
  * La data locale della pesata — la stessa che finisce nella riga scritta
@@ -62,11 +58,7 @@ fun PuntoSalute.giorno(): String =
     Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate().toString()
 
 sealed class EsitoSalute {
-    /**
-     * [grassoNegato]: il permesso del grasso manca — le pesate sono arrivate
-     * lo stesso, e la schermata lo dice invece di richiederlo in un giro senza fine.
-     */
-    data class Ok(val punti: List<PuntoSalute>, val grassoNegato: Boolean = false) : EsitoSalute()
+    data class Ok(val punti: List<PuntoSalute>) : EsitoSalute()
     data class Errore(val messaggio: String) : EsitoSalute()
     /** Il permesso di lettura non è (ancora) concesso: il chiamante deve chiederlo e ritentare. */
     object PermessiRichiesti : EsitoSalute()
@@ -135,42 +127,8 @@ object SaluteRepository {
                 // stesso token ci terrebbe qui per sempre.
             } while (pagina != null && giri < MAX_PAGINE)
 
-            // ── Il grasso corporeo, gemello di `HealthConnectBridge.doSync` ──
-            // Letto a parte e MAI fatale: senza il permesso (o con una bilancia
-            // che non lo misura) le pesate devono arrivare lo stesso.
-            var grassoNegato = false
-            val grassi = mutableListOf<Pair<Long, Double>>()
-            try {
-                var pg: String? = null
-                var g = 0
-                do {
-                    val risposta = client.readRecords(
-                        ReadRecordsRequest(
-                            recordType = BodyFatRecord::class,
-                            timeRangeFilter = TimeRangeFilter(startTime = inizio, endTime = fine),
-                            pageSize = PAGINA,
-                            pageToken = pg,
-                        )
-                    )
-                    grassi += risposta.records.map { it.time.toEpochMilli() to it.percentage.value }
-                    pg = risposta.pageToken
-                    g++
-                } while (pg != null && g < MAX_PAGINE)
-            } catch (e: SecurityException) {
-                grassoNegato = true
-            } catch (e: Exception) {
-                // Una lettura del grasso storta non deve fermare le pesate.
-            }
-
-            // Il grasso di una pesata è la misura della bilancia nello stesso
-            // istante: Renpho li scrive insieme. Il più vicino entro dieci minuti;
-            // più lontano sarebbe un'altra pesata.
-            fun grassoPer(ts: Long): Double? =
-                grassi.filter { kotlin.math.abs(it.first - ts) <= GRASSO_TOLLERANZA_MS }
-                    .minByOrNull { kotlin.math.abs(it.first - ts) }?.second
-                    ?.takeIf { it > 0.0 && it < 100.0 }
-
-            EsitoSalute.Ok(punti.map { it.copy(grasso = grassoPer(it.timestamp)) }, grassoNegato)
+            // v1.0.141: il grasso corporeo non si legge più (la massa grassa è stata tolta).
+            EsitoSalute.Ok(punti)
         } catch (e: SecurityException) {
             EsitoSalute.PermessiRichiesti
         } catch (e: Exception) {
@@ -180,5 +138,4 @@ object SaluteRepository {
 
     private const val PAGINA = 1000
     private const val MAX_PAGINE = 20
-    private const val GRASSO_TOLLERANZA_MS = 10 * 60 * 1000L
 }

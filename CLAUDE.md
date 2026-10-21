@@ -1228,8 +1228,9 @@ la % dal form dell'obiettivo, la casella del grasso nelle pesate a mano, le colo
 tabella, i grafici 🧈 e 📊, le righe del grasso nelle schede, e la sincronizzazione non legge né
 scrive più `body_fat_pct`. `massaMagra()` torna sempre `null`, quindi tutto ripiega sul peso
 totale; la migration ha spento `use_fat_mass` su tutti gli obiettivi. ⚠️ **Le colonne restano**
-(anche `ema_fat_*`): l'APK nativa le usa ancora — vanno tolte insieme alla sua modifica, che è da
-fare. Quel che segue descrive com'era.
+(anche `ema_fat_*`), di proposito: le APK già installate le scrivono ancora. ⚠️ **Tolta anche
+dal nativo** dall'APK 1.0.141: form, pesata a mano, tabella, schede e lettura di `BodyFatRecord`
+da Health Connect; `Obiettivo.usaGrasso` si legge sempre `false`. Quel che segue descrive com'era.
 
 (5 ottobre 2026: `20261005140000_ps_massa_grassa.sql`; web v4.8.0, APK WebView v1.2.4.)
 **Massa grassa = peso × %grasso / 100.** Il grasso corporeo lo scrive la bilancia (Renpho) in
@@ -1343,8 +1344,8 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
   malus. Le righe di `ps_punti` portano anche `giorno` (il minimo vero). Chiusura «perdere» sulla
   media di oggi (serve la pesata di oggi), «mantenere» sulla media più alta del periodo. Le ⭐
   stelline restano sul peso vero. Nel web schede, tabella, ❓ e cronologia mostrano tutt'e due,
-  con la media evidenziata come valore che conta. ⚠️ **Il nativo prende i punti dalla RPC, ma le
-  sue schede («Mancano», ❓) confrontano ancora la pesata del giorno**: da allineare con l'APK.
+  con la media evidenziata come valore che conta. Lo stesso nel nativo dall'APK 1.0.141
+  (`SchedaPesata.media`, `mancaDelGiorno` sulla `emaPeso`, tabella con la media colorata).
 - (Storico) Sugli obiettivi **`use_fat_mass`**: i punti dei giorni di pesata si danno sulla **media della
   massa grassa** contro il grasso previsto (giorno passato senza nessun valore = malus); le
   ⭐ stelline sul **peso giornaliero vero** (prima pesata, giorni stimati esclusi); la chiusura

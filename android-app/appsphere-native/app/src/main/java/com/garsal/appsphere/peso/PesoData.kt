@@ -129,7 +129,8 @@ data class Obiettivo(
                 promemoriaCanali = (campo(o, "reminder_channels") as? JsonArray)
                     ?.mapNotNull { (it as? JsonPrimitive)?.content }
                     .orEmpty(),
-                usaGrasso = (campo(o, "use_fat_mass") as? JsonPrimitive)?.content == "true",
+                // v1.0.141: la massa grassa non c'è più, anche se la colonna fosse rimasta accesa.
+                usaGrasso = false,
                 percGrasso = decimale(o, "fat_pct"),
             )
         }
@@ -381,7 +382,6 @@ object PesoRepository {
         ora: LocalTime,
         peso: Double,
         target: Double?,
-        grasso: Double? = null,
     ): Pesata = withContext(Dispatchers.IO) {
         val istante = giorno.atTime(ora).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val riga = buildJsonObject {
@@ -390,11 +390,10 @@ object PesoRepository {
             put("timestamp", istante)
             put("weight", Math.round(peso * 100.0) / 100.0)
             put("target_weight", target)
-            // Come `saveInsertWeight()`: casella vuota = NULL, cioè «non misurato».
-            put("body_fat_pct", grasso?.let { Math.round(it * 100.0) / 100.0 })
+            // v1.0.141: la massa grassa non c'è più; `body_fat_pct` non si manda.
         }
         db.from("ps_weight_tracking").upsert(riga) { onConflict = "timestamp" }
-        Pesata(giorno.toString(), "Manuale", istante, peso, target, grasso)
+        Pesata(giorno.toString(), "Manuale", istante, peso, target)
     }
 
     suspend fun eliminaPesata(timestamp: Long) = withContext(Dispatchers.IO) {
@@ -435,9 +434,9 @@ object PesoRepository {
             put("final_malus", bozza.malusFinale)
             put("milestones", milestoniJson(traguardi))
             put("status", "active")
-            // La massa grassa — `leggiCampiPesata()`: senza spunta la % si scrive NULL.
-            put("use_fat_mass", bozza.usaGrasso)
-            put("fat_pct", if (bozza.usaGrasso) bozza.percGrassoNum else null)
+            // v1.0.141: la massa grassa non c'è più, si conta sempre sul peso.
+            put("use_fat_mass", false)
+            put("fat_pct", null as Double?)
             // I campi di `leggiCampiPesata()`: N vuoto si scrive NULL e non 1,
             // che è la regola di sempre e non «ogni giorno per scelta».
             put("weigh_every_days", bozza.ogniGiorni)
@@ -664,8 +663,6 @@ object PesoRepository {
             put("weight", peso)
             // Il target congelato è sempre il TOTALE, anche sulla massa grassa.
             put("target_weight", obiettivo?.let { PesoRegole.targetInterpolato(it.traguardi, giorno) })
-            // Solo se c'è: vedi [sincronizzaPunti], che per questo fa due upsert.
-            punto.grasso?.takeIf { it > 0.0 && it < 100.0 }?.let { put("body_fat_pct", Math.round(it * 100.0) / 100.0) }
         }
     }
 
@@ -680,16 +677,9 @@ object PesoRepository {
             if (manualiDaRimuovere.isNotEmpty()) {
                 db.from("ps_weight_tracking").delete { filter { isIn("timestamp", manualiDaRimuovere) } }
             }
-            // ⚠️ Due upsert, con e senza grasso, come `processWeights()`: PostgREST
-            // vuole le stesse chiavi su tutte le righe, e mandare `body_fat_pct:
-            // null` a una pesata letta senza grasso (permesso negato) cancellerebbe
-            // il grasso salvato da una sincronizzazione precedente.
-            val (conGrasso, senza) = righe.partition { it.containsKey("body_fat_pct") }
-            if (conGrasso.isNotEmpty()) {
-                db.from("ps_weight_tracking").upsert(conGrasso) { onConflict = "timestamp" }
-            }
-            if (senza.isNotEmpty()) {
-                db.from("ps_weight_tracking").upsert(senza) { onConflict = "timestamp" }
+            // `body_fat_pct` non si manda (v1.0.141): l'upsert lascia com'è quel che c'è.
+            if (righe.isNotEmpty()) {
+                db.from("ps_weight_tracking").upsert(righe) { onConflict = "timestamp" }
             }
             Unit
         }

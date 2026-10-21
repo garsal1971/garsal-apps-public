@@ -57,10 +57,12 @@ data class SchedaPesata(
      * del web v4.14.
      */
     val base: Double? = null,
+    /** v1.0.141: la media mobile del peso di quel giorno (`ps_daily_ema`): è lei che fa i punti. */
+    val media: Double? = null,
+    /** La media è stimata: quel giorno nessuno si è pesato. */
+    val mediaStimata: Boolean = false,
     /** Sulla prossima pesata: il peso totale che il piano si aspetta quel giorno. */
     val pesoAtteso: Double? = null,
-    /** Sulla prossima pesata, su un obiettivo a massa grassa: il grasso atteso. */
-    val grassoAtteso: Double? = null,
     /**
      * v1.0.128: sulla «Prossima» che è OGGI (pesata che conta, esito non ancora
      * scoperto) c'è il ❓. [rivelaManca] è il confronto per l'esito; quando è
@@ -228,8 +230,10 @@ data class PesoState(
                 }
             }
         }
-        // v1.0.127: sulla massa grassa si confronta la media del giorno, come il web.
-        val base = if (tipo != TipoScheda.DOPO && obj.usaGrasso) (medie[giorno]?.emaGrassoKg ?: peso) else peso
+        // v1.0.141: i punti si danno sulla MEDIA MOBILE del peso (`ps_punti`), quindi il
+        // «Mancano» confronta lei, come il web v4.17.0. Senza media, il peso.
+        val media = if (tipo != TipoScheda.DOPO) medie[giorno]?.emaPeso else null
+        val base = media ?: peso
         val pesoAtteso = if (tipo == TipoScheda.DOPO) PesoRegole.targetInterpolato(obj.traguardi, giorno) else null
         val rivela = tipo == TipoScheda.DOPO && giorno == oggi
         val (rivelaManca, rivelaMotivo) = if (rivela) mancaDelGiorno(obj, giorno) else (null to null)
@@ -240,8 +244,9 @@ data class PesoState(
             obiettivoId = obj.id,
             pesato = tipo != TipoScheda.DOPO && vista.any { it.giorno == giorno },
             base = base,
+            media = media,
+            mediaStimata = medie[giorno]?.pesoStimato == true,
             pesoAtteso = pesoAtteso,
-            grassoAtteso = if (obj.usaGrasso) PesoRegole.aGrasso(pesoAtteso, obj) else null,
             rivela = rivela,
             rivelaManca = rivelaManca,
             rivelaMotivo = rivelaMotivo,
@@ -260,14 +265,10 @@ data class PesoState(
         val minima = righe.minBy { it.peso }
         val totale = minima.target ?: PesoRegole.targetInterpolato(obj.traguardi, giorno)
             ?: return null to "Manca il target di oggi"
-        var base: Double? = minima.peso
-        var target: Double = totale
-        if (obj.usaGrasso) {
-            target = PesoRegole.aGrasso(totale, obj) ?: totale
-            base = medie[giorno]?.emaGrassoKg ?: righe.mapNotNull { PesoRegole.massaGrassa(it) }.minOrNull()
-            if (base == null) return null to "La pesata di oggi non ha la % di grasso: sincronizza da Renpho"
-        }
-        return PesoRegole.arrotonda(base!! - target, 1) to null
+        // v1.0.141: conta la MEDIA MOBILE del peso, come nei punti e nel web v4.17.0.
+        val base = medie[giorno]?.emaPeso
+            ?: return null to "Media mobile di oggi non ancora calcolata: riapri tra poco"
+        return PesoRegole.arrotonda(base - totale, 1) to null
     }
 
     /** Il minimo dell'ultimo giorno pesato fino a [giorno] compreso. */
@@ -448,12 +449,12 @@ class PesoViewModel : ViewModel() {
      * il web: si congela nella pesata e non si ricalcola più, così spostare i
      * traguardi domani non riscrive il giudizio sui giorni già passati.
      */
-    fun pesati(giorno: LocalDate, ora: LocalTime, peso: Double, grasso: Double? = null) {
+    fun pesati(giorno: LocalDate, ora: LocalTime, peso: Double) {
         viewModelScope.launch {
             val obiettivo = _state.value.obiettivo
             val target = obiettivo?.let { PesoRegole.targetInterpolato(it.traguardi, giorno.toString()) }
             try {
-                PesoRepository.salvaPesata(giorno, ora, peso, target, grasso)
+                PesoRepository.salvaPesata(giorno, ora, peso, target)
                 _state.value = _state.value.copy(
                     messaggio = "⚖️ ${kg(peso)} kg segnati per il ${dataItaliana(giorno.toString())}"
                 )
@@ -735,19 +736,16 @@ class PesoViewModel : ViewModel() {
                     _state.value = _state.value.copy(messaggio = null, permessiSaluteRichiesti = true)
                 is EsitoSalute.Errore ->
                     _state.value = _state.value.copy(messaggio = "Salute: ${esito.messaggio}")
-                is EsitoSalute.Ok -> salvaPuntiSalute(esito.punti, esito.grassoNegato)
+                is EsitoSalute.Ok -> salvaPuntiSalute(esito.punti)
             }
         }
     }
-
-    /** Il permesso del grasso si è già chiesto in questa sessione. */
-    private var grassoChiesto = false
 
     fun permessiSaluteMostrati() {
         _state.value = _state.value.copy(permessiSaluteRichiesti = false)
     }
 
-    private suspend fun salvaPuntiSalute(punti: List<PuntoSalute>, grassoNegato: Boolean = false) {
+    private suspend fun salvaPuntiSalute(punti: List<PuntoSalute>) {
         if (punti.isEmpty()) {
             _state.value = _state.value.copy(
                 messaggio = "Nessuna pesata trovata in Health Connect (ultimi 90 giorni)."
@@ -778,21 +776,9 @@ class PesoViewModel : ViewModel() {
             val peso = Math.floor(ultimo.pesoKg * 10.0) / 10.0
             _state.value = _state.value.copy(
                 messaggio = "✅ ${unici.size} pesate da Salute · dal ${dataIt(primo)} al " +
-                    "${dataIt(ultimo.giorno())} · ultima ${"%.1f".format(peso)} kg" +
-                    // Lo stesso avviso del web: senza grasso la massa grassa non si conta.
-                    if (grassoNegato) " · 🧈 manca il permesso «Grasso corporeo» in Connessione " +
-                        "Salute: concedilo e risincronizza per la massa grassa"
-                    else " · 🧈 grasso su ${unici.count { it.grasso != null }}"
+                    "${dataIt(ultimo.giorno())} · ultima ${"%.1f".format(peso)} kg"
             )
             carica()
-            // Chi aveva concesso il solo peso prima della massa grassa il
-            // permesso del grasso non l'ha mai visto: si chiede UNA volta per
-            // sessione, come `permissionsRequested` del bridge — negato di
-            // nuovo, il giro si ferma qui invece di ricominciare all'infinito.
-            if (grassoNegato && !grassoChiesto) {
-                grassoChiesto = true
-                _state.value = _state.value.copy(permessiSaluteRichiesti = true)
-            }
         } catch (e: Exception) {
             Log.w(TAG, "sincronizzazione Salute non riuscita", e)
             _state.value = _state.value.copy(messaggio = "Non sincronizzato: ${e.messaggioBreve()}")
