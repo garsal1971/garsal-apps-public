@@ -434,9 +434,8 @@ object PesoRepository {
             put("final_malus", bozza.malusFinale)
             put("milestones", milestoniJson(traguardi))
             put("status", "active")
-            // v1.0.141: la massa grassa non c'è più, si conta sempre sul peso.
-            put("use_fat_mass", false)
-            put("fat_pct", null as Double?)
+            // v1.0.142: use_fat_mass e fat_pct non esistono più nel database
+            // (20261021140000): mandarli farebbe rifiutare il salvataggio.
             // I campi di `leggiCampiPesata()`: N vuoto si scrive NULL e non 1,
             // che è la regola di sempre e non «ogni giorno per scelta».
             put("weigh_every_days", bozza.ogniGiorni)

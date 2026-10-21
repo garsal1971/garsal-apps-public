@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.17.0</title>
+  <title>Peso e Calorie v4.17.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1836,8 +1836,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.17.0';
-        var BUILD_TIME  = '2026-10-21T13:00:00Z';
+        var APP_VERSION = 'v4.17.1';
+        var BUILD_TIME  = '2026-10-21T15:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -4056,9 +4056,8 @@
             // Una notifica che non arriva da nessuna parte non è un promemoria.
             if (on && canali.length === 0) { alert('Scegli almeno un canale per la notifica.'); return null; }
             return {
-                // v4.16.0: la massa grassa non c'è più, si conta sempre sul peso totale.
-                use_fat_mass:      false,
-                fat_pct:           null,
+                // v4.17.1: use_fat_mass e fat_pct non esistono più nel database
+                // (20261021140000): mandarli farebbe rifiutare il salvataggio.
                 weigh_every_days:  n,
                 reminder_enabled:  on,
                 reminder_time:     ora,

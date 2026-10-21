@@ -1227,8 +1227,14 @@ di dire la stessa cosa.
 la % dal form dell'obiettivo, la casella del grasso nelle pesate a mano, le colonne grasso/% della
 tabella, i grafici 🧈 e 📊, le righe del grasso nelle schede, e la sincronizzazione non legge né
 scrive più `body_fat_pct`. `massaMagra()` torna sempre `null`, quindi tutto ripiega sul peso
-totale; la migration ha spento `use_fat_mass` su tutti gli obiettivi. ⚠️ **Le colonne restano**
-(anche `ema_fat_*`), di proposito: le APK già installate le scrivono ancora. ⚠️ **Tolta anche
+totale; la migration ha spento `use_fat_mass` su tutti gli obiettivi. ⚠️ **Le colonne sono state
+TOLTE dal database lo stesso giorno** (`20261021140000_ps_massa_grassa_colonne_tolte.sql`, web
+v4.17.1, APK 1.0.142): `body_fat_pct`, `use_fat_mass`, `fat_pct` e le sette colonne del grasso di
+`ps_daily_ema`; `ps_ema_ricalcola` calcola la sola media del peso, `ps_massa_magra` e
+`ps_grasso_previsto` non ci sono più, `ps_peso_conta` tiene la firma (la chiama `ps_punti`) e
+torna il solo peso. ⚠️ Un client che manda ancora `use_fat_mass`/`fat_pct` (web ≤ v4.17.0, APK ≤
+1.0.141) si vede rifiutare il salvataggio di un obiettivo. Nelle pagine resta codice di lettura
+del grasso che ora legge `null` e non disegna niente. ⚠️ **Tolta anche
 dal nativo** dall'APK 1.0.141: form, pesata a mano, tabella, schede e lettura di `BodyFatRecord`
 da Health Connect; `Obiettivo.usaGrasso` si legge sempre `false`. Quel che segue descrive com'era.
 
