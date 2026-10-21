@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.16.0</title>
+  <title>Peso e Calorie v4.17.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -386,6 +386,10 @@
             font-size: 14px;
         }
         .pesata-card .pc-row b { font-size: 16px; }
+        /* v4.17.0: la media mobile è il valore che si confronta col target, e si vede. */
+        .pesata-card .pc-row.pc-media { background: #EDE9FE; border-radius: 8px; padding: 4px 8px; margin: 2px -8px; }
+        .pesata-card .pc-row.pc-media b { color: #6D28D9; font-size: 18px; }
+        .pesata-card .pc-row.pc-media small { color: #7C3AED; font-size: 11px; }
         .pesata-card .pc-note { font-size: 11px; color: #888; }
         .pesata-card .pc-sep { border-top: 1px dashed #ddd; margin: 6px 0 4px; }
         /* v4.15.0: la prossima pesata — i target del piano centrati, in tre «gettoni». */
@@ -1472,7 +1476,7 @@
                                         <th>Data</th>
                                         <th>
                                             <div class="mis-griglia mis-testa"><span>Peso</span></div>
-                                            <div class="mis-legenda">sopra il giorno · sotto <span class="mis-ema-txt">la media</span></div>
+                                            <div class="mis-legenda">sopra il giorno · sotto <span class="mis-ema-txt">la media, che fa i punti</span></div>
                                         </th>
                                         <th>Target<div class="mis-legenda">punti · cumulato</div></th>
                                     </tr>
@@ -1832,8 +1836,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.16.0';
-        var BUILD_TIME  = '2026-10-21T10:00:00Z';
+        var APP_VERSION = 'v4.17.0';
+        var BUILD_TIME  = '2026-10-21T13:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -2861,8 +2865,9 @@
                 html += '<div class="sh-row ' + (r.points > 0 ? 'win' : 'lose')
                       + (r.interp ? ' interp' : '') + '">'
                       + '<span class="sh-day">' + p[2] + '/' + p[1] + '</span>'
-                      + '<span class="sh-kg">' + (r.missed ? 'non pesato'
-                          : (r.interp ? '≈ ' : '') + r.weight.toFixed(1) + ' kg')
+                      + '<span class="sh-kg">' + (r.missed ? 'nessuna media'
+                          : '📈 ' + (r.interp ? '≈ ' : '') + r.weight.toFixed(1) + ' kg'
+                            + (r.giorno != null ? ' (pesata ' + r.giorno.toFixed(1) + ')' : ''))
                       + (r.target != null ? ' · target ' + r.target.toFixed(1) : '') + '</span>'
                       + '<span class="sh-pt">' + (r.points > 0 ? '+' : '') + r.points + '</span>'
                       + '<span class="sh-cum">' + r.cum + '</span></div>';
@@ -2871,8 +2876,9 @@
             html += '<div class="sh-note">' + (ogniN
                   ? 'Ti pesi ogni <b>' + ogniN + '</b> giorn' + (ogniN === 1 ? 'o' : 'i') + ': contano solo i '
                     + 'giorni fissati, e uno passato senza pesata vale il malus. '
-                  : 'I giorni col <b>≈</b> non hanno una pesata: sono ricostruiti '
-                    + 'fra quella prima e quella dopo, e contano come gli altri. ')
+                  : '')
+                  + 'Conta la <b>📈 media mobile</b> del peso contro il target; fra parentesi la pesata vera '
+                  + 'del giorno. Col <b>≈</b> la media è stimata (quel giorno nessuna pesata). '
                   + 'L\'ultima colonna è il '
                   + 'totale progressivo dei soli giornalieri — i traguardi si aggiungono sopra.</div>';
             return html;
@@ -5511,6 +5517,8 @@
                     return {
                         date: r.date, interp: !!r.interp, missed: !!r.missed,
                         weight: r.weight == null ? null : Number(r.weight),
+                        // v4.17.0: `weight` è la MEDIA MOBILE (è lei che fa i punti), `giorno` il minimo vero.
+                        giorno: r.giorno == null ? null : Number(r.giorno),
                         target: r.target == null ? null : Number(r.target),
                         points: r.points, cum: r.cum
                     };
@@ -5747,7 +5755,9 @@
             var min = righe.reduce(function(a, b) { return Number(a.weight) <= Number(b.weight) ? a : b; });
             var totale = min.target_weight ? Number(min.target_weight) : targetTotale(day);
             if (totale == null || !isFinite(totale)) return { motivo: 'Manca il target di oggi' };
-            var base = Number(min.weight), target = totale;
+            // v4.17.0: conta la MEDIA MOBILE del peso, come nei punti.
+            var base = emaDi(day, 'ema_weight'), target = totale;
+            if (base == null) return { motivo: 'Media mobile di oggi non ancora calcolata: riapri tra poco' };
             if (obiettivoGrasso(obj)) {
                 target = aGrasso(totale, obj);
                 base = emaDi(day, 'ema_fat_kg');
@@ -5800,7 +5810,7 @@
                      + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
                      + '<div class="pc-centro">'
                      + '<div class="pc-note">🎯 Target attesi dal piano</div>'
-                     + big('Peso totale', kgA(wAtt))
+                     + big('🎯 Target media peso', kgA(wAtt))
                      + (day === oggi && giornoCheConta(userData.currentObjective, day)
                         ? bottoneRivela(userData.currentObjective, data, day) : '')
                      + '</div></div>';
@@ -5859,7 +5869,8 @@
             var mPct   = media('ema_fat_pct', function(v) { return (Math.round(v * 10) / 10) + ' %'; });
             var conGrasso = grasso || mGr !== '—' || mPct !== '—';
             // Sulla massa grassa i punti si danno sulla media: «Mancano» confronta quella.
-            var base = grasso ? emaDi(gEma, 'ema_fat_kg') : peso;
+            // v4.17.0: i punti si danno sulla MEDIA MOBILE del peso, quindi «Mancano» confronta lei.
+            var base = grasso ? emaDi(gEma, 'ema_fat_kg') : emaDi(gEma, 'ema_weight');
             if (base == null) base = peso;
             var manca = (base != null && target != null && isFinite(target)) ? base - target : null;
             var coloreManca = manca == null ? '#999' : (Math.round(manca * 10) / 10 <= 0 ? '#00B894' : '#E74C3C');
@@ -5881,9 +5892,9 @@
                 ? '<div class="pc-note">medie del ' + gEma.slice(8, 10) + '/' + gEma.slice(5, 7) + '</div>' : '';
             return '<div class="pesata-card ' + tipo + '">'
                  + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                 + '<div class="pc-row"><span>Peso totale</span><b>' + kg(totale) + '</b></div>'
+                 + '<div class="pc-row"><span>⚖️ Pesata del giorno</span><b>' + kg(totale) + '</b></div>'
                  + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
-                 + '<div class="pc-row"><span>📈 Media peso</span><b style="color:#7C3AED">' + mPeso + '</b></div>'
+                 + '<div class="pc-row pc-media"><span>📈 Media peso <small>· conta per il target</small></span><b>' + mPeso + '</b></div>'
                  + notaEma
                  + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
                  + rigaMancano()
@@ -7275,8 +7286,9 @@
                 var griglia = document.createElement('div');
                 griglia.className = 'mis-griglia';
                 var celle = [
-                    [numIt(gPeso, 1), 'mis-v', colore(gPeso)],
-                    [numIt(eW, 1), 'mis-ema' + (stimW ? ' mis-stimato' : ''), '']
+                    [numIt(gPeso, 1), 'mis-v', ''],
+                    // v4.17.0: è la media a fare i punti, quindi è lei a prendere il colore.
+                    [numIt(eW, 1), 'mis-ema' + (stimW ? ' mis-stimato' : ''), colore(eW) + 'font-weight:bold;font-size:1.05em;']
                 ];
                 celle.forEach(function(c) {
                     var sp = document.createElement('span');

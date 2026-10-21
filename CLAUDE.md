@@ -1337,7 +1337,15 @@ esponenziali di **peso**, **massa grassa (kg)** e **% di grasso**, più il loro 
   la riga porta la media come valore, marcata `*_stimato`. Senza pesate negli N giorni non c'è
   riga. Il trend è media di oggi − media di ieri.
 - La massa grassa media è la **media dei kg giornalieri**, non peso medio × % media.
-- Sugli obiettivi **`use_fat_mass`**: i punti dei giorni di pesata si danno sulla **media della
+- ✅ **Dal 21 ottobre 2026 i punti si danno sulla MEDIA MOBILE DEL PESO per tutti gli obiettivi**
+  (`20261021120000_ps_punti_media_mobile.sql`, web v4.17.0): ogni giorno che conta confronta
+  `ema_weight` (vera o stimata) col target congelato o di piano; senza media e a giorno passato,
+  malus. Le righe di `ps_punti` portano anche `giorno` (il minimo vero). Chiusura «perdere» sulla
+  media di oggi (serve la pesata di oggi), «mantenere» sulla media più alta del periodo. Le ⭐
+  stelline restano sul peso vero. Nel web schede, tabella, ❓ e cronologia mostrano tutt'e due,
+  con la media evidenziata come valore che conta. ⚠️ **Il nativo prende i punti dalla RPC, ma le
+  sue schede («Mancano», ❓) confrontano ancora la pesata del giorno**: da allineare con l'APK.
+- (Storico) Sugli obiettivi **`use_fat_mass`**: i punti dei giorni di pesata si danno sulla **media della
   massa grassa** contro il grasso previsto (giorno passato senza nessun valore = malus); le
   ⭐ stelline sul **peso giornaliero vero** (prima pesata, giorni stimati esclusi); la chiusura
   «perdere» sulla media di oggi, «mantenere» sulla media più alta del periodo. Gli obiettivi sul
