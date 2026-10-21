@@ -183,7 +183,6 @@ fun GestioneObiettivoScreen(
                     }
                 }
 
-                MassaGrassa(bozza = bozza, chiave = chiaveForm, enabled = !isClosed) { bozza = it }
 
                 PesataEPromemoria(
                     bozza = bozza,
@@ -205,9 +204,6 @@ fun GestioneObiettivoScreen(
                         BarraTraguardi(obiettivo = obiettivo, stato = stato, vm = vm)
                     }
 
-                    val magraBozza = PesoRegole.massaMagra(
-                        bozza.usaGrasso, bozza.percGrassoNum, bozza.traguardi.firstOrNull()?.peso,
-                    )
                     Titoletto("Milestone Progressive")
                     if (bozza.traguardi.isEmpty()) {
                         Nota("Nessuna milestone impostata")
@@ -229,11 +225,6 @@ fun GestioneObiettivoScreen(
                                             fontWeight = FontWeight.SemiBold,
                                             color = Palette.dark,
                                         )
-                                        // Il grasso previsto a quel traguardo, coi valori
-                                        // del form ancora da salvare — come `updateMilestoneList()`.
-                                        PesoRegole.notaGrassoPrevisto(t.peso, magraBozza)?.let {
-                                            Text("🧈 $it", color = OroScuro, style = MaterialTheme.typography.bodySmall)
-                                        }
                                     }
                                     if (!isClosed) {
                                         Text(
@@ -539,71 +530,6 @@ private fun PesataEPromemoria(
                 }
             }
         }
-    }
-}
-
-/** Il marrone-oro delle note sulla massa grassa: lo stesso `#8a6d00` del web. */
-private val OroScuro = Color(0xFF8A6D00)
-
-/**
- * 🧈 La massa grassa — il riquadro `objectiveFatMass` / `objectiveFatPct` del
- * web, con le stesse regole di `leggiCampiPesata()`: la % sta fra 3 e 70, e
- * senza spunta si salva NULL.
- */
-@Composable
-private fun MassaGrassa(
-    bozza: BozzaObiettivo,
-    chiave: Any?,
-    enabled: Boolean,
-    onCambia: (BozzaObiettivo) -> Unit,
-) {
-    var testo by remember(chiave) { mutableStateOf(bozza.percGrasso) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) { onCambia(bozza.copy(usaGrasso = !bozza.usaGrasso)) },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = bozza.usaGrasso,
-            onCheckedChange = { onCambia(bozza.copy(usaGrasso = it)) },
-            enabled = enabled,
-        )
-        Text(
-            "🧈 Misura sulla massa grassa (peso × % grasso corporeo)",
-            color = Palette.dark,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-    if (bozza.usaGrasso) {
-        OutlinedTextField(
-            value = testo,
-            onValueChange = { nuovo ->
-                val pulito = nuovo.filter { it.isDigit() || it == ',' || it == '.' }.take(5)
-                testo = pulito
-                onCambia(bozza.copy(percGrasso = pulito))
-            },
-            label = { Text("% grasso di partenza (al peso del primo traguardo)") },
-            placeholder = { Text("es. 28") },
-            singleLine = true,
-            enabled = enabled,
-            isError = !bozza.grassoValido,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (!bozza.grassoValido) {
-            Text(
-                "Scrivi la % di grasso «normale», fra 3 e 70.",
-                color = Palette.danger,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        Nota(
-            "Traguardi e peso finale si scrivono come sempre, in peso totale: la massa magra si ricava " +
-                "dal primo traguardo e resta ferma, quindi il grasso previsto è peso − massa magra. " +
-                "Punti e chiusura si contano sulla massa grassa, le stelline restano sul totale. " +
-                "Le pesate senza grasso corporeo non contano."
-        )
     }
 }
 

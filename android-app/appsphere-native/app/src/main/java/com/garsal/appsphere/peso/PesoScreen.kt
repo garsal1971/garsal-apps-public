@@ -290,8 +290,8 @@ fun PesoScreen(
                 PesoRegole.targetInterpolato(it.traguardi, giorno.toString())
             },
             onAnnulla = { pesataDaFare = null },
-            onConferma = { ora, peso, grasso ->
-                vm.pesati(giorno, ora, peso, grasso)
+            onConferma = { ora, peso ->
+                vm.pesati(giorno, ora, peso)
                 pesataDaFare = null
             },
         )
@@ -631,6 +631,7 @@ private fun DettaglioObiettivo(obiettivo: Obiettivo) {
  * Ogni valore sta su una riga sua, etichetta a sinistra e numero a destra, e
  * la riga può andare a capo: sono i caratteri di sistema grandi.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
     val colore = when (s.tipo) {
@@ -679,10 +680,29 @@ private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
     ) {
         Text("$titolo · $quando", fontWeight = FontWeight.Bold, color = Palette.dark)
         // v1.0.128: senza pesata quel giorno, trattini (come il web v4.15.3).
-        RigaScheda("Minimo", if (s.pesato) "${kg(s.peso)} kg" else "–")
-        // Sulla massa grassa il totale e la % della pesata, a titolo informativo.
-        s.info?.takeIf { s.pesato }?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
+        RigaScheda("⚖️ Pesata del giorno", if (s.pesato) "${kg(s.peso)} kg" else "–")
         s.nota?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
+        // v1.0.141: la media mobile è il valore che fa i punti, e si vede (web v4.17.0).
+        FlowRow(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFEDE9FE))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column {
+                Text("📈 Media peso", color = Palette.dark)
+                Text("conta per il target", color = Color(0xFF7C3AED), style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                s.media?.let { "${kg(it)} kg" } ?: "–",
+                color = Color(0xFF6D28D9),
+                fontWeight = FontWeight.Bold,
+                fontStyle = if (s.mediaStimata) androidx.compose.ui.text.font.FontStyle.Italic else null,
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
         RigaScheda("Target", "${kg(s.target)} kg", Verde)
         s.infoTarget?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
         RigaScheda("Mancano", if (manca == null) "–" else "${conSegno(manca)} kg", coloreManca)
@@ -751,13 +771,8 @@ private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color,
     ) {
         Text(intestazione, fontWeight = FontWeight.Bold, color = Palette.dark, modifier = Modifier.fillMaxWidth())
         Text("🎯 Target attesi dal piano", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
-        Gettone("Peso totale", "${kg(s.pesoAtteso)} kg")
-        val g = s.grassoAtteso
-        val w = s.pesoAtteso
-        if (g != null) {
-            Gettone("Massa grassa", "${kg(g)} kg")
-            Gettone("Grasso", if (w != null && w > 0) "${PesoRegole.arrotonda(g / w * 100, 1)} %" else "–")
-        }
+        // v1.0.141: il target si confronta con la media mobile del peso, come nel web v4.17.0.
+        Gettone("🎯 Target media peso", "${kg(s.pesoAtteso)} kg")
         // v1.0.128: oggi è la pesata che conta → il ❓, spento col suo perché finché non si
         // può dire l'esito (gemello di `bottoneRivela()` del web v4.15.2).
         if (s.rivela) {
@@ -1072,11 +1087,9 @@ private fun RigaTabella(riga: PesoRegole.RigaGiorno, onApri: (String) -> Unit) {
     }
     val media = riga.media
     val stimW = media?.pesoStimato == true
-    val stimF = media?.grassoStimato == true
-    val haMediaStimata = (media?.emaPeso != null || media?.emaGrassoKg != null) && (stimW || stimF)
-    val grassoObj = riga.notaTarget != null
-    // Il valore che fa i punti si colora contro il target: la media del grasso
-    // sugli obiettivi a massa grassa, il peso del giorno sugli altri.
+    val stimF = false
+    val haMediaStimata = media?.emaPeso != null && stimW
+    // Il valore che fa i punti si colora contro il target: la media mobile del peso.
     fun colore(v: Double?): Color? {
         val t = riga.target ?: return null
         if (v == null) return null
@@ -1121,10 +1134,9 @@ private fun RigaTabella(riga: PesoRegole.RigaGiorno, onApri: (String) -> Unit) {
         // La griglia: intestazioni, poi giorno (sopra) e media (sotto).
         fun num(v: Double?) = v?.let { kg(it) } ?: "—"
         val viola = Color(0xFF6C5CE7)
+        // v1.0.141: niente più grasso; è la MEDIA a fare i punti, quindi è lei a prendere il colore.
         val righeGriglia = listOf(
-            Triple("Peso", num(riga.primaPeso) to num(media?.emaPeso), Triple(if (grassoObj) null else colore(riga.primaPeso), null as Color?, stimW)),
-            Triple("Grasso", num(riga.primaGrassoKg) to num(media?.emaGrassoKg), Triple(null as Color?, if (grassoObj) colore(media?.emaGrassoKg) else null, stimF)),
-            Triple("%", num(riga.primaGrassoPct) to num(media?.emaGrassoPct), Triple(null as Color?, null as Color?, stimF)),
+            Triple("Peso", num(riga.primaPeso) to num(media?.emaPeso), Triple(null as Color?, colore(media?.emaPeso), stimW)),
         )
         Row(Modifier.fillMaxWidth()) {
             righeGriglia.forEach { (titolo, valori, stile) ->
@@ -1142,7 +1154,7 @@ private fun RigaTabella(riga: PesoRegole.RigaGiorno, onApri: (String) -> Unit) {
             }
         }
         Text(
-            text = "sopra il giorno (prima pesata) · sotto la media",
+            text = "sopra il giorno (prima pesata) · sotto la media, che fa i punti",
             color = Palette.muted,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
@@ -1213,15 +1225,10 @@ private fun DialogoPesata(
     giorno: LocalDate,
     target: Double?,
     onAnnulla: () -> Unit,
-    onConferma: (LocalTime, Double, Double?) -> Unit,
+    onConferma: (LocalTime, Double) -> Unit,
 ) {
     val context = LocalContext.current
     var testo by remember { mutableStateOf("") }
-    // Il grasso corporeo, facoltativo — `insertWeightFat` del web: vuoto =
-    // non misurato (NULL), non zero. Sta fra 3 e 70, come là.
-    var testoGrasso by remember { mutableStateOf("") }
-    val grasso = testoGrasso.replace(',', '.').toDoubleOrNull()
-    val grassoValido = testoGrasso.isBlank() || (grasso != null && grasso >= 3.0 && grasso <= 70.0)
     var ora by remember { mutableStateOf(LocalTime.now().withSecond(0).withNano(0)) }
     val peso = testo.replace(',', '.').toDoubleOrNull()
     val valido = peso != null && peso >= 30.0 && peso <= 300.0
@@ -1238,17 +1245,6 @@ private fun DialogoPesata(
                     },
                     label = { Text("Peso (kg)") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = testoGrasso,
-                    onValueChange = { nuovo ->
-                        testoGrasso = nuovo.filter { it.isDigit() || it == ',' || it == '.' }.take(5)
-                    },
-                    label = { Text("🧈 % grasso (facoltativa)") },
-                    singleLine = true,
-                    isError = !grassoValido,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1287,19 +1283,12 @@ private fun DialogoPesata(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                if (!grassoValido) {
-                    Text(
-                        "La % di grasso sta fra 3 e 70, oppure lasciala vuota.",
-                        color = Palette.danger,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = valido && grassoValido,
-                onClick = { peso?.let { onConferma(ora, it, if (testoGrasso.isBlank()) null else grasso) } },
+                enabled = valido,
+                onClick = { peso?.let { onConferma(ora, it) } },
             ) {
                 Text("Segna")
             }
