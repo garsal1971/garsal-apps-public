@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.15.5</title>
+  <title>Peso e Calorie v4.16.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1190,7 +1190,7 @@
         /* La cella delle misurazioni (v4.13.4): due righe × tre colonne. Sopra la prima pesata
            del giorno, sotto le tre medie mobili. Le colonne sono 1fr anche nell'intestazione,
            così restano in colonna con le celle sotto. */
-        .mis-griglia { display: grid; grid-template-columns: repeat(3, minmax(3.2em, 1fr)); column-gap: 6px; row-gap: 2px; text-align: center; }
+        .mis-griglia { display: grid; grid-template-columns: minmax(3.2em, 1fr); column-gap: 6px; row-gap: 2px; text-align: center; }
         .mis-testa span { font-size: 0.85em; }
         .mis-legenda { font-size: 0.7em; font-weight: normal; color: #999; margin-top: 2px; }
         .mis-ema-txt { color: #6C5CE7; }
@@ -1385,23 +1385,6 @@
                             </div>
                         </div>
 
-                        <!-- Massa grassa -->
-                        <div style="margin: 0 0 16px; padding:10px; border:1px solid #eee;">
-                            <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; cursor:pointer;">
-                                <input type="checkbox" id="objectiveFatMass" style="width:auto; margin-top:2px;">
-                                <span>🧈 Misura sulla <b>massa grassa</b> (peso × % grasso corporeo)</span>
-                            </label>
-                            <label style="display: block; font-size: 11px; color: #666; margin: 10px 0 5px;">% grasso di partenza (al peso del primo traguardo)</label>
-                            <input type="number" id="objectiveFatPct" min="3" max="70" step="0.1" placeholder="es. 28"
-                                   style="width:100%; box-sizing:border-box;">
-                            <div style="font-size:11px; color:#999; margin-top:6px; line-height:1.5;">
-                                Traguardi e peso finale si scrivono come sempre, in <b>peso totale</b>: la massa magra si ricava dal primo
-                                traguardo e resta ferma, quindi il grasso previsto è peso − massa magra (i chili persi sono tutti grasso).
-                                Accanto a ogni traguardo compaiono grasso previsto e la sua %. Punti e chiusura si contano sulla massa grassa, le stelline restano sul totale.
-                                Le pesate senza grasso corporeo non contano.
-                            </div>
-                        </div>
-
                         <!-- Ogni quanti giorni pesarsi + promemoria -->
                         <div style="margin: 0 0 16px;">
                             <label style="display: block; font-size: 11px; color: #666; margin-bottom: 5px;">⚖️ Pesati ogni quanti giorni</label>
@@ -1488,7 +1471,7 @@
                                     <tr>
                                         <th>Data</th>
                                         <th>
-                                            <div class="mis-griglia mis-testa"><span>Peso</span><span>Grasso</span><span>%</span></div>
+                                            <div class="mis-griglia mis-testa"><span>Peso</span></div>
                                             <div class="mis-legenda">sopra il giorno · sotto <span class="mis-ema-txt">la media</span></div>
                                         </th>
                                         <th>Target<div class="mis-legenda">punti · cumulato</div></th>
@@ -1522,19 +1505,8 @@
                         <div id="chartNavWrapper">
                             <button class="chart-scroll-btn" id="chartScrollLeft">&#8249;</button>
                             <div id="chartScrollWrapper">
-                                <div id="chartTitolo1" class="chart-titolo" style="display:none;">⚖️ Peso totale</div>
                                 <div id="chartContainer" style="position: relative; height: 400px;">
                                     <canvas id="weightChart" width="1000" height="400"></canvas>
-                                </div>
-                                <div id="chartExtra" style="display:none;">
-                                    <div class="chart-titolo">🧈 Massa grassa (kg)</div>
-                                    <div id="chartContainer2" style="position: relative; height: 300px;">
-                                        <canvas id="weightChart2"></canvas>
-                                    </div>
-                                    <div class="chart-titolo">📊 % di grasso</div>
-                                    <div id="chartContainer3" style="position: relative; height: 300px;">
-                                        <canvas id="weightChart3"></canvas>
-                                    </div>
                                 </div>
                             </div>
                             <button class="chart-scroll-btn" id="chartScrollRight">&#8250;</button>
@@ -1731,9 +1703,6 @@
             <p id="insertWeightDateLabel" style="margin:0 0 16px 0; color:#666; font-size:0.9rem;"></p>
             <label style="display:block; font-size:12px; color:#666; margin-bottom:6px;">Peso (kg)</label>
             <input type="number" id="insertWeightInput" step="0.1" min="30" max="300" placeholder="es. 75.3"
-                style="width:100%; padding:10px; border:2px solid #E5E7EB; border-radius: 0; font-size:1.2em; box-sizing:border-box; margin-bottom:12px;">
-            <label style="display:block; font-size:12px; color:#666; margin-bottom:6px;">🧈 Grasso corporeo (%) — facoltativo</label>
-            <input type="number" id="insertWeightFat" step="0.1" min="3" max="70" placeholder="es. 28.4"
                 style="width:100%; padding:10px; border:2px solid #E5E7EB; border-radius: 0; font-size:1.2em; box-sizing:border-box; margin-bottom:16px;">
             <div style="display:flex; gap:8px;">
                 <button id="insertWeightSaveBtn" style="flex:1; background:#00B894; color:white; border:none; padding:10px; border-radius: 0; font-weight:bold; cursor:pointer; font-size:0.95em;">💾 Salva</button>
@@ -1774,12 +1743,6 @@
                         <input type="time" id="dayDetailTime" value="08:00"
                             style="width:100%; padding:9px; border:2px solid #E5E7EB; border-radius:6px; font-size:1em; box-sizing:border-box;">
                     </div>
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="display:block; font-size:12px; color:#666; margin-bottom:4px;">🧈 Grasso corporeo (%) — facoltativo</label>
-                    <input type="number" id="dayDetailFat" step="0.1" min="3" max="70" placeholder="es. 28.4"
-                        style="width:100%; padding:9px; border:2px solid #E5E7EB; border-radius:6px; font-size:1em; box-sizing:border-box;">
-                    <div style="font-size:11px; color:#999; margin-top:4px; line-height:1.4;">Serve alla massa grassa: senza, per un obiettivo sulla massa grassa questa pesata non conta.</div>
                 </div>
                 <div style="display:flex; gap:8px;">
                     <button id="dayDetailSaveBtn" onclick="saveDayDetailEntry()" style="flex:1; background:#00B894; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.92em;">💾 Salva</button>
@@ -1869,8 +1832,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.15.5';
-        var BUILD_TIME  = '2026-10-19T17:00:00Z';
+        var APP_VERSION = 'v4.16.0';
+        var BUILD_TIME  = '2026-10-21T10:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -2169,15 +2132,6 @@
                 'Data: ' + parts[2] + '-' + parts[1] + '-' + parts[0];
             document.getElementById('insertWeightInput').value =
                 isEdit ? currentWeight : (suggestWeight !== undefined ? suggestWeight : '');
-            // In modifica si riparte dal grasso già salvato su quella pesata: lasciando
-            // la casella vuota il salvataggio lo cancellerebbe.
-            var fatEl = document.getElementById('insertWeightFat');
-            fatEl.value = '';
-            if (isEdit && userData.weights) {
-                var esistente = userData.weights.find(function(r) { return r.timestamp === insertWeightTargetTimestamp; });
-                var pc = esistente ? percGrasso(esistente) : null;
-                if (pc != null) fatEl.value = Math.round(pc * 10) / 10;
-            }
             var btn = document.getElementById('insertWeightSaveBtn');
             btn.disabled = false;
             btn.textContent = '💾 Salva';
@@ -2305,14 +2259,6 @@
                 return;
             }
 
-            // Il grasso è facoltativo: vuoto = non misurato (NULL), mai zero.
-            var fatRaw = document.getElementById('insertWeightFat').value.trim();
-            var fatPct = fatRaw === '' ? null : parseFloat(fatRaw.replace(',', '.'));
-            if (fatPct !== null && (!isFinite(fatPct) || fatPct < 3 || fatPct > 70)) {
-                alert('Il grasso corporeo va da 3 a 70 %, oppure lascialo vuoto.');
-                return;
-            }
-
             var date = insertWeightTargetDate;
             var target = targetTotale(date);
 
@@ -2321,8 +2267,7 @@
                 time: 'Manuale',
                 timestamp: insertWeightTargetTimestamp,
                 weight: parseFloat(weight.toFixed(2)),
-                target_weight: target,
-                body_fat_pct: fatPct === null ? null : Math.round(fatPct * 100) / 100
+                target_weight: target
             };
 
             log('Salvataggio peso manuale: ' + weight + ' kg per ' + date);
@@ -2419,7 +2364,6 @@
         function showAddManualInDay() {
             dayDetailEditTimestamp = null;
             document.getElementById('dayDetailWeight').value = '';
-            document.getElementById('dayDetailFat').value = '';
             var now = new Date();
             var hh = String(now.getHours()).padStart(2, '0');
             var mm = String(now.getMinutes()).padStart(2, '0');
@@ -2434,8 +2378,6 @@
         function editDayDetailEntry(record) {
             dayDetailEditTimestamp = record.timestamp;
             document.getElementById('dayDetailWeight').value = record.weight;
-            var pc = percGrasso(record);
-            document.getElementById('dayDetailFat').value = pc != null ? (Math.round(pc * 10) / 10) : '';
             var d = new Date(record.timestamp);
             var hh = String(d.getHours()).padStart(2, '0');
             var mm = String(d.getMinutes()).padStart(2, '0');
@@ -2482,14 +2424,6 @@
                 alert('Inserisci un orario valido');
                 return;
             }
-            // La % di grasso è facoltativa, ma se c'è deve essere plausibile:
-            // vuota = non misurata (NULL), non zero.
-            var fatRaw = document.getElementById('dayDetailFat').value.trim();
-            var fatPct = fatRaw === '' ? null : parseFloat(fatRaw.replace(',', '.'));
-            if (fatPct !== null && (!isFinite(fatPct) || fatPct < 3 || fatPct > 70)) {
-                alert('Il grasso corporeo va da 3 a 70 %, oppure lascialo vuoto.');
-                return;
-            }
             var date = dayDetailTargetDate;
             var newTimestamp = Math.floor(new Date(date + 'T' + timeVal + ':00').getTime());
             var target = targetTotale(date);
@@ -2498,9 +2432,7 @@
                 time: 'Manuale',
                 timestamp: newTimestamp,
                 weight: parseFloat(weightVal.toFixed(2)),
-                target_weight: target,
-                // Si archivia la %, come la scrive la bilancia.
-                body_fat_pct: fatPct === null ? null : Math.round(fatPct * 100) / 100
+                target_weight: target
             };
             var btn = document.getElementById('dayDetailSaveBtn');
             btn.disabled = true;
@@ -2552,10 +2484,9 @@
         }
 
         // Accanto al peso totale di una pesata: « · grasso 25,2 kg (28 %)».
+        // v4.16.0: la massa grassa non si mostra più.
         function notaGrasso(r) {
-            var mg = massaGrassa(r);
-            if (mg == null) return '';
-            return ' · grasso ' + mg.toFixed(1) + ' kg (' + (Math.round(percGrasso(r) * 10) / 10) + ' %)';
+            return '';
         }
 
         function renderDayDetailList(date, dayData) {
@@ -3643,9 +3574,6 @@
 
                 // Event listeners
                 document.getElementById('btnAddMilestone').onclick = addMilestone;
-                // Cambiando la spunta o la % si rifà l'elenco: le note del grasso le leggono.
-                document.getElementById('objectiveFatMass').addEventListener('change', updateMilestoneList);
-                document.getElementById('objectiveFatPct').addEventListener('input', updateMilestoneList);
                 document.getElementById('btnSaveObjective').onclick = saveObjective;
                 document.getElementById('btnZoomIn').onclick = zoomIn;
                 document.getElementById('btnResetZoom').onclick = resetZoom;
@@ -3941,18 +3869,6 @@
                 var info = document.createElement('span');
                 info.textContent = '📍 ' + m.date + ' → ' + m.weight + ' kg';
                 info.style.fontWeight = 'bold';
-                // Il grasso previsto a quel traguardo, coi valori del form ancora da salvare.
-                var nota = notaGrassoPrevisto(Number(m.weight), {
-                    use_fat_mass: document.getElementById('objectiveFatMass').checked,
-                    fat_pct: document.getElementById('objectiveFatPct').value.trim().replace(',', '.'),
-                    milestones: tempMilestones
-                });
-                if (nota) {
-                    var sub = document.createElement('div');
-                    sub.textContent = '🧈' + nota.replace(/^ · /, ' ');
-                    sub.style.cssText = 'font-weight:normal; font-size:12px; color:#8a6d00;';
-                    info.appendChild(sub);
-                }
                 
                 var isClosed = userData.currentObjective &&
                     (userData.currentObjective.status === 'success' || userData.currentObjective.status === 'failed');
@@ -4116,13 +4032,6 @@
         // I campi del form che finiscono su ps_objectives. Torna null (e lo
         // dice) se qualcosa non va: il salvataggio si ferma lì.
         function leggiCampiPesata() {
-            var grasso = document.getElementById('objectiveFatMass').checked;
-            var pctRaw = document.getElementById('objectiveFatPct').value.trim().replace(',', '.');
-            var pct = pctRaw === '' ? null : parseFloat(pctRaw);
-            if (grasso && !(pct >= 3 && pct <= 70)) {
-                alert('Per la massa grassa scrivi la % di grasso «normale», fra 3 e 70.');
-                return null;
-            }
             var raw = document.getElementById('objectiveWeighEvery').value.trim();
             var n = null;
             if (raw !== '') {
@@ -4141,8 +4050,9 @@
             // Una notifica che non arriva da nessuna parte non è un promemoria.
             if (on && canali.length === 0) { alert('Scegli almeno un canale per la notifica.'); return null; }
             return {
-                use_fat_mass:      grasso,
-                fat_pct:           grasso ? pct : null,
+                // v4.16.0: la massa grassa non c'è più, si conta sempre sul peso totale.
+                use_fat_mass:      false,
+                fat_pct:           null,
                 weigh_every_days:  n,
                 reminder_enabled:  on,
                 reminder_time:     ora,
@@ -4151,9 +4061,6 @@
         }
 
         function riempiCampiPesata(obj) {
-            document.getElementById('objectiveFatMass').checked = obiettivoGrasso(obj);
-            document.getElementById('objectiveFatPct').value =
-                obj && obj.fat_pct != null ? obj.fat_pct : '';
             document.getElementById('objectiveWeighEvery').value =
                 obj && obj.weigh_every_days ? obj.weigh_every_days : '';
             document.getElementById('objectiveReminderOn').checked = !!(obj && obj.reminder_enabled);
@@ -4494,8 +4401,6 @@
             document.getElementById('newMilestoneDate').disabled = isClosed;
             document.getElementById('newMilestoneWeight').disabled = isClosed;
             document.getElementById('objectiveType').disabled = isClosed;
-            document.getElementById('objectiveFatMass').disabled = isClosed;
-            document.getElementById('objectiveFatPct').disabled = isClosed;
             document.getElementById('maintainStartDate').disabled = isClosed;
             document.getElementById('maintainWeeks').disabled = isClosed;
             document.getElementById('maintainWeight').disabled = isClosed;
@@ -4830,9 +4735,6 @@
                 if (syncInfo.lastWeight !== null) {
                     body.innerHTML += '<br><br>Ultima pesata: <strong>' + syncInfo.lastWeight + ' kg</strong>';
                 }
-                if (syncInfo.conGrasso != null) {
-                    body.innerHTML += '<br>🧈 Col grasso corporeo: <strong>' + syncInfo.conGrasso + '</strong> su ' + syncInfo.count;
-                }
                 if (syncInfo.warning) {
                     body.innerHTML += '<br><br><span style="color:#D97706;font-size:0.85rem;">' + syncInfo.warning + '</span>';
                 }
@@ -4981,19 +4883,9 @@
                 var fitPoints = data.points.map(function(p) {
                     return {
                         startTimeNanos: String(Math.floor(p.timestamp) * 1000000),
-                        value: [{ fpVal: p.weight }],
-                        fat: p.fat
+                        value: [{ fpVal: p.weight }]
                     };
                 });
-                // Il grasso corporeo serve alla massa grassa: se non arriva, si dice perché.
-                var conGrasso = data.points.filter(function(p) { return p.fat != null; }).length;
-                log('🧈 HC: grasso su ' + conGrasso + ' pesate (' + (data.fatCount || 0) + ' misure)'
-                    + (data.fatError ? ' — errore: ' + data.fatError : ''));
-                if (data.fatError === 'PERMISSION') {
-                    showToast('🧈 Manca il permesso «Grasso corporeo» in Connessione Salute: concedilo e risincronizza per la massa grassa.', 8000);
-                } else if (data.fatCount === undefined && obiettivoGrasso(userData.currentObjective)) {
-                    showToast('🧈 Questa versione dell\'app non legge il grasso corporeo: aggiorna AppSfera Web per la massa grassa.', 8000);
-                }
                 processWeights({ point: fitPoints })
                     .then(function(syncInfo) {
                         log('Sync HC completata!');
@@ -5190,14 +5082,11 @@
                     var timestamp = parseInt(point.startTimeNanos) / 1000000;
                     var date = new Date(timestamp);
 
-                    var grasso = Number(point.fat);
                     weights.push({
                         date: localDateStr(date),
                         time: date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                         timestamp: Math.floor(timestamp),
-                        weight: Math.floor(weight * 10) / 10,
-                        // Grasso corporeo (%), per la massa grassa. Assente = non misurato.
-                        body_fat_pct: (point.fat != null && isFinite(grasso) && grasso > 0 && grasso < 100) ? Math.round(grasso * 100) / 100 : null
+                        weight: Math.floor(weight * 10) / 10
                     });
                 } else {
                     skipped++;
@@ -5233,10 +5122,7 @@
             var headers = Object.assign({}, supabase.headers, { 'Prefer': 'return=minimal,resolution=merge-duplicates' });
 
             // Prepara tutti i record
-            // ⚠️ Due upsert: con e senza grasso. PostgREST vuole le stesse chiavi su
-            // tutte le righe di un insert, e mandare `body_fat_pct: null` per una pesata
-            // letta senza grasso (permesso non ancora concesso) cancellerebbe il grasso
-            // già salvata da una sincronizzazione precedente.
+            // `body_fat_pct` non si manda (v4.16.0): l'upsert lascia com'è quel che c'è.
             var records = uniqueWeights.map(function(entry) {
                 var interpolatedTarget = targetTotale(entry.date);
                 var rec = {
@@ -5246,11 +5132,8 @@
                     weight: entry.weight,
                     target_weight: interpolatedTarget
                 };
-                if (entry.body_fat_pct != null) rec.body_fat_pct = entry.body_fat_pct;
                 return rec;
             });
-            var recordsGrasso = records.filter(function(r) { return r.body_fat_pct != null; });
-            var recordsSenza = records.filter(function(r) { return r.body_fat_pct == null; });
 
             // Prima elimina le pesate manuali per le date che hanno dati reali da sync
             var syncDates = {};
@@ -5287,9 +5170,9 @@
             }
 
             return Promise.all(deletePromises).then(function() {
-            return upsert(recordsGrasso).then(function() { return upsert(recordsSenza); })
+            return upsert(records)
             .then(function() {
-                log('Tutte le pesate salvate! (' + recordsGrasso.length + ' col grasso)');
+                log('Tutte le pesate salvate!');
                 // Restituisce info sul range salvato per il messaggio post-sync
                 var last = uniqueWeights.length > 0 ? uniqueWeights[uniqueWeights.length - 1] : null;
                 return {
@@ -5298,8 +5181,7 @@
                     to:        last ? last.date : null,
                     lastTime:  last ? last.time : null,
                     lastWeight: last ? last.weight : null,
-                    lastTsUtc: last ? new Date(last.timestamp).toISOString() : null,
-                    conGrasso: recordsGrasso.length
+                    lastTsUtc: last ? new Date(last.timestamp).toISOString() : null
                 };
             });
             }); // chiude Promise.all(deletePromises)
@@ -5488,21 +5370,11 @@
         function obiettivoGrasso(obj) {
             return massaMagra(obj) != null;
         }
+        // ⚠️ v4.16.0: la massa grassa è stata TOLTA (la bilancia la misura male), quindi
+        // nessun obiettivo conta più su di lei, anche se `use_fat_mass` fosse rimasto acceso
+        // in archivio: massaMagra torna sempre null e tutto il resto ripiega sul peso totale.
         function massaMagra(obj) {
-            if (!obj || !(obj.use_fat_mass === true || obj.use_fat_mass === 'true')) return null;
-            var p = Number(obj.fat_pct);
-            if (obj.fat_pct == null || obj.fat_pct === '' || !isFinite(p) || p <= 0 || p >= 100) return null;
-            var ms = obj.milestones;
-            if (typeof ms === 'string') { try { ms = JSON.parse(ms); } catch (e) { ms = null; } }
-            var w = null;
-            if (Array.isArray(ms) && ms.length) {
-                var ord = ms.slice().sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
-                w = Number(ord[0].weight);
-            }
-            if (!(w > 0)) w = Number(obj.start_weight);
-            if (!(w > 0)) w = Number(obj.end_weight);
-            if (!(w > 0)) return null;
-            return Math.round(w * (1 - p / 100) * 100) / 100;
+            return null;
         }
         function aGrasso(v, obj) {
             if (v == null || !isFinite(v)) return v;
@@ -5920,7 +5792,6 @@
             // (targetTotale), grasso = peso − massa magra (aGrasso), % = grasso / peso.
             if (tipo === 'dopo') {
                 var wAtt = targetTotale(day);
-                var gAtt = obiettivoGrasso(userData.currentObjective) ? aGrasso(wAtt, userData.currentObjective) : null;
                 function big(lbl, val) {
                     return '<div class="pc-big"><span>' + lbl + '</span><b>' + val + '</b></div>';
                 }
@@ -5930,8 +5801,6 @@
                      + '<div class="pc-centro">'
                      + '<div class="pc-note">🎯 Target attesi dal piano</div>'
                      + big('Peso totale', kgA(wAtt))
-                     + (gAtt != null ? big('Massa grassa', kgA(gAtt))
-                        + big('Grasso', (wAtt > 0 ? (Math.round(gAtt / wAtt * 1000) / 10) + ' %' : '—')) : '')
                      + (day === oggi && giornoCheConta(userData.currentObjective, day)
                         ? bottoneRivela(userData.currentObjective, data, day) : '')
                      + '</div></div>';
@@ -6013,14 +5882,8 @@
             return '<div class="pesata-card ' + tipo + '">'
                  + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
                  + '<div class="pc-row"><span>Peso totale</span><b>' + kg(totale) + '</b></div>'
-                 + ((grasso || mPctMis != null)
-                    ? '<div class="pc-row"><span>Massa grassa</span><b>' + kg(mGrMis) + '</b></div>'
-                    + '<div class="pc-row"><span>Grasso</span><b>' + (mPctMis == null ? '—' : (Math.round(mPctMis * 10) / 10) + ' %') + '</b></div>' : '')
                  + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
                  + '<div class="pc-row"><span>📈 Media peso</span><b style="color:#7C3AED">' + mPeso + '</b></div>'
-                 + (conGrasso
-                    ? '<div class="pc-row"><span>📈 Media massa grassa</span><b style="color:#7C3AED">' + mGr + '</b></div>'
-                    + '<div class="pc-row"><span>📈 Media grasso</span><b style="color:#7C3AED">' + mPct + '</b></div>' : '')
                  + notaEma
                  + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
                  + rigaMancano()
@@ -7379,7 +7242,7 @@
 
                 tr.appendChild(tdDate);
 
-                // MISURAZIONI: due righe per tre colonne (peso · grasso kg · %).
+                // MISURAZIONI: il peso (v4.16.0: grasso kg e % tolti).
                 // Sopra il giorno: la PRIMA pesata, la stessa che entra nella media;
                 // sotto le tre medie mobili (ps_daily_ema). Un giorno senza pesata ha
                 // «—» sopra e la media stimata sotto, in corsivo.
@@ -7412,12 +7275,8 @@
                 var griglia = document.createElement('div');
                 griglia.className = 'mis-griglia';
                 var celle = [
-                    [numIt(gPeso, 1), 'mis-v', grassoObj ? '' : colore(gPeso)],
-                    [numIt(gKg, 1), 'mis-v', ''],
-                    [numIt(gPct, 1), 'mis-v', ''],
-                    [numIt(eW, 1), 'mis-ema' + (stimW ? ' mis-stimato' : ''), ''],
-                    [numIt(eK, 1), 'mis-ema' + (stimF ? ' mis-stimato' : ''), grassoObj ? colore(eK) + 'font-weight:bold;' : ''],
-                    [numIt(eP, 1), 'mis-ema' + (stimF ? ' mis-stimato' : ''), '']
+                    [numIt(gPeso, 1), 'mis-v', colore(gPeso)],
+                    [numIt(eW, 1), 'mis-ema' + (stimW ? ' mis-stimato' : ''), '']
                 ];
                 celle.forEach(function(c) {
                     var sp = document.createElement('span');

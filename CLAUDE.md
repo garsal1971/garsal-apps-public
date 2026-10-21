@@ -1222,6 +1222,15 @@ di dire la stessa cosa.
 
 ### 🧈 La massa grassa (`body_fat_pct`, `use_fat_mass`, `fat_pct`)
 
+⚠️ **TOLTA dal web il 21 ottobre 2026** (`weight-quest.html` v4.16.0,
+`20261021100000_ps_massa_grassa_spenta.sql`): la bilancia la misura troppo male. Via la spunta e
+la % dal form dell'obiettivo, la casella del grasso nelle pesate a mano, le colonne grasso/% della
+tabella, i grafici 🧈 e 📊, le righe del grasso nelle schede, e la sincronizzazione non legge né
+scrive più `body_fat_pct`. `massaMagra()` torna sempre `null`, quindi tutto ripiega sul peso
+totale; la migration ha spento `use_fat_mass` su tutti gli obiettivi. ⚠️ **Le colonne restano**
+(anche `ema_fat_*`): l'APK nativa le usa ancora — vanno tolte insieme alla sua modifica, che è da
+fare. Quel che segue descrive com'era.
+
 (5 ottobre 2026: `20261005140000_ps_massa_grassa.sql`; web v4.8.0, APK WebView v1.2.4.)
 **Massa grassa = peso × %grasso / 100.** Il grasso corporeo lo scrive la bilancia (Renpho) in
 Health Connect come `BodyFatRecord`, e `HealthConnectBridge` lo legge accanto al peso e lo abbina
