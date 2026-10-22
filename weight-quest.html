@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.17.1</title>
+  <title>Peso e Calorie v4.17.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -409,6 +409,8 @@
         .pesata-card .pc-big b { font-size: 30px; line-height: 1.15; color: #00967A; }
 
         /* v4.15.0: il giorno della pesata che conta, l'esito si scopre toccando il ❓. */
+        /* v4.17.2: il giorno di una pesata che conta il peso resta sfocato finché il ❓ non è toccato. */
+        .wq-offusca { filter: blur(6px); user-select: none; pointer-events: none; }
         .pesata-card .pc-rivela {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             width: 100%; min-height: 4.5em; margin: 6px 0; padding: 8px;
@@ -1836,8 +1838,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.17.1';
-        var BUILD_TIME  = '2026-10-21T15:00:00Z';
+        var APP_VERSION = 'v4.17.2';
+        var BUILD_TIME  = '2026-10-22T09:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -4738,7 +4740,7 @@
                 body.innerHTML = '<strong>' + syncInfo.count + ' pesate salvate</strong><br>' +
                     'Dal: ' + syncInfo.from + ' &rarr; ' + syncInfo.to;
                 if (syncInfo.lastWeight !== null) {
-                    body.innerHTML += '<br><br>Ultima pesata: <strong>' + syncInfo.lastWeight + ' kg</strong>';
+                    body.innerHTML += '<br><br>Ultima pesata: <strong>' + offusca(syncInfo.lastWeight + ' kg', pesoNascosto()) + '</strong>';
                 }
                 if (syncInfo.warning) {
                     body.innerHTML += '<br><br><span style="color:#D97706;font-size:0.85rem;">' + syncInfo.warning + '</span>';
@@ -5741,6 +5743,18 @@
         function esitoVisto(obj, day) {
             try { return localStorage.getItem(chiaveEsito(obj, day)); } catch (e) { return null; }
         }
+        // v4.17.2: oggi è una pesata che conta e l'esito non è ancora scoperto → il peso di oggi
+        // non si mostra (sfocato in scheda, tabella e popup della sincronizzazione; fuori dal
+        // grafico), o il ❓ non avrebbe più niente da scoprire.
+        function pesoNascosto(day) {
+            var oggi = localDateStr();
+            if (day && day !== oggi) return false;
+            var obj = userData.currentObjective;
+            return giornoCheConta(obj, oggi) && !esitoVisto(obj, oggi);
+        }
+        function offusca(html, nascosto) {
+            return nascosto ? '<span class="wq-offusca" title="Si vede dopo il ❓">' + html + '</span>' : html;
+        }
         // Lo stesso confronto del «Mancano» della scheda Oggi: sulla massa grassa la media del
         // giorno, altrimenti il minimo; target congelato sulla riga. v4.15.2: si leggono le
         // pesate VERE (userData.weights) e non la vista filtrata, e quando non si può dire
@@ -5877,9 +5891,10 @@
             // c'è un ❓ da toccare (rivelaPesata), e da lì fuochi d'artificio o una musichetta.
             // Rivelato una volta, su questo dispositivo resta scritto (localStorage, per giorno).
             var mancaR = manca == null ? null : Math.round(manca * 10) / 10;
+            var nasc = tipo === 'oggi' && pesoNascosto(day);
             function rigaMancano() {
-                var riga = '<div class="pc-row"><span>Mancano</span><b style="color:' + coloreManca + '">'
-                     + (manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg') + '</b></div>';
+                var riga = '<div class="pc-row"><span>Mancano</span><b style="color:' + (nasc ? '#999' : coloreManca) + '">'
+                     + offusca(manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg', nasc) + '</b></div>';
                 // v4.15.1: il ❓ sta sulla «Prossima»; qui, scoperto, resta scritto l'esito.
                 if (!contaOggi || mancaR == null || !minimoDelGiorno(data, day)) return riga;
                 var visto = esitoVisto(obCorr, day);
@@ -5891,9 +5906,9 @@
                 ? '<div class="pc-note">medie del ' + gEma.slice(8, 10) + '/' + gEma.slice(5, 7) + '</div>' : '';
             return '<div class="pesata-card ' + tipo + '">'
                  + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                 + '<div class="pc-row"><span>⚖️ Pesata del giorno</span><b>' + kg(totale) + '</b></div>'
+                 + '<div class="pc-row"><span>⚖️ Pesata del giorno</span><b>' + offusca(kg(totale), nasc) + '</b></div>'
                  + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
-                 + '<div class="pc-row pc-media"><span>📈 Media peso <small>· conta per il target</small></span><b>' + mPeso + '</b></div>'
+                 + '<div class="pc-row pc-media"><span>📈 Media peso <small>· conta per il target</small></span><b>' + offusca(mPeso, nasc) + '</b></div>'
                  + notaEma
                  + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
                  + rigaMancano()
@@ -5990,6 +6005,9 @@
             var manca = Number(btn.getAttribute('data-manca'));
             try { localStorage.setItem(btn.getAttribute('data-chiave'), esito); } catch (e) {}
             if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj);
+            // v4.17.2: scoperto l'esito, il peso di oggi torna visibile anche in tabella e grafico.
+            try { if (typeof tableRenderPage === 'function') tableRenderPage(); } catch (e) {}
+            try { if (weightChart) updateWeightChart(pesiInVista()); } catch (e) {}
             var kg = Math.abs(manca).toFixed(1) + ' kg';
             if (esito === 'ok') {
                 fuochiArtificio();
@@ -6499,7 +6517,8 @@
                     var formattedLabel = month + '-' + day;
                     
                     labels.push(formattedLabel);
-                    emaData.push(conEma ? emaDi(date, opz.ema) : null);
+                    var nascGr = pesoNascosto(date);
+                    emaData.push(conEma && !nascGr ? emaDi(date, opz.ema) : null);
                     emaStimate.push(conEma ? emaStimata(date, opz.ema) : false);
                     
                     var currentDate = new Date(date);
@@ -6520,7 +6539,7 @@
                         if (entry.weight == null) return;
                         if (!prima || Number(entry.timestamp) < Number(prima.timestamp)) prima = entry;
                     });
-                    valoreData.push(prima ? Number(prima.weight) : null);
+                    valoreData.push(prima && !nascGr ? Number(prima.weight) : null);
                 });
             }
             
@@ -7297,6 +7316,9 @@
                     griglia.appendChild(sp);
                 });
                 tdMis.appendChild(griglia);
+                // v4.17.2: oggi, finché il ❓ non è toccato, misure e punti restano sfocati.
+                var nascRiga = pesoNascosto(date);
+                if (nascRiga) griglia.classList.add('wq-offusca');
                 // Un giorno di pesata saltato ma con la media stimata col trend NON è
                 // «non pesato»: i punti li ha fatti sulla media, quindi si mostra stimato.
                 var haMedia = (eW != null || eK != null) && (stimW || stimF);
@@ -7353,6 +7375,7 @@
                 }
                 pti.innerHTML = '<span style="color:' + coloreP + '">' + (testoP || '&nbsp;') + '</span>'
                     + (testoC ? ' <span style="color:#999;font-weight:normal">·</span> <span style="color:' + coloreC + '">' + testoC + '</span>' : '');
+                if (nascRiga) pti.classList.add('wq-offusca');
                 tdTarget.appendChild(pti);
                 tr.appendChild(tdTarget);
 
