@@ -2215,6 +2215,14 @@ la scorta contata** — da lì si sommano le consegne arrivate e si toglie il co
 p_eventi)`, che riconosce l'articolo per ASIN, titolo identico o un inizio di titolo che aggancia un
 abbonamento solo; quello che non riconosce nasce `da_verificare`. Prezzo NULL = non ancora noto, non zero.
 
+📦 **Gli ordini FUORI abbonamento** (`20261023160000_amz_ordini_extra.sql`): un evento `tipo: 'extra'`
+(giorno = data di **consegna**, `quantita` = confezioni arrivate) fissa un nuovo conteggio,
+`scorta_contata` = scorta stimata quel giorno + `quantita`. ⚠️ Aggancia **solo** un abbonamento che
+esiste (uno sconosciuto si scarta, non nasce `da_verificare`), **non** tocca quantità, frequenza né
+`prossima_consegna`, e **non entra nello storico prezzi**: la riga in `amz_consegne` è `manuale` con
+prezzo NULL e nota «extra: …» — un prezzo pieno farebbe scattare `prezzo_su`/`prezzo_giu` per sbaglio.
+Registrarlo come `consegnato` sarebbe peggio: a ±3 giorni dalla consegna in programma la sposterebbe.
+
 🏷️ **La pagina si apre sui PREZZI** (v1.1.0): per ogni abbonamento attivo una barra col prezzo Amazon
 a pezzo e una al kg/l (solo se la misura è nota). Toccandola il centro diventa un cursore che parte
 dal prezzo Amazon (−50 %…+50 %, passo 1 centesimo); al rilascio compare il riquadro con prezzo,
