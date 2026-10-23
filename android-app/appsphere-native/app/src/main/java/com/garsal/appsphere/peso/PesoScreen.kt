@@ -391,7 +391,7 @@ private fun VistaOggi(
             item {
                 SchedaVuota(
                     titolo = "⚖️ Oggi",
-                    righe = listOf("Minimo" to "${kg(stato.minimoOggi)} kg"),
+                    righe = listOf("Peso" to "${kg(stato.minimoOggi)} kg"),
                     nota = "Nessun obiettivo in corso: niente target.",
                 )
             }
@@ -1071,7 +1071,7 @@ private fun VistaTabella(righe: List<PesoRegole.RigaGiorno>, onApri: (String) ->
  *
  * Non tre colonne di tabella come nel web, che coi caratteri di sistema grandi
  * si taglierebbero: una scheda con in cima la data e il target, poi la stessa
- * griglia 2 × 3 (peso · grasso kg · %) — sopra la **prima pesata** del giorno,
+ * griglia 2 × 3 (peso · grasso kg · %) — sopra l'**ultima pesata** del giorno,
  * sotto le tre **medie mobili** (viola, in corsivo se stimate) — e in fondo
  * punti e cumulato. Fondo come il web: bianco i giorni futuri, rosa i giorni
  * passati senza pesata, azzurro chiaro i giorni di premio, grigio gli altri.
@@ -1154,7 +1154,7 @@ private fun RigaTabella(riga: PesoRegole.RigaGiorno, onApri: (String) -> Unit) {
             }
         }
         Text(
-            text = "sopra il giorno (prima pesata) · sotto la media, che fa i punti",
+            text = "sopra il giorno (ultima pesata) · sotto la media, che fa i punti",
             color = Palette.muted,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,

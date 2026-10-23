@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.17.2</title>
+  <title>Peso e Calorie v4.18.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1193,7 +1193,7 @@
         }
 
 
-        /* La cella delle misurazioni (v4.13.4): due righe × tre colonne. Sopra la prima pesata
+        /* La cella delle misurazioni (v4.13.4): due righe × tre colonne. Sopra l'ultima pesata
            del giorno, sotto le tre medie mobili. Le colonne sono 1fr anche nell'intestazione,
            così restano in colonna con le celle sotto. */
         .mis-griglia { display: grid; grid-template-columns: minmax(3.2em, 1fr); column-gap: 6px; row-gap: 2px; text-align: center; }
@@ -1500,7 +1500,7 @@
                         <h3>📈 Andamento Peso</h3>
                         <div class="chart-legenda">
                             <div><svg width="34" height="12" aria-hidden="true"><line x1="1" y1="6" x2="33" y2="6" stroke="#00967A" stroke-opacity=".45" stroke-width="1.5"/><circle cx="17" cy="6" r="4" fill="#00967A" fill-opacity=".45"/></svg>
-                                <span><b>Valore del giorno</b>: la prima pesata della giornata. Il <b>pallino pieno</b> è una pesata vera; dove manca la linea passa diritta.</span></div>
+                                <span><b>Valore del giorno</b>: l'ultima pesata della giornata. Il <b>pallino pieno</b> è una pesata vera; dove manca la linea passa diritta.</span></div>
                             <div><svg width="34" height="12" aria-hidden="true"><line x1="1" y1="6" x2="33" y2="6" stroke="#6C5CE7" stroke-width="3"/></svg>
                                 <span><b>Media mobile</b> (<span id="legendaEmaN">7</span> giorni): smussa gli sbalzi della bilancia e mostra la tendenza.</span></div>
                             <div><svg width="34" height="12" aria-hidden="true"><line x1="1" y1="6" x2="33" y2="6" stroke="#6C5CE7" stroke-width="3"/><circle cx="17" cy="6" r="3.5" fill="#fff" stroke="#6C5CE7" stroke-width="1.5"/></svg>
@@ -1838,8 +1838,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.17.2';
-        var BUILD_TIME  = '2026-10-22T09:00:00Z';
+        var APP_VERSION = 'v4.18.0';
+        var BUILD_TIME  = '2026-10-23T10:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -2593,20 +2593,27 @@
             return 'wq_mpts_' + (obj ? obj.id : 'new');
         }
 
-        // Per ogni giornata restituisce il peso massimo (peggiore) di quella giornata.
-        // Un traguardo si considera raggiunto solo quando anche la misurazione peggiore
-        // del giorno scende sotto la soglia (min_giornaliero <= soglia).
-        function getDailyMinWeights(weights) {
-            var byDate = {};
-            weights.forEach(function(r) {
-                if (r.date && r.weight != null && isFinite(r.weight)) {
-                    if (!(r.date in byDate) || r.weight < byDate[r.date]) {
-                        byDate[r.date] = r.weight;
-                    }
-                }
+        // v4.18.0: il peso di una giornata è la sua ULTIMA pesata, per orario (timestamp),
+        // qualunque sia il peso. È la stessa regola del database (ps_daily_ema, ps_punti,
+        // al_pesi): cambiandola qui va cambiata anche lì e in PesoRegole.kt.
+        function ultimaPesata(righe) {
+            var u = null;
+            (righe || []).forEach(function(r) {
+                if (r == null || r.weight == null || !isFinite(Number(r.weight))) return;
+                if (!u || Number(r.timestamp || 0) >= Number(u.timestamp || 0)) u = r;
             });
-            return Object.keys(byDate).map(function(d) {
-                return { date: d, weight: byDate[d] };
+            return u;
+        }
+
+        // Per ogni giornata restituisce il peso della giornata (l'ultima pesata).
+        // Un traguardo si considera raggiunto quando il peso di un giorno scende sotto la soglia.
+        function getDailyMinWeights(weights) {
+            var perGiorno = {};
+            weights.forEach(function(r) {
+                if (r.date && r.weight != null && isFinite(r.weight)) (perGiorno[r.date] = perGiorno[r.date] || []).push(r);
+            });
+            return Object.keys(perGiorno).map(function(d) {
+                return { date: d, weight: Number(ultimaPesata(perGiorno[d]).weight) };
             }).sort(function(a, b) { return a.date < b.date ? -1 : 1; });
         }
 
@@ -2900,7 +2907,7 @@
             var endW    = parseFloat(obj.end_weight);
             if (!isFinite(startW) || !isFinite(endW)) return;
 
-            // Minimo giornaliero: la soglia scatta quando il minimo della giornata <= soglia.
+            // Peso del giorno (l'ultima pesata): la soglia scatta quando scende <= soglia.
             var validWeights = data.filter(function(r) { return r.weight != null && isFinite(r.weight); });
             if (!validWeights.length) return;
             var newDailyMins = getDailyMinWeights(validWeights);
@@ -4625,11 +4632,9 @@
             var sortedDates = Object.keys(dayGroups).sort();
             if (sortedDates.length === 0) return null;
 
-            // Peso minimo (mattutino) per ogni giorno con pesata reale
+            // Il peso di ogni giorno con pesata reale: l'ultima della giornata
             var measurements = sortedDates.map(function(d) {
-                var entries = dayGroups[d];
-                var minEntry = entries.reduce(function(a, b) { return a.weight < b.weight ? a : b; });
-                return { date: d, weight: minEntry.weight };
+                return { date: d, weight: ultimaPesata(dayGroups[d]).weight };
             });
 
             if (measurements.length === 1) return measurements[0].weight;
@@ -5435,14 +5440,14 @@
                  + (r.grasso_pct != null ? ' · grasso ' + (Math.round(r.grasso_pct * 10) / 10) + ' %' : '');
         }
 
-        // Restituisce il peso minimo registrato oggi; se nessuna pesata oggi, restituisce l'ultima pesata
+        // Restituisce il peso di oggi (l'ultima pesata); se nessuna pesata oggi, restituisce l'ultima pesata
         function getTodayMinWeight(data) {
             if (!data || data.length === 0) return null;
             var today = localDateStr(); // YYYY-MM-DD ora locale
             var todayRecords = data.filter(function(r) { return r.date === today && r.weight != null; });
             if (todayRecords.length > 0) {
-                var minVal = Math.min.apply(null, todayRecords.map(function(r) { return r.weight; }));
-                return isFinite(minVal) ? minVal : null;
+                var u = ultimaPesata(todayRecords);
+                return u ? Number(u.weight) : null;
             }
             // fallback: prima pesata disponibile con weight valido
             for (var i = 0; i < data.length; i++) {
@@ -5539,7 +5544,7 @@
         // ── La media mobile semplice (`ps_daily_ema`) ────────────────────
         // Peso, massa grassa e % di grasso hanno ciascuno la sua media mobile
         // semplice degli ultimi N giorni, una riga per giorno: il valore del
-        // giorno è la PRIMA pesata della giornata; un giorno senza pesata porta
+        // giorno è l'ULTIMA pesata della giornata; un giorno senza pesata porta
         // la media (riga «stimata»). Le colonne si chiamano ancora ema_*. La tabella la riempie il DATABASE — un trigger su
         // ps_weight_tracking — e qui si legge e basta: due calcoli della stessa
         // media sarebbero due medie diverse. N sta in `cm_settings.ps_ema_days`
@@ -5582,15 +5587,15 @@
                 });
         }
         // Le righe di ps_daily_ema dicono le stesse cose delle pesate? Per ogni giorno
-        // caricato la prima pesata (e il primo grasso) deve coincidere col valore vero della
+        // caricato l'ultima pesata (e l'ultimo grasso) deve coincidere col valore vero della
         // riga, e un giorno senza pesate non deve avere un valore vero.
         function emaAllineata(mappa) {
             var primo = {}, primoG = {};
             (userData.weights || []).forEach(function(r) {
                 if (r.weight == null || !r.date) return;
                 var ts = Number(r.timestamp);
-                if (!primo[r.date] || ts < primo[r.date].ts) primo[r.date] = { ts: ts, w: Number(r.weight) };
-                if (r.body_fat_pct != null && (!primoG[r.date] || ts < primoG[r.date].ts))
+                if (!primo[r.date] || ts >= primo[r.date].ts) primo[r.date] = { ts: ts, w: Number(r.weight) };
+                if (r.body_fat_pct != null && (!primoG[r.date] || ts >= primoG[r.date].ts))
                     primoG[r.date] = { ts: ts, p: Number(r.body_fat_pct) };
             });
             var vicino = function(a, b) { return a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.006; };
@@ -5709,14 +5714,14 @@
         function minimoDelGiorno(data, day) {
             var righe = (data || []).filter(function(r) { return r.date === day && r.weight != null; });
             if (!righe.length) return null;
-            return righe.reduce(function(a, b) { return a.weight < b.weight ? a : b; });
+            return ultimaPesata(righe);
         }
 
         function ultimoPesoFinoA(data, day) {
             var best = null;
             (data || []).forEach(function(r) {
                 if (r.weight == null || !isFinite(r.weight) || r.date > day) return;
-                if (!best || r.date > best.date || (r.date === best.date && r.weight < best.weight)) best = r;
+                if (!best || r.date > best.date || (r.date === best.date && Number(r.timestamp || 0) >= Number(best.timestamp || 0))) best = r;
             });
             return best;
         }
@@ -5765,7 +5770,7 @@
                 return r.date === day && r.weight != null && isFinite(Number(r.weight));
             });
             if (!righe.length) return { motivo: 'Pesati prima, poi tocca qui' };
-            var min = righe.reduce(function(a, b) { return Number(a.weight) <= Number(b.weight) ? a : b; });
+            var min = ultimaPesata(righe);
             var totale = min.target_weight ? Number(min.target_weight) : targetTotale(day);
             if (totale == null || !isFinite(totale)) return { motivo: 'Manca il target di oggi' };
             // v4.17.0: conta la MEDIA MOBILE del peso, come nei punti.
@@ -5959,7 +5964,7 @@
             if (!obj || !obj.start_date) {
                 var ult = ultimoPesoFinoA(data, oggi);
                 box.innerHTML = '<div class="pesata-card oggi"><div class="pc-head">⚖️ Oggi</div>'
-                    + '<div class="pc-row"><span>Minimo</span><b>' + (ult ? ult.weight.toFixed(1) + ' kg' : '—') + '</b></div>'
+                    + '<div class="pc-row"><span>Peso</span><b>' + (ult ? ult.weight.toFixed(1) + ' kg' : '—') + '</b></div>'
                     + '<div class="pc-note">Nessun obiettivo in corso: niente target.</div></div>';
                 return;
             }
@@ -6408,7 +6413,7 @@
             
             var labels = [];
             var targetData = [];
-            // Il valore del giorno è la PRIMA pesata (v4.13.6), la stessa della tabella e
+            // Il valore del giorno è l'ULTIMA pesata (v4.18.0), la stessa della tabella e
             // della media mobile: minimo e massimo della giornata non si disegnano più.
             var valoreData = [];
             // La media mobile della serie (`opz.ema`: il campo di ps_daily_ema).
@@ -6537,7 +6542,7 @@
                     var prima = null;
                     (dayGroups[date] || []).forEach(function(entry) {
                         if (entry.weight == null) return;
-                        if (!prima || Number(entry.timestamp) < Number(prima.timestamp)) prima = entry;
+                        if (!prima || Number(entry.timestamp) >= Number(prima.timestamp)) prima = entry;
                     });
                     valoreData.push(prima && !nascGr ? Number(prima.weight) : null);
                 });
@@ -6634,7 +6639,7 @@
                             order: 3
                         },
                         {
-                            label: opz.nome + ' (prima pesata)',
+                            label: opz.nome + ' (ultima pesata)',
                             data: valoreData,
                             borderColor: conEma ? 'rgba(0, 150, 122, 0.45)' : '#00967A',
                             backgroundColor: conEma ? 'rgba(0, 150, 122, 0.45)' : '#00967A',
@@ -7157,14 +7162,15 @@
                 var dayData  = (isInterpolated || isMissed || isPlanned) ? null : tableDayGroups[date];
 
                 var minEntry = dayData ? dayData.reduce(function(a, b) { return a.weight < b.weight ? a : b; }) : null;
+                var ultEntry = dayData ? ultimaPesata(dayData) : null;
                 var maxEntry = dayData ? dayData.reduce(function(a, b) { return a.weight > b.weight ? a : b; }) : null;
 
                 var minWeight = minEntry ? minEntry.weight : null;
                 var maxWeight = maxEntry ? maxEntry.weight : null;
                 var minTime   = minEntry ? (minEntry.time || '--') : '—';
                 var maxTime   = maxEntry ? (maxEntry.time || '--') : '—';
-                var target    = minEntry
-                    ? (minEntry.target_weight || getInterpolatedTarget(date))
+                var target    = ultEntry
+                    ? (ultEntry.target_weight || getInterpolatedTarget(date))
                     : getInterpolatedTarget(date);
 
                 var interpWeight = isInterpolated
@@ -7272,7 +7278,7 @@
                 tr.appendChild(tdDate);
 
                 // MISURAZIONI: il peso (v4.16.0: grasso kg e % tolti).
-                // Sopra il giorno: la PRIMA pesata, la stessa che entra nella media;
+                // Sopra il giorno: l'ULTIMA pesata (v4.18.0), la stessa che entra nella media;
                 // sotto le tre medie mobili (ps_daily_ema). Un giorno senza pesata ha
                 // «—» sopra e la media stimata sotto, in corsivo.
                 var magraT = massaMagra(userData.currentObjective);
@@ -7280,12 +7286,12 @@
                 var prima = null;
                 (userData.weights || []).forEach(function(r) {
                     if (r.date !== date || r.weight == null) return;
-                    if (!prima || Number(r.timestamp) < Number(prima.timestamp)) prima = r;
+                    if (!prima || Number(r.timestamp) >= Number(prima.timestamp)) prima = r;
                 });
                 var primaG = null;
                 (userData.weights || []).forEach(function(r) {
                     if (r.date !== date || r.weight == null || r.body_fat_pct == null) return;
-                    if (!primaG || Number(r.timestamp) < Number(primaG.timestamp)) primaG = r;
+                    if (!primaG || Number(r.timestamp) >= Number(primaG.timestamp)) primaG = r;
                 });
                 var gPeso = prima ? Number(prima.weight) : null;
                 var gPct  = primaG ? Number(primaG.body_fat_pct) : null;
@@ -10716,7 +10722,7 @@ function renderImpostazioni() {
       <input class="form-input" id="ema-giorni" type="number" min="2" max="90" step="1" value="${nEma}" style="max-width:8rem" />
       <div class="form-hint">Media mobile semplice: la media delle pesate degli ultimi N giorni
         (oggi compreso), che pesano tutte uguale.
-        Il valore di un giorno è la <strong>prima pesata</strong> della giornata; un giorno senza pesata
+        Il valore di un giorno è l'<strong>ultima pesata</strong> della giornata; un giorno senza pesata
         non si stima, e senza nessuna pesata negli ultimi N giorni la media non c'è.
         Sugli obiettivi sulla massa grassa i punti si danno sulla media della massa grassa,
         le stelline dei traguardi sul peso giornaliero.</div>

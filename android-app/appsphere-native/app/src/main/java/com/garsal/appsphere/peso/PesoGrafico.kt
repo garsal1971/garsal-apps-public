@@ -68,9 +68,9 @@ import java.time.LocalDate
  * il piano e non solo il pezzo già passato. All'apertura è centrato su oggi
  * con un paio di settimane prima e dopo in vista; da lì si scorre col dito.
  *
- * ⚠️ **Di ogni giornata si disegna la PRIMA pesata e la media mobile**
+ * ⚠️ **Di ogni giornata si disegna l'ULTIMA pesata e la media mobile**
  * (APK 1.0.118, gemello di `disegnaGraficoPeso` del web v4.13.6): il valore
- * del giorno è la prima pesata — la stessa della tabella e di `ps_daily_ema`
+ * del giorno è l'ultima pesata — la stessa della tabella e di `ps_daily_ema`
  * — con un **pallino pieno** su ogni pesata vera e una linea sottile; la
  * **media mobile** è la linea viola spessa, con un **pallino vuoto** nei
  * giorni stimati col trend. Minimo e massimo della giornata, e il taglio
@@ -213,7 +213,7 @@ fun VistaGrafico(stato: PesoState) {
             disposizione = Arrangement.spacedBy(14.dp),
             modifier = Modifier.padding(top = 4.dp),
         ) {
-            Legenda("Prima pesata del giorno", VerdePeso, segno = "●")
+            Legenda("Ultima pesata del giorno", VerdePeso, segno = "●")
             Legenda("Media mobile ${stato.emaGiorni} gg", Viola, segno = "━")
             Legenda("Media stimata (nessuna pesata)", Viola, segno = "○")
             Legenda("Target", Palette.muted, segno = "┄")
@@ -525,7 +525,7 @@ private fun GraficoSerie(
                     )
                 }
 
-                // Il valore del giorno — la prima pesata — con una linea
+                // Il valore del giorno — l'ultima pesata — con una linea
                 // sottile e un pallino PIENO su ogni pesata vera. Dove manca
                 // la linea passa diritta: il futuro non si disegna.
                 if (punti.size >= 2) {
@@ -664,7 +664,7 @@ private fun spezzataGiornaliera(
 }
 
 /**
- * La PRIMA pesata di ogni giornata (la più vecchia per `timestamp`) che ha
+ * L'ULTIMA pesata di ogni giornata (la più recente per `timestamp`) che ha
  * [valore], dall'inizio dell'obiettivo — la stessa della tabella e della media.
  */
 private fun primePesate(
@@ -676,12 +676,12 @@ private fun primePesate(
     .mapNotNull { (g, righe) ->
         val giorno = PesoRegole.giornoDa(g) ?: return@mapNotNull null
         if (giorno.isBefore(inizio)) return@mapNotNull null
-        val prima = righe.filter { valore(it) != null }.minByOrNull { it.timestamp } ?: return@mapNotNull null
+        val prima = righe.filter { valore(it) != null }.maxByOrNull { it.timestamp } ?: return@mapNotNull null
         PuntoGiorno(giorno, valore(prima)!!)
     }
     .sortedBy { it.giorno }
 
-/** Una giornata sul grafico: il valore della prima pesata. */
+/** Una giornata sul grafico: il valore dell'ultima pesata. */
 private data class PuntoGiorno(val giorno: LocalDate, val valore: Double)
 
 /** Un giorno della media mobile; `stimato` = nessuna pesata, pallino vuoto. */

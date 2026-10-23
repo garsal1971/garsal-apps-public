@@ -158,7 +158,7 @@ data class PesoState(
     private val contoPunti: List<PesoRegole.RigaPunti>
         get() = puntiDelServer?.righe.orEmpty()
 
-    /** Il minimo di oggi, o l'ultima pesata nota — per «Kg alla fine». */
+    /** Il peso di oggi (l'ultima pesata), o l'ultima pesata nota — per «Kg alla fine». */
     val minimoOggi: Double? get() = PesoRegole.minimoDiOggi(vista)
 
     // ── Le due schede delle pesate (web v4.2.0) ─────────────────────────
@@ -211,7 +211,7 @@ data class PesoState(
                 info = PesoRegole.notaTotale(p)
             }
         } else {
-            val minima = vista.filter { it.giorno == giorno }.minByOrNull { it.peso }
+            val minima = PesoRegole.ultimaDelGiorno(vista.filter { it.giorno == giorno })
             if (minima != null) {
                 peso = minima.peso
                 info = PesoRegole.notaTotale(minima)
@@ -262,7 +262,7 @@ data class PesoState(
     private fun mancaDelGiorno(obj: Obiettivo, giorno: String): Pair<Double?, String?> {
         val righe = pesate.filter { it.giorno == giorno }
         if (righe.isEmpty()) return null to "Pesati prima, poi tocca qui"
-        val minima = righe.minBy { it.peso }
+        val minima = PesoRegole.ultimaDelGiorno(righe)!!
         val totale = minima.target ?: PesoRegole.targetInterpolato(obj.traguardi, giorno)
             ?: return null to "Manca il target di oggi"
         // v1.0.141: conta la MEDIA MOBILE del peso, come nei punti e nel web v4.17.0.
@@ -271,10 +271,10 @@ data class PesoState(
         return PesoRegole.arrotonda(base - totale, 1) to null
     }
 
-    /** Il minimo dell'ultimo giorno pesato fino a [giorno] compreso. */
+    /** L'ultima pesata dell'ultimo giorno pesato fino a [giorno] compreso. */
     private fun ultimoPesoFinoA(giorno: String): Pesata? {
         val ultimo = vista.filter { it.giorno <= giorno }.maxOfOrNull { it.giorno } ?: return null
-        return vista.filter { it.giorno == ultimo }.minByOrNull { it.peso }
+        return PesoRegole.ultimaDelGiorno(vista.filter { it.giorno == ultimo })
     }
 
     /**
