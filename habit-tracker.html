@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Stack Tracker v9.7.0</title>
+    <title>Habit Stack Tracker v9.7.1</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
@@ -1828,8 +1828,8 @@
         // ==========================================
         // VERSION
         // ==========================================
-        const APP_VERSION = 'v9.7.0';
-        const BUILD_TIME  = '2026-10-18T19:00:00Z';
+        const APP_VERSION = 'v9.7.1';
+        const BUILD_TIME  = '2026-10-23T12:47:22Z';
         console.log('%c Habit Stack ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
             'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -2259,6 +2259,10 @@
             const _mf = parseInt(document.getElementById('habitMaxFailures').value);
             const maxFailures = Number.isNaN(_mf) ? 3 : _mf;
             const startedAt = document.getElementById('habitStartDate').value;
+            // ⚠️ I punti vanno letti dalle caselle: senza, l'insert li ometteva
+            // e la riga prendeva il default del DB qualunque cosa si scrivesse.
+            const pointsReward = Math.max(0, parseInt(document.getElementById('habitPointsReward').value) || 0);
+            const pointsPenalty = Math.max(0, parseInt(document.getElementById('habitPointsPenalty').value) || 0);
 
             console.log('➕ Creazione nuova abitudine:', { name, frequency, goal, maxFailures, startedAt });
 
@@ -2324,6 +2328,8 @@
                         started_at: startedAt,
                         goal: goal,
                         max_failures: maxFailures,
+                        points_reward: pointsReward,
+                        points_penalty: pointsPenalty,
                         current_failures: 0,
                         status: 'active',
                         riservato: document.getElementById('habitRiservato')?.checked || false
@@ -4573,6 +4579,8 @@
             const _mf = parseInt(document.getElementById('editHabitMaxFailures').value);
             const maxFailures = Number.isNaN(_mf) ? 3 : _mf;
             const startedAt = document.getElementById('editHabitStartDate').value;
+            const pointsReward = Math.max(0, parseInt(document.getElementById('editHabitPointsReward').value) || 0);
+            const pointsPenalty = Math.max(0, parseInt(document.getElementById('editHabitPointsPenalty').value) || 0);
             
             let weekdays = null;
             let daily_times = null;
@@ -4634,6 +4642,8 @@
                         started_at: startedAt,
                         goal,
                         max_failures: maxFailures,
+                        points_reward: pointsReward,
+                        points_penalty: pointsPenalty,
                         riservato: document.getElementById('editHabitRiservato')?.checked || false
                     })
                     .eq('id', habitId)
