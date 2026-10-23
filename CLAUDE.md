@@ -1334,6 +1334,13 @@ rimetteva in archivio anche dopo averle cancellate.
 
 ### 📈 La media mobile (`ps_daily_ema`) — SEMPLICE dal 19 ottobre 2026
 
+⚠️ **Dal 23 ottobre 2026 il peso di una giornata è la sua ULTIMA pesata per orario** (`timestamp`),
+qualunque sia il peso — non più la prima (media mobile) né la più bassa (punti, ⭐ stelline, calorie)
+(`20261023140000_ps_ultima_pesata_del_giorno.sql`, web v4.18.0, APK 1.0.145). Una regola sola in
+`ps_ema_ricalcola`, `ps_punti`, `al_pesi`, `al_peso_al`, `ultimaPesata()` nel web e
+`PesoRegole.ultimaDelGiorno` nel nativo: cambiandola, va cambiata in tutti. Dove più sotto si
+legge «prima pesata» o «minimo del giorno», ora vale l'ultima.
+
 (9 ottobre 2026, `20261009100000_ps_media_mobile.sql`, web v4.12.0; dall'APK 1.0.118 la legge anche il
 nativo: tabella con prima pesata e medie, grafici con prima pesata + media e legenda.) La bilancia a impedenza balla troppo per dare punti sulla singola pesata. Una
 riga per giorno con il valore del giorno — la **prima pesata** della giornata — e le medie mobili

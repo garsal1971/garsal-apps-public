@@ -186,10 +186,17 @@ object PesoRegole {
         return if (r == Math.floor(r)) r.toLong().toString() else kg(r)
     }
 
-    /** Il minimo di ogni giornata, in ordine di data: la pesata del mattino. */
+    /**
+     * L'ULTIMA pesata di una giornata, per orario (`timestamp`), qualunque sia il peso
+     * (v1.0.145). È la regola del database (`ps_daily_ema`, `ps_punti`, `al_pesi`) e di
+     * `ultimaPesata()` nel web: cambiandola qui va cambiata anche là.
+     */
+    fun ultimaDelGiorno(righe: List<Pesata>?): Pesata? = righe?.maxByOrNull { it.timestamp }
+
+    /** Il peso di ogni giornata (l'ultima pesata), in ordine di data. */
     fun minimiGiornalieri(pesate: List<Pesata>): List<Pair<String, Double>> =
         pesate.groupBy { it.giorno }
-            .map { (giorno, righe) -> giorno to righe.minOf { it.peso } }
+            .map { (giorno, righe) -> giorno to ultimaDelGiorno(righe)!!.peso }
             .sortedBy { it.first }
 
     // ── Pesarsi ogni N giorni ───────────────────────────────────────────
@@ -278,9 +285,9 @@ object PesoRegole {
         /** Sulla massa grassa: «di X kg · Y %» sotto il previsto. */
         val notaTarget: String? = null,
         // ── La riga come la tabella del web v4.13 ───────────────────────
-        /** La PRIMA pesata del giorno (peso totale), quella che entra nella media. */
+        /** L'ULTIMA pesata del giorno (peso totale), quella che entra nella media. */
         val primaPeso: Double? = null,
-        /** Grasso (kg e %) della prima pesata che il grasso ce l'ha. */
+        /** Grasso (kg e %) dell'ultima pesata che il grasso ce l'ha. */
         val primaGrassoKg: Double? = null,
         val primaGrassoPct: Double? = null,
         /** Le medie mobili del giorno (`ps_daily_ema`), se ci sono. */
@@ -320,7 +327,7 @@ object PesoRegole {
         obiettivo: Obiettivo?,
         conto: List<RigaPunti>,
         oggi: LocalDate = LocalDate.now(),
-        /** Le pesate vere (peso totale), per la prima pesata e i giorni senza. */
+        /** Le pesate vere (peso totale), per l'ultima pesata e i giorni senza. */
         tutteLePesate: List<Pesata> = pesate,
         medie: Map<String, MediaGiorno> = emptyMap(),
     ): List<RigaGiorno> {
@@ -376,14 +383,14 @@ object PesoRegole {
                 perGiorno[giorno] == null && giorno in senza -> StatoRiga.SENZA_PESATA
                 else -> StatoRiga.PESATA
             }
-            // La prima pesata del giorno: la stessa che entra nella media.
+            // L'ultima pesata del giorno: la stessa che entra nella media.
             val veri = veriPerGiorno[giorno].orEmpty()
-            val prima = veri.minByOrNull { it.timestamp }
-            val primaG = veri.filter { it.grasso != null }.minByOrNull { it.timestamp }
+            val prima = ultimaDelGiorno(veri)
+            val primaG = ultimaDelGiorno(veri.filter { it.grasso != null })
             val dentro = obiettivo != null && giorno >= obiettivo.inizio && giorno <= obiettivo.fine
             // ⚠️ [pesate] sono quelle di [pesiVista]: sulla massa grassa il target
             // congelato è già in grasso, e quello interpolato va convertito.
-            val target = minima?.target
+            val target = ultimaDelGiorno(righe)?.target
                 ?: obiettivo?.let { aGrasso(targetInterpolato(it.traguardi, giorno), it) }
             RigaGiorno(
                 giorno = giorno,
@@ -456,7 +463,7 @@ object PesoRegole {
     }
 
     /**
-     * Il minimo di oggi; se oggi non ci si è pesati, **l'ultima pesata nota**.
+     * Il peso di oggi (l'ultima pesata); se oggi non ci si è pesati, **l'ultima pesata nota**.
      *
      * Il ripiego è quello di `getTodayMinWeight`, che scorre `data` e prende il
      * primo peso valido: là la lista arriva ordinata per data **discendente**
@@ -467,7 +474,7 @@ object PesoRegole {
     fun minimoDiOggi(pesate: List<Pesata>, oggi: LocalDate = LocalDate.now()): Double? {
         val oggiStr = oggi.toString()
         val diOggi = pesate.filter { it.giorno == oggiStr }
-        if (diOggi.isNotEmpty()) return diOggi.minOf { it.peso }
+        if (diOggi.isNotEmpty()) return ultimaDelGiorno(diOggi)?.peso
         return pesate.lastOrNull()?.peso
     }
 
@@ -479,7 +486,7 @@ object PesoRegole {
      */
     fun minimoStrettoOggi(pesate: List<Pesata>, oggi: LocalDate = LocalDate.now()): Double? {
         val diOggi = pesate.filter { it.giorno == oggi.toString() }
-        return if (diOggi.isEmpty()) null else diOggi.minOf { it.peso }
+        return if (diOggi.isEmpty()) null else ultimaDelGiorno(diOggi)?.peso
     }
 
     /**
