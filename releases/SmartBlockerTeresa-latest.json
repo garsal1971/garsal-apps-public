@@ -1,9 +1,9 @@
 {
   "app": "Revolut Teresa",
-  "version": "1.6.4",
-  "versionCode": 41,
-  "builtAt": "2026-10-07T11:02:13Z",
-  "commit": "af78bcbd0ee22be262e5d238c027f7b0ba012cd4",
+  "version": "1.6.5",
+  "versionCode": 42,
+  "builtAt": "2026-10-23T12:58:49Z",
+  "commit": "ca63710d727352ea2533d1fb63059bd19b3a9b17",
   "bytes": 19787186,
-  "sha256": "84a714beecea40234b97f043ac8720a9fde1e3d30d304dc30dc47dcdafdb5a53"
+  "sha256": "8c5ebff05b46a39ff1ba2891208d66deae8db00b7b2dbd6c206ae575f195bee3"
 }
