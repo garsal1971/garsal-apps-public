@@ -71,6 +71,15 @@ soli file di oggi ripuliti.
   `mod-immagini` cancellati da `20261006180000_mod_rimozione.sql`.
 - **Cloudflare Pages è collegato a questa repo.** Il deploy è quello di sempre: push su un ramo
   `claude/**`, `deploy.yml` fonde su master.
+- ⚠️ **I workflow della repo VECCHIA funzionano ancora, e scrivono sugli stessi posti**: lo
+  stesso database di produzione (`jajlmmdsjlvzgcxiiypk`, migration comprese) e lo stesso bucket
+  R2 `apk.garsal.men`. Il 23 ottobre 2026 un push per sbaglio su `garsal1971/garsal-apps` ha
+  **sovrascritto su R2 quattro APK con versioni più vecchie** — il telefono le rifiutava come
+  «non valide», perché erano un downgrade — e ha applicato una migration che rinominava
+  `cm_apps.html_file`, rompendo le bolle della home. Rimedio: `cm_apps` ripristinata a mano e
+  APK ripubblicate da qui con le versioni alzate (nativa 1.0.143, AppSfera Web 1.2.8, Smart
+  Blocker 1.6.5). Nel registro delle migration resta la versione orfana `20261023120000`, senza
+  file qui: il deploy le crea da sé un segnaposto. **Sulla repo vecchia non si pusha più niente.**
 
 Le sezioni più sotto che parlano della repo **privata** (il 13 settembre 2026, i minuti contati,
 la ragione dei backup su Drive) sono la storia di prima del trasloco: dove contraddicono questa
@@ -5439,6 +5448,11 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   da cambiare insieme: la `score_query`, il lettore di ☰ → 🏆 Punti in `index.html` e
   `recalculateTotalScore()` qui.
 - Imports/exports via JSON backup
+- ⚠️ **I punti premio e penalità si leggono dalle caselle** (v9.7.1): `habitPointsReward` /
+  `habitPointsPenalty` nella creazione e `editHabitPointsReward` / `editHabitPointsPenalty` nella
+  modifica, scritti in `points_reward` / `points_penalty` dell'insert e dell'update. Fino alla
+  v9.7.0 l'insert non li nominava e la riga prendeva il default del database (100), qualunque
+  cosa si scrivesse. Casella vuota o negativa vale 0. L'APK nativa li salvava già.
 - **Interrompi ↔ Riprendi** sono le due direzioni di `hb_habits.status` fra `active` e `stopped`, e
   non passano dall'archivio: un'abitudine interrotta resta in `hb_habits` con tutte le sue spunte,
   ma esce dalla dashboard e dalla riconciliazione, quindi da lì in poi non genera `missed`, non
