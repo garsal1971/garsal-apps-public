@@ -80,6 +80,8 @@ data class PvPianta(
     val archiviata: Boolean,
     /** 🌿 Discende da: la pianta madre (talea, pollone, seme). NULL = nessuna. */
     val madreId: String? = null,
+    /** 📦 Le etichette dei gruppi di cui faceva parte quando è stata archiviata. */
+    val gruppiArchiviati: List<String> = emptyList(),
 ) {
     companion object {
         fun da(o: JsonObject) = PvPianta(
@@ -95,6 +97,7 @@ data class PvPianta(
             note = testo(o, "notes"),
             archiviata = booleano(o, "archived") ?: false,
             madreId = testo(o, "parent_id"),
+            gruppiArchiviati = listaTesti(o, "gruppi_archiviati"),
         )
     }
 }

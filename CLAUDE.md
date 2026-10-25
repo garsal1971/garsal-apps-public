@@ -2091,7 +2091,7 @@ tutto il resto.
 ### Piante (`pv_`)
 | Table | Purpose |
 |---|---|
-| `pv_plants` | Le piante: nome, specie, posizione, `acquired_on`, e le informazioni di cura in chiaro (`light`, `watering`, `soil`, `fertilizer`, `notes`); `archived` le toglie dall'elenco senza cancellarne il diario; `parent_id` = 🌿 **discende da** (la pianta madre, `ON DELETE SET NULL`) |
+| `pv_plants` | Le piante: nome, specie, posizione, `acquired_on`, e le informazioni di cura in chiaro (`light`, `watering`, `soil`, `fertilizer`, `notes`); `archived` le toglie dall'elenco senza cancellarne il diario — e dai **gruppi**: archiviando, le app cancellano le sue righe di `pv_plant_groups` e scrivono in `gruppi_archiviati` (text[], `20261025100000_...`) le etichette dei gruppi di allora, mostrate come «📦 era in / Faceva parte di»; togliendola dall'archivio si azzera (gemelle: `salvaPianta()` web e `PianteViewModel.salvaPianta`); `parent_id` = 🌿 **discende da** (la pianta madre, `ON DELETE SET NULL`) |
 | `pv_diary` | Il diario cronologico: `entry_date` e `comment` |
 | `pv_images` | Le foto (bucket **privato** `pv-images`, `<user>/<pianta>/<uuid>.jpg`). `diary_id` NULL = foto della **scheda**, la prima per `position` è la copertina |
 | `pv_actions` / `pv_action_history` | Le azioni di cura: gemelle di `ts_tasks` / `ob_actions`, stessi sei tipi, con `plant_id` |

@@ -291,6 +291,7 @@ fun FormPianta(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Chip(if (archiviata) "📦 Archiviata" else "📦 Archivia (il diario resta)", archiviata) { archiviata = !archiviata }
             }
+            Nota("Archiviandola esce dai suoi gruppi: resta scritto di quali faceva parte.")
         }
     }
 

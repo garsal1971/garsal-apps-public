@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piante v1.5.0</title>
+    <title>Piante v1.5.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -521,6 +521,7 @@
             <input type="file" id="pFotoInput" accept="image/*" multiple onchange="aggiungiFoto(event, 'pianta')">
         </div>
         <label class="check" id="pArchivedWrap"><input type="checkbox" id="pArchived"> 📦 Archiviata (non c'è più, ma il diario resta)</label>
+        <div class="form-hint" id="pArchivedHint">Archiviandola esce dai suoi gruppi: resta scritto di quali faceva parte.</div>
         <div class="form-error" id="pErr"></div>
         <div class="modal-actions">
             <button class="btn btn-danger" id="pDeleteBtn" onclick="eliminaPianta()">🗑 Elimina</button>
@@ -713,8 +714,8 @@
 // ════════════════════════════════════════════════════════════
 // PIANTE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.5.0';
-var BUILD_TIME  = '2026-10-18T19:00:00Z';
+var APP_VERSION = 'v1.5.1';
+var BUILD_TIME  = '2026-10-25T10:00:00Z';
 console.log('%c 🌱 PIANTE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#2E7D32;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1056,6 +1057,7 @@ function renderPiante() {
                 ${p.species ? `<div class="plant-species">${esc(p.species)}</div>` : ''}
                 ${p.location ? `<div class="act-meta">📍 ${esc(p.location)}</div>` : ''}
                 ${gruppiDi(p.id).length ? `<div class="plant-groups">${gruppiDi(p.id).map(g => esc(nomeGruppo(g))).join(' · ')}</div>` : ''}
+                ${p.archived && p.gruppi_archiviati?.length ? `<div class="act-meta">📦 era in: ${p.gruppi_archiviati.map(esc).join(' · ')}</div>` : ''}
                 ${next}
             </div>
         </div>`;
@@ -1119,6 +1121,8 @@ function renderScheda(p) {
             ${campo('📅 Arrivata il', p.acquired_on ? fmtData(p.acquired_on) : '')}
             ${gruppiDi(p.id).length ? `<div class="info-box"><div class="info-label">👥 Gruppi</div>
                 <div class="info-value">${gruppiDi(p.id).map(g => `<a href="#" onclick="apriPaginaGruppo('${g.id}');return false;">${esc(nomeGruppo(g))}</a>`).join(', ')}</div></div>` : ''}
+            ${p.archived && p.gruppi_archiviati?.length ? `<div class="info-box"><div class="info-label">📦 Faceva parte di</div>
+                <div class="info-value">${p.gruppi_archiviati.map(esc).join(', ')}</div></div>` : ''}
             ${p.parent_id ? `<div class="info-box"><div class="info-label">🌿 Discende da</div>
                 ${madre ? `<div class="info-value"><a href="#" onclick="apriDettaglio('${madre.id}');return false;">${esc(madre.name)}</a></div>` : '<div class="info-value vuoto">pianta non più in elenco</div>'}</div>` : ''}
             ${figlie.length ? `<div class="info-box"><div class="info-label">🌱 Figlie</div>
@@ -1313,6 +1317,7 @@ function apriPianta(id, precompila) {
     document.getElementById('pNotes').value      = v.notes || '';
     document.getElementById('pArchived').checked = !!p?.archived;
     document.getElementById('pArchivedWrap').style.display = p ? 'flex' : 'none';
+    document.getElementById('pArchivedHint').style.display = p ? 'block' : 'none';
     document.getElementById('pDeleteBtn').style.display = p ? 'inline-block' : 'none';
     document.getElementById('pErr').textContent = '';
     renderFotoBozza('pianta');
@@ -1333,6 +1338,20 @@ async function salvaPianta() {
         parent_id: document.getElementById('pParent').value || null,
         updated_at: new Date().toISOString(),
     };
+    // 📦 Archiviata esce dai gruppi: le azioni di gruppo smettono di valere per
+    // lei, e restano scritte le etichette dei gruppi di allora (sommate a quelle
+    // già scritte, se era già archiviata). Fuori dall'archivio si azzera.
+    // ⚠️ Gemella di PianteViewModel.salvaPianta nel nativo.
+    let gruppi = S.bozza.gruppi;
+    if (payload.archived) {
+        const prima = S.piante.find(x => x.id === S.bozza.id)?.gruppi_archiviati || [];
+        const ora = S.gruppi.filter(g => gruppi.has(g.id)).map(nomeGruppo);
+        const tutti = [...new Set([...prima, ...ora])];
+        payload.gruppi_archiviati = tutti.length ? tutti : null;
+        gruppi = new Set();
+    } else {
+        payload.gruppi_archiviati = null;
+    }
     const btn = document.getElementById('pSaveBtn');
     btn.disabled = true; err.textContent = '';
     try {
@@ -1350,7 +1369,7 @@ async function salvaPianta() {
                 await sb.from('pv_wishlist').update({ status: 'presa', plant_id: id }).eq('id', S.bozza.daDesiderio);
             }
         }
-        await sincronizzaGruppiPianta(id, S.bozza.gruppi);
+        await sincronizzaGruppiPianta(id, gruppi);
         await sincronizzaFoto(id, null);
         closeModal('mPianta');
         showToast('✅ Pianta salvata');

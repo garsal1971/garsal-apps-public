@@ -371,6 +371,8 @@ private fun ElencoPiante(stato: PianteState, oggi: LocalDate, onApri: (String) -
                     val gr = stato.gruppiDi(p.id)
                     if (gr.isNotEmpty()) Text(gr.joinToString(" · ") { it.etichetta }, color = Palette.accent,
                         style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+                    if (p.archiviata && p.gruppiArchiviati.isNotEmpty()) Text("📦 era in: " + p.gruppiArchiviati.joinToString(" · "),
+                        color = Palette.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
                     val g = prossima?.giorno
                     if (prossima != null && g != null) {
                         Text(
@@ -438,6 +440,9 @@ private fun SchedaPianta(
                         modifier = Modifier.fillMaxWidth().clickable { onApriGruppo(g.id) }.padding(vertical = 4.dp))
                 }
             }
+        }
+        if (p.archiviata && p.gruppiArchiviati.isNotEmpty()) item {
+            Riquadro("📦 Faceva parte di", p.gruppiArchiviati.joinToString(", "))
         }
         val figlie = stato.piante.filter { it.madreId == p.id }
         if (figlie.isNotEmpty()) item { Parentela("🌱 Figlie", figlie, null, onApri) }

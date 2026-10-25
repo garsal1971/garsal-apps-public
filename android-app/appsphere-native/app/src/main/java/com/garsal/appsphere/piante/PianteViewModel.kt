@@ -11,7 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import java.time.LocalDate
 
 /** Un gruppo di azioni, come la panoramica dei task. */
@@ -223,9 +229,21 @@ class PianteViewModel : ViewModel() {
         gruppi: Set<String>,
         dopo: (String) -> Unit,
     ) = esegui("✅ Pianta salvata") {
-        val piantaId = PianteRepository.salvaPianta(id, campi, daDesiderio)
+        // 📦 Archiviata esce dai gruppi, e restano scritte le etichette dei gruppi
+        // di allora (sommate a quelle già scritte). Fuori dall'archivio si azzera.
+        // ⚠️ Gemella di salvaPianta() in piante.html.
+        val archiviata = (campi["archived"] as? JsonPrimitive)?.booleanOrNull == true
+        val etichette = if (archiviata) {
+            val gia = id?.let { pid -> _state.value.piante.firstOrNull { it.id == pid }?.gruppiArchiviati }.orEmpty()
+            (gia + _state.value.gruppi.filter { it.id in gruppi }.map { it.etichetta }).distinct()
+        } else emptyList()
+        val riga = buildJsonObject {
+            campi.forEach { (k, v) -> put(k, v) }
+            put("gruppi_archiviati", if (etichette.isEmpty()) JsonNull else buildJsonArray { etichette.forEach { add(it) } })
+        }
+        val piantaId = PianteRepository.salvaPianta(id, riga, daDesiderio)
         val prima = _state.value.legami.filter { it.piantaId == piantaId }.map { it.gruppoId }.toSet()
-        PianteRepository.sincronizzaGruppiPianta(piantaId, prima, gruppi)
+        PianteRepository.sincronizzaGruppiPianta(piantaId, prima, if (archiviata) emptySet() else gruppi)
         tolte.forEach { PianteRepository.eliminaFoto(it) }
         val gia = _state.value.fotoScheda(piantaId).count { f -> tolte.none { it.id == f.id } }
         nuove.forEachIndexed { i, uri -> PianteRepository.caricaFoto(context, uri, piantaId, null, gia + i) }
