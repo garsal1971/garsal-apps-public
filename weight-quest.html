@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.19.3</title>
+  <title>Peso e Calorie v4.19.4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -1896,8 +1896,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.19.3';
-        var BUILD_TIME  = '2026-10-26T17:30:00Z';
+        var APP_VERSION = 'v4.19.4';
+        var BUILD_TIME  = '2026-10-26T18:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5993,7 +5993,6 @@
                 + '</div>'
                 + '<button type="button" class="grafo-oggi" onclick="grafoAOggi()">⏺ Oggi</button>'
                 + '</div>'
-                + (modo === 'reale' ? '<div class="pc-note grafo-nota">Colori indicativi: i punti si danno sulla media mobile.</div>' : '')
                 + (!obj || !obj.start_date ? '<div class="pc-note grafo-nota">Nessun obiettivo in corso: niente target.</div>' : '')
                 + '<div class="grafo-scorri"><div class="grafo-riga">';
             nodi.forEach(function(n) {
