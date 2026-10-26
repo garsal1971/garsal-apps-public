@@ -403,6 +403,9 @@ private fun VistaOggi(
                 Riquadro("Punti oggi", stato.puntiOggiMostrati?.toString() ?: "–", Palette.primary, meta)
             }
         }
+        // v1.0.150: le calorie del giorno scelto nel grafo, come riquadri e non più righe
+        // del dettaglio. Gemelli di `scudettiCalorie()` in weight-quest.html v4.19.1.
+        dettaglio?.let { d -> d.calorie?.let { c -> item { RiquadriCalorie(c, d.giorno, d.tipo) } } }
 
         item {
             Row(
@@ -702,21 +705,7 @@ private fun SchedaPesataCard(s: SchedaPesata, intestazione: String? = null, onRi
                 textAlign = TextAlign.Center,
             )
         }
-        s.calorie?.let { c ->
-            HorizontalDivider(color = Palette.border, modifier = Modifier.padding(vertical = 4.dp))
-            if (c.motivo != null) {
-                Text("🔥 Calorie: ${c.motivo}.", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
-            } else {
-                RigaScheda("Fabbisogno", "${kcal(c.fabbisogno)} kcal")
-                RigaScheda("Kcal da piano", c.daPiano?.let { "${kcal(it)} kcal" } ?: "–")
-                RigaScheda("Kcal con andamento", "${kcal(c.conAndamento)} kcal", Palette.secondary)
-                when {
-                    c.congelato -> "target già fissato nel diario per quel giorno"
-                    s.tipo == TipoScheda.DOPO -> "con l'ultimo peso noto"
-                    else -> null
-                }?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
-            }
-        }
+        // v1.0.150: le calorie non stanno più qui, sono riquadri sotto il grafo (RiquadriCalorie).
     }
 }
 
@@ -1159,6 +1148,38 @@ private fun RigaScheda(etichetta: String, valore: String, colore: Color = Palett
     ) {
         Text(etichetta, color = Palette.dark)
         Text(valore, color = colore, fontWeight = FontWeight.Bold)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RiquadriCalorie(c: CaloriePesata, giorno: String, tipo: TipoScheda) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val oggi = giorno == LocalDate.now().toString()
+        Text(
+            "🔥 Calorie " + if (oggi) "di oggi" else "del ${giorno.substring(8, 10)}/${giorno.substring(5, 7)}",
+            color = Palette.muted, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold,
+        )
+        if (c.motivo != null) {
+            Text("Calorie: ${c.motivo}.", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+            return@Column
+        }
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            maxItemsInEachRow = 2,
+        ) {
+            val meta = Modifier.weight(1f)
+            Riquadro("Fabbisogno", kcal(c.fabbisogno), Palette.dark, meta)
+            Riquadro("Kcal da piano", kcal(c.daPiano), Palette.topBar, meta)
+            Riquadro("Kcal con andamento", kcal(c.conAndamento), Palette.secondary, meta)
+        }
+        when {
+            c.congelato -> "Target già fissato nel diario per quel giorno."
+            tipo == TipoScheda.DOPO -> "Con l'ultimo peso noto."
+            else -> null
+        }?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
     }
 }
 
