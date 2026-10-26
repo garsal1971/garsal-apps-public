@@ -365,34 +365,6 @@ private fun VistaOggi(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            // La domanda che dà il nome all'app, in cima e in chiaro: la
-            // risposta è un sì o un no, non un numero da cercare fra i badge.
-            val fatto = stato.pesatoOggi
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (fatto) Verde.copy(alpha = 0.12f) else Palette.warning.copy(alpha = 0.14f))
-                    .clickable(enabled = !fatto, onClick = onPesati)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = if (fatto) "✅ Oggi ti sei pesato" else "⚖️ Oggi non ti sei ancora pesato",
-                    fontWeight = FontWeight.Bold,
-                    color = Palette.dark,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = if (fatto) "${kg(stato.minimoOggi)} kg" else "Tocca qui per segnarlo",
-                    color = if (fatto) Verde else Palette.muted,
-                    fontWeight = if (fatto) FontWeight.Bold else FontWeight.Normal,
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            }
-        }
-
         // v1.0.148: il grafo dei giorni al posto delle tre schede (web v4.19.0),
         // e sotto il dettaglio del giorno toccato.
         item {

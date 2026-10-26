@@ -3895,8 +3895,8 @@ giorno per giorno, il **Grafico** dell'andamento, da **✏️ Gestisci**
 *🎯 Gestione Obiettivo* nel web, campo per campo: nome, tipo (perdere/mantenere), punti
 bonus/malus giornalieri e finali, milestone progressive (o le tre voci di «mantenere»: data
 inizio, settimane, peso) — e da **⚖️ Salute** aprire la bilancia Renpho e sincronizzare le pesate
-lette da Health Connect (`Salute.kt`). La scheda *Oggi* apre con la domanda che dà il nome
-all'app — *oggi ti sei pesato?* — e sotto i **sei riquadri della pagina**, nello stesso ordine:
+lette da Health Connect (`Salute.kt`). La scheda *Oggi* apriva con la domanda che dà il nome
+all'app — *oggi ti sei pesato?* — tolta dall'APK 1.0.149 (la dice il grafo dei giorni), e sotto i **sei riquadri della pagina**, nello stesso ordine:
 Minimo oggi, Target oggi, Mancano al target, Kg alla fine, Punteggio, Punti oggi.
 
 **Il FAB è un solo pulsante per le due strade della pesata**: il tocco apre un `DropdownMenu`
