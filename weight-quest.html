@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.18.0</title>
+  <title>Peso e Calorie v4.19.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -424,12 +424,72 @@
             cursor: default; animation: none; opacity: .55;
             background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%);
         }
+        /* v4.19.0: il grafo dei giorni, al posto delle tre schede. I nodi crescono
+           col testo (rem / em), la riga scorre col dito e non va a capo. */
+        .pesate-box { display: block; margin-bottom: 8px; }
+        .grafo-testa { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .grafo-switch { display: inline-flex; border: 2px solid #6C5CE7; border-radius: 999px; overflow: hidden; }
+        .grafo-switch button { border: none; background: white; color: #6C5CE7; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+        .grafo-switch button.on { background: #6C5CE7; color: white; font-weight: bold; }
+        .grafo-oggi { border: 2px solid #FF3366; background: white; color: #FF3366; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+        .grafo-nota { margin: 2px 0; font-size: 11px; color: #888; }
+        .grafo-scorri { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; padding: 6px 0 10px; }
+        .grafo-riga { display: flex; align-items: center; width: max-content; padding: 0 45%; }
+        .grafo-nodo { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+            background: none; border: none; padding: 0; font: inherit; cursor: pointer; scroll-snap-align: center; }
+        .grafo-nodo .gn-pos { position: relative; display: flex; justify-content: center; width: 100%; padding: 0 5px; box-sizing: border-box; }
+        .grafo-nodo .gn-pos::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 3px solid #D1D5DB; z-index: -1; }
+        .grafo-nodo:first-child .gn-pos::before { left: 50%; } .grafo-nodo:last-child .gn-pos::before { right: 50%; }
+        .grafo-nodo .gn-data { font-size: 11px; color: #6B7280; white-space: nowrap; }
+        .grafo-nodo.oggi .gn-data { color: #FF3366; font-weight: bold; }
+        .grafo-nodo .gn-cerchio { min-width: 3.6rem; min-height: 3.6rem; padding: 4px; border-radius: 50%; box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+            border: 3px solid #9CA3AF; background: #F3F4F6; color: #374151; }
+        .grafo-nodo .gn-cerchio b { font-size: 14px; }
+        .grafo-nodo .gn-cerchio small { font-size: 11px; opacity: .9; }
+        .grafo-nodo.st-verde .gn-cerchio { background: #00967A; border-color: #00806A; color: white; }
+        .grafo-nodo.st-rosso .gn-cerchio { background: #E74C3C; border-color: #C0392B; color: white; }
+        .grafo-nodo.st-blu .gn-cerchio { background: #0081C8; border-color: #006AA5; color: white; }
+        .grafo-nodo.st-attesa .gn-cerchio { background: white; border-color: #6C5CE7; color: #6C5CE7; }
+        .grafo-nodo.st-futuro .gn-cerchio { background: white; border: 3px dashed #C4C9D2; color: #9CA3AF; }
+        .grafo-nodo.oggi .gn-cerchio { min-width: 4.6rem; min-height: 4.6rem; box-shadow: 0 0 0 4px rgba(255, 51, 102, .35); }
+        .grafo-nodo.oggi .gn-cerchio b { font-size: 18px; }
+        .grafo-nodo.sel .gn-cerchio { outline: 3px solid #1F2937; outline-offset: 2px; }
+        .grafo-legenda { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #6B7280; margin-bottom: 6px; }
+        .grafo-legenda span::before { content: ''; display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+        .grafo-legenda .l-verde::before { background: #00967A; }
+        .grafo-legenda .l-rosso::before { background: #E74C3C; }
+        .grafo-legenda .l-blu::before { background: #0081C8; }
+        .grafo-legenda .l-futuro::before { border: 2px dashed #C4C9D2; box-sizing: border-box; }
+        .grafo-det { background: white; border: 3px solid #9CA3AF; padding: 8px 10px; }
+        .grafo-det.st-verde { border-color: #00967A; } .grafo-det.st-rosso { border-color: #E74C3C; }
+        .grafo-det.st-blu { border-color: #0081C8; } .grafo-det.st-attesa { border-color: #6C5CE7; }
+        .grafo-det .gd-conta { color: #6C5CE7; }
+        .grafo-det .pc-head { font-weight: bold; font-size: 14px; margin-bottom: 6px; }
+        .grafo-det .pc-row { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 2px 0; font-size: 14px; }
+        .grafo-det .pc-row b { font-size: 16px; }
+        .grafo-det .pc-row.pc-media { background: #EDE9FE; border-radius: 8px; padding: 4px 8px; margin: 2px -8px; }
+        .grafo-det .pc-row.pc-media b { color: #6D28D9; font-size: 18px; }
+        .grafo-det .pc-row.pc-media small, .grafo-det .pc-row small { font-size: 11px; color: #7C3AED; }
+        .grafo-det .pc-note { font-size: 11px; color: #888; }
+        .grafo-det .pc-sep { border-top: 1px dashed #ddd; margin: 6px 0 4px; }
+        .grafo-det .pc-rivela {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; min-height: 4.5em; margin: 6px 0; padding: 8px;
+            border: none; border-radius: 16px; cursor: pointer; color: white;
+            background: linear-gradient(135deg, #6C5CE7 0%, #FF3366 100%);
+            font: inherit; animation: pcPulsa 1.6s ease-in-out infinite;
+        }
+        .grafo-det .pc-rivela .q { font-size: 34px; line-height: 1; font-weight: bold; }
+        .grafo-det .pc-rivela .t { font-size: 13px; margin-top: 4px; }
+        .grafo-det .pc-rivela:disabled { cursor: default; animation: none; opacity: .55; background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%); }
+        .grafo-det .pc-esito { margin: 6px 0; padding: 6px 10px; border-radius: 12px; text-align: center; font-weight: bold; }
         @keyframes pcPulsa { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
         .pesata-card .pc-esito {
             margin: 6px 0; padding: 6px 10px; border-radius: 12px; text-align: center; font-weight: bold;
         }
-        .pesata-card .pc-esito.ok { background: #E8FFF8; color: #00967A; }
-        .pesata-card .pc-esito.ko { background: #FFF1F3; color: #E74C3C; }
+        .pesata-card .pc-esito.ok, .grafo-det .pc-esito.ok { background: #E8FFF8; color: #00967A; }
+        .pesata-card .pc-esito.ko, .grafo-det .pc-esito.ko { background: #FFF1F3; color: #E74C3C; }
         #esitoOverlay {
             position: fixed; inset: 0; z-index: 10050; display: flex;
             align-items: center; justify-content: center; padding: 16px;
@@ -1306,7 +1366,7 @@
 
                 <!-- Tab 1: Obiettivi -->
                 <div id="objTabPanel1" class="stat-tab-panel active">
-                    <!-- Le due pesate: oggi (o la precedente) e la successiva -->
+                    <!-- v4.19.0: il grafo dei giorni (renderPesate) -->
                     <div id="pesateBox" class="pesate-box"></div>
 
                     <div class="stats-grid">
@@ -1838,8 +1898,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.18.0';
-        var BUILD_TIME  = '2026-10-23T10:00:00Z';
+        var APP_VERSION = 'v4.19.0';
+        var BUILD_TIME  = '2026-10-26T13:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5799,126 +5859,106 @@
                  + '<span class="q">❓</span><span class="t">Com\'è andata? Tocca per scoprirlo</span></button>';
         }
 
-        function schedaPesata(data, day, tipo) {
-            var oggi = localDateStr();
-            var p = day.split('-');
-            var titolo = tipo === 'oggi' ? '⚖️ Oggi' : tipo === 'prima' ? '↩️ Precedente' : '➡️ Prossima';
-            var quando = p[2] + '/' + p[1];
-            // Ci si pesa tutti i giorni (serve alla media mobile): Oggi c'è sempre, e dice se
-            // è anche una pesata dell'obiettivo, cioè una di quelle che contano per i punti.
-            var obCorr = userData.currentObjective;
-            var contaOggi = tipo === 'oggi' && obCorr && obCorr.start_date && day >= obCorr.start_date
-                && (!obCorr.end_date || day <= obCorr.end_date) && giornoDiPesata(obCorr, day);
-            if (contaOggi) quando += ' · conta per i punti';
-            if (tipo === 'dopo') {
-                var gg = Math.round((new Date(day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
-                quando += gg === 0 ? ' · oggi' : gg === 1 ? ' · domani' : ' · fra ' + gg + ' gg';
-            }
-
-            // v4.14.4: la prossima pesata è nel futuro, quindi niente misure né medie: solo
-            // quel che il piano si aspetta quel giorno, in grande. Peso di piano dai traguardi
-            // (targetTotale), grasso = peso − massa magra (aGrasso), % = grasso / peso.
-            if (tipo === 'dopo') {
-                var wAtt = targetTotale(day);
-                function big(lbl, val) {
-                    return '<div class="pc-big"><span>' + lbl + '</span><b>' + val + '</b></div>';
-                }
-                function kgA(v) { return v == null || !isFinite(v) ? '—' : Number(v).toFixed(1) + ' kg'; }
-                return '<div class="pesata-card ' + tipo + '">'
-                     + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                     + '<div class="pc-centro">'
-                     + '<div class="pc-note">🎯 Target attesi dal piano</div>'
-                     + big('🎯 Target media peso', kgA(wAtt))
-                     + (day === oggi && giornoCheConta(userData.currentObjective, day)
-                        ? bottoneRivela(userData.currentObjective, data, day) : '')
-                     + '</div></div>';
-            }
-
-            var peso = null, nota = '', target = getInterpolatedTarget(day), rif = null;
-            if (tipo === 'dopo') {
-                var ult = ultimoPesoFinoA(data, oggi);
-                if (ult) { peso = ult.weight; nota = 'ultimo peso, del ' + ult.date.slice(8, 10) + '/' + ult.date.slice(5, 7); rif = ult; }
+        // ── v4.19.0: il grafo dei giorni ─────────────────────────────────
+        // Al posto delle tre schede (precedente · oggi · prossima): una striscia di nodi,
+        // uno per giorno dall'inizio alla fine dell'obiettivo, centrata su oggi e da
+        // trascinare col dito. Nel nodo il valore (pesata vera o media mobile, a scelta
+        // con lo switch) e, nei giorni che contano, il target:
+        //   🟢 valore ≤ target · 🔴 sopra, o giorno che contava passato senza pesata
+        //   🔵 giorno che non conta, col solo valore · grigio: niente da dire
+        //   futuro: chiaro, col solo target se quel giorno conta.
+        // ⚠️ Il colore col valore «media» è il confronto dei punti (ps_punti usa la media
+        // mobile); col valore «reale» è solo indicativo — i punti restano sulla media.
+        // ⚠️ Il confronto è a un decimale, come il «Mancano». Il target è quello congelato
+        // sulla riga del giorno, se c'è, come nei punti.
+        // Gemello: GrafoGiorni in peso/PesoGrafo.kt.
+        function grafoModo() {
+            try { return localStorage.getItem('wq_grafo_valore') === 'reale' ? 'reale' : 'media'; } catch (e) { return 'media'; }
+        }
+        function grafoCambiaModo(m) {
+            try { localStorage.setItem('wq_grafo_valore', m); } catch (e) {}
+            if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj);
+        }
+        function grafoScegli(day) {
+            window._grafoSel = day;
+            if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj, true);
+        }
+        function grafoAOggi() {
+            window._grafoSel = localDateStr();
+            if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj);
+        }
+        function grafoGiorni(obj, oggi) {
+            var da, a;
+            if (obj && obj.start_date) {
+                da = obj.start_date < oggi ? obj.start_date : oggi;
+                a = obj.end_date && obj.end_date > oggi ? obj.end_date : oggi;
             } else {
-                var min = minimoDelGiorno(data, day);
-                if (min) {
-                    peso = min.weight;
-                    rif = min;
-                    // Il target congelato sulla riga, come nei punti.
-                    if (min.target_weight) target = min.target_weight;
-                } else {
-                    var prima = ultimoPesoFinoA(data, day);
-                    if (prima) {
-                        // v4.15.3: senza pesata quel giorno le misure sono trattini (rif resta
-                        // null); l'ultimo peso serve solo al «Mancano» e lo dice la nota.
-                        peso = prima.weight;
-                        nota = (tipo === 'oggi' ? 'non ancora pesato: ' : 'non pesato: ')
-                             + 'ultimo peso del ' + prima.date.slice(8, 10) + '/' + prima.date.slice(5, 7);
-                    } else {
-                        nota = tipo === 'oggi' ? 'non ancora pesato' : 'non pesato';
-                    }
+                var d0 = new Date(oggi + 'T12:00:00'); d0.setDate(d0.getDate() - 30); da = localDateStr(d0); a = oggi;
+            }
+            var out = [], d = new Date(da + 'T12:00:00');
+            for (var i = 0; i < 800; i++) {
+                var s = localDateStr(d);
+                if (s > a) break;
+                out.push(s);
+                d.setDate(d.getDate() + 1);
+            }
+            return out;
+        }
+        // Tutto quel che serve per disegnare un giorno.
+        function grafoNodo(data, obj, day, oggi, modo) {
+            var riga = minimoDelGiorno(data, day);
+            var reale = riga ? Number(riga.weight) : null;
+            var media = emaDi(day, 'ema_weight');
+            var conta = giornoCheConta(obj, day);
+            var target = null;
+            if (conta) {
+                target = riga && riga.target_weight ? Number(riga.target_weight) : targetTotale(day);
+                if (target == null || !isFinite(target)) target = null;
+            }
+            var valore = modo === 'reale' ? reale : (day > oggi ? null : media);
+            var nasc = day === oggi && pesoNascosto(day);
+            var stato;
+            if (day > oggi) stato = 'futuro';
+            else if (conta && target != null) {
+                if (!riga) stato = day < oggi ? 'rosso' : 'attesa';
+                else if (nasc || valore == null) stato = 'attesa';
+                else stato = Math.round(valore * 10) / 10 <= Math.round(target * 10) / 10 ? 'verde' : 'rosso';
+            } else stato = valore != null ? 'blu' : 'vuoto';
+            return { day: day, reale: reale, media: media, mediaStimata: emaStimata(day, 'ema_weight'),
+                     conta: conta, target: target, valore: valore, nasc: nasc, stato: stato };
+        }
+        function grafoDettaglio(data, obj, n, oggi) {
+            function kg(v) { return v == null || !isFinite(v) ? '—' : Number(v).toFixed(1) + ' kg'; }
+            var p = n.day.split('-');
+            var gg = Math.round((new Date(n.day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
+            var quando = gg === 0 ? 'oggi' : gg === -1 ? 'ieri' : gg === 1 ? 'domani' : gg < 0 ? (-gg) + ' giorni fa' : 'fra ' + gg + ' giorni';
+            var h = '<div class="grafo-det st-' + n.stato + '">'
+                  + '<div class="pc-head">' + p[2] + '/' + p[1] + ' · ' + quando
+                  + (n.conta ? ' · <span class="gd-conta">conta per i punti</span>' : '') + '</div>';
+            if (n.day <= oggi) {
+                h += '<div class="pc-row"><span>⚖️ Pesata del giorno</span><b>' + offusca(kg(n.reale), n.nasc) + '</b></div>'
+                   + '<div class="pc-row pc-media"><span>📈 Media mobile <small>· conta per i punti</small></span><b>'
+                   + offusca(n.media == null ? '—' : (n.mediaStimata ? '<i title="media stimata col trend">' + kg(n.media) + '</i>' : kg(n.media)), n.nasc) + '</b></div>';
+            }
+            if (n.target != null) {
+                h += '<div class="pc-row"><span>🎯 Target</span><b style="color:#00B894">' + kg(n.target) + '</b></div>';
+                if (n.day <= oggi && n.media != null) {
+                    var manca = Math.round((n.media - n.target) * 10) / 10;
+                    h += '<div class="pc-row"><span>Mancano <small>(media − target)</small></span><b style="color:'
+                       + (n.nasc ? '#999' : manca <= 0 ? '#00B894' : '#E74C3C') + '">'
+                       + offusca((manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg', n.nasc) + '</b></div>';
                 }
+                if (n.day < oggi && n.reale == null) h += '<div class="pc-note">✗ Non pesato: è un malus.</div>';
+            } else if (obj && obj.start_date && !n.conta && n.day >= obj.start_date && (!obj.end_date || n.day <= obj.end_date)) {
+                h += '<div class="pc-note">Oggi la pesata non conta per i punti: serve alla media mobile.</div>';
             }
-
-            function kg(v) { return v == null || !isFinite(v) ? '—' : v.toFixed(1) + ' kg'; }
-
-            // v4.14.2/3: peso totale, massa grassa e % MISURATI, poi le tre medie mobili (ps_daily_ema) dello
-            // stesso giorno — sulla prossima pesata, quelle di oggi. Una media stimata col
-            // trend (giorno senza pesata) si scrive in corsivo.
-            var grasso = obiettivoGrasso(userData.currentObjective);
-            var totale = rif ? (grasso ? (rif.peso_totale != null ? Number(rif.peso_totale) : null) : rif.weight) : null;
-            // I valori misurati di grasso: sulla massa grassa rif.weight È già i kg di grasso.
-            var mPctMis = rif ? (grasso ? rif.grasso_pct : rif.body_fat_pct) : null;
-            mPctMis = (mPctMis != null && isFinite(Number(mPctMis))) ? Number(mPctMis) : null;
-            var mGrMis = rif ? (grasso ? rif.weight
-                : (mPctMis != null && rif.weight != null ? Number(rif.weight) * mPctMis / 100 : null)) : null;
-            var gEma = tipo === 'dopo' ? oggi : day;
-            if (userData.ema && !userData.ema[gEma]) {
-                var giorni = Object.keys(userData.ema).filter(function(g) { return g <= gEma; }).sort();
-                if (giorni.length) gEma = giorni[giorni.length - 1];
+            if (n.day === oggi && n.conta) {
+                var visto = esitoVisto(obj, oggi);
+                if (!visto) h += bottoneRivela(obj, data, oggi);
+                else h += '<div class="pc-esito ' + visto + '">' + (visto === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
             }
-            function media(campo, fmt) {
-                var v = emaDi(gEma, campo);
-                if (v == null) return '—';
-                var t = fmt(v);
-                return emaStimata(gEma, campo) ? '<i title="media stimata col trend">' + t + '</i>' : t;
-            }
-            var mPeso  = media('ema_weight', kg);
-            var mGr    = media('ema_fat_kg', kg);
-            var mPct   = media('ema_fat_pct', function(v) { return (Math.round(v * 10) / 10) + ' %'; });
-            var conGrasso = grasso || mGr !== '—' || mPct !== '—';
-            // Sulla massa grassa i punti si danno sulla media: «Mancano» confronta quella.
-            // v4.17.0: i punti si danno sulla MEDIA MOBILE del peso, quindi «Mancano» confronta lei.
-            var base = grasso ? emaDi(gEma, 'ema_fat_kg') : emaDi(gEma, 'ema_weight');
-            if (base == null) base = peso;
-            var manca = (base != null && target != null && isFinite(target)) ? base - target : null;
-            var coloreManca = manca == null ? '#999' : (Math.round(manca * 10) / 10 <= 0 ? '#00B894' : '#E74C3C');
-            // v4.15.0: oggi è una pesata che conta e ci si è pesati → l'esito non si dice subito:
-            // c'è un ❓ da toccare (rivelaPesata), e da lì fuochi d'artificio o una musichetta.
-            // Rivelato una volta, su questo dispositivo resta scritto (localStorage, per giorno).
-            var mancaR = manca == null ? null : Math.round(manca * 10) / 10;
-            var nasc = tipo === 'oggi' && pesoNascosto(day);
-            function rigaMancano() {
-                var riga = '<div class="pc-row"><span>Mancano</span><b style="color:' + (nasc ? '#999' : coloreManca) + '">'
-                     + offusca(manca == null ? '—' : (manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg', nasc) + '</b></div>';
-                // v4.15.1: il ❓ sta sulla «Prossima»; qui, scoperto, resta scritto l'esito.
-                if (!contaOggi || mancaR == null || !minimoDelGiorno(data, day)) return riga;
-                var visto = esitoVisto(obCorr, day);
-                if (!visto) return riga;
-                return riga + '<div class="pc-esito ' + visto + '">'
-                     + (visto === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
-            }
-            var notaEma = gEma !== (tipo === 'dopo' ? oggi : day)
-                ? '<div class="pc-note">medie del ' + gEma.slice(8, 10) + '/' + gEma.slice(5, 7) + '</div>' : '';
-            return '<div class="pesata-card ' + tipo + '">'
-                 + '<div class="pc-head">' + titolo + ' · ' + quando + '</div>'
-                 + '<div class="pc-row"><span>⚖️ Pesata del giorno</span><b>' + offusca(kg(totale), nasc) + '</b></div>'
-                 + (nota ? '<div class="pc-note">' + nota + '</div>' : '')
-                 + '<div class="pc-row pc-media"><span>📈 Media peso <small>· conta per il target</small></span><b>' + offusca(mPeso, nasc) + '</b></div>'
-                 + notaEma
-                 + '<div class="pc-row"><span>' + (grasso ? 'Target massa grassa' : 'Target') + '</span><b style="color:#00B894">' + kg(target) + '</b></div>'
-                 + rigaMancano()
-                 + righeCaloriePesata(day, tipo)
-                 + '</div>';
+            h += righeCaloriePesata(n.day, n.day > oggi ? 'dopo' : 'oggi');
+            return h + '</div>';
         }
 
         /* Le calorie di quel giorno, lette dalla metà «calorie» e non ricalcolate qui: il conto
@@ -5955,43 +5995,55 @@
             }
         }
 
-        function renderPesate(data, obj) {
+        function renderPesate(data, obj, tieniScorrimento) {
             var box = document.getElementById('pesateBox');
             if (!box) return;
-            // Ricordate per ridisegnare le schede quando arrivano i dati del diario.
+            // Ricordate per ridisegnare il grafo quando arrivano i dati del diario.
             window._ultimePesate = { data: data, obj: obj };
             var oggi = localDateStr();
-            if (!obj || !obj.start_date) {
-                var ult = ultimoPesoFinoA(data, oggi);
-                box.innerHTML = '<div class="pesata-card oggi"><div class="pc-head">⚖️ Oggi</div>'
-                    + '<div class="pc-row"><span>Peso</span><b>' + (ult ? ult.weight.toFixed(1) + ' kg' : '—') + '</b></div>'
-                    + '<div class="pc-note">Nessun obiettivo in corso: niente target.</div></div>';
-                return;
-            }
-            // Sempre tre schede (v4.14.0): la pesata dell'obiettivo prima di oggi, la giornaliera
-            // di oggi in mezzo, e la pesata dell'obiettivo dopo oggi.
-            var html = '';
-            // A dieta finita la «precedente» è l'ultima del piano: si parte dal giorno dopo la fine.
-            var da = oggi;
-            if (oggi > obj.end_date) { var f = new Date(obj.end_date + 'T12:00:00'); f.setDate(f.getDate() + 1); da = localDateStr(f); }
-            // v4.15.1: oggi è una pesata che conta → finché l'esito non è scoperto resta la
-            // «Prossima» (col ❓); scoperto, diventa la «Precedente».
-            var oggiConta = giornoCheConta(obj, oggi);
-            var oggiVisto = oggiConta && !!esitoVisto(obj, oggi);
-            var prec = oggiVisto ? oggi : pesataPrecedente(obj, da);
-            if (prec) html += schedaPesata(data, prec, 'prima');
-            else html += '<div class="pesata-card prima"><div class="pc-head">↩️ Precedente</div>'
-                       + '<div class="pc-note">Nessuna pesata prima di oggi: il piano comincia il '
-                       + obj.start_date.slice(8, 10) + '/' + obj.start_date.slice(5, 7) + '.</div></div>';
-            html += schedaPesata(data, oggi, 'oggi');
-            var dopo = (oggiConta && !oggiVisto) ? oggi : prossimaPesata(obj, (function() {
-                var d = new Date(oggi + 'T12:00:00'); d.setDate(d.getDate() + 1); return localDateStr(d);
-            })());
-            if (dopo) html += schedaPesata(data, dopo, 'dopo');
-            else html += '<div class="pesata-card dopo"><div class="pc-head">➡️ Prossima</div>'
-                       + '<div class="pc-note">Nessun\'altra pesata: il piano finisce il '
-                       + obj.end_date.slice(8, 10) + '/' + obj.end_date.slice(5, 7) + '.</div></div>';
+            var modo = grafoModo();
+            var giorni = grafoGiorni(obj, oggi);
+            var sel = window._grafoSel;
+            if (!sel || giorni.indexOf(sel) < 0) sel = window._grafoSel = (giorni.indexOf(oggi) >= 0 ? oggi : giorni[giorni.length - 1]);
+            var vecchio = box.querySelector('.grafo-scorri');
+            var scorriPrima = vecchio ? vecchio.scrollLeft : null;
+            var GS = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+            function num(v) { return v == null || !isFinite(v) ? '—' : Number(v).toFixed(1); }
+            var nodi = giorni.map(function(day) { return grafoNodo(data, obj, day, oggi, modo); });
+            var selNodo = nodi[giorni.indexOf(sel)];
+            var html = '<div class="grafo-testa">'
+                + '<div class="grafo-switch" role="group" aria-label="Valore nei nodi">'
+                + '<button type="button" class="' + (modo === 'media' ? 'on' : '') + '" onclick="grafoCambiaModo(\'media\')">📈 Media mobile</button>'
+                + '<button type="button" class="' + (modo === 'reale' ? 'on' : '') + '" onclick="grafoCambiaModo(\'reale\')">⚖️ Peso reale</button>'
+                + '</div>'
+                + '<button type="button" class="grafo-oggi" onclick="grafoAOggi()">⏺ Oggi</button>'
+                + '</div>'
+                + (modo === 'reale' ? '<div class="pc-note grafo-nota">Colori indicativi: i punti si danno sulla media mobile.</div>' : '')
+                + (!obj || !obj.start_date ? '<div class="pc-note grafo-nota">Nessun obiettivo in corso: niente target.</div>' : '')
+                + '<div class="grafo-scorri"><div class="grafo-riga">';
+            nodi.forEach(function(n) {
+                var d = new Date(n.day + 'T12:00:00');
+                var cls = 'grafo-nodo st-' + n.stato + (n.day === oggi ? ' oggi' : '') + (n.day === sel ? ' sel' : '');
+                var dentro;
+                if (n.day === oggi && n.nasc) dentro = '<b>❓</b>';
+                else if (n.stato === 'futuro') dentro = n.target != null ? '<small>🎯</small><b>' + num(n.target) + '</b>' : '<b>·</b>';
+                else {
+                    dentro = '<b>' + (n.valore == null ? '—' : num(n.valore)) + '</b>';
+                    if (n.target != null) dentro += '<small>🎯 ' + num(n.target) + '</small>';
+                }
+                html += '<button type="button" class="' + cls + '" data-day="' + n.day + '" onclick="grafoScegli(\'' + n.day + '\')">'
+                      + '<span class="gn-data">' + (n.day === oggi ? 'Oggi' : GS[d.getDay()] + ' ' + n.day.slice(8, 10) + '/' + n.day.slice(5, 7)) + '</span>'
+                      + '<span class="gn-pos"><span class="gn-cerchio">' + dentro + '</span></span></button>';
+            });
+            html += '</div></div>'
+                  + '<div class="grafo-legenda"><span class="l-verde">dentro il target</span><span class="l-rosso">sopra o non pesato</span>'
+                  + '<span class="l-blu">non conta</span><span class="l-futuro">da fare</span></div>'
+                  + (selNodo ? grafoDettaglio(data, obj, selNodo, oggi) : '');
             box.innerHTML = html;
+            var sc = box.querySelector('.grafo-scorri');
+            if (tieniScorrimento && scorriPrima != null) { sc.scrollLeft = scorriPrima; return; }
+            var el = box.querySelector('.grafo-nodo[data-day="' + sel + '"]');
+            if (el) sc.scrollLeft = el.offsetLeft - (sc.clientWidth - el.offsetWidth) / 2;
         }
 
         // ── v4.15.0: l'esito della pesata che conta ───────────────────────
