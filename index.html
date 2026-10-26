@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.16.1</title>
+<title>AppSphere v1.16.2</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2311,8 +2311,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.16.1';
-const BUILD_TIME  = '2026-10-26T12:00:00Z';
+const APP_VERSION = 'v1.16.2';
+const BUILD_TIME  = '2026-10-26T22:45:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4039,7 +4039,8 @@ async function recapPeso(headers) {
     const compito = (ob && dovuta && !dovutaFatta)
       ? [{ app: '⚖️ Peso', title: (dovuta === oggi ? 'Pesata di oggi' : 'Pesata del ' + recapDataBreve(dovuta)) + nome, hidden: false, url, day: dovuta }]
       : [];
-    return { info, compito };
+    // v1.16.2: pesati oggi, il riquadro ⚖️ Peso e Calorie sparisce (gemello: Recap.kt).
+    return { info: pesato ? [] : info, compito };
   } catch (e) { console.warn('[recap] peso:', e); return vuoto; }
 }
 

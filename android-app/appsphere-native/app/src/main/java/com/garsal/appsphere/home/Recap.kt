@@ -564,7 +564,8 @@ object RecapRepository {
                 val titolo = if (dovuta == o) "Pesata di oggi" else "Pesata del " + dataBreve(dovuta)
                 listOf(RecapVoce("⚖️ Peso", titolo + (ob.s("objective_name")?.let { " — $it" } ?: ""), false, Route.PESO, dovuta))
             } else emptyList()
-            info to compito
+            // APK 1.0.152: pesati oggi, il riquadro ⚖️ Peso e Calorie sparisce (gemello del web v1.16.2).
+            (if (pesato) emptyList() else info) to compito
         }
     } catch (e: Exception) {
         Log.w(TAG, "peso: ${e.message}")
