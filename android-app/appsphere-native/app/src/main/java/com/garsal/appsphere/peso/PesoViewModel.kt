@@ -81,6 +81,22 @@ data class SchedaPesata(
     }
 }
 
+/** v1.0.148: lo stato di un nodo del grafo dei giorni — gemello di `grafoNodo()` del web v4.19.0. */
+enum class StatoNodo { VERDE, ROSSO, BLU, VUOTO, ATTESA, FUTURO }
+
+/** Un giorno del grafo: [valore] è la pesata vera o la media mobile, a seconda dello switch. */
+data class NodoGrafo(
+    val giorno: String,
+    val reale: Double?,
+    val media: Double?,
+    val conta: Boolean,
+    val target: Double?,
+    val valore: Double?,
+    /** Oggi conta e l'esito non è ancora scoperto: al posto del valore, il ❓. */
+    val nascosto: Boolean,
+    val stato: StatoNodo,
+)
+
 data class PesoState(
     val pesate: List<Pesata> = emptyList(),
     val obiettivi: List<Obiettivo> = emptyList(),
@@ -176,6 +192,76 @@ data class PesoState(
      */
     fun schede(visto: (String, String) -> Boolean): List<SchedaPesata> = calcolaSchede(visto)
 
+    // ── v1.0.148: il grafo dei giorni (web v4.19.0) ─────────────────────
+    //
+    // Al posto delle tre schede: un nodo per giorno dall'inizio alla fine
+    // dell'obiettivo guardato. 🟢 valore ≤ target, 🔴 sopra o giorno che contava
+    // passato senza pesata, 🔵 giorno che non conta, futuro col solo target.
+    // ⚠️ Col valore «reale» il colore è indicativo: i punti si danno sulla media.
+    // Gemelli di `grafoGiorni()` / `grafoNodo()` in weight-quest.html.
+
+    private fun contaIl(obj: Obiettivo?, giorno: String): Boolean =
+        obj != null && obj.inizio.isNotBlank() && giorno >= obj.inizio &&
+            (obj.fine.isBlank() || giorno <= obj.fine) && PesoRegole.giornoDiPesata(obj, giorno)
+
+    fun grafo(reale: Boolean, visto: (String, String) -> Boolean): List<NodoGrafo> {
+        val obj = obiettivo
+        val oggi = LocalDate.now()
+        val oggiS = oggi.toString()
+        val da: LocalDate
+        val a: LocalDate
+        if (obj != null && obj.inizio.isNotBlank()) {
+            da = minOf(PesoRegole.giornoDa(obj.inizio) ?: oggi, oggi)
+            a = maxOf(PesoRegole.giornoDa(obj.fine) ?: oggi, oggi)
+        } else {
+            da = oggi.minusDays(30)
+            a = oggi
+        }
+        val perGiorno = pesate.groupBy { it.giorno }
+        val out = mutableListOf<NodoGrafo>()
+        var d = da
+        while (!d.isAfter(a) && out.size < 800) {
+            val g = d.toString()
+            val riga = PesoRegole.ultimaDelGiorno(perGiorno[g])
+            val media = medie[g]?.emaPeso
+            val conta = contaIl(obj, g)
+            val target = if (conta && obj != null) riga?.target ?: PesoRegole.targetInterpolato(obj.traguardi, g) else null
+            val valore = if (reale) riga?.peso else if (g > oggiS) null else media
+            val nascosto = g == oggiS && conta && obj != null && !visto(obj.id, g)
+            val stato = when {
+                g > oggiS -> StatoNodo.FUTURO
+                conta && target != null -> when {
+                    riga == null -> if (g < oggiS) StatoNodo.ROSSO else StatoNodo.ATTESA
+                    nascosto || valore == null -> StatoNodo.ATTESA
+                    PesoRegole.arrotonda(valore, 1) <= PesoRegole.arrotonda(target, 1) -> StatoNodo.VERDE
+                    else -> StatoNodo.ROSSO
+                }
+                valore != null -> StatoNodo.BLU
+                else -> StatoNodo.VUOTO
+            }
+            out += NodoGrafo(g, riga?.peso, media, conta, target, valore, nascosto, stato)
+            d = d.plusDays(1)
+        }
+        return out
+    }
+
+    /**
+     * Il dettaglio sotto il grafo per il giorno toccato: la stessa [SchedaPesata] di
+     * prima. Oggi, se conta e l'esito non è scoperto, porta il ❓ ([rivela]).
+     */
+    fun dettaglio(giorno: String, visto: (String, String) -> Boolean): SchedaPesata? {
+        val obj = obiettivo ?: return null
+        if (obj.traguardi.size < 2) return null
+        val oggi = LocalDate.now().toString()
+        val base = scheda(obj, giorno, if (giorno > oggi) TipoScheda.DOPO else TipoScheda.OGGI)
+        val conta = contaIl(obj, giorno)
+        if (giorno == oggi && conta && !visto(obj.id, giorno)) {
+            val (m, motivo) = mancaDelGiorno(obj, giorno)
+            return base.copy(conta = true, rivela = true, rivelaManca = m, rivelaMotivo = motivo)
+        }
+        return base.copy(conta = conta, rivela = false)
+    }
+
     /** La prossima pesata dovuta dopo oggi, per quando non ce n'è nessuna. */
     val finePiano: String? get() = inCorso?.fine
 
@@ -219,7 +305,7 @@ data class PesoState(
                 minima.target?.let { target = it }
             } else {
                 val prima = ultimoPesoFinoA(giorno)
-                val lab = if (tipo == TipoScheda.OGGI) "non ancora pesato" else "non pesato"
+                val lab = if (tipo == TipoScheda.OGGI && giorno == oggi) "non ancora pesato" else "non pesato"
                 if (prima != null) {
                     // v1.0.128: le misure si mostrano a trattini (pesato = false); l'ultimo
                     // peso serve solo al «Mancano», e lo dice la nota.

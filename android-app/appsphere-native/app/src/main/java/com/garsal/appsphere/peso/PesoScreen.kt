@@ -70,6 +70,8 @@ import com.garsal.appsphere.core.InterruttorePesoCalorie
 import com.garsal.appsphere.core.VoceConIcona
 import com.garsal.appsphere.core.misuraIcona
 import com.garsal.appsphere.core.Palette
+import androidx.compose.foundation.layout.width
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -347,9 +349,16 @@ private fun VistaOggi(
     // «Prossima» a «Precedente»).
     val contestoSchede = LocalContext.current
     var esitiVer by remember { mutableStateOf(0) }
-    val schede = remember(stato, esitiVer) {
+    // v1.0.148: lo switch del grafo (media mobile / peso reale) resta nelle preferenze.
+    var reale by remember { mutableStateOf(prefsEsiti(contestoSchede).getBoolean("grafo_reale", false)) }
+    val nodi = remember(stato, esitiVer, reale) {
         val prefs = prefsEsiti(contestoSchede)
-        stato.schede { o, g -> prefs.contains("esito_${o}_$g") }
+        stato.grafo(reale) { o, g -> prefs.contains("esito_${o}_$g") }
+    }
+    var scelto by remember { mutableStateOf(LocalDate.now().toString()) }
+    val dettaglio = remember(stato, esitiVer, scelto) {
+        val prefs = prefsEsiti(contestoSchede)
+        stato.dettaglio(scelto) { o, g -> prefs.contains("esito_${o}_$g") }
     }
     LazyColumn(
         contentPadding = PaddingValues(12.dp),
@@ -383,29 +392,26 @@ private fun VistaOggi(
             }
         }
 
-        // Le due schede delle pesate, una sotto l'altra: al posto dei riquadri
-        // «Minimo oggi / Target oggi / Mancano al target», come nel web v4.2.0.
-        // Una sotto l'altra e non affiancate: coi caratteri di sistema grandi
-        // due schede da sette righe in mezza larghezza vanno a capo ovunque.
-        if (schede.isEmpty()) {
-            item {
-                SchedaVuota(
-                    titolo = "⚖️ Oggi",
-                    righe = listOf("Peso" to "${kg(stato.minimoOggi)} kg"),
-                    nota = "Nessun obiettivo in corso: niente target.",
-                )
-            }
-        } else {
-            items(schede, key = { "${it.tipo}-${it.giorno}" }) { SchedaPesataCard(it) { esitiVer++ } }
-            if (schede.none { it.tipo == TipoScheda.DOPO }) {
-                item {
-                    SchedaVuota(
-                        titolo = "➡️ Prossima",
-                        righe = emptyList(),
-                        nota = "Nessun'altra pesata: il piano finisce il ${stato.finePiano?.let { dataItaliana(it) } ?: "–"}.",
-                    )
-                }
-            }
+        // v1.0.148: il grafo dei giorni al posto delle tre schede (web v4.19.0),
+        // e sotto il dettaglio del giorno toccato.
+        item {
+            GrafoGiorni(
+                nodi = nodi,
+                reale = reale,
+                scelto = scelto,
+                senzaObiettivo = stato.obiettivo == null,
+                onReale = { v -> reale = v; prefsEsiti(contestoSchede).edit().putBoolean("grafo_reale", v).apply() },
+                onScegli = { scelto = it },
+            )
+        }
+        item {
+            val d = dettaglio
+            if (d != null) SchedaPesataCard(d, intestazione = intestazioneGiorno(d.giorno, d.conta)) { esitiVer++ }
+            else SchedaVuota(
+                titolo = "⚖️ " + intestazioneGiorno(scelto, false),
+                righe = listOf("Peso" to (nodi.firstOrNull { it.giorno == scelto }?.reale?.let { "${kg(it)} kg" } ?: "–")),
+                nota = "Nessun obiettivo in corso: niente target.",
+            )
         }
 
         item {
@@ -633,7 +639,7 @@ private fun DettaglioObiettivo(obiettivo: Obiettivo) {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
+private fun SchedaPesataCard(s: SchedaPesata, intestazione: String? = null, onRivelato: () -> Unit) {
     val colore = when (s.tipo) {
         TipoScheda.OGGI -> Palette.primary
         TipoScheda.DOPO -> Verde
@@ -653,7 +659,7 @@ private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
     // v1.0.127: la prossima pesata è nel futuro — solo i target del piano, centrati e in
     // grande, come `schedaPesata()` del web v4.15.0.
     if (s.tipo == TipoScheda.DOPO) {
-        SchedaProssima(s, "$titolo · $quando", colore, onRivelato)
+        SchedaProssima(s, intestazione ?: "$titolo · $quando", colore, onRivelato)
         return
     }
     val manca = s.manca
@@ -678,9 +684,11 @@ private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text("$titolo · $quando", fontWeight = FontWeight.Bold, color = Palette.dark)
+        Text(intestazione ?: "$titolo · $quando", fontWeight = FontWeight.Bold, color = Palette.dark)
+        // v1.0.148: oggi conta e l'esito non è scoperto → i numeri aspettano il ❓.
+        val celato = s.rivela
         // v1.0.128: senza pesata quel giorno, trattini (come il web v4.15.3).
-        RigaScheda("⚖️ Pesata del giorno", if (s.pesato) "${kg(s.peso)} kg" else "–")
+        RigaScheda("⚖️ Pesata del giorno", if (celato) "❓" else if (s.pesato) "${kg(s.peso)} kg" else "–")
         s.nota?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
         // v1.0.141: la media mobile è il valore che fa i punti, e si vede (web v4.17.0).
         FlowRow(
@@ -696,7 +704,7 @@ private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
                 Text("conta per il target", color = Color(0xFF7C3AED), style = MaterialTheme.typography.bodySmall)
             }
             Text(
-                s.media?.let { "${kg(it)} kg" } ?: "–",
+                if (celato) "❓" else s.media?.let { "${kg(it)} kg" } ?: "–",
                 color = Color(0xFF6D28D9),
                 fontWeight = FontWeight.Bold,
                 fontStyle = if (s.mediaStimata) androidx.compose.ui.text.font.FontStyle.Italic else null,
@@ -705,7 +713,8 @@ private fun SchedaPesataCard(s: SchedaPesata, onRivelato: () -> Unit) {
         }
         RigaScheda("Target", "${kg(s.target)} kg", Verde)
         s.infoTarget?.let { Text(it, color = Palette.muted, style = MaterialTheme.typography.bodySmall) }
-        RigaScheda("Mancano", if (manca == null) "–" else "${conSegno(manca)} kg", coloreManca)
+        RigaScheda("Mancano", if (celato) "❓" else if (manca == null) "–" else "${conSegno(manca)} kg", if (celato) Palette.muted else coloreManca)
+        if (s.rivela) BottoneRivela(s, onRivelato)
         if (s.pesato && visto != null) {
             val ok = visto == "ok"
             Text(
@@ -755,10 +764,6 @@ private val FRASI_KO = listOf(
 
 @Composable
 private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color, onRivelato: () -> Unit) {
-    val contesto = LocalContext.current
-    var mostraEsito by remember { mutableStateOf(false) }
-    val mancaR = s.rivelaManca
-    val esitoOk = mancaR != null && mancaR <= 0
     Column(
         Modifier
             .fillMaxWidth()
@@ -773,39 +778,226 @@ private fun SchedaProssima(s: SchedaPesata, intestazione: String, colore: Color,
         Text("🎯 Target attesi dal piano", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
         // v1.0.141: il target si confronta con la media mobile del peso, come nel web v4.17.0.
         Gettone("🎯 Target media peso", "${kg(s.pesoAtteso)} kg")
-        // v1.0.128: oggi è la pesata che conta → il ❓, spento col suo perché finché non si
-        // può dire l'esito (gemello di `bottoneRivela()` del web v4.15.2).
-        if (s.rivela) {
-            val attivo = mancaR != null
+        if (s.rivela) BottoneRivela(s, onRivelato)
+    }
+}
+
+// ── v1.0.148: il grafo dei giorni ─────────────────────────────────────────
+// Gemello di `renderPesate()` / `grafoNodo()` di weight-quest.html v4.19.0:
+// una striscia di nodi che si trascina col dito, centrata su oggi all'apertura.
+
+private val VerdeNodo = Color(0xFF00967A)
+private val RossoNodo = Color(0xFFE74C3C)
+private val BluNodo = Color(0xFF0081C8)
+private val ViolaNodo = Color(0xFF6C5CE7)
+
+internal fun intestazioneGiorno(giorno: String, conta: Boolean): String {
+    val oggi = LocalDate.now()
+    val d = PesoRegole.giornoDa(giorno) ?: return giorno
+    val gg = d.toEpochDay() - oggi.toEpochDay()
+    val quando = when {
+        gg == 0L -> "oggi"
+        gg == -1L -> "ieri"
+        gg == 1L -> "domani"
+        gg < 0 -> "${-gg} giorni fa"
+        else -> "fra $gg giorni"
+    }
+    return dataItaliana(giorno).take(5) + " · " + quando + if (conta) " · conta per i punti" else ""
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GrafoGiorni(
+    nodi: List<NodoGrafo>,
+    reale: Boolean,
+    scelto: String,
+    senzaObiettivo: Boolean,
+    onReale: (Boolean) -> Unit,
+    onScegli: (String) -> Unit,
+) {
+    val oggi = LocalDate.now().toString()
+    val lista = rememberLazyListState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var larghezza by remember { mutableStateOf(0) }
+    val densita = LocalDensity.current
+    // Centra su oggi all'apertura (e quando cambiano i giorni): serve la larghezza vera.
+    val iOggi = nodi.indexOfFirst { it.giorno == oggi }.let { if (it < 0) nodi.lastIndex else it }
+    LaunchedEffect(nodi.size, larghezza) {
+        if (larghezza > 0 && iOggi >= 0) {
+            val nodoPx = with(densita) { 76.dp.roundToPx() }
+            lista.scrollToItem(iOggi, -(larghezza - nodoPx) / 2)
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .border(2.dp, ViolaNodo, RoundedCornerShape(50)),
+            ) {
+                listOf(false to "📈 Media mobile", true to "⚖️ Peso reale").forEach { (v, etichetta) ->
+                    Text(
+                        etichetta,
+                        Modifier
+                            .background(if (reale == v) ViolaNodo else Palette.light)
+                            .clickable { onReale(v) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = if (reale == v) Color.White else ViolaNodo,
+                        fontWeight = if (reale == v) FontWeight.Bold else FontWeight.Normal,
+                    )
+                }
+            }
+            Text(
+                "⏺ Oggi",
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .border(2.dp, Palette.primary, RoundedCornerShape(50))
+                    .clickable {
+                        onScegli(oggi)
+                        if (iOggi >= 0) scope.launch {
+                            val nodoPx = with(densita) { 76.dp.roundToPx() }
+                            lista.animateScrollToItem(iOggi, -(larghezza - nodoPx) / 2)
+                        }
+                    }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                color = Palette.primary,
+            )
+        }
+        if (reale) Text("Colori indicativi: i punti si danno sulla media mobile.", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+        if (senzaObiettivo) Text("Nessun obiettivo in corso: niente target.", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+        androidx.compose.foundation.lazy.LazyRow(
+            state = lista,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { larghezza = it.width },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items(nodi, key = { it.giorno }) { n ->
+                NodoGiorno(n, n.giorno == oggi, n.giorno == scelto) { onScegli(n.giorno) }
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Legenda(VerdeNodo, "dentro il target")
+            Legenda(RossoNodo, "sopra o non pesato")
+            Legenda(BluNodo, "non conta")
+            Legenda(Color(0xFFC4C9D2), "da fare")
+        }
+    }
+}
+
+@Composable
+private fun Legenda(colore: Color, testo: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(colore))
+        Text(testo, color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun NodoGiorno(n: NodoGrafo, oggi: Boolean, scelto: Boolean, onTocca: () -> Unit) {
+    val (fondo, bordo, testo) = when (n.stato) {
+        StatoNodo.VERDE -> Triple(VerdeNodo, Color(0xFF00806A), Color.White)
+        StatoNodo.ROSSO -> Triple(RossoNodo, Color(0xFFC0392B), Color.White)
+        StatoNodo.BLU -> Triple(BluNodo, Color(0xFF006AA5), Color.White)
+        StatoNodo.ATTESA -> Triple(Color.White, ViolaNodo, ViolaNodo)
+        StatoNodo.FUTURO -> Triple(Color.White, Color(0xFFC4C9D2), Color(0xFF9CA3AF))
+        StatoNodo.VUOTO -> Triple(Color(0xFFF3F4F6), Color(0xFF9CA3AF), Color(0xFF374151))
+    }
+    val giorniSett = listOf("lun", "mar", "mer", "gio", "ven", "sab", "dom")
+    val d = PesoRegole.giornoDa(n.giorno)
+    val etichetta = if (oggi) "Oggi" else (d?.let { giorniSett[it.dayOfWeek.value - 1] + " " } ?: "") + dataItaliana(n.giorno).take(5)
+    // Le misure crescono col testo di sistema (con un tetto), o il numero esce dal cerchio.
+    val scala = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
+    val diametro = (if (oggi) 72.dp else 58.dp) * scala
+    Column(
+        Modifier
+            .clickable(onClick = onTocca)
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            etichetta,
+            color = if (oggi) Palette.primary else Palette.muted,
+            fontWeight = if (oggi) FontWeight.Bold else FontWeight.Normal,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+        )
+        Box(contentAlignment = Alignment.Center) {
+            // Il filo che unisce i nodi, dietro al cerchio.
+            Box(Modifier.width(diametro + 18.dp).height(3.dp).background(Color(0xFFD1D5DB)))
             Column(
                 Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 72.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        androidx.compose.ui.graphics.Brush.linearGradient(
-                            if (attivo) listOf(Palette.secondary, Palette.primary)
-                            else listOf(Color(0xFF9CA3AF), Color(0xFF6B7280))
-                        )
-                    )
-                    .then(
-                        if (attivo) Modifier.clickable {
-                            prefsEsiti(contesto).edit().putString("esito_${s.obiettivoId}_${s.giorno}", if (esitoOk) "ok" else "ko").apply()
-                            mostraEsito = true
-                            if (!esitoOk) musichettaTriste()
-                        } else Modifier
-                    )
-                    .padding(8.dp),
+                    .padding(horizontal = 9.dp)
+                    .size(diametro)
+                    .then(if (scelto) Modifier.border(3.dp, Palette.dark, androidx.compose.foundation.shape.CircleShape).padding(4.dp) else Modifier)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(fondo)
+                    .border(3.dp, bordo, androidx.compose.foundation.shape.CircleShape),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("❓", fontSize = 34.sp, color = Color.White)
-                Text(
-                    if (attivo) "Com'è andata? Tocca per scoprirlo" else (s.rivelaMotivo ?: "Pesati prima, poi tocca qui"),
-                    color = Color.White, textAlign = TextAlign.Center,
-                )
+                fun num(v: Double?) = v?.let { String.format(java.util.Locale.ITALY, "%.1f", it) } ?: "—"
+                when {
+                    n.nascosto -> Text("❓", color = testo, fontWeight = FontWeight.Bold)
+                    n.stato == StatoNodo.FUTURO -> {
+                        if (n.target != null) {
+                            Text("🎯", fontSize = 10.sp)
+                            Text(num(n.target), color = testo, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        } else Text("·", color = testo)
+                    }
+                    else -> {
+                        Text(num(n.valore), color = testo, fontWeight = FontWeight.Bold, style = if (oggi) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelMedium)
+                        if (n.target != null) Text("🎯 " + num(n.target), color = testo, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * Il ❓ della pesata che conta, spento col suo perché finché non si può dire l'esito
+ * (gemello di `bottoneRivela()` del web v4.15.2). v1.0.148: sta nel dettaglio di oggi.
+ */
+@Composable
+private fun BottoneRivela(s: SchedaPesata, onRivelato: () -> Unit) {
+    val contesto = LocalContext.current
+    var mostraEsito by remember { mutableStateOf(false) }
+    val mancaR = s.rivelaManca
+    val esitoOk = mancaR != null && mancaR <= 0
+    val attivo = mancaR != null
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    if (attivo) listOf(Palette.secondary, Palette.primary)
+                    else listOf(Color(0xFF9CA3AF), Color(0xFF6B7280))
+                )
+            )
+            .then(
+                if (attivo) Modifier.clickable {
+                    prefsEsiti(contesto).edit().putString("esito_${s.obiettivoId}_${s.giorno}", if (esitoOk) "ok" else "ko").apply()
+                    mostraEsito = true
+                    if (!esitoOk) musichettaTriste()
+                } else Modifier
+            )
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("❓", fontSize = 34.sp, color = Color.White)
+        Text(
+            if (attivo) "Com'è andata? Tocca per scoprirlo" else (s.rivelaMotivo ?: "Pesati prima, poi tocca qui"),
+            color = Color.White, textAlign = TextAlign.Center,
+        )
     }
     if (mostraEsito && mancaR != null) {
         DialogoEsito(esitoOk, mancaR) { mostraEsito = false; onRivelato() }
