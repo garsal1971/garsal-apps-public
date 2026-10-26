@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.19.1</title>
+  <title>Peso e Calorie v4.19.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -339,6 +339,7 @@
         }
 
         /* STATS GRID */
+        .grafo-rivela { margin: 8px 0 12px; }
         .cal-titolo { font-size: 12px; font-weight: 700; color: #6B7280; margin: 0 0 6px; }
         .stats-grid {
             display: flex;
@@ -1901,8 +1902,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.19.1';
-        var BUILD_TIME  = '2026-10-26T15:00:00Z';
+        var APP_VERSION = 'v4.19.2';
+        var BUILD_TIME  = '2026-10-26T17:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5930,40 +5931,6 @@
             return { day: day, reale: reale, media: media, mediaStimata: emaStimata(day, 'ema_weight'),
                      conta: conta, target: target, valore: valore, nasc: nasc, stato: stato };
         }
-        function grafoDettaglio(data, obj, n, oggi) {
-            function kg(v) { return v == null || !isFinite(v) ? '—' : Number(v).toFixed(1) + ' kg'; }
-            var p = n.day.split('-');
-            var gg = Math.round((new Date(n.day + 'T12:00:00') - new Date(oggi + 'T12:00:00')) / 86400000);
-            var quando = gg === 0 ? 'oggi' : gg === -1 ? 'ieri' : gg === 1 ? 'domani' : gg < 0 ? (-gg) + ' giorni fa' : 'fra ' + gg + ' giorni';
-            var h = '<div class="grafo-det st-' + n.stato + '">'
-                  + '<div class="pc-head">' + p[2] + '/' + p[1] + ' · ' + quando
-                  + (n.conta ? ' · <span class="gd-conta">conta per i punti</span>' : '') + '</div>';
-            if (n.day <= oggi) {
-                h += '<div class="pc-row"><span>⚖️ Pesata del giorno</span><b>' + offusca(kg(n.reale), n.nasc) + '</b></div>'
-                   + '<div class="pc-row pc-media"><span>📈 Media mobile <small>· conta per i punti</small></span><b>'
-                   + offusca(n.media == null ? '—' : (n.mediaStimata ? '<i title="media stimata col trend">' + kg(n.media) + '</i>' : kg(n.media)), n.nasc) + '</b></div>';
-            }
-            if (n.target != null) {
-                h += '<div class="pc-row"><span>🎯 Target</span><b style="color:#00B894">' + kg(n.target) + '</b></div>';
-                if (n.day <= oggi && n.media != null) {
-                    var manca = Math.round((n.media - n.target) * 10) / 10;
-                    h += '<div class="pc-row"><span>Mancano <small>(media − target)</small></span><b style="color:'
-                       + (n.nasc ? '#999' : manca <= 0 ? '#00B894' : '#E74C3C') + '">'
-                       + offusca((manca > 0 ? '+' : '') + manca.toFixed(1) + ' kg', n.nasc) + '</b></div>';
-                }
-                if (n.day < oggi && n.reale == null) h += '<div class="pc-note">✗ Non pesato: è un malus.</div>';
-            } else if (obj && obj.start_date && !n.conta && n.day >= obj.start_date && (!obj.end_date || n.day <= obj.end_date)) {
-                h += '<div class="pc-note">Oggi la pesata non conta per i punti: serve alla media mobile.</div>';
-            }
-            if (n.day === oggi && n.conta) {
-                var visto = esitoVisto(obj, oggi);
-                if (!visto) h += bottoneRivela(obj, data, oggi);
-                else h += '<div class="pc-esito ' + visto + '">' + (visto === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
-            }
-            // v4.19.1: le calorie non stanno più qui, sono scudetti sotto Kg alla fine / Punti (#calorieBox).
-            return h + '</div>';
-        }
-
         /* Le calorie di quel giorno, lette dalla metà «calorie» e non ricalcolate qui: il conto
            vive in calcolaTarget / targetTrattoAl, e una seconda formula sarebbero due target
            diversi per lo stesso giorno.
@@ -6052,7 +6019,13 @@
             html += '</div></div>'
                   + '<div class="grafo-legenda"><span class="l-verde">dentro il target</span><span class="l-rosso">sopra o non pesato</span>'
                   + '<span class="l-blu">non conta</span><span class="l-futuro">da fare</span></div>'
-                  + (selNodo ? grafoDettaglio(data, obj, selNodo, oggi) : '');
+                  // v4.19.2: il riquadro del giorno non c'è più. Resta il solo ❓ di oggi, finché
+                  // non è toccato: senza, l'esito della pesata che conta non si scoprirebbe.
+                  + (function() {
+                        var o = nodi[giorni.indexOf(oggi)];
+                        return o && o.conta && obj && !esitoVisto(obj, oggi)
+                            ? '<div class="grafo-rivela">' + bottoneRivela(obj, data, oggi) + '</div>' : '';
+                    })();
             box.innerHTML = html;
             var cb = document.getElementById('calorieBox');
             if (cb) cb.innerHTML = selNodo ? scudettiCalorie(selNodo.day, selNodo.day > oggi ? 'dopo' : 'oggi', oggi) : '';
