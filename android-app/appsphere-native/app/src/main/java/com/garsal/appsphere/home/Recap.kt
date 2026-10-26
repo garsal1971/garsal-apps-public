@@ -439,6 +439,22 @@ object RecapRepository {
         return null
     }
 
+    // L'ultimo giorno di pesata dovuto fino a `oggi` compreso, dentro il periodo
+    // dell'obiettivo (gemello di pesoUltimaDovuta in index.html).
+    private fun ultimaDovuta(ob: JsonObject, oggi: String): String? {
+        val inizio = (ob.s("start_date") ?: "").take(10)
+        val fine = (ob.s("end_date") ?: "").take(10)
+        if (inizio.isEmpty() || oggi < inizio) return null
+        var d = LocalDate.parse(if (fine.isNotEmpty() && fine < oggi) fine else oggi)
+        repeat(400) {
+            val s = d.toString()
+            if (s < inizio) return null
+            if (giornoDiPesata(ob, s)) return s
+            d = d.minusDays(1)
+        }
+        return null
+    }
+
     private fun pesoPianoAl(giorno: String, ob: JsonObject): Double? {
         val grezzo = ob["milestones"]
         val arr: JsonArray? = when (grezzo) {
@@ -496,6 +512,19 @@ object RecapRepository {
 
             val ob = obj.await()
             val pesato = diOggi.await().isNotEmpty()
+            // ⚠️ Il compito resta finché la pesata dovuta non è fatta: se l'ultimo
+            // giorno di pesata è passato senza pesate da lì in poi, il compito porta
+            // quel giorno e finisce fra le ⚠️ Scadute. Gemello di recapPeso (index.html).
+            val dovuta = ob?.let { ultimaDovuta(it, o) }
+            val dovutaFatta = when {
+                dovuta == null -> true
+                dovuta == o -> pesato
+                else -> {
+                    val dd = LocalDate.parse(dovuta).atStartOfDay(zona).toInstant().toEpochMilli()
+                    righe("ps_weight_tracking", "timestamp") { filter { gte("timestamp", dd) }; limit(1) }.isNotEmpty()
+                }
+            }
+            val arretrata = dovuta != null && dovuta < o && !dovutaFatta
             val info = mutableListOf<String>()
 
             ultima.await()?.let { u ->
@@ -527,11 +556,13 @@ object RecapRepository {
                 tgt.n("kcal")?.let { info += "Calorie di oggi: " + String.format(ITA, "%,d", it.roundToLong()) + " kcal" }
             }
 
-            info += if (pesato) "✅ Pesato oggi" else if (diPesata) "❌ Non ancora pesato oggi" else "➖ Oggi non è giorno di pesata"
+            info += if (pesato) "✅ Pesato oggi"
+                else if (arretrata) "❌ Pesata del " + dataBreve(dovuta!!) + " non ancora fatta"
+                else if (diPesata) "❌ Non ancora pesato oggi" else "➖ Oggi non è giorno di pesata"
 
-            val inizio = ob?.s("start_date")?.take(10)
-            val compito = if (ob != null && diPesata && !pesato && (inizio == null || o >= inizio)) {
-                listOf(RecapVoce("⚖️ Peso", "Pesata di oggi" + (ob.s("objective_name")?.let { " — $it" } ?: ""), false, Route.PESO, o))
+            val compito = if (ob != null && dovuta != null && !dovutaFatta) {
+                val titolo = if (dovuta == o) "Pesata di oggi" else "Pesata del " + dataBreve(dovuta)
+                listOf(RecapVoce("⚖️ Peso", titolo + (ob.s("objective_name")?.let { " — $it" } ?: ""), false, Route.PESO, dovuta))
             } else emptyList()
             info to compito
         }

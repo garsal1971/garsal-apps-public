@@ -5410,7 +5410,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   insieme) — ✅ **Compiti**, con 📅 **Oggi** e ⚠️ **Scadute** sempre separate, — le scadenze di tutte le app con una
   data, raggruppate per app: Tasks (tutti tranne le libere ripetizioni; `nascosto_fino` li tiene
   fuori dalle scadute), Obiettivi e Piante (azioni), Ta Firi? (check-in `pending`), Decisioni,
-  Spuntiamola, Abituati e la pesata di Peso (questi ultimi solo oggi) — e 🔔 **Promemoria aperti**,
+  Spuntiamola e Abituati (solo oggi) e la pesata di Peso — ⚠️ che **resta finché non ci si pesa** (web v1.16.1, APK 1.0.147: `pesoUltimaDovuta` / `ultimaDovuta`, gemelle): l'ultimo giorno di pesata dovuto senza pesate da lì in poi resta fra le ⚠️ Scadute come «Pesata del gg/mm» — e 🔔 **Promemoria aperti**,
   le righe `pending`/`snoozed` di `cm_notification_queue` di qualunque app, una volta sola anche se
   sono su più canali. ⚠️ **Per ogni entità (app + `entity_id`) si mostra solo la PROSSIMA scadenza** (v1.15.2): le pesate del 22 e del 25 non compaiono finché c'è quella del 19. ⚠️ **Ogni box si toglie trascinandolo verso destra** (v1.13.0): resta tolto per il
   resto della giornata su quel dispositivo (`localStorage.appsphere_recap_tolti`, col giorno) e
