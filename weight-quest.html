@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.19.0</title>
+  <title>Peso e Calorie v4.19.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -339,6 +339,7 @@
         }
 
         /* STATS GRID */
+        .cal-titolo { font-size: 12px; font-weight: 700; color: #6B7280; margin: 0 0 6px; }
         .stats-grid {
             display: flex;
             flex-wrap: nowrap;
@@ -1386,6 +1387,8 @@
                             <div class="stat-label" style="color: #FF3366;">Punti oggi 📜</div>
                         </div>
                     </div>
+                    <!-- v4.19.1: le calorie del giorno scelto nel grafo (scudettiCalorie) -->
+                    <div id="calorieBox"></div>
 
                     <!-- Gestione Obiettivo Corrente -->
                     <div class="wq-card">
@@ -1898,8 +1901,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.19.0';
-        var BUILD_TIME  = '2026-10-26T13:00:00Z';
+        var APP_VERSION = 'v4.19.1';
+        var BUILD_TIME  = '2026-10-26T15:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5957,7 +5960,7 @@
                 if (!visto) h += bottoneRivela(obj, data, oggi);
                 else h += '<div class="pc-esito ' + visto + '">' + (visto === 'ok' ? '🎉 Target rispettato!' : '💪 Questa volta no, si recupera!') + '</div>';
             }
-            h += righeCaloriePesata(n.day, n.day > oggi ? 'dopo' : 'oggi');
+            // v4.19.1: le calorie non stanno più qui, sono scudetti sotto Kg alla fine / Punti (#calorieBox).
             return h + '</div>';
         }
 
@@ -5974,23 +5977,34 @@
            ⚠️ Finché la metà «calorie» non ha caricato i suoi dati (S.pronto) non si scrive
            niente: avviaCalorie ridisegna le schede appena arrivano. E niente numeri se
            l'obiettivo che si guarda non è quello attivo del diario. */
-        function righeCaloriePesata(day, tipo) {
+        function scudettiCalorie(day, tipo, oggi) {
             try {
                 if (typeof S === 'undefined' || !S.pronto || !S.objective) return '';
                 var obj = userData.currentObjective;
                 if (!obj || String(S.objective.id) !== String(obj.id)) return '';
+                var titolo = '<div class="cal-titolo">🔥 Calorie ' + (day === oggi ? 'di oggi'
+                           : 'del ' + day.slice(8, 10) + '/' + day.slice(5, 7)) + '</div>';
                 var t = tipo === 'dopo' ? calcolaTarget(day) : targetDelGiorno(day);
                 if (!t || !t.ok) {
                     var perche = t && t.motivo === 'profilo' ? 'mancano data di nascita, altezza o sesso nel profilo'
                                : t && t.motivo === 'peso' ? 'nessun peso registrato' : 'dati non disponibili';
-                    return '<div class="pc-sep"></div><div class="pc-note">🔥 Calorie: ' + perche + '.</div>';
+                    return titolo + '<div class="pc-note">Calorie: ' + perche + '.</div>';
                 }
-                return '<div class="pc-sep"></div>'
-                     + '<div class="pc-row"><span>Kcal con andamento</span><b style="color:#6C5CE7">' + fmtKcal(t.kcal) + ' kcal</b></div>'
-                     + (t.congelato ? '<div class="pc-note">target già fissato nel diario per quel giorno</div>'
-                        : tipo === 'dopo' ? '<div class="pc-note">con l\'ultimo peso noto</div>' : '');
+                var piano = targetTrattoAl(day);
+                function box(val, etichetta, col) {
+                    return '<div class="stat-box" style="border: 3px solid ' + col + ';">'
+                         + '<div class="stat-value" style="color:' + col + '">' + (val == null ? '–' : fmtKcal(val)) + '</div>'
+                         + '<div class="stat-label" style="color:' + col + '">' + etichetta + '</div></div>';
+                }
+                return titolo + '<div class="stats-grid">'
+                     + box(t.tdee, 'Fabbisogno', '#1F2937')
+                     + box(piano, 'Kcal da piano', '#0081C8')
+                     + box(t.kcal, 'Kcal con andamento', '#6C5CE7')
+                     + '</div>'
+                     + (t.congelato ? '<div class="pc-note">Target già fissato nel diario per quel giorno.</div>'
+                        : tipo === 'dopo' ? '<div class="pc-note">Con l\'ultimo peso noto.</div>' : '');
             } catch (e) {
-                console.warn('Calorie nella scheda pesata:', e);
+                console.warn('Calorie sotto il grafo:', e);
                 return '';
             }
         }
@@ -6040,6 +6054,8 @@
                   + '<span class="l-blu">non conta</span><span class="l-futuro">da fare</span></div>'
                   + (selNodo ? grafoDettaglio(data, obj, selNodo, oggi) : '');
             box.innerHTML = html;
+            var cb = document.getElementById('calorieBox');
+            if (cb) cb.innerHTML = selNodo ? scudettiCalorie(selNodo.day, selNodo.day > oggi ? 'dopo' : 'oggi', oggi) : '';
             var sc = box.querySelector('.grafo-scorri');
             if (tieniScorrimento && scorriPrima != null) { sc.scrollLeft = scorriPrima; return; }
             var el = box.querySelector('.grafo-nodo[data-day="' + sel + '"]');
