@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.16.0</title>
+<title>AppSphere v1.16.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2311,8 +2311,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.16.0';
-const BUILD_TIME  = '2026-10-18T19:00:00Z';
+const APP_VERSION = 'v1.16.1';
+const BUILD_TIME  = '2026-10-26T12:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -3905,6 +3905,9 @@ async function recapTaFiri(headers) {
 //   - calorie: il target di oggi da `al_conto`, lo stesso numero del 📓 Diario
 //     (senza quel che si è già mangiato, di proposito);
 //   - pesato oggi o no.
+// ⚠️ Il compito resta finché la pesata dovuta non è fatta (v1.16.1): se l'ultimo
+// giorno di pesata è passato senza pesate da lì in poi, il compito porta quel
+// giorno e finisce fra le ⚠️ Scadute. Gemello di peso() in home/Recap.kt.
 // ⚠️ Le tre regole (giorno di pesata, prossima pesata, interpolazione) sono copie
 // di quelle di weight-quest.html: cambiandole là, vanno cambiate qui.
 function pesoGiornoDiPesata(ob, giorno) {
@@ -3926,6 +3929,22 @@ function pesoProssimaPesata(ob, dalGiorno) {
     if (fine && s > fine) return null;
     if (pesoGiornoDiPesata(ob, s)) return s;
     d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+// L'ultimo giorno di pesata dovuto fino a `oggi` compreso, dentro il periodo
+// dell'obiettivo (null se l'obiettivo non è ancora cominciato).
+function pesoUltimaDovuta(ob, oggi) {
+  const inizio = String(ob.start_date || '').slice(0, 10);
+  const fine = String(ob.end_date || '').slice(0, 10);
+  if (!inizio || oggi < inizio) return null;
+  const d = new Date((fine && fine < oggi ? fine : oggi) + 'T12:00:00');
+  for (let i = 0; i < 400; i++) {
+    const s = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    if (s < inizio) return null;
+    if (pesoGiornoDiPesata(ob, s)) return s;
+    d.setDate(d.getDate() - 1);
   }
   return null;
 }
@@ -3976,6 +3995,13 @@ async function recapPeso(headers) {
     ]);
     const ob = obs[0] || null;
     const pesato = oggiRighe.length > 0;
+    // La pesata dovuta (oggi o un giorno passato) e se da allora ci si è pesati.
+    const dovuta = ob ? pesoUltimaDovuta(ob, oggi) : null;
+    let dovutaFatta = true;
+    if (dovuta && dovuta < oggi) {
+      const dd = new Date(dovuta + 'T00:00:00').getTime();
+      dovutaFatta = (await get(`ps_weight_tracking?select=timestamp&timestamp=gte.${dd}&limit=1`)).length > 0;
+    } else if (dovuta) dovutaFatta = pesato;
     const url = 'weight-quest.html';
     const info = [];
 
@@ -4004,10 +4030,14 @@ async function recapPeso(headers) {
       info.push({ title: 'Calorie di oggi: ' + Math.round(tgt.kcal).toLocaleString('it-IT') + ' kcal', url });
     }
 
-    info.push({ title: pesato ? '✅ Pesato oggi' : (diPesata ? '❌ Non ancora pesato oggi' : '➖ Oggi non è giorno di pesata'), url });
+    const arretrata = dovuta && dovuta < oggi && !dovutaFatta;
+    info.push({ title: pesato ? '✅ Pesato oggi'
+      : arretrata ? '❌ Pesata del ' + recapDataBreve(dovuta) + ' non ancora fatta'
+      : (diPesata ? '❌ Non ancora pesato oggi' : '➖ Oggi non è giorno di pesata'), url });
 
-    const compito = (ob && diPesata && !pesato && (!ob.start_date || oggi >= String(ob.start_date).slice(0, 10)))
-      ? [{ app: '⚖️ Peso', title: 'Pesata di oggi' + (ob.objective_name ? ' — ' + ob.objective_name : ''), hidden: false, url, day: oggi }]
+    const nome = ob && ob.objective_name ? ' — ' + ob.objective_name : '';
+    const compito = (ob && dovuta && !dovutaFatta)
+      ? [{ app: '⚖️ Peso', title: (dovuta === oggi ? 'Pesata di oggi' : 'Pesata del ' + recapDataBreve(dovuta)) + nome, hidden: false, url, day: dovuta }]
       : [];
     return { info, compito };
   } catch (e) { console.warn('[recap] peso:', e); return vuoto; }

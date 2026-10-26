@@ -1447,6 +1447,8 @@ o dopo la fine non sono storico di quell'obiettivo. Il filtro è di sola lettura
 `PesoRegole.storico`, mentre `tabella()` resta dalla più recente perché la leggono anche grafico e
 badge.
 
+⚠️ **Dal 26 ottobre 2026 le tre schede non ci sono più: c'è il 🔵🟢🔴 grafo dei giorni** (web v4.19.0 `renderPesate` / `grafoNodo` / `grafoDettaglio`, APK 1.0.148 `PesoState.grafo` / `dettaglio` + `GrafoGiorni` in `PesoScreen.kt`, gemelli): un nodo per giorno dall'inizio alla fine dell'obiettivo, centrato su oggi e da trascinare col dito. Dentro il nodo il valore — **pesata reale o media mobile, con uno switch** (`localStorage.wq_grafo_valore`, preferenza `grafo_reale` nel nativo; di partenza la media) — e nei giorni che contano il target: 🟢 valore ≤ target (a un decimale), 🔴 sopra **o giorno che contava passato senza pesata** (malus), 🔵 giorno che non conta col solo valore, futuro tratteggiato col solo target. ⚠️ I punti restano sulla media mobile: col valore reale i colori sono indicativi e la pagina lo dice. Toccando un nodo, sotto compare il dettaglio di quel giorno (pesata, media, target, mancano, calorie); su oggi che conta il ❓ resta, e finché non è toccato il nodo mostra ❓. Quel che segue è la storia delle schede.
+
 ⚠️ **I tre riquadri «Minimo oggi / Target oggi / Mancano al target» non ci sono più**: al loro
 posto **tre schede** (`renderPesate`, web v4.14.0): la **precedente** pesata dell'obiettivo, la
 giornaliera di **oggi** in mezzo (ci si pesa tutti i giorni per la media mobile; se oggi è anche
@@ -5410,7 +5412,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   insieme) — ✅ **Compiti**, con 📅 **Oggi** e ⚠️ **Scadute** sempre separate, — le scadenze di tutte le app con una
   data, raggruppate per app: Tasks (tutti tranne le libere ripetizioni; `nascosto_fino` li tiene
   fuori dalle scadute), Obiettivi e Piante (azioni), Ta Firi? (check-in `pending`), Decisioni,
-  Spuntiamola, Abituati e la pesata di Peso (questi ultimi solo oggi) — e 🔔 **Promemoria aperti**,
+  Spuntiamola e Abituati (solo oggi) e la pesata di Peso — ⚠️ che **resta finché non ci si pesa** (web v1.16.1, APK 1.0.147: `pesoUltimaDovuta` / `ultimaDovuta`, gemelle): l'ultimo giorno di pesata dovuto senza pesate da lì in poi resta fra le ⚠️ Scadute come «Pesata del gg/mm» — e 🔔 **Promemoria aperti**,
   le righe `pending`/`snoozed` di `cm_notification_queue` di qualunque app, una volta sola anche se
   sono su più canali. ⚠️ **Per ogni entità (app + `entity_id`) si mostra solo la PROSSIMA scadenza** (v1.15.2): le pesate del 22 e del 25 non compaiono finché c'è quella del 19. ⚠️ **Ogni box si toglie trascinandolo verso destra** (v1.13.0): resta tolto per il
   resto della giornata su quel dispositivo (`localStorage.appsphere_recap_tolti`, col giorno) e
