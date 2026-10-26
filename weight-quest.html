@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.19.2</title>
+  <title>Peso e Calorie v4.19.3</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -457,12 +457,6 @@
         .grafo-nodo.oggi .gn-cerchio { min-width: 4.6rem; min-height: 4.6rem; box-shadow: 0 0 0 4px rgba(255, 51, 102, .35); }
         .grafo-nodo.oggi .gn-cerchio b { font-size: 18px; }
         .grafo-nodo.sel .gn-cerchio { outline: 3px solid #1F2937; outline-offset: 2px; }
-        .grafo-legenda { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #6B7280; margin-bottom: 6px; }
-        .grafo-legenda span::before { content: ''; display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-        .grafo-legenda .l-verde::before { background: #00967A; }
-        .grafo-legenda .l-rosso::before { background: #E74C3C; }
-        .grafo-legenda .l-blu::before { background: #0081C8; }
-        .grafo-legenda .l-futuro::before { border: 2px dashed #C4C9D2; box-sizing: border-box; }
         .grafo-det { background: white; border: 3px solid #9CA3AF; padding: 8px 10px; }
         .grafo-det.st-verde { border-color: #00967A; } .grafo-det.st-rosso { border-color: #E74C3C; }
         .grafo-det.st-blu { border-color: #0081C8; } .grafo-det.st-attesa { border-color: #6C5CE7; }
@@ -1902,8 +1896,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.19.2';
-        var BUILD_TIME  = '2026-10-26T17:00:00Z';
+        var APP_VERSION = 'v4.19.3';
+        var BUILD_TIME  = '2026-10-26T17:30:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -6017,8 +6011,6 @@
                       + '<span class="gn-pos"><span class="gn-cerchio">' + dentro + '</span></span></button>';
             });
             html += '</div></div>'
-                  + '<div class="grafo-legenda"><span class="l-verde">dentro il target</span><span class="l-rosso">sopra o non pesato</span>'
-                  + '<span class="l-blu">non conta</span><span class="l-futuro">da fare</span></div>'
                   // v4.19.2: il riquadro del giorno non c'è più. Resta il solo ❓ di oggi, finché
                   // non è toccato: senza, l'esito della pesata che conta non si scoprirebbe.
                   + (function() {
