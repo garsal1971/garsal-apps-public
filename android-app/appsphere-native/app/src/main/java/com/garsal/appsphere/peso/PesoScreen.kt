@@ -361,6 +361,10 @@ private fun VistaOggi(
         val prefs = prefsEsiti(contestoSchede)
         stato.dettaglio(scelto) { o, g -> prefs.contains("esito_${o}_$g") }
     }
+    val diOggi = remember(stato, esitiVer) {
+        val prefs = prefsEsiti(contestoSchede)
+        stato.dettaglio(LocalDate.now().toString()) { o, g -> prefs.contains("esito_${o}_$g") }
+    }
     LazyColumn(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -377,15 +381,9 @@ private fun VistaOggi(
                 onScegli = { scelto = it },
             )
         }
-        item {
-            val d = dettaglio
-            if (d != null) SchedaPesataCard(d, intestazione = intestazioneGiorno(d.giorno, d.conta)) { esitiVer++ }
-            else SchedaVuota(
-                titolo = "⚖️ " + intestazioneGiorno(scelto, false),
-                righe = listOf("Peso" to (nodi.firstOrNull { it.giorno == scelto }?.reale?.let { "${kg(it)} kg" } ?: "–")),
-                nota = "Nessun obiettivo in corso: niente target.",
-            )
-        }
+        // v1.0.151: il riquadro del giorno non c'è più (web v4.19.2). Resta il solo ❓ di
+        // oggi finché non è scoperto: senza, l'esito della pesata che conta non si vedrebbe.
+        diOggi?.takeIf { it.rivela }?.let { o -> item { BottoneRivela(o) { esitiVer++ } } }
 
         item {
             // I tre riquadri rimasti, nello stesso ordine della pagina. Con
@@ -829,7 +827,6 @@ private fun GrafoGiorni(
                 color = Palette.primary,
             )
         }
-        if (reale) Text("Colori indicativi: i punti si danno sulla media mobile.", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
         if (senzaObiettivo) Text("Nessun obiettivo in corso: niente target.", color = Palette.muted, style = MaterialTheme.typography.bodySmall)
         androidx.compose.foundation.lazy.LazyRow(
             state = lista,
@@ -842,20 +839,6 @@ private fun GrafoGiorni(
                 NodoGiorno(n, n.giorno == oggi, n.giorno == scelto) { onScegli(n.giorno) }
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Legenda(VerdeNodo, "dentro il target")
-            Legenda(RossoNodo, "sopra o non pesato")
-            Legenda(BluNodo, "non conta")
-            Legenda(Color(0xFFC4C9D2), "da fare")
-        }
-    }
-}
-
-@Composable
-private fun Legenda(colore: Color, testo: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(colore))
-        Text(testo, color = Palette.muted, style = MaterialTheme.typography.bodySmall)
     }
 }
 
