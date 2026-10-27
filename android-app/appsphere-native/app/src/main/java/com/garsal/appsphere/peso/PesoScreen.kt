@@ -365,6 +365,8 @@ private fun VistaOggi(
         val prefs = prefsEsiti(contestoSchede)
         stato.dettaglio(LocalDate.now().toString()) { o, g -> prefs.contains("esito_${o}_$g") }
     }
+    var esitoOggi by remember { mutableStateOf<Pair<Boolean, Double>?>(null) }
+    esitoOggi?.let { (ok, m) -> DialogoEsito(ok, m) { esitoOggi = null; esitiVer++ } }
     LazyColumn(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -378,12 +380,25 @@ private fun VistaOggi(
                 scelto = scelto,
                 senzaObiettivo = stato.obiettivo == null,
                 onReale = { v -> reale = v; prefsEsiti(contestoSchede).edit().putBoolean("grafo_reale", v).apply() },
-                onScegli = { scelto = it },
+                onScegli = { g ->
+                    scelto = g
+                    // v1.0.153: il bottone «Com'è andata?» non c'è più (web v4.20.0): si tocca
+                    // il cerchio di oggi, che mostra «--» prima della pesata e «❓» dopo.
+                    val o = diOggi
+                    if (g == LocalDate.now().toString() && o != null && o.rivela) {
+                        val m = o.rivelaManca
+                        if (m == null) {
+                            android.widget.Toast.makeText(contestoSchede, o.rivelaMotivo ?: "Pesati prima, poi tocca qui", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            val ok = m <= 0
+                            prefsEsiti(contestoSchede).edit().putString("esito_${o.obiettivoId}_${o.giorno}", if (ok) "ok" else "ko").apply()
+                            if (!ok) musichettaTriste()
+                            esitoOggi = ok to m
+                        }
+                    }
+                },
             )
         }
-        // v1.0.151: il riquadro del giorno non c'è più (web v4.19.2). Resta il solo ❓ di
-        // oggi finché non è scoperto: senza, l'esito della pesata che conta non si vedrebbe.
-        diOggi?.takeIf { it.rivela }?.let { o -> item { BottoneRivela(o) { esitiVer++ } } }
 
         item {
             // I tre riquadri rimasti, nello stesso ordine della pagina. Con
@@ -888,7 +903,7 @@ private fun NodoGiorno(n: NodoGrafo, oggi: Boolean, scelto: Boolean, onTocca: ()
             ) {
                 fun num(v: Double?) = v?.let { String.format(java.util.Locale.ITALY, "%.1f", it) } ?: "—"
                 when {
-                    n.nascosto -> Text("❓", color = testo, fontWeight = FontWeight.Bold)
+                    n.nascosto -> Text(if (n.reale != null) "❓" else "--", color = testo, fontWeight = FontWeight.Bold)
                     n.stato == StatoNodo.FUTURO -> {
                         if (n.target != null) {
                             Text("🎯", fontSize = 10.sp)

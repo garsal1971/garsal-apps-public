@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.19.4</title>
+  <title>Peso e Calorie v4.20.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -339,7 +339,6 @@
         }
 
         /* STATS GRID */
-        .grafo-rivela { margin: 8px 0 12px; }
         .cal-titolo { font-size: 12px; font-weight: 700; color: #6B7280; margin: 0 0 6px; }
         .stats-grid {
             display: flex;
@@ -1896,8 +1895,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.19.4';
-        var BUILD_TIME  = '2026-10-26T18:00:00Z';
+        var APP_VERSION = 'v4.20.0';
+        var BUILD_TIME  = '2026-10-27T09:30:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -5845,16 +5844,18 @@
             }
             return { manca: Math.round((base - target) * 10) / 10 };
         }
-        function bottoneRivela(obj, data, day) {
+        // v4.20.0: il bottone «Com'è andata?» non c'è più: si tocca il cerchio di oggi, che
+        // mostra «--» finché non ci si pesa e «❓» dopo. Gemello: PesoScreen.kt (GrafoGiorni).
+        function grafoToccaOggi(day) {
+            var obj = userData.currentObjective;
+            window._grafoSel = day;
             var r = mancaDelGiorno(day);
             if (r.manca == null) {
-                return '<button type="button" class="pc-rivela" disabled>'
-                     + '<span class="q">❓</span><span class="t">' + r.motivo + '</span></button>';
+                if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj, true);
+                showToast(r.motivo, 3000);
+                return;
             }
-            return '<button type="button" class="pc-rivela" onclick="rivelaPesata(this)"'
-                 + ' data-chiave="' + chiaveEsito(obj, day) + '" data-esito="' + (r.manca <= 0 ? 'ok' : 'ko')
-                 + '" data-manca="' + r.manca + '">'
-                 + '<span class="q">❓</span><span class="t">Com\'è andata? Tocca per scoprirlo</span></button>';
+            rivelaPesata(chiaveEsito(obj, day), r.manca <= 0 ? 'ok' : 'ko', r.manca);
         }
 
         // ── v4.19.0: il grafo dei giorni ─────────────────────────────────
@@ -5999,24 +6000,22 @@
                 var d = new Date(n.day + 'T12:00:00');
                 var cls = 'grafo-nodo st-' + n.stato + (n.day === oggi ? ' oggi' : '') + (n.day === sel ? ' sel' : '');
                 var dentro;
-                if (n.day === oggi && n.nasc) dentro = '<b>❓</b>';
+                var tocco = 'grafoScegli(\'' + n.day + '\')';
+                if (n.day === oggi && n.nasc) {
+                    // v4.20.0: «--» prima della pesata, «❓» dopo; il tocco scopre l'esito.
+                    dentro = '<b>' + (minimoDelGiorno(data, oggi) ? '❓' : '--') + '</b>';
+                    tocco = 'grafoToccaOggi(\'' + n.day + '\')';
+                }
                 else if (n.stato === 'futuro') dentro = n.target != null ? '<small>🎯</small><b>' + num(n.target) + '</b>' : '<b>·</b>';
                 else {
                     dentro = '<b>' + (n.valore == null ? '—' : num(n.valore)) + '</b>';
                     if (n.target != null) dentro += '<small>🎯 ' + num(n.target) + '</small>';
                 }
-                html += '<button type="button" class="' + cls + '" data-day="' + n.day + '" onclick="grafoScegli(\'' + n.day + '\')">'
+                html += '<button type="button" class="' + cls + '" data-day="' + n.day + '" onclick="' + tocco + '">'
                       + '<span class="gn-data">' + (n.day === oggi ? 'Oggi' : GS[d.getDay()] + ' ' + n.day.slice(8, 10) + '/' + n.day.slice(5, 7)) + '</span>'
                       + '<span class="gn-pos"><span class="gn-cerchio">' + dentro + '</span></span></button>';
             });
-            html += '</div></div>'
-                  // v4.19.2: il riquadro del giorno non c'è più. Resta il solo ❓ di oggi, finché
-                  // non è toccato: senza, l'esito della pesata che conta non si scoprirebbe.
-                  + (function() {
-                        var o = nodi[giorni.indexOf(oggi)];
-                        return o && o.conta && obj && !esitoVisto(obj, oggi)
-                            ? '<div class="grafo-rivela">' + bottoneRivela(obj, data, oggi) + '</div>' : '';
-                    })();
+            html += '</div></div>';
             box.innerHTML = html;
             var cb = document.getElementById('calorieBox');
             if (cb) cb.innerHTML = selNodo ? scudettiCalorie(selNodo.day, selNodo.day > oggi ? 'dopo' : 'oggi', oggi) : '';
@@ -6037,10 +6036,8 @@
             'Acqua, passi e pazienza: il numero arriva.',
             'Anche i campioni sbagliano un tiro. Il prossimo è tuo.'
         ];
-        function rivelaPesata(btn) {
-            var esito = btn.getAttribute('data-esito');
-            var manca = Number(btn.getAttribute('data-manca'));
-            try { localStorage.setItem(btn.getAttribute('data-chiave'), esito); } catch (e) {}
+        function rivelaPesata(chiave, esito, manca) {
+            try { localStorage.setItem(chiave, esito); } catch (e) {}
             if (window._ultimePesate) renderPesate(window._ultimePesate.data, window._ultimePesate.obj);
             // v4.17.2: scoperto l'esito, il peso di oggi torna visibile anche in tabella e grafico.
             try { if (typeof tableRenderPage === 'function') tableRenderPage(); } catch (e) {}
