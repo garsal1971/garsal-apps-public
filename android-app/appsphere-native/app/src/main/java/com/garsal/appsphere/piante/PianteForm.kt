@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.garsal.appsphere.core.DateMultiple
 import com.garsal.appsphere.core.GarsalTopBar
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.Pillola
@@ -438,14 +439,58 @@ fun FormAzione(
                 }
             }
             "multiple" -> {
-                b.dateMultiple.sorted().forEach { d ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconaTesto("🗑") { b = b.copy(dateMultiple = b.dateMultiple - d) }
-                        Text(dataItalianaDa(d))
+                // Una riga per data, col suo orario (inizio e fine facoltativa):
+                // gemello di aggiornaCampiTipo() in piante.html.
+                b.dateMultiple.sorted().forEach { v ->
+                    val giorno = DateMultiple.giorno(v)
+                    val ora = DateMultiple.ora(v)
+                    val fine = DateMultiple.fine(v)
+                    fun cambia(nuova: String) { b = b.copy(dateMultiple = b.dateMultiple.map { if (it == v) nuova else it }) }
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Palette.inputBg)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconaTesto("🗑") { b = b.copy(dateMultiple = b.dateMultiple - v) }
+                            Text(DateMultiple.etichetta(giorno), fontWeight = FontWeight.SemiBold)
+                        }
+                        RigaScorrevole(Arrangement.spacedBy(6.dp)) {
+                            Chip(if (ora.isBlank()) "Inizio: ${b.ora}" else "Inizio: $ora", ora.isNotBlank()) {
+                                scegliOra(context, ora.ifBlank { b.ora }) { cambia(DateMultiple.componi(giorno, it, fine)) }
+                            }
+                            Chip(if (fine.isBlank()) "Fine: —" else "Fine: $fine", fine.isNotBlank()) {
+                                scegliOra(context, fine.ifBlank { ora.ifBlank { b.ora } }) {
+                                    cambia(DateMultiple.componi(giorno, ora.ifBlank { b.ora }, it))
+                                }
+                            }
+                            if (ora.isNotBlank()) Chip("↺", false) { cambia(giorno) }
+                        }
                     }
                 }
                 Pillola("＋ Aggiungi una data", Palette.accent) {
-                    scegliData(context, LocalDate.now()) { d -> if (d !in b.dateMultiple) b = b.copy(dateMultiple = b.dateMultiple + d) }
+                    scegliData(context, LocalDate.now()) { d ->
+                        val iso = d.toString()
+                        if (b.dateMultiple.none { DateMultiple.giorno(it) == iso })
+                            b = b.copy(dateMultiple = DateMultiple.unisci(b.dateMultiple, listOf(iso)))
+                    }
+                }
+                Nota("Una data senza orario usa l'«Ora» qui sopra.")
+                // 📋 Incolla un elenco di date: gemello di aggiungiDateDaTesto() in piante.html.
+                var incolla by remember { mutableStateOf(false) }
+                var testo by remember { mutableStateOf("") }
+                var esito by remember { mutableStateOf("") }
+                Chip(if (incolla) "📋 Chiudi l'elenco" else "📋 Incolla un elenco di date", incolla) { incolla = !incolla }
+                if (incolla) {
+                    Campo("Una data per riga (es. Lunedì 7 dicembre 2026: 11:00 - 12:00)", testo, righe = 4) { testo = it }
+                    Pillola("➕ Aggiungi le date", Palette.accent) {
+                        val l = DateMultiple.leggiTesto(testo)
+                        b = b.copy(dateMultiple = DateMultiple.unisci(b.dateMultiple, l.voci))
+                        esito = (if (l.voci.isNotEmpty()) "✅ ${l.voci.size} date aggiunte." else "Nessuna data riconosciuta.") +
+                            (if (l.errori.isNotEmpty()) " ⚠️ Non capite: ${l.errori.joinToString(" · ")}" else "")
+                        testo = l.errori.joinToString("\n")
+                    }
+                    if (esito.isNotBlank()) Nota(esito)
                 }
             }
         }

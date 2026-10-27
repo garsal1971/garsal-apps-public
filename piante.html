@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piante v1.5.1</title>
+    <title>Piante v1.6.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -630,7 +630,15 @@
                 <input class="form-input" type="date" id="aMultiInput" style="max-width:14rem;">
                 <button class="btn btn-ghost btn-small" onclick="aggiungiDataMultipla()">＋ Aggiungi</button>
             </div>
-            <div class="pill-row" id="aMultiList"></div>
+            <div id="aMultiList"></div>
+            <div class="form-hint">Una data senza orario usa l'ora dell'azione.</div>
+            <details style="margin-top:0.5rem;">
+                <summary style="cursor:pointer; font-weight:600;">📋 Incolla un elenco di date</summary>
+                <textarea class="form-input" id="aMultiPaste" rows="5" style="margin-top:0.4rem;"
+                    placeholder="Lunedì 7 dicembre 2026: 11:00 - 12:00&#10;07/12/2026 11:00&#10;una data per riga"></textarea>
+                <button class="btn btn-ghost btn-small" onclick="aggiungiDateDaTesto()" style="margin-top:0.4rem;">➕ Aggiungi le date</button>
+                <div class="form-hint" id="aMultiPasteMsg"></div>
+            </details>
         </div>
         <fieldset class="box">
             <legend>🏅 Punti</legend>
@@ -714,8 +722,8 @@
 // ════════════════════════════════════════════════════════════
 // PIANTE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.5.1';
-var BUILD_TIME  = '2026-10-25T10:00:00Z';
+var APP_VERSION = 'v1.6.0';
+var BUILD_TIME  = '2026-10-27T10:00:00Z';
 console.log('%c 🌱 PIANTE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#2E7D32;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1807,8 +1815,18 @@ function aggiornaCampiTipo() {
         { daily: 'giorni', weekly: 'settimane', monthly: 'mesi', yearly: 'anni' }[f];
     document.getElementById('aDow').innerHTML = GIORNI.map(([l, d]) =>
         `<button class="chip ${S.dow.includes(d) ? 'on' : ''}" onclick="toggleDow(${d})">${l}</button>`).join('');
-    document.getElementById('aMultiList').innerHTML = [...S.multi].sort().map(d =>
-        `<button class="chip on" title="Togli" onclick="togliDataMultipla('${d}')">${fmtData(d)} ✕</button>`).join('');
+    S.multi.sort();
+    // Una riga per data: inizio e fine (facoltativa), ✕ per toglierla.
+    document.getElementById('aMultiList').innerHTML = S.multi.map((v, i) => `
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem; padding:0.3rem 0; border-bottom:1px solid var(--border);">
+            <button class="btn btn-ghost btn-small" title="Togli" onclick="togliDataMultipla(${i})">✕</button>
+            <span style="min-width:9.5rem; font-weight:600;">${esc(mdEtichetta(mdGiorno(v)))}</span>
+            <input type="time" class="form-input" value="${mdOra(v)}" title="Inizio" style="width:auto; min-width:6.5rem;"
+                onchange="orarioDataMultipla(${i}, 'ora', this.value)">
+            <span>–</span>
+            <input type="time" class="form-input" value="${mdFine(v)}" title="Fine (facoltativa)" style="width:auto; min-width:6.5rem;"
+                onchange="orarioDataMultipla(${i}, 'fine', this.value)">
+        </div>`).join('');
     // Senza una data non c'è nessun istante a cui suonare.
     const box = document.getElementById('aNotifBox');
     box.style.opacity = t === 'free_repeat' ? 0.45 : 1;
@@ -1821,14 +1839,92 @@ function toggleDow(d) {
     S.dow = S.dow.includes(d) ? S.dow.filter(x => x !== d) : [...S.dow, d];
     aggiornaCampiTipo();
 }
+// ──────────────────────────────────────────────────────────────────────────
+// DATE MULTIPLE CON ORARIO — gemello in tasks.html, obiettivi.html,
+// piante.html e in core/DateMultiple.kt del nativo: cambiali insieme.
+// Un elemento di multiple_dates è 'YYYY-MM-DD', 'YYYY-MM-DD HH:MM'
+// o 'YYYY-MM-DD HH:MM-HH:MM' (la fine è solo informativa). Senza ora
+// vale l'orario generale dell'azione, come prima.
+// ========================================
+const MD_MESI = { gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6, luglio: 7,
+    agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12, gen: 1, feb: 2, mar: 3, apr: 4,
+    mag: 5, giu: 6, lug: 7, ago: 8, set: 9, sett: 9, ott: 10, nov: 11, dic: 12 };
+const MD_GIORNI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+const MD_MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+function mdGiorno(v) { return String(v || '').trim().slice(0, 10); }
+function mdOra(v) { const m = String(v || '').trim().match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}:\d{2})/); return m ? m[1] : ''; }
+function mdFine(v) { const m = String(v || '').trim().match(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}-(\d{2}:\d{2})/); return m ? m[1] : ''; }
+function mdCompone(giorno, ora, fine) { return giorno + (ora ? ' ' + ora + (fine ? '-' + fine : '') : ''); }
+function mdEtichetta(v) {
+    const g = mdGiorno(v), d = new Date(g + 'T00:00:00');
+    if (isNaN(d)) return g;
+    const ora = mdOra(v), fine = mdFine(v);
+    return `${MD_GIORNI[d.getDay()]} ${d.getDate()} ${MD_MESI_BREVI[d.getMonth()]} ${d.getFullYear()}`
+        + (ora ? ' · ' + ora + (fine ? '–' + fine : '') : '');
+}
+function mdHHMM(h, m) {
+    h = +h; m = +m;
+    if (!(h >= 0 && h <= 23 && m >= 0 && m <= 59)) return null;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+// Una data per riga: «Lunedì 7 dicembre 2026: 11:00 - 12:00», «07/12/2026 11:00»,
+// «2026-12-07 11:00-12:00». Le righe che non si capiscono tornano in `errori`.
+function mdLeggiTesto(testo) {
+    const voci = [], errori = [];
+    for (const grezza of String(testo || '').split(/\r?\n/)) {
+        const riga = grezza.replace(/^[\s•*·\-–—]+/, '').trim();
+        if (!riga) continue;
+        const low = riga.toLowerCase();
+        let a, me, gi, resto, m;
+        if ((m = low.match(/(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/))) { [a, me, gi, resto] = [+m[1], +m[2], +m[3], m[4]]; }
+        else if ((m = low.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(.*)$/))) { [a, me, gi, resto] = [+m[3], +m[2], +m[1], m[4]]; }
+        else if ((m = low.match(/(\d{1,2})\s+([a-zàèéìòù]+)\.?\s+(\d{4})(.*)$/)) && MD_MESI[m[2]]) { [a, me, gi, resto] = [+m[3], MD_MESI[m[2]], +m[1], m[4]]; }
+        else { errori.push(riga); continue; }
+        const d = new Date(a, me - 1, gi);
+        if (d.getFullYear() !== a || d.getMonth() !== me - 1 || d.getDate() !== gi) { errori.push(riga); continue; }
+        const giorno = `${a}-${String(me).padStart(2, '0')}-${String(gi).padStart(2, '0')}`;
+        const t = resto.match(/(\d{1,2})[:.](\d{2})(?:\s*(?:-|–|—|alle|a)\s*(\d{1,2})[:.](\d{2}))?/);
+        const ora = t ? mdHHMM(t[1], t[2]) : '';
+        const fine = t && t[3] ? mdHHMM(t[3], t[4]) : '';
+        if (ora === null || fine === null) { errori.push(riga); continue; }
+        voci.push(mdCompone(giorno, ora, fine));
+    }
+    return { voci, errori };
+}
+// Unisce senza doppioni di giorno: una data già in elenco prende l'orario nuovo.
+function mdUnisci(elenco, nuove) {
+    const perGiorno = new Map(elenco.map(v => [mdGiorno(v), v]));
+    for (const v of nuove) perGiorno.set(mdGiorno(v), v);
+    return [...perGiorno.values()].sort();
+}
+
 function aggiungiDataMultipla() {
     const v = document.getElementById('aMultiInput').value;
     if (!v) return;
-    if (!S.multi.includes(v)) S.multi.push(v);
+    if (!S.multi.some(x => mdGiorno(x) === v)) S.multi = mdUnisci(S.multi, [v]);
     document.getElementById('aMultiInput').value = '';
     aggiornaCampiTipo();
 }
-function togliDataMultipla(d) { S.multi = S.multi.filter(x => x !== d); aggiornaCampiTipo(); }
+function togliDataMultipla(i) { S.multi.splice(i, 1); aggiornaCampiTipo(); }
+function orarioDataMultipla(i, campo, valore) {
+    const v = S.multi[i]; if (v == null) return;
+    let ora = mdOra(v), fine = mdFine(v);
+    if (campo === 'ora') ora = valore; else fine = valore;
+    if (!ora) fine = '';
+    S.multi[i] = mdCompone(mdGiorno(v), ora, fine);
+    aggiornaCampiTipo();
+}
+function aggiungiDateDaTesto() {
+    const area = document.getElementById('aMultiPaste');
+    const msg = document.getElementById('aMultiPasteMsg');
+    const { voci, errori } = mdLeggiTesto(area.value);
+    S.multi = mdUnisci(S.multi, voci);
+    aggiornaCampiTipo();
+    msg.style.color = errori.length ? 'var(--danger)' : 'var(--success)';
+    msg.textContent = (voci.length ? `✅ ${voci.length} date aggiunte.` : 'Nessuna data riconosciuta.')
+        + (errori.length ? ` ⚠️ Non capite: ${errori.join(' · ')}` : '');
+    area.value = errori.join('\n');
+}
 
 function aggiornaNotifiche() {
     const chips = (setName, boxId, acceso) => {
@@ -1899,9 +1995,10 @@ async function salvaAzione() {
         if (!S.multi.length) { err.textContent = 'Aggiungi almeno una data.'; return; }
         payload.multiple_dates = [...S.multi].sort();
         // In modifica si riparte dalla prima data non ancora passata.
-        const prossima = payload.multiple_dates.find(d => d >= oggi()) || payload.multiple_dates[payload.multiple_dates.length - 1];
-        payload.start_date = localToISO(payload.multiple_dates[0], ora);
-        payload.next_occurrence_date = localToISO(prossima, ora);
+        const prossima = payload.multiple_dates.find(d => mdGiorno(d) >= oggi()) || payload.multiple_dates[payload.multiple_dates.length - 1];
+        // start_date porta l'ora dell'azione: vale per le date senza un orario proprio
+        payload.start_date = localToISO(mdGiorno(payload.multiple_dates[0]), ora);
+        payload.next_occurrence_date = localToISO(mdGiorno(prossima), mdOra(prossima) || ora);
     } else {   // free_repeat
         payload.next_occurrence_date = null;
         if (!S.azioneId) payload.start_date = new Date().toISOString();

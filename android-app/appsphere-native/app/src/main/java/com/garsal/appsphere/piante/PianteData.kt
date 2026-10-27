@@ -8,6 +8,7 @@ import android.media.ExifInterface
 import android.net.Uri
 import android.util.Log
 import com.garsal.appsphere.BuildConfig
+import com.garsal.appsphere.core.DateMultiple
 import com.garsal.appsphere.core.AuthRepo
 import com.garsal.appsphere.core.Jwt
 import com.garsal.appsphere.core.Supabase
@@ -176,6 +177,9 @@ data class PvAzione(
     /** Una libera ripetizione non ha data: non si ripiega su `start_date`. */
     val giorno: LocalDate? get() = if (libera) null else giornoLocale(prossima ?: inizio)
     val ora: String get() = if (libera) "" else oraLocale(prossima ?: inizio)
+    /** L'orario generale: per le date multiple è quello di `start_date`, perché la
+     *  prossima occorrenza può portare l'orario proprio della sua data. */
+    val oraGenerale: String get() = if (tipo == "multiple") oraLocale(inizio ?: prossima) else ora
 
     companion object {
         fun da(o: JsonObject) = PvAzione(
@@ -325,7 +329,8 @@ data class BozzaAzione(
     val giorniSettimana: List<Int> = emptyList(),
     val giorniMese: String = "",
     val dateAnno: String = "",
-    val dateMultiple: List<LocalDate> = emptyList(),
+    /** 'YYYY-MM-DD' con l'orario facoltativo: vedi core/DateMultiple. */
+    val dateMultiple: List<String> = emptyList(),
     val puntiOk: Int = 10,
     val puntiSalto: Int = -2,
     val puntiRitardo: Int = -2,
@@ -646,11 +651,13 @@ object PianteRepository {
                     put("recurring_dates", JsonNull)
                 }
                 if (b.tipo == "multiple") {
-                    val date = b.dateMultiple.distinct().sorted()
-                    put("multiple_dates", buildJsonArray { date.forEach { add(it.toString()) } })
-                    val oggi = LocalDate.now()
-                    partenza = iso(date.first(), b.ora)
-                    prossima = iso(date.firstOrNull { !it.isBefore(oggi) } ?: date.last(), b.ora)
+                    val date = DateMultiple.unisci(emptyList(), b.dateMultiple)
+                    put("multiple_dates", buildJsonArray { date.forEach { add(it) } })
+                    val oggi = LocalDate.now().toString()
+                    // start_date porta l'ora dell'azione: vale per le date senza un orario proprio
+                    partenza = iso(LocalDate.parse(DateMultiple.giorno(date.first())), b.ora)
+                    val v = date.firstOrNull { DateMultiple.giorno(it) >= oggi } ?: date.last()
+                    prossima = iso(LocalDate.parse(DateMultiple.giorno(v)), DateMultiple.oraOGenerale(v, b.ora))
                 } else {
                     put("multiple_dates", JsonNull)
                 }

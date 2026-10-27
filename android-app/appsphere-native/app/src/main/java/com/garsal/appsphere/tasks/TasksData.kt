@@ -2,6 +2,7 @@ package com.garsal.appsphere.tasks
 
 import android.util.Log
 import com.garsal.appsphere.core.AuthRepo
+import com.garsal.appsphere.core.DateMultiple
 import com.garsal.appsphere.core.Supabase
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
@@ -89,7 +90,7 @@ data class TsTask(
             tipo == "single" && dataInizio != null -> giornoDa(dataInizio) == giorno
             (tipo == "recurring" || tipo == "simple_recurring") && prossimaOccorrenza != null ->
                 giornoDa(prossimaOccorrenza) == giorno
-            tipo == "multiple" && dateMultiple.isNotEmpty() -> atteso in dateMultiple
+            tipo == "multiple" && dateMultiple.isNotEmpty() -> dateMultiple.any { DateMultiple.giorno(it) == atteso }
             prossimaScadenza != null -> giornoDa(prossimaScadenza) == giorno
             else -> false
         }
@@ -751,7 +752,10 @@ data class BozzaTask(
                 "multiple" -> {
                     val ordinate = dateMultiple.sorted()
                     put("multiple_dates", buildJsonArray { ordinate.forEach { add(it) } })
-                    put("next_occurrence_date", ordinate.firstOrNull()?.let { "${it}T$ora:00" })
+                    // La prima data col suo orario, o con quello generale (DateMultiple).
+                    put("next_occurrence_date", ordinate.firstOrNull()?.let {
+                        "${DateMultiple.giorno(it)}T${DateMultiple.oraOGenerale(it, ora)}:00"
+                    })
                 }
 
                 // `free_repeat` non ha una prossima occorrenza: si ripete
@@ -774,7 +778,9 @@ data class BozzaTask(
                 categorie = t.categorie,
                 prioritaId = t.prioritaId,
                 giorno = giornoDa(riferimento) ?: LocalDate.now(),
-                ora = oraDa(riferimento) ?: "09:00",
+                // Per le date multiple l'orario generale è quello di start_date: la
+                // prossima occorrenza può portare l'orario proprio della sua data.
+                ora = oraDa(if (t.tipo == "multiple") t.dataInizio ?: riferimento else riferimento) ?: "09:00",
                 scadenza = giornoDa(t.scadenza),
                 puntiSuccesso = t.puntiSuccesso,
                 puntiFallimento = t.puntiFallimento,

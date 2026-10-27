@@ -2509,6 +2509,28 @@ v_cur_str := split_part(v_task.next_occurrence_date::text, 'T', 1);
 -- → v_cur_idx rimane NULL → il task viene terminato alla prima occorrenza (bug critico)
 ```
 
+### 🕐 Date multiple con l'orario di ciascuna data (27 ottobre 2026)
+
+`multiple_dates` (text[], in `ts_tasks`, `ob_actions`, `pv_actions`) ammette ora tre forme per
+elemento: `'YYYY-MM-DD'` (la regola di sempre: ora di `start_date`), `'YYYY-MM-DD HH:MM'` e
+`'YYYY-MM-DD HH:MM-HH:MM'` (la fine è solo informativa). Nessuna colonna nuova
+(`20261027100000_date_multiple_con_orario.sql`).
+
+- ⚠️ **La prossima occorrenza la dà `md_prossima(date, cur, tod, tz)`**: il primo elemento il cui
+  istante (`md_ts`) viene dopo quello in corso — non più l'uguaglianza fra `next_occurrence_date::date`
+  e un elemento, che con l'ora dentro non regge. La migration ha riscritto il blocco `multiple` delle
+  otto RPC (`task_*`, `ob_action_*`, `pv_action_*`) e `ob_action_undo` con una regexp sul corpo vivo.
+- ⚠️ **Il fuso non è lo stesso**: `'UTC'` per i task (Tasks scrive gli orari «già locali» senza fuso),
+  `'Europe/Rome'` per Obiettivi e Piante (scrivono con `toISOString()`).
+- Nei form ogni data ha inizio e fine, e un box **📋 Incolla un elenco di date** legge una data per
+  riga («Lunedì 7 dicembre 2026: 11:00 - 12:00», «07/12/2026 11:00», «2026-12-07 11:00»); le righe
+  non capite restano nel box e si dicono. Un giorno compare una volta sola: incollandolo di nuovo
+  prende l'orario nuovo.
+- ⚠️ **Le regole di lettura sono in quattro copie da cambiare insieme**: le funzioni `md*` in
+  `tasks.html`, `obiettivi.html`, `piante.html` e `core/DateMultiple.kt` del nativo (Tasks e Piante;
+  Obiettivi nativo non ha form). Chi confronta un elemento con un giorno usa `mdGiorno()` /
+  `DateMultiple.giorno()`, mai l'uguaglianza secca.
+
 ### Dettaglio tecnico: `v_time_of_day`
 
 Tutte le RPC preservano l'orario originale del task quando calcolano la prossima occorrenza:

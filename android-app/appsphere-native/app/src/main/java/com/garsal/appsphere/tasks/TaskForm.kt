@@ -33,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.garsal.appsphere.core.DateMultiple
 import com.garsal.appsphere.core.GarsalTopBar
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.RigaScorrevole
@@ -232,20 +233,27 @@ fun TaskForm(
 
                 "multiple" -> {
                     Titoletto("Date")
-                    b.dateMultiple.sorted().forEach { data ->
-                        RigaData(dataItaliana(data)) {
-                            b = b.copy(dateMultiple = b.dateMultiple - data)
-                        }
+                    // Una riga per data, col suo orario (inizio e fine facoltativa):
+                    // gemello di renderMultipleDatesRows() in tasks.html.
+                    b.dateMultiple.sorted().forEach { voce ->
+                        RigaDataConOra(
+                            voce = voce,
+                            orarioGenerale = b.ora,
+                            onCambia = { nuova -> b = b.copy(dateMultiple = b.dateMultiple.map { if (it == voce) nuova else it }) },
+                            onTogli = { b = b.copy(dateMultiple = b.dateMultiple - voce) },
+                        )
                     }
                     Bottone("+ Aggiungi data") {
                         scegliData(context, LocalDate.now()) { d ->
                             val iso = d.toString()
-                            if (iso !in b.dateMultiple) {
-                                b = b.copy(dateMultiple = b.dateMultiple + iso)
+                            if (b.dateMultiple.none { DateMultiple.giorno(it) == iso }) {
+                                b = b.copy(dateMultiple = DateMultiple.unisci(b.dateMultiple, listOf(iso)))
                             }
                         }
                     }
                     if (b.dateMultiple.isEmpty()) Nota("Serve almeno una data.")
+                    else Nota("Una data senza orario usa l'orario qui sopra.")
+                    IncollaDate { nuove -> b = b.copy(dateMultiple = DateMultiple.unisci(b.dateMultiple, nuove)) }
                 }
 
                 "free_repeat" ->
@@ -435,6 +443,68 @@ private fun Bottone(testo: String, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     )
+}
+
+/** Una data multipla: inizio e fine si toccano per cambiarli, la ✕ di fianco li toglie. */
+@Composable
+private fun RigaDataConOra(voce: String, orarioGenerale: String, onCambia: (String) -> Unit, onTogli: () -> Unit) {
+    val context = LocalContext.current
+    val giorno = DateMultiple.giorno(voce)
+    val ora = DateMultiple.ora(voce)
+    val fine = DateMultiple.fine(voce)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Palette.inputBg)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(DateMultiple.etichetta(giorno), color = Palette.dark, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f))
+            Text("🗑", modifier = Modifier.clickable(onClick = onTogli).padding(start = 8.dp))
+        }
+        RigaScorrevole(Arrangement.spacedBy(8.dp)) {
+            Bottone(if (ora.isBlank()) "Inizio: $orarioGenerale" else "Inizio: $ora") {
+                scegliOra(context, ora.ifBlank { orarioGenerale }) { onCambia(DateMultiple.componi(giorno, it, fine)) }
+            }
+            Bottone(if (fine.isBlank()) "Fine: —" else "Fine: $fine") {
+                scegliOra(context, fine.ifBlank { ora.ifBlank { orarioGenerale } }) {
+                    onCambia(DateMultiple.componi(giorno, ora.ifBlank { orarioGenerale }, it))
+                }
+            }
+            if (ora.isNotBlank()) {
+                Bottone("↺") { onCambia(giorno) }
+            }
+        }
+    }
+}
+
+/** Il box per incollare un elenco di date: gemello di addMultipleDatesFromText(). */
+@Composable
+private fun IncollaDate(onAggiungi: (List<String>) -> Unit) {
+    var aperto by remember { mutableStateOf(false) }
+    var testo by remember { mutableStateOf("") }
+    var esito by remember { mutableStateOf("") }
+    Bottone(if (aperto) "📋 Chiudi l'elenco" else "📋 Incolla un elenco di date") { aperto = !aperto }
+    if (!aperto) return
+    OutlinedTextField(
+        value = testo,
+        onValueChange = { testo = it },
+        label = { Text("Una data per riga") },
+        placeholder = { Text("Lunedì 7 dicembre 2026: 11:00 - 12:00") },
+        minLines = 4,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Bottone("➕ Aggiungi le date") {
+        val l = DateMultiple.leggiTesto(testo)
+        onAggiungi(l.voci)
+        esito = (if (l.voci.isNotEmpty()) "✅ ${l.voci.size} date aggiunte." else "Nessuna data riconosciuta.") +
+            (if (l.errori.isNotEmpty()) " ⚠️ Non capite: ${l.errori.joinToString(" · ")}" else "")
+        testo = l.errori.joinToString("\n")   // restano solo le righe da correggere
+    }
+    if (esito.isNotBlank()) Nota(esito)
 }
 
 @Composable
