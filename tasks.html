@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.27.0</title>
+    <title>Tasks v19.28.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2210,6 +2210,21 @@
                     </div>
                     
                     <input type="hidden" id="multipleDatesData" value="">
+
+                    <!-- Un orario per ogni data (inizio, e fine facoltativa) -->
+                    <div id="multipleDatesRows" style="margin-top: 0.6rem;"></div>
+                    <p style="font-size: 0.8rem; color: var(--muted); margin: 0.3rem 0 0;">
+                        Una data senza orario usa l'«Orario» qui sotto.
+                    </p>
+
+                    <!-- Incolla un elenco di date con orario -->
+                    <details style="margin-top: 0.6rem;">
+                        <summary style="cursor: pointer; font-weight: 600;">📋 Incolla un elenco di date</summary>
+                        <textarea class="form-input" id="multipleDatesPaste" rows="5" style="margin-top: 0.4rem;"
+                            placeholder="Lunedì 7 dicembre 2026: 11:00 - 12:00&#10;07/12/2026 11:00&#10;una data per riga"></textarea>
+                        <button type="button" class="btn" onclick="addMultipleDatesFromText()" style="margin-top: 0.4rem;">➕ Aggiungi le date</button>
+                        <div id="multipleDatesPasteMsg" style="font-size: 0.85rem; margin-top: 0.3rem;"></div>
+                    </details>
                 </div>
 
                 <!-- ORARIO (multipli e libera ripetizione) -->
@@ -2370,8 +2385,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.27.0';
-        const BUILD_TIME  = '2026-10-18T19:00:00Z';
+        const APP_VERSION = 'v19.28.0';
+        const BUILD_TIME  = '2026-10-27T10:00:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -3220,8 +3235,67 @@
         // Gestione date annuali
         let yearlyDates = []; // Array di stringhe "DD-MM"
         
+        // ========================================
+        // DATE MULTIPLE CON ORARIO — gemello in tasks.html, obiettivi.html,
+        // piante.html e in core/DateMultiple.kt del nativo: cambiali insieme.
+        // Un elemento di multiple_dates è 'YYYY-MM-DD', 'YYYY-MM-DD HH:MM'
+        // o 'YYYY-MM-DD HH:MM-HH:MM' (la fine è solo informativa). Senza ora
+        // vale l'orario generale dell'azione, come prima.
+        // ========================================
+        const MD_MESI = { gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6, luglio: 7,
+            agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12, gen: 1, feb: 2, mar: 3, apr: 4,
+            mag: 5, giu: 6, lug: 7, ago: 8, set: 9, sett: 9, ott: 10, nov: 11, dic: 12 };
+        const MD_GIORNI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const MD_MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+        function mdGiorno(v) { return String(v || '').trim().slice(0, 10); }
+        function mdOra(v) { const m = String(v || '').trim().match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}:\d{2})/); return m ? m[1] : ''; }
+        function mdFine(v) { const m = String(v || '').trim().match(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}-(\d{2}:\d{2})/); return m ? m[1] : ''; }
+        function mdCompone(giorno, ora, fine) { return giorno + (ora ? ' ' + ora + (fine ? '-' + fine : '') : ''); }
+        function mdEtichetta(v) {
+            const g = mdGiorno(v), d = new Date(g + 'T00:00:00');
+            if (isNaN(d)) return g;
+            const ora = mdOra(v), fine = mdFine(v);
+            return `${MD_GIORNI[d.getDay()]} ${d.getDate()} ${MD_MESI_BREVI[d.getMonth()]} ${d.getFullYear()}`
+                + (ora ? ' · ' + ora + (fine ? '–' + fine : '') : '');
+        }
+        function mdHHMM(h, m) {
+            h = +h; m = +m;
+            if (!(h >= 0 && h <= 23 && m >= 0 && m <= 59)) return null;
+            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+        }
+        // Una data per riga: «Lunedì 7 dicembre 2026: 11:00 - 12:00», «07/12/2026 11:00»,
+        // «2026-12-07 11:00-12:00». Le righe che non si capiscono tornano in `errori`.
+        function mdLeggiTesto(testo) {
+            const voci = [], errori = [];
+            for (const grezza of String(testo || '').split(/\r?\n/)) {
+                const riga = grezza.replace(/^[\s•*·\-–—]+/, '').trim();
+                if (!riga) continue;
+                const low = riga.toLowerCase();
+                let a, me, gi, resto, m;
+                if ((m = low.match(/(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/))) { [a, me, gi, resto] = [+m[1], +m[2], +m[3], m[4]]; }
+                else if ((m = low.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(.*)$/))) { [a, me, gi, resto] = [+m[3], +m[2], +m[1], m[4]]; }
+                else if ((m = low.match(/(\d{1,2})\s+([a-zàèéìòù]+)\.?\s+(\d{4})(.*)$/)) && MD_MESI[m[2]]) { [a, me, gi, resto] = [+m[3], MD_MESI[m[2]], +m[1], m[4]]; }
+                else { errori.push(riga); continue; }
+                const d = new Date(a, me - 1, gi);
+                if (d.getFullYear() !== a || d.getMonth() !== me - 1 || d.getDate() !== gi) { errori.push(riga); continue; }
+                const giorno = `${a}-${String(me).padStart(2, '0')}-${String(gi).padStart(2, '0')}`;
+                const t = resto.match(/(\d{1,2})[:.](\d{2})(?:\s*(?:-|–|—|alle|a)\s*(\d{1,2})[:.](\d{2}))?/);
+                const ora = t ? mdHHMM(t[1], t[2]) : '';
+                const fine = t && t[3] ? mdHHMM(t[3], t[4]) : '';
+                if (ora === null || fine === null) { errori.push(riga); continue; }
+                voci.push(mdCompone(giorno, ora, fine));
+            }
+            return { voci, errori };
+        }
+        // Unisce senza doppioni di giorno: una data già in elenco prende l'orario nuovo.
+        function mdUnisci(elenco, nuove) {
+            const perGiorno = new Map(elenco.map(v => [mdGiorno(v), v]));
+            for (const v of nuove) perGiorno.set(mdGiorno(v), v);
+            return [...perGiorno.values()].sort();
+        }
+
         // Gestione date multiple (per tipo multiple)
-        let multipleDates = []; // Array di stringhe "YYYY-MM-DD"
+        let multipleDates = []; // 'YYYY-MM-DD' con l'orario facoltativo (vedi mdGiorno)
         let multiCalCurrentMonth = new Date().getMonth();
         let multiCalCurrentYear = new Date().getFullYear();
         
@@ -3231,7 +3305,7 @@
             
             // Posiziona il calendario sul mese della prima data selezionata o oggi
             if (multipleDates.length > 0) {
-                const firstDate = new Date(multipleDates[0] + 'T00:00:00');
+                const firstDate = new Date(mdGiorno(multipleDates[0]) + 'T00:00:00');
                 multiCalCurrentMonth = firstDate.getMonth();
                 multiCalCurrentYear = firstDate.getFullYear();
             }
@@ -3283,7 +3357,7 @@
             // Giorni del mese
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateStr = multiCalCurrentYear + '-' + String(multiCalCurrentMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                const isSelected = multipleDates.includes(dateStr);
+                const isSelected = multipleDates.some(v => mdGiorno(v) === dateStr);
                 const isToday = dateStr === todayStr;
                 
                 const dayEl = document.createElement('div');
@@ -3316,7 +3390,7 @@
         }
         
         function toggleMultiCalDate(dateStr) {
-            const idx = multipleDates.indexOf(dateStr);
+            const idx = multipleDates.findIndex(v => mdGiorno(v) === dateStr);
             if (idx >= 0) {
                 multipleDates.splice(idx, 1);
             } else {
@@ -3340,25 +3414,58 @@
             const textbox = document.getElementById('multipleDatesTextbox');
             const hiddenInput = document.getElementById('multipleDatesData');
             
+            renderMultipleDatesRows();
             if (multipleDates.length === 0) {
                 textbox.value = '';
                 hiddenInput.value = '';
                 return;
             }
             
-            const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-            
-            const formatted = multipleDates.map(dateStr => {
-                const date = new Date(dateStr + 'T00:00:00');
-                return date.getDate() + ' ' + monthNames[date.getMonth()] + ' ' + date.getFullYear();
-            });
-            
-            textbox.value = formatted.join(', ');
+            textbox.value = multipleDates.length + (multipleDates.length === 1 ? ' data' : ' date')
+                + ' — clicca per aggiungerne o toglierne dal calendario';
             hiddenInput.value = JSON.stringify(multipleDates);
         }
         
-        function removeMultipleDate(dateStr) {
-            multipleDates = multipleDates.filter(d => d !== dateStr);
+        // Una riga per data: inizio e fine (facoltativa), ✕ per toglierla.
+        function renderMultipleDatesRows() {
+            const box = document.getElementById('multipleDatesRows');
+            if (!box) return;
+            box.innerHTML = multipleDates.map((v, i) => `
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem; padding:0.35rem 0; border-bottom:1px solid var(--border);">
+                    <button type="button" class="btn" onclick="removeMultipleDate(${i})" title="Togli questa data"
+                        style="padding:0.2rem 0.55rem; background:#fee2e2; color:#b91c1c;">✕</button>
+                    <span style="min-width:9.5rem; font-weight:600;">${mdEtichetta(mdGiorno(v))}</span>
+                    <input type="time" class="form-input" value="${mdOra(v)}" title="Inizio"
+                        style="width:auto; min-width:6.5rem;" onchange="setMultipleDateTime(${i}, 'ora', this.value)">
+                    <span>–</span>
+                    <input type="time" class="form-input" value="${mdFine(v)}" title="Fine (facoltativa)"
+                        style="width:auto; min-width:6.5rem;" onchange="setMultipleDateTime(${i}, 'fine', this.value)">
+                </div>`).join('');
+        }
+        
+        function setMultipleDateTime(i, campo, valore) {
+            const v = multipleDates[i]; if (v == null) return;
+            let ora = mdOra(v), fine = mdFine(v);
+            if (campo === 'ora') ora = valore; else fine = valore;
+            if (!ora) fine = '';           // la fine senza un inizio non ha senso
+            multipleDates[i] = mdCompone(mdGiorno(v), ora, fine);
+            updateMultipleDatesTextbox();
+        }
+        
+        function addMultipleDatesFromText() {
+            const area = document.getElementById('multipleDatesPaste');
+            const msg = document.getElementById('multipleDatesPasteMsg');
+            const { voci, errori } = mdLeggiTesto(area.value);
+            multipleDates = mdUnisci(multipleDates, voci);
+            updateMultipleDatesTextbox();
+            msg.style.color = errori.length ? 'var(--danger)' : 'var(--success)';
+            msg.textContent = (voci.length ? `✅ ${voci.length} date aggiunte.` : 'Nessuna data riconosciuta.')
+                + (errori.length ? ` ⚠️ Non capite: ${errori.join(' · ')}` : '');
+            area.value = errori.join('\n');   // restano solo le righe da correggere
+        }
+        
+        function removeMultipleDate(i) {
+            multipleDates.splice(i, 1);
             updateMultipleDatesTextbox();
         }
         
@@ -4103,7 +4210,7 @@
                     const totalDates = allDates.length;
                     const nextOcc = task.next_occurrence_date ? task.next_occurrence_date.split('T')[0] : null;
                     if (nextOcc) {
-                        const remainingDates = allDates.filter(d => d >= nextOcc).length;
+                        const remainingDates = allDates.filter(d => mdGiorno(d) >= nextOcc).length;
                         const nextDate = new Date(nextOcc + 'T00:00:00');
                         const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
                         typeLabel = `Prossima: ${nextDate.getDate()} ${monthNames[nextDate.getMonth()]} • ${remainingDates}/${totalDates} date`;
@@ -5134,7 +5241,7 @@
                 const nextOcc = task.next_occurrence_date ? task.next_occurrence_date.split('T')[0] : null;
                 
                 if (nextOcc) {
-                    const remainingDates = allDates.filter(d => d >= nextOcc).length;
+                    const remainingDates = allDates.filter(d => mdGiorno(d) >= nextOcc).length;
                     const nextDate = new Date(nextOcc + 'T00:00:00');
                     const dayName = dayNames[nextDate.getDay()];
                     const day = nextDate.getDate();
@@ -5144,11 +5251,15 @@
                     details += `
                         <div class="task-detail-row">
                             <span class="task-detail-label">Prossima data:</span>
-                            <span style="font-weight: 700; color: var(--primary);">${dayName} ${day} ${monthName} ${year}</span>
+                            <span style="font-weight: 700; color: var(--primary);">${dayName} ${day} ${monthName} ${year}${(() => { const v = allDates.find(x => mdGiorno(x) === nextOcc); return v && mdOra(v) ? ' · ' + mdOra(v) + (mdFine(v) ? '–' + mdFine(v) : '') : ''; })()}</span>
                         </div>
                         <div class="task-detail-row">
                             <span class="task-detail-label">Date rimanenti:</span>
                             <span style="font-weight: 700;">${remainingDates} su ${totalDates}</span>
+                        </div>
+                        <div class="task-detail-row">
+                            <span class="task-detail-label">Tutte le date:</span>
+                            <span>${[...allDates].sort().map(v => mdEtichetta(v)).join('<br>')}</span>
                         </div>
                     `;
                 } else {
@@ -5477,9 +5588,9 @@
                     multipleDates = [...task.multiple_dates];
                     renderMultipleDates();
                 }
-                // Ripristina orario da next_occurrence_date
-                if (task.next_occurrence_date) {
-                    const nd = new Date(task.next_occurrence_date);
+                // Orario generale: quello di start_date (le date con un orario proprio lo portano con sé)
+                if (task.start_date || task.next_occurrence_date) {
+                    const nd = new Date(task.start_date || task.next_occurrence_date);
                     if (!isNaN(nd.getTime()) && (nd.getHours() || nd.getMinutes())) {
                         document.getElementById('taskTime').value =
                             String(nd.getHours()).padStart(2,'0') + ':' + String(nd.getMinutes()).padStart(2,'0');
@@ -6666,10 +6777,12 @@
                 const multiTimeVal = document.getElementById('taskTime')?.value || '00:00';
                 taskData.start_date = multiTimeVal ? (new Date().toISOString().slice(0, 10) + 'T' + multiTimeVal + ':00') : taskData.start_date;
 
-                // La prossima occorrenza è la PRIMA data della lista (ordinata) con orario
+                // La prossima occorrenza è la PRIMA data della lista (ordinata), col suo
+                // orario o, se non ce l'ha, con l'orario generale.
                 if (taskData.multiple_dates && taskData.multiple_dates.length > 0) {
-                    const sortedDates = [...taskData.multiple_dates].sort();
-                    taskData.next_occurrence_date = sortedDates[0] + 'T' + multiTimeVal + ':00';
+                    taskData.multiple_dates.sort();
+                    const prima = taskData.multiple_dates[0];
+                    taskData.next_occurrence_date = mdGiorno(prima) + 'T' + (mdOra(prima) || multiTimeVal) + ':00';
                 }
             } else if (taskType === 'free_repeat') {
                 const frTimeVal = document.getElementById('taskTime')?.value || '';
@@ -8853,7 +8966,7 @@ Per attivarle:
                     const totalDates = allDates.length;
                     const nextOcc = task.next_occurrence_date ? task.next_occurrence_date.split('T')[0] : null;
                     if (nextOcc) {
-                        const remainingDates = allDates.filter(d => d >= nextOcc).length;
+                        const remainingDates = allDates.filter(d => mdGiorno(d) >= nextOcc).length;
                         const nextDate = new Date(nextOcc + 'T00:00:00');
                         const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
                         typeLabel = `Prossima: ${nextDate.getDate()} ${monthNames[nextDate.getMonth()]} • ${remainingDates}/${totalDates} date`;
@@ -9253,8 +9366,8 @@ Per attivarle:
                 // Per task multipli, controlla se la data è in multiple_dates
                 if (task.type === 'multiple' && task.multiple_dates) {
                     try {
-                        const dates = JSON.parse(task.multiple_dates);
-                        return dates.includes(dateStr);
+                        const dates = Array.isArray(task.multiple_dates) ? task.multiple_dates : JSON.parse(task.multiple_dates);
+                        return dates.some(v => mdGiorno(v) === dateStr);
                     } catch (e) {
                         return false;
                     }
@@ -9318,8 +9431,8 @@ Per attivarle:
                 // Per task multipli, controlla se la data è in multiple_dates
                 if (task.type === 'multiple' && task.multiple_dates) {
                     try {
-                        const dates = JSON.parse(task.multiple_dates);
-                        return dates.includes(dateStr);
+                        const dates = Array.isArray(task.multiple_dates) ? task.multiple_dates : JSON.parse(task.multiple_dates);
+                        return dates.some(v => mdGiorno(v) === dateStr);
                     } catch (e) {
                         return false;
                     }
@@ -9456,7 +9569,7 @@ Per attivarle:
                 const totalDates = allDates.length;
                 const nextOcc = task.next_occurrence_date ? task.next_occurrence_date.split('T')[0] : null;
                 if (nextOcc) {
-                    const remainingDates = allDates.filter(d => d >= nextOcc).length;
+                    const remainingDates = allDates.filter(d => mdGiorno(d) >= nextOcc).length;
                     const nextDate = new Date(nextOcc + 'T00:00:00');
                     const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
                     const nextDateStr = `${nextDate.getDate()} ${monthNames[nextDate.getMonth()]}`;

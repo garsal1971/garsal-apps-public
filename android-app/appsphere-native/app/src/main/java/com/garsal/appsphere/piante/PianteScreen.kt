@@ -62,6 +62,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.garsal.appsphere.core.DateMultiple
 import com.garsal.appsphere.core.GarsalTopBar
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.Pillola
@@ -1106,7 +1107,7 @@ private fun bozzaDa(a: PvAzione, stato: PianteState): BozzaAzione {
         descrizione = a.descrizione.orEmpty(),
         tipo = if (a.tipo == "workflow") "single" else a.tipo,
         giorno = a.giorno ?: LocalDate.now(),
-        ora = a.ora.ifBlank { "09:00" },
+        ora = a.oraGenerale.ifBlank { "09:00" },
         scadenza = a.scadenza?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() },
         ogniGiorni = a.ogniGiorni ?: 7,
         frequenza = a.frequenza ?: "weekly",
@@ -1114,7 +1115,8 @@ private fun bozzaDa(a: PvAzione, stato: PianteState): BozzaAzione {
         giorniSettimana = a.giorniSettimana,
         giorniMese = a.giorniMese.joinToString(", "),
         dateAnno = a.dateAnno.joinToString(", "),
-        dateMultiple = a.dateMultiple.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() },
+        // Le stringhe restano com'erano, orario compreso: si scartano solo quelle senza un giorno valido.
+        dateMultiple = a.dateMultiple.filter { runCatching { LocalDate.parse(DateMultiple.giorno(it)) }.isSuccess },
         puntiOk = a.puntiOk, puntiSalto = a.puntiSalto, puntiRitardo = a.puntiRitardo,
         telegram = tg != null,
         anticipiTelegram = tg?.anticipi?.toSet() ?: setOfNotNull(primo),

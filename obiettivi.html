@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.16.0</title>
+    <title>Obiettivi v1.17.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -1143,8 +1143,15 @@
                 <input type="date" class="form-input" id="aMultiDate">
                 <button class="btn btn-ghost btn-small" onclick="addMultipleDate()">+ Aggiungi</button>
             </div>
-            <div class="chip-row" id="aMultiList"></div>
-            <div class="form-hint">Ogni volta che la chiudi, l'azione passa alla data successiva.</div>
+            <div id="aMultiList"></div>
+            <div class="form-hint">Ogni volta che la chiudi, l'azione passa alla data successiva. Una data senza orario usa l'«Ora» dell'azione.</div>
+            <details style="margin-top:0.5rem;">
+                <summary style="cursor:pointer; font-weight:600;">📋 Incolla un elenco di date</summary>
+                <textarea class="form-input" id="aMultiPaste" rows="5" style="margin-top:0.4rem;"
+                    placeholder="Lunedì 7 dicembre 2026: 11:00 - 12:00&#10;07/12/2026 11:00&#10;una data per riga"></textarea>
+                <button class="btn btn-ghost btn-small" onclick="addMultiDatesFromText()" style="margin-top:0.4rem;">➕ Aggiungi le date</button>
+                <div class="form-hint" id="aMultiPasteMsg"></div>
+            </details>
         </div>
 
         <!-- workflow -->
@@ -1407,8 +1414,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.16.0';
-var BUILD_TIME  = '2026-10-18T19:00:00Z';
+var APP_VERSION = 'v1.17.0';
+var BUILD_TIME  = '2026-10-27T10:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1466,7 +1473,7 @@ let wfActionId        = null;
 let wfSteps           = [];   // step in modifica dentro l'editor
 let actMetrics        = [];   // metriche collegate scelte nell'editor
 let yearlyDates       = [];   // 'DD-MM' del tipo annuale
-let multiDates        = [];   // 'YYYY-MM-DD' del tipo multiplo
+let multiDates        = [];   // 'YYYY-MM-DD' (con l'orario facoltativo) del tipo multiplo
 let toastTimer        = null;
 
 // ════════════════════════════════════════════════════════════
@@ -3582,18 +3589,105 @@ function renderYearlyDates() {
 }
 function removeYearlyDate(i) { yearlyDates.splice(i, 1); renderYearlyDates(); }
 
+// ──────────────────────────────────────────────────────────────────────────
+// DATE MULTIPLE CON ORARIO — gemello in tasks.html, obiettivi.html,
+// piante.html e in core/DateMultiple.kt del nativo: cambiali insieme.
+// Un elemento di multiple_dates è 'YYYY-MM-DD', 'YYYY-MM-DD HH:MM'
+// o 'YYYY-MM-DD HH:MM-HH:MM' (la fine è solo informativa). Senza ora
+// vale l'orario generale dell'azione, come prima.
+// ========================================
+const MD_MESI = { gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6, luglio: 7,
+    agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12, gen: 1, feb: 2, mar: 3, apr: 4,
+    mag: 5, giu: 6, lug: 7, ago: 8, set: 9, sett: 9, ott: 10, nov: 11, dic: 12 };
+const MD_GIORNI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+const MD_MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+function mdGiorno(v) { return String(v || '').trim().slice(0, 10); }
+function mdOra(v) { const m = String(v || '').trim().match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}:\d{2})/); return m ? m[1] : ''; }
+function mdFine(v) { const m = String(v || '').trim().match(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}-(\d{2}:\d{2})/); return m ? m[1] : ''; }
+function mdCompone(giorno, ora, fine) { return giorno + (ora ? ' ' + ora + (fine ? '-' + fine : '') : ''); }
+function mdEtichetta(v) {
+    const g = mdGiorno(v), d = new Date(g + 'T00:00:00');
+    if (isNaN(d)) return g;
+    const ora = mdOra(v), fine = mdFine(v);
+    return `${MD_GIORNI[d.getDay()]} ${d.getDate()} ${MD_MESI_BREVI[d.getMonth()]} ${d.getFullYear()}`
+        + (ora ? ' · ' + ora + (fine ? '–' + fine : '') : '');
+}
+function mdHHMM(h, m) {
+    h = +h; m = +m;
+    if (!(h >= 0 && h <= 23 && m >= 0 && m <= 59)) return null;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+// Una data per riga: «Lunedì 7 dicembre 2026: 11:00 - 12:00», «07/12/2026 11:00»,
+// «2026-12-07 11:00-12:00». Le righe che non si capiscono tornano in `errori`.
+function mdLeggiTesto(testo) {
+    const voci = [], errori = [];
+    for (const grezza of String(testo || '').split(/\r?\n/)) {
+        const riga = grezza.replace(/^[\s•*·\-–—]+/, '').trim();
+        if (!riga) continue;
+        const low = riga.toLowerCase();
+        let a, me, gi, resto, m;
+        if ((m = low.match(/(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/))) { [a, me, gi, resto] = [+m[1], +m[2], +m[3], m[4]]; }
+        else if ((m = low.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(.*)$/))) { [a, me, gi, resto] = [+m[3], +m[2], +m[1], m[4]]; }
+        else if ((m = low.match(/(\d{1,2})\s+([a-zàèéìòù]+)\.?\s+(\d{4})(.*)$/)) && MD_MESI[m[2]]) { [a, me, gi, resto] = [+m[3], MD_MESI[m[2]], +m[1], m[4]]; }
+        else { errori.push(riga); continue; }
+        const d = new Date(a, me - 1, gi);
+        if (d.getFullYear() !== a || d.getMonth() !== me - 1 || d.getDate() !== gi) { errori.push(riga); continue; }
+        const giorno = `${a}-${String(me).padStart(2, '0')}-${String(gi).padStart(2, '0')}`;
+        const t = resto.match(/(\d{1,2})[:.](\d{2})(?:\s*(?:-|–|—|alle|a)\s*(\d{1,2})[:.](\d{2}))?/);
+        const ora = t ? mdHHMM(t[1], t[2]) : '';
+        const fine = t && t[3] ? mdHHMM(t[3], t[4]) : '';
+        if (ora === null || fine === null) { errori.push(riga); continue; }
+        voci.push(mdCompone(giorno, ora, fine));
+    }
+    return { voci, errori };
+}
+// Unisce senza doppioni di giorno: una data già in elenco prende l'orario nuovo.
+function mdUnisci(elenco, nuove) {
+    const perGiorno = new Map(elenco.map(v => [mdGiorno(v), v]));
+    for (const v of nuove) perGiorno.set(mdGiorno(v), v);
+    return [...perGiorno.values()].sort();
+}
+
 function addMultipleDate() {
     const v = document.getElementById('aMultiDate').value;
     if (!v) return;
-    if (!multiDates.includes(v)) multiDates.push(v);
-    multiDates.sort();
+    if (!multiDates.some(x => mdGiorno(x) === v)) multiDates = mdUnisci(multiDates, [v]);
     document.getElementById('aMultiDate').value = '';
     renderMultiDates();
 }
+// Una riga per data: inizio e fine (facoltativa), ✕ per toglierla.
 function renderMultiDates() {
     document.getElementById('aMultiList').innerHTML = multiDates.length
-        ? multiDates.map((v, i) => `<span class="chip on" onclick="removeMultiDate(${i})">${fmtDate(v)}<span class="chip-x">✕</span></span>`).join('')
+        ? multiDates.map((v, i) => `
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem; padding:0.3rem 0; border-bottom:1px solid var(--border);">
+                <button class="btn btn-ghost btn-small" onclick="removeMultiDate(${i})" title="Togli questa data">✕</button>
+                <span style="min-width:9.5rem; font-weight:600;">${esc(mdEtichetta(mdGiorno(v)))}</span>
+                <input type="time" class="form-input" value="${mdOra(v)}" title="Inizio" style="width:auto; min-width:6.5rem;"
+                    onchange="setMultiDateTime(${i}, 'ora', this.value)">
+                <span>–</span>
+                <input type="time" class="form-input" value="${mdFine(v)}" title="Fine (facoltativa)" style="width:auto; min-width:6.5rem;"
+                    onchange="setMultiDateTime(${i}, 'fine', this.value)">
+            </div>`).join('')
         : '<div class="form-hint">Nessuna data.</div>';
+}
+function setMultiDateTime(i, campo, valore) {
+    const v = multiDates[i]; if (v == null) return;
+    let ora = mdOra(v), fine = mdFine(v);
+    if (campo === 'ora') ora = valore; else fine = valore;
+    if (!ora) fine = '';
+    multiDates[i] = mdCompone(mdGiorno(v), ora, fine);
+    renderMultiDates();
+}
+function addMultiDatesFromText() {
+    const area = document.getElementById('aMultiPaste');
+    const msg = document.getElementById('aMultiPasteMsg');
+    const { voci, errori } = mdLeggiTesto(area.value);
+    multiDates = mdUnisci(multiDates, voci);
+    renderMultiDates();
+    msg.style.color = errori.length ? 'var(--danger)' : 'var(--success)';
+    msg.textContent = (voci.length ? `✅ ${voci.length} date aggiunte.` : 'Nessuna data riconosciuta.')
+        + (errori.length ? ` ⚠️ Non capite: ${errori.join(' · ')}` : '');
+    area.value = errori.join('\n');
 }
 function removeMultiDate(i) { multiDates.splice(i, 1); renderMultiDates(); }
 
@@ -3721,8 +3815,9 @@ async function saveAction() {
     } else if (type === 'multiple') {
         if (!multiDates.length) { showToast('Aggiungi almeno una data'); return; }
         payload.multiple_dates = [...multiDates].sort();
-        // la prossima occorrenza è la prima data, con l'orario scelto
-        payload.next_occurrence_date = localToISO(payload.multiple_dates[0], ora);
+        // la prossima occorrenza è la prima data, col suo orario o con quello dell'azione
+        const prima = payload.multiple_dates[0];
+        payload.next_occurrence_date = localToISO(mdGiorno(prima), mdOra(prima) || ora);
 
     } else if (type === 'workflow') {
         const steps = wfSteps.filter(s => (s.title || '').trim());
