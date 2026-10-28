@@ -2191,6 +2191,17 @@ esterna c'è davvero e cancellando un tag i collegamenti spariscono da sé — l
 
 ⚠️ **Nessun prompt di sistema**: è un tunnel, e quel che arriva all'IA è quel che si è scritto.
 
+### Auto-formazione (`af_`)
+| Table | Purpose |
+|---|---|
+| `af_exercise_types` | Un tipo di esercizio (oggi `inglese_mail`): `prompt` di correzione salvato e `ob_action_id`, l'azione di Obiettivi che la conferma completa |
+| `af_exercises` | Un esercizio confermato: `text`, `prompt` **copiato** (il metro con cui è stato votato), `answer`, `voto` 1-10, `provider`, `model`, `ob_action_id` |
+
+Migration: `20261028100000_af_autoformazione.sql`. Pagina: `autoformazione.html`, **solo web e con un login Google suo** (sessione in `localStorage.af_session`, rinnovata col refresh token), **nessuna bolla** in AppSphere. ⚠️ Perché il login torni sulla pagina, `https://garsal.men/autoformazione.html` deve stare fra i Redirect URLs di Supabase.
+- 🚀 **Correggi** chiama la Edge Function `af-ai` (stessi quattro motori di `ia-tunnel`, copiati): ⚠️ **non scrive niente**, e la richiesta del voto («VOTO: n/10» come ultima riga) la aggiunge **lei** in coda al prompt, accanto alla regex che lo legge (`leggiVoto`). Voto non leggibile = `null` e la pagina **blocca la conferma**.
+- ✅ **Conferma** scrive prima `af_exercises` e poi chiama `ob_action_complete` sull'azione collegata (i workflow non si offrono). Se la RPC fallisce l'esercizio resta salvato e la pagina lo dice. Cambiare il testo dopo la correzione la invalida.
+- I tipi stanno in `TIPI` dentro la pagina: aggiungerne uno è una riga, la riga di `af_exercise_types` nasce da sé al primo accesso. ⚠️ `key` non si cambia.
+
 ### Scorte Amazon (`amz_`)
 | Table | Purpose |
 |---|---|
