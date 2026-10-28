@@ -2,6 +2,13 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
+    id 'com.google.devtools.ksp'
+}
+
+// Lo schema di Room si scrive nella repo: è il punto di partenza delle
+// migration il giorno che le tabelle dello storico cambiano.
+ksp {
+    arg('room.schemaLocation', "$projectDir/schemas")
 }
 
 android {
@@ -12,8 +19,8 @@ android {
         applicationId "com.garsal.pronuncia"
         minSdk 26
         targetSdk 36
-        versionCode 4
-        versionName "1.3.0"
+        versionCode 5
+        versionName "1.4.0"
 
         // ⚠️ Solo arm64: lo Speech SDK di Azure si porta dentro le librerie native
         // per quattro ABI, e tenerle tutte vorrebbe dire un APK tre volte più
@@ -76,4 +83,9 @@ dependencies {
     // Assessment. Niente supabase-kt: del progetto Supabase servono il login e
     // una Edge Function, due chiamate HTTP che non valgono una libreria.
     implementation 'com.microsoft.cognitiveservices.speech:client-sdk:1.43.0'
+
+    // Lo storico dei tentativi (fase 5), sul telefono e basta.
+    implementation 'androidx.room:room-runtime:2.7.1'
+    implementation 'androidx.room:room-ktx:2.7.1'
+    ksp 'androidx.room:room-compiler:2.7.1'
 }

@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat
 import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.Esito
 import com.garsal.pronuncia.Frase
+import com.garsal.pronuncia.Storico
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.NessunaVoce
 import com.garsal.pronuncia.Parola
@@ -102,7 +103,9 @@ fun Esercizio() {
         esito = null
         scope.launch {
             try {
-                esito = Servizi.valutatore.valuta(f.testo)
+                val e = Servizi.valutatore.valuta(f.testo)
+                esito = e
+                Storico.registra(ctx, f, e, "esercizio")
             } catch (e: SessioneScaduta) {
                 Servizi.connesso.value = false
             } catch (e: NessunaVoce) {
@@ -256,10 +259,10 @@ private fun descrivi(p: Parola): String = when (p.errore) {
 
 /** Verde dalla soglia in su, ambra fra 60 e la soglia, rosso sotto. Sempre con
  *  la cifra accanto: il colore da solo non dice niente a chi non lo distingue. */
-private fun colore(v: Double): Color = when {
+internal fun colore(v: Double): Color = when {
     v >= SOGLIA_BUONA -> Color(0xFF00796B)
     v >= 60 -> Color(0xFFB26A00)
     else -> Color(0xFFC62828)
 }
 
-private fun uno(v: Double) = String.format(Locale.ITALY, "%.0f", v)
+internal fun uno(v: Double) = String.format(Locale.ITALY, "%.0f", v)
