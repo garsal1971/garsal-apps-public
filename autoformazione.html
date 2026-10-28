@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-formazione v1.0.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00796B;
+            --primary-soft: #E0F2F1;
+            --secondary: #6C5CE7;
+            --success: #00B894;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --dark: #1F2937;
+            --light: #FFFFFF;
+            --muted: #6B7280;
+            --accent: #2563EB;
+            --border: #E5E7EB;
+            --card-bg: #FFFFFF;
+            --input-bg: #F9FAFB;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Coi caratteri di sistema grandi una parola può essere più larga del
+           riquadro: `anywhere` la spezza invece di farla sbordare. */
+        body {
+            overflow-wrap: anywhere;
+            font-family: 'Darker Grotesque', sans-serif;
+            background: var(--light); color: var(--dark);
+            min-height: 100vh; padding-top: 56px; font-size: 1.1rem;
+        }
+        #garsal-top-bar {
+            position: fixed; top: 0; left: 0; right: 0; min-height: 56px;
+            background: #0081C8; display: flex; align-items: center; padding: 0 20px; gap: 10px; z-index: 3000;
+        }
+        #garsal-top-bar-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+        #garsal-top-bar-ver { margin-left: auto; font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.8); }
+        #btnEsci { border: 1.5px solid rgba(255,255,255,0.7); background: none; color: #fff; font: inherit;
+                   font-size: 13px; font-weight: 700; padding: 0.15rem 0.6rem; cursor: pointer; min-height: 2rem; display: none; }
+
+        .wrap { max-width: 56rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+        .page-title { font-size: 2.3rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
+        .page-hint { color: var(--muted); margin: 0.2rem 0 1rem; }
+        /* ⚠️ Le tab scorrono di lato e non vanno a capo: coi caratteri grandi
+           schiacciarle le renderebbe non toccabili. */
+        .tabs { display: flex; gap: 0.4rem; overflow-x: auto; margin-bottom: 1rem; padding-bottom: 0.2rem; }
+        .tab { font: inherit; font-weight: 700; font-size: 1.05rem; white-space: nowrap; cursor: pointer;
+               padding: 0.4rem 0.9rem; min-height: 2.6rem; border: 2px solid var(--primary);
+               background: var(--light); color: var(--primary); flex-shrink: 0; }
+        .tab.on { background: var(--primary); color: #fff; }
+        .card { border: 2px solid var(--border); background: var(--card-bg); padding: 1rem; margin-bottom: 1.2rem; }
+        .form-label { display: block; font-weight: 700; margin: 0.6rem 0 0.3rem; }
+        .form-input, textarea.form-input, select.form-input {
+            width: 100%; font: inherit; font-size: 1.05rem; padding: 0.55rem 0.7rem;
+            border: 2px solid var(--border); background: var(--input-bg); color: var(--dark);
+            min-height: 2.8rem;
+        }
+        textarea.form-input { min-height: 9rem; resize: vertical; font-family: inherit; }
+        textarea#prompt { min-height: 7rem; }
+        .form-input:focus { outline: none; border-color: var(--primary); }
+        .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+        .row > .grow { flex: 1 1 12rem; min-width: 0; }
+        .btn {
+            font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
+            padding: 0.5rem 1rem; min-height: 2.8rem; border: 2px solid var(--primary);
+            background: var(--light); color: var(--primary);
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-conferma { background: var(--success); border-color: var(--success); color: #fff; }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-wide { width: 100%; margin-top: 0.9rem; font-size: 1.2rem; }
+        .muted { color: var(--muted); }
+        .nota { font-size: 0.95rem; color: var(--muted); margin-top: 0.3rem; }
+        .nota.avviso { color: var(--warning); font-weight: 700; }
+
+        .ia-wait { padding: 0.8rem; background: var(--primary-soft); font-weight: 700; margin-top: 1rem; }
+        .form-error { color: var(--danger); font-weight: 700; padding: 0.6rem 0; }
+        .esito { margin-top: 1rem; border: 2px solid var(--primary); padding: 0.8rem 0.9rem; }
+        .voto { display: inline-block; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 1.3rem;
+                padding: 0.1rem 0.6rem; color: #fff; background: var(--primary); }
+        .voto.basso { background: var(--danger); }
+        .voto.medio { background: var(--warning); }
+        .voto.mini { font-size: 0.9rem; padding: 0 0.45rem; }
+        .ia-chi { font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; padding: 0.05rem 0.45rem; background: var(--dark); color: #fff; }
+        .md { line-height: 1.35; }
+        .md p { margin: 0.35rem 0; }
+        .md ul, .md ol { margin: 0.35rem 0 0.35rem 1.4rem; }
+        .md h4 { margin: 0.6rem 0 0.2rem; font-size: 1.15rem; }
+        .md pre { background: #F3F4F6; padding: 0.6rem; overflow-x: auto; font-family: 'Space Mono', monospace; font-size: 0.85rem; white-space: pre; overflow-wrap: normal; }
+        .md code { font-family: 'Space Mono', monospace; font-size: 0.85em; background: #F3F4F6; padding: 0 0.2rem; }
+
+        .ex { border: 2px solid var(--border); padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; }
+        .ex-head { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .ex-head .quando { flex: 1; min-width: 8rem; font-weight: 700; }
+        .ex-testo { white-space: pre-wrap; margin: 0.4rem 0; }
+        .ex details { margin-top: 0.3rem; }
+        .ex summary { cursor: pointer; font-weight: 700; color: var(--primary); }
+        .icon-btn { border: none; background: none; font-size: 1.3rem; cursor: pointer; min-width: 2.4rem; min-height: 2.4rem; }
+
+        #authOverlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 2500;
+            display: none; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .auth-box { text-align: center; font-size: 1.2rem; max-width: 24rem; }
+        .auth-icon { font-size: 3rem; }
+        .auth-title { font-size: 2rem; font-weight: 900; color: var(--primary); margin-bottom: 0.4rem; }
+        #toast {
+            position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%);
+            background: var(--dark); color: #fff; padding: 0.6rem 1rem; font-weight: 700;
+            z-index: 5000; display: none; max-width: calc(100% - 2rem);
+        }
+    </style>
+</head>
+<body>
+
+<div id="garsal-top-bar">
+    <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+        <svg width="22" height="22" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>
+        <div id="garsal-top-bar-text">Garsal Apps</div>
+    </a>
+    <div id="garsal-top-bar-ver"></div>
+    <button id="btnEsci" onclick="esci()">Esci</button>
+</div>
+
+<!-- La pagina di accesso: login suo, non passa da AppSphere. -->
+<div id="authOverlay">
+    <div class="auth-box">
+        <div class="auth-icon">🎓</div>
+        <div class="auth-title">Auto-formazione</div>
+        <div class="muted" style="margin-bottom:1rem">Accedi col tuo account Google.</div>
+        <button class="btn btn-primary btn-wide" onclick="accediConGoogle()">🔐 Accedi con Google</button>
+        <div id="authErr" class="form-error"></div>
+    </div>
+</div>
+
+<div class="wrap">
+    <div class="page-title">🎓 Auto-formazione</div>
+    <div class="page-hint">Scrivi l'esercizio, fattelo correggere da un'IA, e conferma: si salva e si chiude l'azione collegata in Obiettivi.</div>
+
+    <div id="tabs" class="tabs"></div>
+
+    <div class="card">
+        <label class="form-label" for="prompt">🧑‍🏫 Prompt di correzione <span class="muted" style="font-weight:500">(resta salvato)</span></label>
+        <textarea id="prompt" class="form-input" oninput="segnaPromptCambiato()" placeholder="Come deve correggere l'IA…"></textarea>
+        <div class="row" style="margin-top:0.4rem">
+            <button id="btnSalvaPrompt" class="btn" onclick="salvaPrompt()" disabled>💾 Salva prompt</button>
+            <span id="promptStato" class="nota"></span>
+        </div>
+        <div class="nota">Il voto da 1 a 10 lo chiede da sé la correzione: non serve scriverlo nel prompt.</div>
+
+        <label class="form-label" for="azione">🎯 Azione di Obiettivi che la conferma completa</label>
+        <select id="azione" class="form-input" onchange="salvaAzione(this.value)"></select>
+        <div id="azioneNota" class="nota"></div>
+    </div>
+
+    <div class="card">
+        <label class="form-label" for="testo">✍️ Testo dell'esercizio</label>
+        <textarea id="testo" class="form-input" oninput="testoCambiato()" placeholder="Incolla o scrivi qui il testo…"></textarea>
+
+        <label class="form-label" for="motore">🤖 Motore IA</label>
+        <select id="motore" class="form-input" onchange="ricordaFornitore(this.value)"></select>
+
+        <button id="btnCorreggi" class="btn btn-primary btn-wide" onclick="correggi()">🚀 Correggi</button>
+        <div id="risultato"></div>
+    </div>
+
+    <div class="page-title" style="font-size:1.8rem">🗂 Esercizi fatti</div>
+    <div id="storico" style="margin-top:0.8rem"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// AUTO-FORMAZIONE — versione
+// ════════════════════════════════════════════════════════════
+var APP_VERSION = 'v1.0.0';
+var BUILD_TIME  = '2026-10-28T10:00:00Z';
+console.log('%c 🎓 AUTO-FORMAZIONE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+    'background:#00796B;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+    'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+function log(...a) { console.log('[autoformazione]', ...a); }
+log('AUTO-FORMAZIONE ' + APP_VERSION + ' — build: ' + BUILD_TIME);
+
+// ════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════
+const _DEV_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0'];
+const _IS_DEV = _DEV_HOSTS.includes(window.location.hostname)
+             || (window.location.hostname.endsWith('.pages.dev') && window.location.hostname.split('.').length > 3);
+
+const SUPABASE_URL = _IS_DEV
+    ? 'https://hcmmywitrbmcsmytjbaf.supabase.co'
+    : 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
+const SUPABASE_KEY = _IS_DEV
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
+const FUNZIONE = `${SUPABASE_URL}/functions/v1/af-ai`;
+
+// ════════════════════════════════════════════════════════════
+// I TIPI DI ESERCIZIO — aggiungerne uno è una riga qui: la riga di
+// af_exercise_types nasce da sé al primo accesso. ⚠️ `key` non si cambia:
+// è quella che lega il tipo alle sue righe in archivio.
+// ════════════════════════════════════════════════════════════
+const TIPI = [
+    { key: 'inglese_mail', name: '✉️ Esercizi inglese mail',
+      prompt: "Sei un insegnante di inglese commerciale. Correggi la mail che segue: elenca gli errori di grammatica, lessico e tono, spiega ciascuno in italiano, poi riscrivi la mail corretta in un inglese professionale e naturale." },
+];
+
+const S = {
+    tipi: [],            // righe di af_exercise_types, nell'ordine di TIPI
+    tipoKey: null,
+    azioni: [],          // ob_actions ancora aperte
+    esercizi: [],        // af_exercises del tipo aperto
+    fornitori: null,
+    inCorso: false,
+    correzione: null,    // { prompt, testo, answer, voto, provider, model } in attesa di conferma
+};
+let sb = null;
+
+// ════════════════════════════════════════════════════════════
+// AUTH — pagina di accesso propria (Google), sessione in af_session.
+// ⚠️ Si rinnova da sé col refresh token: un access token dura un'ora, e
+// un esercizio scritto con calma non deve morire alla ✅ Conferma.
+// ════════════════════════════════════════════════════════════
+const SESSION_KEY = 'af_session';
+const salvaSessione = s => { try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch {} };
+const leggiSessione = () => { try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; } };
+const togliSessione = () => { try { localStorage.removeItem(SESSION_KEY); } catch {} };
+let sessione = null;
+
+function accediConGoogle() {
+    location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(location.origin + location.pathname)}`;
+}
+function daRitornoOAuth() {
+    const p = new URLSearchParams(location.hash.substring(1));
+    const at = p.get('access_token');
+    if (!at) {
+        const err = p.get('error_description');
+        if (err) document.getElementById('authErr').textContent = err;
+        return null;
+    }
+    const s = { access_token: at, refresh_token: p.get('refresh_token'),
+                expires_at: Date.now() + (parseInt(p.get('expires_in'), 10) || 3600) * 1000 };
+    history.replaceState(null, '', location.pathname);
+    salvaSessione(s);
+    return s;
+}
+async function rinnova(s) {
+    if (!s?.refresh_token) return null;
+    try {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+            method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: s.refresh_token }),
+        });
+        if (!r.ok) return null;
+        const d = await r.json();
+        const ns = { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: Date.now() + d.expires_in * 1000 };
+        salvaSessione(ns);
+        return ns;
+    } catch { return null; }
+}
+function creaClient(token) {
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth:   { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+}
+/** Il token buono per la prossima chiamata, rinnovato se scade entro un minuto. */
+async function token() {
+    if (!sessione) throw new Error('sessione scaduta');
+    if (sessione.expires_at - Date.now() < 60_000) {
+        const ns = await rinnova(sessione);
+        if (!ns) { mostraLogin(); throw new Error('sessione scaduta: accedi di nuovo'); }
+        sessione = ns; sb = creaClient(ns.access_token);
+    }
+    return sessione.access_token;
+}
+function mostraLogin() {
+    sessione = null; sb = null; togliSessione();
+    document.getElementById('authOverlay').style.display = 'flex';
+    document.getElementById('btnEsci').style.display = 'none';
+}
+async function esci() {
+    try { await fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${sessione?.access_token}` } }); } catch {}
+    mostraLogin();
+}
+
+window.addEventListener('load', async () => {
+    document.getElementById('garsal-top-bar-ver').textContent = APP_VERSION + (_IS_DEV ? ' · DEV' : '');
+    let s = daRitornoOAuth() || leggiSessione();
+    if (s && s.expires_at - Date.now() < 60_000) s = await rinnova(s);
+    if (!s) { mostraLogin(); return; }
+    sessione = s; sb = creaClient(s.access_token);
+    document.getElementById('btnEsci').style.display = 'inline-block';
+    try { await avvia(); }
+    catch (e) {
+        if (/jwt|401|sessione/i.test(e.message || '')) mostraLogin();
+        else showToast('Errore: ' + e.message, 5000);
+    }
+});
+
+// ════════════════════════════════════════════════════════════
+// UTILITÀ
+// ════════════════════════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+let toastTimer = null;
+function showToast(msg, ms = 2600) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.style.display = 'none'; }, ms);
+}
+function todayISO() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function dataOra(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+         + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+function classeVoto(v) { return v <= 5 ? 'basso' : v <= 6 ? 'medio' : ''; }
+function tipo() { return S.tipi.find(t => t.key === S.tipoKey) || null; }
+
+// ════════════════════════════════════════════════════════════
+// AVVIO
+// ════════════════════════════════════════════════════════════
+async function avvia() {
+    await token();
+    await Promise.all([caricaTipi(), caricaAzioni(), caricaFornitori()]);
+    S.tipoKey = S.tipoKey || TIPI[0].key;
+    renderTabs(); renderTipo();
+    await caricaEsercizi();
+}
+
+/** Legge i tipi e crea quelli che mancano, col prompt di partenza. */
+async function caricaTipi() {
+    let { data, error } = await sb.from('af_exercise_types').select('*');
+    if (error) throw error;
+    const mancano = TIPI.filter(t => !data.some(r => r.key === t.key));
+    if (mancano.length) {
+        const ins = await sb.from('af_exercise_types')
+            .insert(mancano.map(t => ({ key: t.key, name: t.name, prompt: t.prompt }))).select('*');
+        if (ins.error) throw ins.error;
+        data = data.concat(ins.data);
+    }
+    S.tipi = TIPI.map(t => data.find(r => r.key === t.key)).filter(Boolean);
+}
+
+/** Le azioni ancora aperte. ⚠️ Fuori i workflow: si chiudono dai loro step. */
+async function caricaAzioni() {
+    const [az, ob] = await Promise.all([
+        sb.from('ob_actions').select('id, title, type, status, objective_id').neq('status', 'terminated').order('title'),
+        sb.from('ob_objectives').select('id, title'),
+    ]);
+    if (az.error) { console.warn('ob_actions:', az.error.message); S.azioni = []; return; }
+    const nomeOb = Object.fromEntries((ob.data || []).map(o => [o.id, o.title]));
+    S.azioni = (az.data || []).filter(a => a.type !== 'workflow')
+        .map(a => ({ ...a, obiettivo: nomeOb[a.objective_id] || '' }));
+}
+
+async function caricaEsercizi() {
+    const t = tipo();
+    if (!t) return;
+    const { data, error } = await sb.from('af_exercises').select('*')
+        .eq('type_id', t.id).order('created_at', { ascending: false }).limit(200);
+    if (error) { showToast('Errore: ' + error.message, 5000); return; }
+    S.esercizi = data || [];
+    renderStorico();
+}
+
+// ════════════════════════════════════════════════════════════
+// TIPO DI ESERCIZIO — prompt e azione collegata
+// ════════════════════════════════════════════════════════════
+function renderTabs() {
+    document.getElementById('tabs').innerHTML = S.tipi.map(t =>
+        `<button class="tab ${t.key === S.tipoKey ? 'on' : ''}" onclick="apriTipo('${esc(t.key)}')">${esc(t.name)}</button>`).join('');
+}
+async function apriTipo(key) {
+    if (key === S.tipoKey) return;
+    if (promptCambiato() && !confirm('Il prompt è cambiato e non è salvato: lo butto via?')) return;
+    S.tipoKey = key; S.correzione = null;
+    document.getElementById('testo').value = '';
+    document.getElementById('risultato').innerHTML = '';
+    renderTabs(); renderTipo();
+    await caricaEsercizi();
+}
+function renderTipo() {
+    const t = tipo();
+    document.getElementById('prompt').value = t?.prompt || '';
+    segnaPromptCambiato();
+    renderAzioni();
+}
+function promptCambiato() { return (document.getElementById('prompt').value || '') !== (tipo()?.prompt || ''); }
+function segnaPromptCambiato() {
+    const c = promptCambiato();
+    document.getElementById('btnSalvaPrompt').disabled = !c;
+    document.getElementById('promptStato').textContent = c ? '✏️ modificato, non ancora salvato' : '';
+}
+async function salvaPrompt() {
+    const t = tipo(); if (!t) return;
+    const nuovo = document.getElementById('prompt').value.trim();
+    if (!nuovo) { showToast('Il prompt non può essere vuoto'); return; }
+    try {
+        await token();
+        const { error } = await sb.from('af_exercise_types')
+            .update({ prompt: nuovo, updated_at: new Date().toISOString() }).eq('id', t.id);
+        if (error) throw error;
+        t.prompt = nuovo;
+        document.getElementById('prompt').value = nuovo;
+        segnaPromptCambiato();
+        showToast('💾 Prompt salvato');
+    } catch (e) { showToast('Errore: ' + e.message, 5000); }
+}
+
+function renderAzioni() {
+    const t = tipo(), sel = document.getElementById('azione'), nota = document.getElementById('azioneNota');
+    const collegata = t?.ob_action_id || '';
+    // ⚠️ Un'azione collegata che non è più aperta resta in tendina, marcata:
+    // sparire direbbe «nessuna azione» per una scelta che invece c'è.
+    const fuori = collegata && !S.azioni.some(a => a.id === collegata);
+    sel.innerHTML = `<option value="">— nessuna —</option>`
+        + (fuori ? `<option value="${esc(collegata)}" selected>⚠️ azione conclusa o non trovata</option>` : '')
+        + S.azioni.map(a => `<option value="${a.id}" ${a.id === collegata ? 'selected' : ''}>${esc(a.title)}${a.obiettivo ? ' — ' + esc(a.obiettivo) : ''}</option>`).join('');
+    nota.className = 'nota' + (!collegata || fuori ? ' avviso' : '');
+    nota.textContent = !collegata ? 'Nessuna azione collegata: la conferma salverà solo l\'esercizio.'
+        : fuori ? 'L\'azione collegata non è più aperta: scegline un\'altra.' : '';
+}
+async function salvaAzione(id) {
+    const t = tipo(); if (!t) return;
+    try {
+        await token();
+        const { error } = await sb.from('af_exercise_types')
+            .update({ ob_action_id: id || null, updated_at: new Date().toISOString() }).eq('id', t.id);
+        if (error) throw error;
+        t.ob_action_id = id || null;
+        showToast(id ? '🎯 Azione collegata' : 'Azione scollegata');
+    } catch (e) { showToast('Errore: ' + e.message, 5000); }
+    renderAzioni();
+}
+
+// ════════════════════════════════════════════════════════════
+// MOTORE IA — ⚠️ AVVISO_COSTO è la stessa tabella di piante.html e
+// chiedi-a-pino.html: vanno cambiate insieme.
+// ════════════════════════════════════════════════════════════
+const FORNITORI_TUTTI = [
+    { id: 'gemini', nome: 'Gemini' }, { id: 'qwen', nome: 'Qwen' },
+    { id: 'groq', nome: 'Groq' }, { id: 'claude', nome: 'Claude' },
+];
+const AVVISO_COSTO = {
+    claude: 'Claude si paga a consumo: questa domanda viene addebitata sulla chiave Anthropic.',
+    qwen: 'Qwen è gratuito solo finché dura il credito iniziale di Alibaba: dopo, questa domanda si paga.',
+};
+function fornitoreRicordato() { try { return localStorage.getItem('af_fornitore') || ''; } catch { return ''; } }
+function ricordaFornitore(v) { try { localStorage.setItem('af_fornitore', v); } catch {} }
+function elencoFornitori() { return S.fornitori?.length ? S.fornitori : FORNITORI_TUTTI; }
+function renderMotori() {
+    const elenco = elencoFornitori(), r = fornitoreRicordato();
+    const scelto = elenco.some(f => f.id === r) ? r : (elenco[0]?.id || 'gemini');
+    document.getElementById('motore').innerHTML = elenco.map(f =>
+        `<option value="${f.id}" ${f.id === scelto ? 'selected' : ''}>🤖 ${esc(f.nome)}${AVVISO_COSTO[f.id] ? ' 💶' : ''}</option>`).join('');
+}
+async function caricaFornitori() {
+    renderMotori();
+    try {
+        const r = await fetch(FUNZIONE, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${await token()}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'fornitori' }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.ok && Array.isArray(j.fornitori)) S.fornitori = j.fornitori;
+    } catch (e) { console.warn('fornitori IA:', e.message); }
+    renderMotori();
+}
+
+// ════════════════════════════════════════════════════════════
+// CORREZIONE E CONFERMA
+// ⚠️ La correzione non scrive niente: la riga nasce solo alla ✅ Conferma.
+// ════════════════════════════════════════════════════════════
+function testoCambiato() {
+    // Una correzione vale per il testo che ha corretto: cambiato il testo,
+    // confermarla salverebbe un voto dato a un'altra cosa.
+    if (S.correzione && document.getElementById('testo').value.trim() !== S.correzione.testo) {
+        S.correzione = null;
+        document.getElementById('risultato').innerHTML =
+            '<div class="nota avviso">Il testo è cambiato: rifai la correzione per poterla confermare.</div>';
+    }
+}
+
+async function correggi() {
+    if (S.inCorso) return;
+    const prompt = document.getElementById('prompt').value.trim();
+    const testo  = document.getElementById('testo').value.trim();
+    if (!prompt) { showToast('Scrivi il prompt di correzione'); return; }
+    if (!testo)  { showToast("Scrivi il testo dell'esercizio"); return; }
+    const scelta = document.getElementById('motore').value;
+    if (AVVISO_COSTO[scelta] && !confirm('💶 ' + AVVISO_COSTO[scelta] + '\n\nGemini e Groq sono gratuiti.\n\nMando lo stesso l\'esercizio?')) return;
+
+    S.inCorso = true; S.correzione = null;
+    const btn = document.getElementById('btnCorreggi'), out = document.getElementById('risultato');
+    btn.disabled = true;
+    out.innerHTML = '<div class="ia-wait">⏳ Correzione in corso…</div>';
+    try {
+        const r = await fetch(FUNZIONE, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${await token()}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, testo, provider: scelta }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 401) { mostraLogin(); throw new Error('sessione scaduta: accedi di nuovo'); }
+        if (!r.ok || !j.ok) throw new Error(j.error || 'HTTP ' + r.status);
+        S.correzione = { prompt, testo, answer: j.answer, voto: j.voto, provider: j.provider, model: j.model };
+        renderCorrezione();
+    } catch (e) {
+        out.innerHTML = `<div class="form-error">❌ ${esc(e.message)}</div>`;
+    } finally {
+        S.inCorso = false; btn.disabled = false;
+    }
+}
+
+function renderCorrezione() {
+    const c = S.correzione, out = document.getElementById('risultato');
+    if (!c) { out.innerHTML = ''; return; }
+    // ⚠️ Senza un voto leggibile la conferma resta spenta: si rifà la correzione.
+    const votoHtml = c.voto
+        ? `<span class="voto ${classeVoto(c.voto)}">${c.voto}/10</span>`
+        : `<span class="form-error" style="padding:0">⚠️ L'IA non ha dato un voto leggibile: rifai la correzione.</span>`;
+    out.innerHTML = `
+        <div class="esito">
+            <div class="row">${votoHtml}<span class="ia-chi">${esc(c.provider || '')}${c.model ? ' · ' + esc(c.model) : ''}</span></div>
+            <div class="md" style="margin-top:0.5rem">${markdownSemplice(c.answer)}</div>
+        </div>
+        <button id="btnConferma" class="btn btn-conferma btn-wide" onclick="conferma()" ${c.voto ? '' : 'disabled'}>✅ Conferma e salva</button>`;
+}
+
+async function conferma() {
+    const c = S.correzione, t = tipo();
+    if (!c || !c.voto || !t) return;
+    const azioneId = t.ob_action_id && S.azioni.some(a => a.id === t.ob_action_id) ? t.ob_action_id : null;
+    if (!azioneId && !confirm('Nessuna azione di Obiettivi aperta è collegata a questo tipo di esercizio.\n\nSalvo solo l\'esercizio?')) return;
+    const btn = document.getElementById('btnConferma');
+    btn.disabled = true;
+    try {
+        await token();
+        // ⚠️ Prima l'esercizio, poi l'azione: un'azione chiusa senza
+        // l'esercizio che la giustifica sarebbe un punto preso per niente.
+        const { error } = await sb.from('af_exercises').insert({
+            type_id: t.id, text: c.testo, prompt: c.prompt, answer: c.answer, voto: c.voto,
+            provider: c.provider, model: c.model, ob_action_id: azioneId,
+        });
+        if (error) throw error;
+        S.correzione = null;
+        document.getElementById('testo').value = '';
+        document.getElementById('risultato').innerHTML = '';
+
+        if (azioneId) {
+            const { data, error: errAz } = await sb.rpc('ob_action_complete', { p_action_id: azioneId, p_today: todayISO() });
+            if (errAz || !data?.ok) {
+                showToast('💾 Esercizio salvato, ma l\'azione NON è stata completata: ' + (errAz?.message || data?.error || '?') + ' — chiudila da Obiettivi.', 8000);
+            } else {
+                showToast(`✅ Salvato · azione completata${data.points ? ' (' + (data.points > 0 ? '+' : '') + data.points + ' punti)' : ''}`, 4000);
+            }
+            await caricaAzioni(); renderAzioni();
+        } else {
+            showToast('💾 Esercizio salvato');
+        }
+        await caricaEsercizi();
+    } catch (e) {
+        btn.disabled = false;
+        showToast('Errore: ' + e.message, 5000);
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// STORICO
+// ════════════════════════════════════════════════════════════
+function renderStorico() {
+    const el = document.getElementById('storico');
+    if (!S.esercizi.length) { el.innerHTML = '<div class="muted">Nessun esercizio ancora.</div>'; return; }
+    const media = S.esercizi.filter(e => e.voto).reduce((s, e, _, a) => s + e.voto / a.length, 0);
+    el.innerHTML = `<div class="nota" style="margin-bottom:0.6rem">${S.esercizi.length} esercizi · voto medio ${media.toFixed(1).replace('.', ',')}/10</div>`
+        + S.esercizi.map(e => `
+        <div class="ex">
+            <div class="ex-head">
+                <button class="icon-btn" title="Elimina" onclick="eliminaEsercizio('${e.id}')">🗑</button>
+                <span class="quando">${dataOra(e.created_at)}</span>
+                ${e.voto ? `<span class="voto mini ${classeVoto(e.voto)}">${e.voto}/10</span>` : ''}
+                ${e.provider ? `<span class="ia-chi">${esc(e.provider)}</span>` : ''}
+            </div>
+            <div class="ex-testo">${esc(e.text)}</div>
+            <details><summary>Correzione</summary><div class="md">${markdownSemplice(e.answer)}</div></details>
+            <details><summary>Prompt usato</summary><div class="ex-testo muted">${esc(e.prompt)}</div></details>
+        </div>`).join('');
+}
+async function eliminaEsercizio(id) {
+    if (!confirm('Elimino questo esercizio?\n\nL\'azione di Obiettivi già completata NON torna indietro.')) return;
+    try {
+        await token();
+        const { error } = await sb.from('af_exercises').delete().eq('id', id);
+        if (error) throw error;
+        S.esercizi = S.esercizi.filter(e => e.id !== id);
+        renderStorico();
+    } catch (e) { showToast('Errore: ' + e.message, 5000); }
+}
+
+// Il Markdown si disegna da testo GIÀ escapato: l'HTML di una risposta non
+// entra mai nella pagina. Copia di markdownSemplice() di chiedi-a-pino.html.
+function markdownSemplice(md) {
+    const righe = esc(md).split('\n');
+    let html = '', lista = null, codice = null;
+    const inline = s => s.replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<i>$2</i>');
+    const chiudi = () => { if (lista) { html += `</${lista}>`; lista = null; } };
+    for (const r of righe) {
+        const t = r.trim();
+        let m;
+        if (t.startsWith('```')) {
+            if (codice === null) { chiudi(); codice = ''; } else { html += `<pre>${codice}</pre>`; codice = null; }
+            continue;
+        }
+        if (codice !== null) { codice += r + '\n'; continue; }
+        if (!t) { chiudi(); continue; }
+        if ((m = t.match(/^#{1,6}\s+(.*)$/))) { chiudi(); html += `<h4>${inline(m[1])}</h4>`; continue; }
+        if ((m = t.match(/^[-*•]\s+(.*)$/))) { if (lista !== 'ul') { chiudi(); html += '<ul>'; lista = 'ul'; } html += `<li>${inline(m[1])}</li>`; continue; }
+        if ((m = t.match(/^\d+[.)]\s+(.*)$/))) { if (lista !== 'ol') { chiudi(); html += '<ol>'; lista = 'ol'; } html += `<li>${inline(m[1])}</li>`; continue; }
+        chiudi(); html += `<p>${inline(t)}</p>`;
+    }
+    if (codice !== null) html += `<pre>${codice}</pre>`;
+    chiudi();
+    return html;
+}
+</script>
+</body>
+</html>
