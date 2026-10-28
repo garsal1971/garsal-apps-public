@@ -1,0 +1,1445 @@
+{
+ "version": 1,
+ "phrases": [
+  {
+   "id": "a1-v-01",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Where is the train station?"
+  },
+  {
+   "id": "a1-v-02",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "I would like a single ticket, please."
+  },
+  {
+   "id": "a1-v-03",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "How much is a return ticket?"
+  },
+  {
+   "id": "a1-v-04",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "The bus leaves at ten o'clock."
+  },
+  {
+   "id": "a1-v-05",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Is this seat free?"
+  },
+  {
+   "id": "a1-v-06",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "My hotel is near the river."
+  },
+  {
+   "id": "a1-v-07",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Can I have a map of the city?"
+  },
+  {
+   "id": "a1-v-08",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Excuse me, where are the toilets?"
+  },
+  {
+   "id": "a1-v-09",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "I am going to London tomorrow."
+  },
+  {
+   "id": "a1-v-10",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "The plane is late today."
+  },
+  {
+   "id": "a1-v-11",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "We need a taxi to the airport."
+  },
+  {
+   "id": "a1-v-12",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "This is my passport."
+  },
+  {
+   "id": "a1-v-13",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Is breakfast included?"
+  },
+  {
+   "id": "a1-v-14",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "The museum opens at nine."
+  },
+  {
+   "id": "a1-v-15",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "I lost my bag at the station."
+  },
+  {
+   "id": "a1-v-16",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Can you help me, please?"
+  },
+  {
+   "id": "a1-v-17",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "The beach is very beautiful."
+  },
+  {
+   "id": "a1-v-18",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "We are staying for three nights."
+  },
+  {
+   "id": "a1-v-19",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "Which platform is the train to Oxford?"
+  },
+  {
+   "id": "a1-v-20",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "I love travelling by train."
+  },
+  {
+   "id": "a1-p-01",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The Prime Minister lives in London."
+  },
+  {
+   "id": "a1-p-02",
+   "level": "A1",
+   "theme": "politica",
+   "text": "People vote in an election."
+  },
+  {
+   "id": "a1-p-03",
+   "level": "A1",
+   "theme": "politica",
+   "text": "Parliament is in Westminster."
+  },
+  {
+   "id": "a1-p-04",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The King opens Parliament."
+  },
+  {
+   "id": "a1-p-05",
+   "level": "A1",
+   "theme": "politica",
+   "text": "I always vote on election day."
+  },
+  {
+   "id": "a1-p-06",
+   "level": "A1",
+   "theme": "politica",
+   "text": "There are many political parties."
+  },
+  {
+   "id": "a1-p-07",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The government makes new laws."
+  },
+  {
+   "id": "a1-p-08",
+   "level": "A1",
+   "theme": "politica",
+   "text": "My town has a new mayor."
+  },
+  {
+   "id": "a1-p-09",
+   "level": "A1",
+   "theme": "politica",
+   "text": "Everyone can say what they think."
+  },
+  {
+   "id": "a1-p-10",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The minister is on the news."
+  },
+  {
+   "id": "a1-p-11",
+   "level": "A1",
+   "theme": "politica",
+   "text": "We pay taxes every year."
+  },
+  {
+   "id": "a1-p-12",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The election is next Thursday."
+  },
+  {
+   "id": "a1-p-13",
+   "level": "A1",
+   "theme": "politica",
+   "text": "She is a member of Parliament."
+  },
+  {
+   "id": "a1-p-14",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The people choose their leaders."
+  },
+  {
+   "id": "a1-p-15",
+   "level": "A1",
+   "theme": "politica",
+   "text": "This law is very important."
+  },
+  {
+   "id": "a1-p-16",
+   "level": "A1",
+   "theme": "politica",
+   "text": "He reads the newspaper every morning."
+  },
+  {
+   "id": "a1-p-17",
+   "level": "A1",
+   "theme": "politica",
+   "text": "Schools are free for children."
+  },
+  {
+   "id": "a1-p-18",
+   "level": "A1",
+   "theme": "politica",
+   "text": "The leader gave a short speech."
+  },
+  {
+   "id": "a1-p-19",
+   "level": "A1",
+   "theme": "politica",
+   "text": "Many people agree with this idea."
+  },
+  {
+   "id": "a1-p-20",
+   "level": "A1",
+   "theme": "politica",
+   "text": "Voting is a right and a duty."
+  },
+  {
+   "id": "a1-s-01",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The castle is very old."
+  },
+  {
+   "id": "a1-s-02",
+   "level": "A1",
+   "theme": "storia",
+   "text": "Queen Victoria was a famous queen."
+  },
+  {
+   "id": "a1-s-03",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The Romans built roads in Britain."
+  },
+  {
+   "id": "a1-s-04",
+   "level": "A1",
+   "theme": "storia",
+   "text": "This church is eight hundred years old."
+  },
+  {
+   "id": "a1-s-05",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The Tower of London is a famous castle."
+  },
+  {
+   "id": "a1-s-06",
+   "level": "A1",
+   "theme": "storia",
+   "text": "Henry the Eighth had six wives."
+  },
+  {
+   "id": "a1-s-07",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The Vikings came by boat."
+  },
+  {
+   "id": "a1-s-08",
+   "level": "A1",
+   "theme": "storia",
+   "text": "My grandfather was a soldier."
+  },
+  {
+   "id": "a1-s-09",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The war ended in nineteen forty-five."
+  },
+  {
+   "id": "a1-s-10",
+   "level": "A1",
+   "theme": "storia",
+   "text": "People lived in small houses."
+  },
+  {
+   "id": "a1-s-11",
+   "level": "A1",
+   "theme": "storia",
+   "text": "Stonehenge is very, very old."
+  },
+  {
+   "id": "a1-s-12",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The king lived in a big palace."
+  },
+  {
+   "id": "a1-s-13",
+   "level": "A1",
+   "theme": "storia",
+   "text": "Many children did not go to school."
+  },
+  {
+   "id": "a1-s-14",
+   "level": "A1",
+   "theme": "storia",
+   "text": "There was no electricity then."
+  },
+  {
+   "id": "a1-s-15",
+   "level": "A1",
+   "theme": "storia",
+   "text": "This museum has old coins."
+  },
+  {
+   "id": "a1-s-16",
+   "level": "A1",
+   "theme": "storia",
+   "text": "Shakespeare wrote many plays."
+  },
+  {
+   "id": "a1-s-17",
+   "level": "A1",
+   "theme": "storia",
+   "text": "The old bridge is made of stone."
+  },
+  {
+   "id": "a1-s-18",
+   "level": "A1",
+   "theme": "storia",
+   "text": "They found gold in the river."
+  },
+  {
+   "id": "a1-s-19",
+   "level": "A1",
+   "theme": "storia",
+   "text": "London had a great fire in sixteen sixty-six."
+  },
+  {
+   "id": "a1-s-20",
+   "level": "A1",
+   "theme": "storia",
+   "text": "History is my favourite subject."
+  },
+  {
+   "id": "a2-v-01",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Could you tell me the way to the nearest bus stop?"
+  },
+  {
+   "id": "a2-v-02",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "I'd like to book a double room for two nights."
+  },
+  {
+   "id": "a2-v-03",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Our flight was delayed because of the bad weather."
+  },
+  {
+   "id": "a2-v-04",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Do I need to change trains at Birmingham?"
+  },
+  {
+   "id": "a2-v-05",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "We're planning to spend a week in Scotland this summer."
+  },
+  {
+   "id": "a2-v-06",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "I left my umbrella on the train this morning."
+  },
+  {
+   "id": "a2-v-07",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Is there a cash machine near the hotel?"
+  },
+  {
+   "id": "a2-v-08",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "The tour starts outside the town hall at half past nine."
+  },
+  {
+   "id": "a2-v-09",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Can I pay by card, or do you only take cash?"
+  },
+  {
+   "id": "a2-v-10",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "We hired a car and drove along the coast."
+  },
+  {
+   "id": "a2-v-11",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "The underground is the quickest way to get around London."
+  },
+  {
+   "id": "a2-v-12",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "I'd prefer a window seat if possible."
+  },
+  {
+   "id": "a2-v-13",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Remember to keep your ticket until the end of the journey."
+  },
+  {
+   "id": "a2-v-14",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "The guest house was small but very comfortable."
+  },
+  {
+   "id": "a2-v-15",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "How long does it take to walk to the cathedral?"
+  },
+  {
+   "id": "a2-v-16",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "We missed the last ferry and had to stay overnight."
+  },
+  {
+   "id": "a2-v-17",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "The receptionist recommended a lovely pub nearby."
+  },
+  {
+   "id": "a2-v-18",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "Please mind the gap between the train and the platform."
+  },
+  {
+   "id": "a2-v-19",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "It rained all week, but we still enjoyed the holiday."
+  },
+  {
+   "id": "a2-v-20",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "I always pack my suitcase the night before I travel."
+  },
+  {
+   "id": "a2-p-01",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The general election takes place every five years."
+  },
+  {
+   "id": "a2-p-02",
+   "level": "A2",
+   "theme": "politica",
+   "text": "Members of Parliament represent their local area."
+  },
+  {
+   "id": "a2-p-03",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The opposition criticised the new budget yesterday."
+  },
+  {
+   "id": "a2-p-04",
+   "level": "A2",
+   "theme": "politica",
+   "text": "Many young people didn't vote in the last election."
+  },
+  {
+   "id": "a2-p-05",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The council wants to build more houses in our town."
+  },
+  {
+   "id": "a2-p-06",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The Prime Minister answers questions every Wednesday."
+  },
+  {
+   "id": "a2-p-07",
+   "level": "A2",
+   "theme": "politica",
+   "text": "She decided to stand as a candidate for her party."
+  },
+  {
+   "id": "a2-p-08",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The new law will come into force next spring."
+  },
+  {
+   "id": "a2-p-09",
+   "level": "A2",
+   "theme": "politica",
+   "text": "People protested outside Parliament about the cuts."
+  },
+  {
+   "id": "a2-p-10",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The government promised to spend more on hospitals."
+  },
+  {
+   "id": "a2-p-11",
+   "level": "A2",
+   "theme": "politica",
+   "text": "Local elections are usually held in May."
+  },
+  {
+   "id": "a2-p-12",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The two leaders met to discuss the economy."
+  },
+  {
+   "id": "a2-p-13",
+   "level": "A2",
+   "theme": "politica",
+   "text": "Most people get their news from television or online."
+  },
+  {
+   "id": "a2-p-14",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The minister resigned after the scandal."
+  },
+  {
+   "id": "a2-p-15",
+   "level": "A2",
+   "theme": "politica",
+   "text": "Every vote counts, so please don't stay at home."
+  },
+  {
+   "id": "a2-p-16",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The debate lasted for more than three hours."
+  },
+  {
+   "id": "a2-p-17",
+   "level": "A2",
+   "theme": "politica",
+   "text": "They're asking the public for their opinion."
+  },
+  {
+   "id": "a2-p-18",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The party won the most seats in the north."
+  },
+  {
+   "id": "a2-p-19",
+   "level": "A2",
+   "theme": "politica",
+   "text": "Taxes pay for roads, schools and the police."
+  },
+  {
+   "id": "a2-p-20",
+   "level": "A2",
+   "theme": "politica",
+   "text": "The House of Lords checks new laws carefully."
+  },
+  {
+   "id": "a2-s-01",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The Normans invaded England in ten sixty-six."
+  },
+  {
+   "id": "a2-s-02",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Hadrian's Wall was built to protect the Roman province."
+  },
+  {
+   "id": "a2-s-03",
+   "level": "A2",
+   "theme": "storia",
+   "text": "During the war, many children were sent to the countryside."
+  },
+  {
+   "id": "a2-s-04",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The Industrial Revolution began in Britain."
+  },
+  {
+   "id": "a2-s-05",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Queen Elizabeth the First never married."
+  },
+  {
+   "id": "a2-s-06",
+   "level": "A2",
+   "theme": "storia",
+   "text": "People travelled by horse and carriage before the railways."
+  },
+  {
+   "id": "a2-s-07",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The first railway opened in the north of England."
+  },
+  {
+   "id": "a2-s-08",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Many castles were built to defend the border."
+  },
+  {
+   "id": "a2-s-09",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The Great Fire destroyed much of the old city."
+  },
+  {
+   "id": "a2-s-10",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Women won the right to vote after a long campaign."
+  },
+  {
+   "id": "a2-s-11",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The museum explains how people lived in the Middle Ages."
+  },
+  {
+   "id": "a2-s-12",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Archaeologists discovered a Saxon village under the field."
+  },
+  {
+   "id": "a2-s-13",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The ship sank on its first voyage across the Atlantic."
+  },
+  {
+   "id": "a2-s-14",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Charles Dickens wrote about life for poor people in London."
+  },
+  {
+   "id": "a2-s-15",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The monks copied books by hand in the monastery."
+  },
+  {
+   "id": "a2-s-16",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The Romans left Britain at the beginning of the fifth century."
+  },
+  {
+   "id": "a2-s-17",
+   "level": "A2",
+   "theme": "storia",
+   "text": "Coal mining was once very important in Wales."
+  },
+  {
+   "id": "a2-s-18",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The empire was huge, but it slowly became smaller."
+  },
+  {
+   "id": "a2-s-19",
+   "level": "A2",
+   "theme": "storia",
+   "text": "My great-grandmother remembered the end of the First World War."
+  },
+  {
+   "id": "a2-s-20",
+   "level": "A2",
+   "theme": "storia",
+   "text": "The old maps show how much the coastline has changed."
+  },
+  {
+   "id": "b1-v-01",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "If the train had been on time, we wouldn't have missed our connection."
+  },
+  {
+   "id": "b1-v-02",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "I'd recommend booking your accommodation well in advance during the summer."
+  },
+  {
+   "id": "b1-v-03",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "The airline lost my luggage, so I had to buy a few things at the airport."
+  },
+  {
+   "id": "b1-v-04",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "We took a detour through the Lake District because the scenery is breathtaking."
+  },
+  {
+   "id": "b1-v-05",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "Although the hostel was quite basic, the staff were incredibly friendly."
+  },
+  {
+   "id": "b1-v-06",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "You can get a railcard that gives you a third off most fares."
+  },
+  {
+   "id": "b1-v-07",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "I've been to Edinburgh several times, but I've never visited the Highlands."
+  },
+  {
+   "id": "b1-v-08",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "The tour guide explained the history of every building we walked past."
+  },
+  {
+   "id": "b1-v-09",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "Travelling on your own can be a great way to meet new people."
+  },
+  {
+   "id": "b1-v-10",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "We were advised to avoid the city centre during the rush hour."
+  },
+  {
+   "id": "b1-v-11",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "The ferry crossing was rather rough, and half the passengers felt seasick."
+  },
+  {
+   "id": "b1-v-12",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "If you're going to Cornwall, you really ought to try a proper pasty."
+  },
+  {
+   "id": "b1-v-13",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "The holiday was fantastic, apart from the queue at passport control."
+  },
+  {
+   "id": "b1-v-14",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "I'm thinking of travelling around Ireland by bike next year."
+  },
+  {
+   "id": "b1-v-15",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "The hotel offered us an upgrade because our original room wasn't ready."
+  },
+  {
+   "id": "b1-v-16",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "It's worth checking the weather forecast before you set off on a long walk."
+  },
+  {
+   "id": "b1-v-17",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "Our cottage was miles from anywhere, which was exactly what we wanted."
+  },
+  {
+   "id": "b1-v-18",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "The cheapest tickets aren't always the best value for money."
+  },
+  {
+   "id": "b1-v-19",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "We arrived just as the castle was closing, so we'll have to go back."
+  },
+  {
+   "id": "b1-v-20",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "Learning a few local phrases makes a real difference when you travel."
+  },
+  {
+   "id": "b1-p-01",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The government has been criticised for failing to tackle the housing crisis."
+  },
+  {
+   "id": "b1-p-02",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Opinion polls suggest that the election result will be extremely close."
+  },
+  {
+   "id": "b1-p-03",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Several ministers have publicly disagreed with the Prime Minister's plans."
+  },
+  {
+   "id": "b1-p-04",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The bill was passed by a narrow majority after a long debate."
+  },
+  {
+   "id": "b1-p-05",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Voters are increasingly worried about the rising cost of living."
+  },
+  {
+   "id": "b1-p-06",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The party's manifesto includes a promise to reform the tax system."
+  },
+  {
+   "id": "b1-p-07",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Local councils have warned that they can no longer afford basic services."
+  },
+  {
+   "id": "b1-p-08",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The leader of the opposition called for an independent inquiry."
+  },
+  {
+   "id": "b1-p-09",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Many people believe that the voting age should be lowered to sixteen."
+  },
+  {
+   "id": "b1-p-10",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The referendum divided families, friends and even political parties."
+  },
+  {
+   "id": "b1-p-11",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Critics argue that the new policy will mainly benefit the wealthy."
+  },
+  {
+   "id": "b1-p-12",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The Chancellor is expected to announce the budget next month."
+  },
+  {
+   "id": "b1-p-13",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Campaigners have collected thousands of signatures for the petition."
+  },
+  {
+   "id": "b1-p-14",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Parliament was recalled early to discuss the emergency."
+  },
+  {
+   "id": "b1-p-15",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The minister refused to answer questions about the leaked report."
+  },
+  {
+   "id": "b1-p-16",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Turnout was unusually high, especially among younger voters."
+  },
+  {
+   "id": "b1-p-17",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The coalition collapsed after the two parties failed to agree."
+  },
+  {
+   "id": "b1-p-18",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Freedom of the press is essential in a healthy democracy."
+  },
+  {
+   "id": "b1-p-19",
+   "level": "B1",
+   "theme": "politica",
+   "text": "The committee will publish its findings at the end of the year."
+  },
+  {
+   "id": "b1-p-20",
+   "level": "B1",
+   "theme": "politica",
+   "text": "Politicians often say one thing during a campaign and do another in office."
+  },
+  {
+   "id": "b1-s-01",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The Battle of Hastings changed the course of English history."
+  },
+  {
+   "id": "b1-s-02",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Magna Carta limited the power of the king for the first time."
+  },
+  {
+   "id": "b1-s-03",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The Tudors are probably the most famous royal family in British history."
+  },
+  {
+   "id": "b1-s-04",
+   "level": "B1",
+   "theme": "storia",
+   "text": "During the Blitz, Londoners sheltered in underground stations every night."
+  },
+  {
+   "id": "b1-s-05",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The Industrial Revolution transformed the way people lived and worked."
+  },
+  {
+   "id": "b1-s-06",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The suffragettes used dramatic methods to draw attention to their cause."
+  },
+  {
+   "id": "b1-s-07",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Historians still disagree about the real causes of the First World War."
+  },
+  {
+   "id": "b1-s-08",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The plague spread quickly through the crowded streets of medieval towns."
+  },
+  {
+   "id": "b1-s-09",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Many Victorian buildings were designed to show off the wealth of the city."
+  },
+  {
+   "id": "b1-s-10",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The Act of Union joined England and Scotland in seventeen hundred and seven."
+  },
+  {
+   "id": "b1-s-11",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Thousands of people emigrated to escape poverty and famine."
+  },
+  {
+   "id": "b1-s-12",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The discovery of the tomb gave us a fascinating glimpse of ancient life."
+  },
+  {
+   "id": "b1-s-13",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Women took on many traditional male jobs while the men were at war."
+  },
+  {
+   "id": "b1-s-14",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The Roman baths were rediscovered by accident in the eighteenth century."
+  },
+  {
+   "id": "b1-s-15",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The monasteries were closed and their wealth was taken by the Crown."
+  },
+  {
+   "id": "b1-s-16",
+   "level": "B1",
+   "theme": "storia",
+   "text": "After the war, the country faced years of rationing and rebuilding."
+  },
+  {
+   "id": "b1-s-17",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The Spanish Armada was defeated partly because of terrible weather."
+  },
+  {
+   "id": "b1-s-18",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Some historians argue that the empire was built on exploitation."
+  },
+  {
+   "id": "b1-s-19",
+   "level": "B1",
+   "theme": "storia",
+   "text": "The invention of the printing press helped new ideas spread rapidly."
+  },
+  {
+   "id": "b1-s-20",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Studying history helps us understand the problems we face today."
+  },
+  {
+   "id": "b2-v-01",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Had we known the motorway would be closed, we'd have taken the scenic route through the countryside."
+  },
+  {
+   "id": "b2-v-02",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "The sheer number of tourists in the old town rather spoiled the atmosphere for us."
+  },
+  {
+   "id": "b2-v-03",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "I'd thoroughly recommend getting off the beaten track and exploring the smaller villages."
+  },
+  {
+   "id": "b2-v-04",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Despite the endless delays, the cabin crew remained remarkably calm and courteous throughout."
+  },
+  {
+   "id": "b2-v-05",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Overtourism is putting enormous pressure on historic cities and their local communities."
+  },
+  {
+   "id": "b2-v-06",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "We'd been warned that the weather in the Highlands could change in a matter of minutes."
+  },
+  {
+   "id": "b2-v-07",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "The rail strike threw our carefully planned itinerary into complete disarray."
+  },
+  {
+   "id": "b2-v-08",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Travelling sustainably often means choosing slower journeys over cheap, short-haul flights."
+  },
+  {
+   "id": "b2-v-09",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "The landlady, who'd run the bed and breakfast for forty years, knew every footpath in the valley."
+  },
+  {
+   "id": "b2-v-10",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "It wasn't until we reached the summit that we appreciated how far we'd actually climbed."
+  },
+  {
+   "id": "b2-v-11",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Having spent a fortune on the trip, we were determined to make the most of every moment."
+  },
+  {
+   "id": "b2-v-12",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "The guidebook claimed the restaurant was a hidden gem, but it was absolutely heaving with tourists."
+  },
+  {
+   "id": "b2-v-13",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Jet lag hit me far harder on the return journey than it had on the way out."
+  },
+  {
+   "id": "b2-v-14",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Booking through a comparison website saved us a considerable amount of money."
+  },
+  {
+   "id": "b2-v-15",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "The coastal path is spectacular, though certain stretches are frankly not for the faint-hearted."
+  },
+  {
+   "id": "b2-v-16",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "We were rather taken aback by how expensive everything was in the capital."
+  },
+  {
+   "id": "b2-v-17",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "What struck me most about the island was the warmth and hospitality of the people."
+  },
+  {
+   "id": "b2-v-18",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Unless you're prepared to queue for hours, it's wise to book your tickets online beforehand."
+  },
+  {
+   "id": "b2-v-19",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "The overnight sleeper train turned out to be one of the highlights of the entire holiday."
+  },
+  {
+   "id": "b2-v-20",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Travel broadens the mind, provided you're willing to step outside your comfort zone."
+  },
+  {
+   "id": "b2-p-01",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The government's handling of the crisis has severely undermined public trust in its competence."
+  },
+  {
+   "id": "b2-p-02",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Backbenchers threatened to rebel unless the controversial clause was withdrawn from the bill."
+  },
+  {
+   "id": "b2-p-03",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Constitutional reform remains a contentious issue on both sides of the political divide."
+  },
+  {
+   "id": "b2-p-04",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The scandal prompted calls for stricter regulation of lobbying and political donations."
+  },
+  {
+   "id": "b2-p-05",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Critics contend that the first-past-the-post system fails to reflect how the country actually voted."
+  },
+  {
+   "id": "b2-p-06",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Devolution has given Scotland and Wales considerable control over their own domestic affairs."
+  },
+  {
+   "id": "b2-p-07",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The Prime Minister's authority was weakened considerably by a series of humiliating defeats."
+  },
+  {
+   "id": "b2-p-08",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Political commentators were quick to speculate about a possible leadership challenge."
+  },
+  {
+   "id": "b2-p-09",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The inquiry concluded that ministers had been negligent rather than deliberately dishonest."
+  },
+  {
+   "id": "b2-p-10",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Public spending cuts have disproportionately affected the most vulnerable sections of society."
+  },
+  {
+   "id": "b2-p-11",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The party has struggled to reconcile its traditional values with the demands of younger voters."
+  },
+  {
+   "id": "b2-p-12",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Whether the policy will deliver its promised benefits remains, at best, highly uncertain."
+  },
+  {
+   "id": "b2-p-13",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Several senior figures have distanced themselves from the leader's more provocative remarks."
+  },
+  {
+   "id": "b2-p-14",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The opposition accused the government of burying bad news on a particularly busy day."
+  },
+  {
+   "id": "b2-p-15",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Electoral turnout has been declining steadily, which raises serious questions about engagement."
+  },
+  {
+   "id": "b2-p-16",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The Speaker intervened to restore order after the debate became unusually heated."
+  },
+  {
+   "id": "b2-p-17",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Negotiations stalled because neither side was willing to make meaningful concessions."
+  },
+  {
+   "id": "b2-p-18",
+   "level": "B2",
+   "theme": "politica",
+   "text": "A free and independent judiciary is fundamental to the rule of law."
+  },
+  {
+   "id": "b2-p-19",
+   "level": "B2",
+   "theme": "politica",
+   "text": "Populist movements have exploited widespread disillusionment with the political establishment."
+  },
+  {
+   "id": "b2-p-20",
+   "level": "B2",
+   "theme": "politica",
+   "text": "The minister insisted that the decision had been taken purely in the national interest."
+  },
+  {
+   "id": "b2-s-01",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The dissolution of the monasteries fundamentally reshaped the religious and economic landscape of England."
+  },
+  {
+   "id": "b2-s-02",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Historians have increasingly questioned the traditional, rather romanticised view of the British Empire."
+  },
+  {
+   "id": "b2-s-03",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The Glorious Revolution established the principle that the monarch could not rule without Parliament."
+  },
+  {
+   "id": "b2-s-04",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Had the weather not turned against the Armada, the history of Europe might have been very different."
+  },
+  {
+   "id": "b2-s-05",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The Enclosure Acts forced countless rural families to abandon their land and seek work in the cities."
+  },
+  {
+   "id": "b2-s-06",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The abolition of the slave trade was the result of decades of relentless campaigning."
+  },
+  {
+   "id": "b2-s-07",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Contemporary accounts of the battle are notoriously unreliable and frequently contradict one another."
+  },
+  {
+   "id": "b2-s-08",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The Reformation unleashed tensions that would shape British politics for centuries to come."
+  },
+  {
+   "id": "b2-s-09",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Victorian reformers campaigned tirelessly to improve conditions in factories and prisons."
+  },
+  {
+   "id": "b2-s-10",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The partition of India remains one of the most traumatic episodes of the twentieth century."
+  },
+  {
+   "id": "b2-s-11",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Archaeological evidence suggests that the so-called Dark Ages were far more sophisticated than once assumed."
+  },
+  {
+   "id": "b2-s-12",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The Corn Laws were eventually repealed amid fierce opposition from wealthy landowners."
+  },
+  {
+   "id": "b2-s-13",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Churchill's reputation as a wartime leader has overshadowed many of his more controversial decisions."
+  },
+  {
+   "id": "b2-s-14",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The decline of heavy industry left entire communities struggling with long-term unemployment."
+  },
+  {
+   "id": "b2-s-15",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Primary sources must always be interpreted in the light of who wrote them and why."
+  },
+  {
+   "id": "b2-s-16",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The Civil War pitted Parliament against the Crown and ultimately led to the execution of the king."
+  },
+  {
+   "id": "b2-s-17",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The establishment of the National Health Service marked a turning point in post-war Britain."
+  },
+  {
+   "id": "b2-s-18",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Remarkably, the manuscript survived the fire that destroyed most of the library's collection."
+  },
+  {
+   "id": "b2-s-19",
+   "level": "B2",
+   "theme": "storia",
+   "text": "The legacy of colonialism continues to provoke heated debate in Britain today."
+  },
+  {
+   "id": "b2-s-20",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Our understanding of the past is constantly revised as new evidence comes to light."
+  }
+ ]
+}

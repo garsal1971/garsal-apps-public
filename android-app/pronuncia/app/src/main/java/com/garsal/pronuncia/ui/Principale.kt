@@ -30,7 +30,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -41,13 +40,11 @@ import com.garsal.pronuncia.LinguaFeedback
 import com.garsal.pronuncia.Microfono
 import com.garsal.pronuncia.Rilascio
 import com.garsal.pronuncia.Servizi
-import com.garsal.pronuncia.SessioneScaduta
 import com.garsal.pronuncia.Voce
-import kotlinx.coroutines.launch
 
 /**
- * Fase 1: login, prova della voce, impostazioni. Il ciclo a mani libere
- * arriva con la fase 3 e prenderà il posto della «Prova la voce».
+ * Login, esercizio (fase 2) e impostazioni. Il ciclo a mani libere arriva
+ * con la fase 3.
  *
  * ⚠️ Coi caratteri di sistema grandi: niente altezze fisse attorno al testo
  * (`heightIn(min)`), e le righe di pulsanti scorrono di lato invece di andare a capo.
@@ -93,35 +90,13 @@ private fun Accesso() {
 @Composable
 private fun Connesso() {
     val prefs = Servizi.prefs
-    val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val (versione, _) = remember { Rilascio.installata(ctx) }
 
-    var frase by remember { mutableStateOf("Could you tell me the way to the railway station, please?") }
     var voce by remember { mutableStateOf(prefs.voce) }
     var microfono by remember { mutableStateOf(prefs.microfono) }
     var feedback by remember { mutableStateOf(prefs.linguaFeedback) }
-    var stato by remember { mutableStateOf<String?>(null) }
-    var parla by remember { mutableStateOf(false) }
     var dialogoVersione by remember { mutableStateOf(false) }
-
-    fun ascolta(lenta: Boolean) {
-        if (parla || frase.isBlank()) return
-        parla = true
-        stato = "Sto chiedendo la voce ad Azure…"
-        scope.launch {
-            stato = try {
-                Servizi.tts.pronuncia(frase.trim(), voce, lenta)
-                "✅ Letta da ${voce.etichetta}${if (lenta) ", lenta" else ""}."
-            } catch (e: SessioneScaduta) {
-                Servizi.connesso.value = false
-                null
-            } catch (e: Exception) {
-                "⚠️ ${e.message ?: e.javaClass.simpleName}"
-            }
-            parla = false
-        }
-    }
 
     Text(
         "Connesso come ${Servizi.auth.email() ?: "?"}",
@@ -129,34 +104,12 @@ private fun Connesso() {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("🔊 Prova la voce", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(
-                value = frase,
-                onValueChange = { frase = it },
-                label = { Text("Frase in inglese") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Tendina("Voce", voce, Voce.entries, { it.etichetta }) { voce = it; prefs.voce = it }
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(onClick = { ascolta(false) }, enabled = !parla, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("▶ Ascolta")
-                }
-                OutlinedButton(onClick = { ascolta(true) }, enabled = !parla, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("🐢 Più lenta")
-                }
-            }
-            stato?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-        }
-    }
+    Esercizio()
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("⚙️ Impostazioni", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Tendina("Voce", voce, Voce.entries, { it.etichetta }) { voce = it; prefs.voce = it }
             Tendina("Microfono", microfono, Microfono.entries, { it.etichetta }) {
                 microfono = it; prefs.microfono = it
             }
@@ -190,7 +143,7 @@ private fun Connesso() {
 /** Una scelta fra poche opzioni fisse è sempre una tendina, con la sua ▾. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> Tendina(
+internal fun <T> Tendina(
     etichetta: String,
     valore: T,
     opzioni: List<T>,
