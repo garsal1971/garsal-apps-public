@@ -1,0 +1,5 @@
+<resources>
+    <color name="avvio">#0F1B33</color>
+    <!-- Il fondo dell'icona adattiva: blu notte. -->
+    <color name="ic_launcher_background">#0F1B33</color>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Un fumetto con tre onde di voce. ⚠️ NON è il marchio a cinque cerchi:
+     Pronuncia non è una bolla della suite (vedi CLAUDE.md, «Il marchio vive in
+     sei posti»). Tutto il disegno sta entro 36 dp dal centro (54,54): è il solo
+     cerchio che la maschera adattiva garantisce. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- il fumetto: angolo più lontano (32,74) a 30 dp dal centro -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,32 L72,32 Q78,32 78,38 L78,62 Q78,68 72,68 L46,68 L36,76 L38,68 L36,68 Q30,68 30,62 L30,38 Q30,32 36,32 Z" />
+    <!-- tre barre di voce, rosso e blu -->
+    <path android:fillColor="#C8102E" android:pathData="M41,46 h5 v8 h-5 z" />
+    <path android:fillColor="#012169" android:pathData="M51,40 h6 v20 h-6 z" />
+    <path android:fillColor="#C8102E" android:pathData="M62,44 h5 v12 h-5 z" />
+</vector>
