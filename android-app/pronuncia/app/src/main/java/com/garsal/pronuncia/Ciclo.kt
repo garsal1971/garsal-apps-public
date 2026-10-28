@@ -107,6 +107,7 @@ object Ciclo {
                 }
                 silenzi = 0
                 Comando.da(esito.riconosciuto, frase.testo)?.let { return Fine.Comandato(it) }
+                Storico.registra(ctx, frase, esito, "mani_libere")
                 tentativo++
                 stato.update { it.copy(tentativo = tentativo, ultimo = esito.pronuncia) }
                 if (esito.pronuncia >= SOGLIA_BUONA) {

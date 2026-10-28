@@ -3678,6 +3678,14 @@ Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase d
   SCO (`setCommunicationDevice` da API 31, `startBluetoothSco` prima) e TTS in
   `USAGE_VOICE_COMMUNICATION` — ⚠️ anche la voce è in qualità telefonica, scelto sapendolo; senza
   cuffie si ascolta col telefono e lo si dice. Vale per il solo ciclo, non per l'esercizio a mano.
+- **Fase 5** (v1.4.0): 📈 **Storico** in Room (`Storico.kt`, `storico.db`, **solo sul telefono**):
+  una riga per tentativo (mani libere ed esercizio) col testo della frase **copiato** accanto al
+  `frase_id`, e le sue parole normalizzate. ⚠️ Silenzi e comandi a voce non sono tentativi e non si
+  registrano; `Storico.registra` non lancia mai, o uno storico che non si scrive fermerebbe il ciclo.
+  La schermata (`ui/StoricoScreen.kt`): per giorno, parole più difficili (le `Insertion` non
+  contano), ultimi 50 tentativi col dettaglio al tocco, e 🗑 Cancella lo storico. «Riuscito» è
+  `SOGLIA_BUONA`, passata alle query e non riscritta. ⚠️ KSP (`2.1.20-2.0.1`) è agganciato alla
+  versione di Kotlin, e lo schema di Room si committa in `app/schemas/` per le migration future.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

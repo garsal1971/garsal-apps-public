@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,7 +44,8 @@ import com.garsal.pronuncia.Servizi
 import com.garsal.pronuncia.Voce
 
 /**
- * Login, ciclo a mani libere (fase 3), esercizio a mano (fase 2) e impostazioni.
+ * Login, ciclo a mani libere (fase 3), esercizio a mano (fase 2), impostazioni,
+ * e da lì lo 📈 storico (fase 5).
  *
  * ⚠️ Coi caratteri di sistema grandi: niente altezze fisse attorno al testo
  * (`heightIn(min)`), e le righe di pulsanti scorrono di lato invece di andare a capo.
@@ -51,6 +53,8 @@ import com.garsal.pronuncia.Voce
 @Composable
 fun SchermataPrincipale() {
     val connesso by Servizi.connesso.collectAsState()
+    var storico by rememberSaveable { mutableStateOf(false) }
+    if (connesso && storico) { SchermataStorico(onChiudi = { storico = false }); return }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier
@@ -60,7 +64,7 @@ fun SchermataPrincipale() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("🇬🇧 Pronuncia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            if (connesso) Connesso() else Accesso()
+            if (connesso) Connesso(onStorico = { storico = true }) else Accesso()
         }
     }
 }
@@ -87,7 +91,7 @@ private fun Accesso() {
 }
 
 @Composable
-private fun Connesso() {
+private fun Connesso(onStorico: () -> Unit) {
     val prefs = Servizi.prefs
     val ctx = LocalContext.current
     val (versione, _) = remember { Rilascio.installata(ctx) }
@@ -102,6 +106,10 @@ private fun Connesso() {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+
+    OutlinedButton(onClick = onStorico, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        Text("📈 Storico")
+    }
 
     ManiLibere()
 

@@ -6,4 +6,7 @@ plugins {
     id 'com.android.application'             version '8.9.1'  apply false
     id 'org.jetbrains.kotlin.android'         version '2.1.20' apply false
     id 'org.jetbrains.kotlin.plugin.compose'  version '2.1.20' apply false
+    // ⚠️ KSP è agganciato alla versione di Kotlin: aggiornando l'uno va
+    // aggiornato l'altro (2.1.20-x.y.z), o la build non parte.
+    id 'com.google.devtools.ksp'              version '2.1.20-2.0.1' apply false
 }
