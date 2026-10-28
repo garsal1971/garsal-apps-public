@@ -30,7 +30,7 @@ object Servizi {
         prefs = Prefs(ctx.applicationContext)
         auth = Auth(prefs)
         azure = AzureToken(auth)
-        tts = Tts(azure)
+        tts = Tts(ctx.applicationContext, azure)
         valutatore = Valutatore(azure)
         connesso.value = auth.connesso
     }

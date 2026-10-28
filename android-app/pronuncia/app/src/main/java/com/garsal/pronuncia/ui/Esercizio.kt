@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.Esito
 import com.garsal.pronuncia.Frase
 import com.garsal.pronuncia.Frasi
@@ -43,14 +45,14 @@ import com.garsal.pronuncia.SessioneScaduta
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/** Sopra questa soglia la frase è «Good»: è la stessa che userà il ciclo vocale. */
+/** Sopra questa soglia la frase è «Good»: è la stessa del ciclo a mani libere. */
 const val SOGLIA_BUONA = 80.0
 
 private enum class Fase { FERMO, PARLA, ASCOLTA }
 
 /**
  * Fase 2: una frase, ascoltarla, ripeterla, vedere i punteggi. Il ciclo a mani
- * libere (fase 3) userà le stesse due chiamate — `Tts.pronuncia` e
+ * libere (`Ciclo`) usa le stesse due chiamate — `Tts.pronuncia` e
  * `Valutatore.valuta` — in un servizio, senza questa schermata.
  */
 @Composable
@@ -65,6 +67,9 @@ fun Esercizio() {
     var fase by remember { mutableStateOf(Fase.FERMO) }
     var esito by remember { mutableStateOf<Esito?>(null) }
     var nota by remember { mutableStateOf<String?>(null) }
+    // Il microfono è uno: col ciclo a mani libere acceso, l'esercizio a mano aspetta.
+    val ciclo by Ciclo.stato.collectAsState()
+    val libero = fase == Fase.FERMO && !ciclo.attivo
 
     fun nuova() {
         frase = Frasi.aCaso(ctx, livello, tema, frase?.id)
@@ -146,20 +151,20 @@ fun Esercizio() {
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(onClick = { ascolta(false) }, enabled = fase == Fase.FERMO && f != null, modifier = Modifier.heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = { ascolta(false) }, enabled = libero && f != null, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("▶ Ascolta")
                 }
-                OutlinedButton(onClick = { ascolta(true) }, enabled = fase == Fase.FERMO && f != null, modifier = Modifier.heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = { ascolta(true) }, enabled = libero && f != null, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("🐢 Lenta")
                 }
-                OutlinedButton(onClick = { nuova() }, enabled = fase == Fase.FERMO, modifier = Modifier.heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = { nuova() }, enabled = libero, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("⏭ Altra")
                 }
             }
 
             Button(
                 onClick = { ripeti() },
-                enabled = fase == Fase.FERMO && f != null,
+                enabled = libero && f != null,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             ) {
                 Text(
