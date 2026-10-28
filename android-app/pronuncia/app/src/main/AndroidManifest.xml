@@ -6,12 +6,15 @@
     <!-- Il microfono serve alla valutazione e si chiede al primo tocco su 🎙 o
          su ▶ Avvia. Il servizio in primo piano di tipo «microphone» e il wake
          lock tengono vivo il ciclo a mani libere a schermo spento (fase 3);
-         le notifiche portano il pulsante Ferma. Il Bluetooth arriva con la fase 4. -->
+         le notifiche portano Pausa e Ferma. MODIFY_AUDIO_SETTINGS (e BLUETOOTH
+         fino ad Android 11) servono a portare il microfono sulle cuffie (fase 4). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
 
     <application
         android:allowBackup="true"

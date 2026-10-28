@@ -1,6 +1,7 @@
 package com.garsal.pronuncia
 
 import com.microsoft.cognitiveservices.speech.CancellationDetails
+import com.microsoft.cognitiveservices.speech.PhraseListGrammar
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentConfig
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentGradingSystem
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentGranularity
@@ -10,6 +11,7 @@ import com.microsoft.cognitiveservices.speech.SpeechConfig
 import com.microsoft.cognitiveservices.speech.SpeechRecognizer
 import com.microsoft.cognitiveservices.speech.audio.AudioConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -69,7 +71,17 @@ class Valutatore(private val azure: AzureToken) {
                     ).use { pa ->
                         pa.setPhonemeAlphabet("IPA")
                         pa.applyTo(rec)
-                        rec.recognizeOnceAsync().get().use { r ->
+                        // I comandi a voce sono parole corte e fuori contesto:
+                        // la lista le rende più facili da riconoscere.
+                        // ⚠️ Non va in un `use`: chiusa prima del riconoscimento
+                        // le sue parole sparirebbero. Vive quanto il recognizer.
+                        val lista = PhraseListGrammar.fromRecognizer(rec)
+                        Comando.PAROLE.forEach(lista::addPhrase)
+                        // ⚠️ Interrompibile: una pausa (chiamata, tasto delle
+                        // cuffie) annulla la coroutine, e il microfono va
+                        // lasciato subito — `get()` da solo non si annulla.
+                        val futuro = rec.recognizeOnceAsync()
+                        runInterruptible { futuro.get() }.use { r ->
                             when (r.reason) {
                                 ResultReason.RecognizedSpeech ->
                                     leggi(r.properties.getProperty(PropertyId.SpeechServiceResponse_JsonResult), r.text)

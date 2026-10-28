@@ -118,7 +118,7 @@ private fun Connesso() {
                 feedback = it; prefs.linguaFeedback = it
             }
             Text(
-                "La lingua del feedback vale per il ciclo a mani libere; la scelta del microfono arriva con la fase 4.",
+                "Lingua del feedback e microfono valgono per il ciclo a mani libere. Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

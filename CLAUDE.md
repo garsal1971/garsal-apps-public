@@ -3666,6 +3666,18 @@ Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase d
   ⚠️ Un silenzio non conta come tentativo, ma **3 silenzi di fila fermano la sessione**: un
   microfono aperto a vuoto consuma i minuti gratuiti di riconoscimento. Livello e tema sono quelli
   dell'esercizio; col ciclo acceso l'esercizio a mano è spento (il microfono è uno).
+- **Fase 4** (v1.3.0): **comandi a voce** «repeat / next / slower / stop», detti **al posto della
+  frase** quando tocca a te (`Comando.da`: solo se il riconosciuto è il comando e basta, al più due
+  parole; una lista di frasi li aiuta) — nessun microfono sempre aperto, che costerebbe minuti e
+  capterebbe la voce dell'app. **Pausa**: tasto play/pausa delle cuffie (`MediaSession`, avanti =
+  next, indietro = repeat), pulsante in app e in notifica, e **audio focus** — una chiamata o il
+  navigatore la mettono e la tolgono da soli; una perdita definitiva (altra musica) resta in pausa
+  fino a Riprendi. ⚠️ Pausa e tasti **interrompono il passo in corso** (`Ciclo.interrompibile`,
+  e il riconoscimento è `runInterruptible`): in una chiamata il microfono va lasciato subito; dopo
+  la pausa la frase si rilegge e i tentativi restano. **Microfono Cuffie Bluetooth**: collegamento
+  SCO (`setCommunicationDevice` da API 31, `startBluetoothSco` prima) e TTS in
+  `USAGE_VOICE_COMMUNICATION` — ⚠️ anche la voce è in qualità telefonica, scelto sapendolo; senza
+  cuffie si ascolta col telefono e lo si dice. Vale per il solo ciclo, non per l'esercizio a mano.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

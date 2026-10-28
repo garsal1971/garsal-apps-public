@@ -34,6 +34,11 @@ class Tts(ctx: Context, private val azure: AzureToken) {
 
     private val cartella = File(ctx.cacheDir, "tts").apply { mkdirs() }
 
+    /** Con le cuffie Bluetooth come microfono il collegamento è quello delle
+     *  chiamate (SCO), e l'audio deve uscire di lì: con USAGE_MEDIA andrebbe
+     *  all'altoparlante o si perderebbe. Lo accende `CicloService`. */
+    @Volatile var comunicazione = false
+
     /** Una frase in inglese con la voce scelta. */
     suspend fun pronuncia(testo: String, voce: Voce, lenta: Boolean = false) =
         parla(testo, voce.id, "en-GB", lenta)
@@ -76,7 +81,7 @@ class Tts(ctx: Context, private val azure: AzureToken) {
             try {
                 mp.setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setUsage(if (comunicazione) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build(),
                 )

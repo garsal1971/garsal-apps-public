@@ -11,7 +11,7 @@ enum class Voce(val id: String, val etichetta: String) {
     companion object { fun da(id: String?) = entries.firstOrNull { it.id == id } ?: SONIA }
 }
 
-/** Da dove si ascolta. Si usa dalla fase 4: oggi si sceglie e si ricorda. */
+/** Da dove si ascolta nel ciclo a mani libere (`CicloService.instrada`). */
 enum class Microfono(val etichetta: String) {
     TELEFONO("📱 Telefono"),
     CUFFIE("🎧 Cuffie Bluetooth");
