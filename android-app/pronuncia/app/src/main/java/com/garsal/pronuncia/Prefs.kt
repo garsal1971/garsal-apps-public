@@ -58,5 +58,14 @@ class Prefs(ctx: Context) {
         get() = LinguaFeedback.da(p.getString("feedback", null))
         set(v) = p.edit().putString("feedback", v.name).apply()
 
+    /** Il filtro dell'esercizio; `null` = tutti. */
+    var livello: String?
+        get() = p.getString("livello", null)
+        set(v) = p.edit().putString("livello", v).apply()
+
+    var tema: String?
+        get() = p.getString("tema", null)
+        set(v) = p.edit().putString("tema", v).apply()
+
     fun esci() = p.edit().remove("access_token").remove("refresh_token").apply()
 }

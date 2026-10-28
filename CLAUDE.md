@@ -3654,6 +3654,15 @@ Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase d
 - **Fase 1** (v1.0.0): login, token Azure, prova della voce (Sonia/Ryan, normale/lenta via SSML),
   impostazioni salvate ma non ancora usate — microfono (telefono / cuffie BT) e lingua del
   feedback (inglese / italiano).
+- **Fase 2** (v1.1.0): 240 frasi in `assets/phrases.json` (A1–B2 × viaggio/politica/storia, 20
+  per incrocio, inglese britannico) e la scheda 🎯 Esercizio — ascolta, 🐢 lenta, 🎙 ripeti, e i
+  punteggi (totale, accuratezza, fluidità, completezza, parola per parola coi suoni deboli in IPA).
+  La soglia del «Good» è `SOGLIA_BUONA` (80) in `ui/Esercizio.kt`.
+- ⚠️ **Gli `id` delle frasi non si cambiano e non si riusano**: dalla fase 5 lo storico li cita.
+- ⚠️ **I punteggi per parola si leggono dal JSON della risposta** (`NBest[0].Words`), non dalle
+  classi dell'SDK, perché lì ci sono anche i fonemi. `EnableMiscue` è acceso: le parole saltate
+  tornano `Omission`, quelle in più `Insertion`. Un `NoMatch` (nessuna voce entro 8 s) è
+  `NessunaVoce`, non un tentativo fallito.
 - ⚠️ **Niente supabase-kt**: login e rinnovo del token sono due chiamate HTTP in `Auth.kt`. Il
   giro del login è quello di AppSphere nativa — browser completo, `redirect_to` sulla pagina-ponte
   https `oauth-callback-pronuncia.html` (gemella di `oauth-callback-native.html` a meno dello

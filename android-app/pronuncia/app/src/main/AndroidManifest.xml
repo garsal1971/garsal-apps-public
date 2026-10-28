@@ -3,9 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Fase 1: solo sintesi vocale. Microfono, servizio in primo piano e
-         Bluetooth arrivano con le fasi che li usano: un permesso dichiarato
-         prima del tempo è una richiesta senza una ragione da mostrare. -->
+    <!-- Il microfono serve alla valutazione (fase 2) e si chiede al primo tocco
+         su 🎙. Servizio in primo piano e Bluetooth arrivano con le fasi che li
+         usano: un permesso dichiarato prima del tempo è una richiesta senza una
+         ragione da mostrare. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
