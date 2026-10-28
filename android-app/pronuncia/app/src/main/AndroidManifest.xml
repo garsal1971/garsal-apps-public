@@ -3,11 +3,15 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Il microfono serve alla valutazione (fase 2) e si chiede al primo tocco
-         su 🎙. Servizio in primo piano e Bluetooth arrivano con le fasi che li
-         usano: un permesso dichiarato prima del tempo è una richiesta senza una
-         ragione da mostrare. -->
+    <!-- Il microfono serve alla valutazione e si chiede al primo tocco su 🎙 o
+         su ▶ Avvia. Il servizio in primo piano di tipo «microphone» e il wake
+         lock tengono vivo il ciclo a mani libere a schermo spento (fase 3);
+         le notifiche portano il pulsante Ferma. Il Bluetooth arriva con la fase 4. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="true"
@@ -36,6 +40,11 @@
                 <data android:scheme="garsalpronuncia" android:host="oauth" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".CicloService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
     </application>
 </manifest>

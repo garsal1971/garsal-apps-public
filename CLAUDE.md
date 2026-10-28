@@ -3658,6 +3658,17 @@ Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase d
   per incrocio, inglese britannico) e la scheda 🎯 Esercizio — ascolta, 🐢 lenta, 🎙 ripeti, e i
   punteggi (totale, accuratezza, fluidità, completezza, parola per parola coi suoni deboli in IPA).
   La soglia del «Good» è `SOGLIA_BUONA` (80) in `ui/Esercizio.kt`.
+- **Fase 3** (v1.2.0): 🎧 **Mani libere** — `Ciclo.kt` in `CicloService` (servizio in primo
+  piano `microphone` + wake lock parziale, tetto 4 ore, ⏹ Ferma in app e nella notifica). Legge
+  la frase, ascolta, sopra 80 «Good!» e avanti; sotto «Try again», le 1-2 parole peggiori lente e
+  la frase di nuovo, fino a 3 tentativi, poi «Let's move on». Continua finché si preme Ferma.
+  Feedback breve (`Feedback.kt`) in inglese o in italiano (voci it-IT Elsa/Diego, stesso genere).
+  ⚠️ Un silenzio non conta come tentativo, ma **3 silenzi di fila fermano la sessione**: un
+  microfono aperto a vuoto consuma i minuti gratuiti di riconoscimento. Livello e tema sono quelli
+  dell'esercizio; col ciclo acceso l'esercizio a mano è spento (il microfono è uno).
+- ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
+  si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
+  in `.tmp` e poi rinominato; un file che non si suona si cancella.
 - ⚠️ **Gli `id` delle frasi non si cambiano e non si riusano**: dalla fase 5 lo storico li cita.
 - ⚠️ **I punteggi per parola si leggono dal JSON della risposta** (`NBest[0].Words`), non dalle
   classi dell'SDK, perché lì ci sono anche i fonemi. `EnableMiscue` è acceso: le parole saltate
@@ -3672,8 +3683,6 @@ Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase d
   lo stesso refresh token. Un 400/401 sul rinnovo butta la sessione; un errore di rete no.
 - ⚠️ **Solo `arm64-v8a`** (`abiFilters`): lo Speech SDK porta le `.so` per quattro ABI. L'APK
   pesa ~11 MB.
-- ⚠️ Dalla fase 3 l'audio TTS di ogni frase va **messo in cache su file**: il livello gratuito F0
-  conta i caratteri sintetizzati.
 - `Aggiornamento.kt` è il **sesto gemello** del controllo aggiornamenti (vedi *Il pulsante di
   download deve dire quale versione scarica*).
 

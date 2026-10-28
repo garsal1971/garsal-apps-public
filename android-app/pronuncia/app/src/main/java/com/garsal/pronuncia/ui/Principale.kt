@@ -43,8 +43,7 @@ import com.garsal.pronuncia.Servizi
 import com.garsal.pronuncia.Voce
 
 /**
- * Login, esercizio (fase 2) e impostazioni. Il ciclo a mani libere arriva
- * con la fase 3.
+ * Login, ciclo a mani libere (fase 3), esercizio a mano (fase 2) e impostazioni.
  *
  * ⚠️ Coi caratteri di sistema grandi: niente altezze fisse attorno al testo
  * (`heightIn(min)`), e le righe di pulsanti scorrono di lato invece di andare a capo.
@@ -104,6 +103,8 @@ private fun Connesso() {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 
+    ManiLibere()
+
     Esercizio()
 
     Card(Modifier.fillMaxWidth()) {
@@ -117,7 +118,7 @@ private fun Connesso() {
                 feedback = it; prefs.linguaFeedback = it
             }
             Text(
-                "Microfono e lingua del feedback si useranno col ciclo a mani libere.",
+                "La lingua del feedback vale per il ciclo a mani libere; la scelta del microfono arriva con la fase 4.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
