@@ -377,7 +377,7 @@ Deno.serve(async (_req) => {
       if (item.channel === 'telegram') {
         const settings = await getUserSettings(item.user_id)
         if (settings?.telegram_enabled && settings?.telegram_chat_id) {
-          const message     = `${item.title}\n${item.body}`
+          const message     = item.body ? `${item.title}\n${item.body}` : item.title
           const hasComplete = !!(item.metadata?.completion_update)
           const hasCancel   = item.metadata?.telegram_cancel_button ?? true
           const replyMarkup = buildInlineKeyboard(item.id, hasComplete, hasCancel)

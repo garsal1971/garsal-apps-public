@@ -9,6 +9,8 @@
 // Aggiornato: 2026-10-15 — due_at SENZA fuso (l'APK nativa scrive «…T15:00:00») è
 //                          l'ora di Roma, non UTC: prima partiva 2 ore dopo. Vedi
 //                          scadenzaDi().
+// Aggiornato: 2026-10-28 — il body porta solo data e ora dell'entità: il nome sta
+//                          già nel titolo, e «2 ore prima» non serve.
 //
 // Concetti chiave:
 //   REGOLA  = 1 row in cm_notification_rules (configurazione persistente)
@@ -24,7 +26,7 @@
 //   "{rule_id}:{YYYY-MM-DD}:{HH:MM}"
 //
 // Formato body (uniforme per task e habit):
-//   "{entity_title} — {preset_label} prima — DD/MM/YYYY[ ore HH:MM]"
+//   "DD/MM/YYYY[ ore HH:MM]" — il nome dell'entità sta già nel titolo
 //   (l'ora è omessa se è 00:00, ossia task senza orario specifico)
 //
 // Strutture reminder_presets:
@@ -667,15 +669,17 @@ function generateQuickEntry(
 
 // ---------------------------------------------------------------------------
 // Body unificato — stesso formato per task e habit
-//   "{entity_title} — {preset_label} prima — DD/MM/YYYY[ ore HH:MM]"
-//   L'ora è omessa se è 00:00 (task con solo data, nessun orario specifico)
+//   "DD/MM/YYYY[ ore HH:MM]": la data e l'ora dell'entità, e basta.
+//   ⚠️ Il nome NON si ripete: sta già nel titolo, e Telegram li mostra uno sotto
+//   l'altro. Anche l'anticipo («2 ore prima») non si scrive più.
+//   L'ora è omessa se è 00:00 (task con solo data, nessun orario specifico).
+//   Un promemoria al volo ha body vuoto: il suo testo è già il titolo.
 // ---------------------------------------------------------------------------
-function buildBody(entry: QueueEntry, entityTitle: string | null, isQuick = false): string {
-  if (isQuick) return entityTitle ?? 'Notifica'
-  const name     = entityTitle ?? 'Promemoria'
+function buildBody(entry: QueueEntry, _entityTitle: string | null, isQuick = false): string {
+  if (isQuick) return ''
   const datePart = formatDateStr(entry.occurrence_date)
   const timePart = entry.time !== '00:00' ? ` ore ${entry.time}` : ''
-  return `${name} — ${entry.label} prima — ${datePart}${timePart}`
+  return `${datePart}${timePart}`
 }
 
 // ---------------------------------------------------------------------------

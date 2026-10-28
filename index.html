@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.16.2</title>
+<title>AppSphere v1.16.3</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2311,8 +2311,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.16.2';
-const BUILD_TIME  = '2026-10-26T22:45:00Z';
+const APP_VERSION = 'v1.16.3';
+const BUILD_TIME  = '2026-10-28T09:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4929,7 +4929,9 @@ async function saveNqv() {
     channel:      canale,
     enabled:      true,
     user_id:      userId,
-    reminder_presets: presetsRapidi
+    reminder_presets: presetsRapidi,
+    // ⚠️ La colonna è NOT NULL: senza, il database rifiuta la regola.
+    notification_spec: {}
   }));
 
   const saveBtn = document.querySelector('.nqv-btn-save');
@@ -4964,7 +4966,8 @@ async function saveNqv() {
       app:           'quick',
       entity_id:     entityId,
       title:         '⚡ ' + testo,
-      body:          testo,
+      // Vuoto: il testo sta già nel titolo, e ripeterlo lo mostrava due volte.
+      body:          '',
       channel:       r.channel,
       fire_at:       fireAt,
       status:        'pending',
