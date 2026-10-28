@@ -33,7 +33,7 @@ import com.garsal.pronuncia.Frasi
 import java.util.Locale
 
 /**
- * Fase 3: il ciclo a mani libere. La schermata lo avvia, lo ferma e lo
+ * Fase 3: il ciclo a mani libere. Fase 4: pausa, comandi a voce e tasti delle cuffie. La schermata lo avvia, lo ferma e lo
  * racconta; il lavoro lo fa `CicloService`, che continua a schermo spento.
  * Livello e tema sono quelli scelti nell'esercizio.
  */
@@ -88,6 +88,11 @@ fun ManiLibere() {
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.titleMedium,
                 )
+                s.avviso?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
+                Button(
+                    onClick = { ctx.startService(Intent(ctx, CicloService::class.java).setAction(CicloService.PAUSA)) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                ) { Text(if (s.inPausa) "▶ Riprendi" else "⏸ Pausa", style = MaterialTheme.typography.titleMedium) }
                 Button(
                     onClick = { ctx.startService(Intent(ctx, CicloService::class.java).setAction(CicloService.FERMA)) },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -97,7 +102,10 @@ fun ManiLibere() {
                 Text(
                     "Legge una frase, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA ripete le " +
                         "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Continua finché " +
-                        "non premi Ferma, anche a schermo spento.",
+                        "non premi Ferma, anche a schermo spento.\n\n" +
+                        "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +
+                        "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +
+                        "Una chiamata o il navigatore lo mettono in pausa, e riparte da sé.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Button(onClick = { premi() }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
