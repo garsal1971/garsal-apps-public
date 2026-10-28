@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Fase 1: solo sintesi vocale. Microfono, servizio in primo piano e
+         Bluetooth arrivano con le fasi che li usano: un permesso dichiarato
+         prima del tempo è una richiesta senza una ragione da mostrare. -->
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Pronuncia">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Il rientro dal login Google: lo lancia il tap sull'ultimo
+                 pulsante di oauth-callback-pronuncia.html. ⚠️ Schema proprio e
+                 non garsalnative://: con lo stesso schema Android chiederebbe a
+                 ogni login quale delle due app aprire. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="garsalpronuncia" android:host="oauth" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

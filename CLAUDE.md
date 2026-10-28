@@ -2579,6 +2579,7 @@ role key letta dal vault (vedi `20260724320000_ca_revolut_auto_categorize_cron.s
 | `ia-tunnel` | manuale (da `chiedi-a-pino.html`) | Il prompt di Chiedi a Pino, **così com'è** e con le sue immagini (indirizzi firmati di dieci minuti), al motore scelto (Gemini, Qwen, Groq, Claude — stessi Secrets di `pv-ai`); archivia domanda, risposta, motore, modello e tag in `ia_tunnel_*`. `{action:'fornitori'}` come in `pv-ai`. ⚠️ Le chiamate ai quattro motori sono **copiate** da `pv-ai`, foto comprese: cambiando un fornitore là, portalo qui |
 | `spese-in-giro-foto` | manuale (dall'APK Spese in giro) | Gli scontrini di «Spese in giro»: carica una foto, ne firma l'URL per un'ora e la cancella. ⚠️ È il **solo** ponte fra un'APK senza login e lo Storage: risolve il token del telefono con `vg_viaggio_del_token` (eseguibile dal solo service role) e scrive dentro la cartella di **quel** viaggio, `<viaggio_id>/…`. Per leggere si passa l'id della **voce**, mai il percorso: dove sta quella foto lo dice il database |
 | `save-snapshot` | `fnz-save-snapshot`, 21:00 UTC, e da `finanza.html` | Chiama `get-prices`, poi calcola e salva lo snapshot del patrimonio in `fnz_dashboard_snapshots` per ogni utente che ha dati di Finanza. Chiamata col JWT di un utente (Finanza all'apertura e dal 💾) scrive il **suo solo** snapshot e non aggiorna i prezzi; la chiave anon riceve 401. È l'**unica** a scrivere lo snapshot |
+| `azure-speech-token` | manuale (dall'APK Pronuncia) | Il token di Azure Speech (10 minuti, reso per 9 e tenuto in cache). Il JWT si verifica contro Supabase e passa il solo `PRONUNCIA_EMAIL` (di partenza garsal1971@gmail.com). Secrets: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`. ⚠️ La chiave Azure non sta mai nell'APK |
 
 ### ⚠️ Un prezzo può essere insieme plausibile e sbagliato
 
@@ -3637,6 +3638,35 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
   legge come «cancella» — è la stessa scelta della conferma che elimina uno scomparto del Forziere.
 
 ---
+
+## Pronuncia — la pronuncia britannica a mani libere
+
+`android-app/pronuncia/` è un **progetto Gradle standalone** (come `spese-in-giro/`),
+`applicationId` `com.garsal.pronuncia`, APK `Pronuncia-latest.apk` su R2. Kotlin + Compose,
+**Azure Speech SDK** (`com.microsoft.cognitiveservices.speech:client-sdk`). Nessuna bolla in
+`cm_apps`, nessuna tabella: del progetto Supabase usa il **login Google** e la Edge Function
+`azure-speech-token`.
+
+Il ciclo a cui arriva (per fasi): l'app legge una frase en-GB → la si ripete → Pronunciation
+Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase dopo o nuovo tentativo
+(max 3), coi comandi «repeat / next / slower / stop», in un servizio in primo piano a schermo spento.
+
+- **Fase 1** (v1.0.0): login, token Azure, prova della voce (Sonia/Ryan, normale/lenta via SSML),
+  impostazioni salvate ma non ancora usate — microfono (telefono / cuffie BT) e lingua del
+  feedback (inglese / italiano).
+- ⚠️ **Niente supabase-kt**: login e rinnovo del token sono due chiamate HTTP in `Auth.kt`. Il
+  giro del login è quello di AppSphere nativa — browser completo, `redirect_to` sulla pagina-ponte
+  https `oauth-callback-pronuncia.html` (gemella di `oauth-callback-native.html` a meno dello
+  schema `garsalpronuncia://`), rientro solo col tap. ⚠️ **Quella pagina va messa fra i Redirect
+  URLs di Supabase**, o il login torna con un errore.
+- ⚠️ **Il rinnovo del token è sotto `Mutex`**: due rinnovi in parallelo spenderebbero due volte
+  lo stesso refresh token. Un 400/401 sul rinnovo butta la sessione; un errore di rete no.
+- ⚠️ **Solo `arm64-v8a`** (`abiFilters`): lo Speech SDK porta le `.so` per quattro ABI. L'APK
+  pesa ~11 MB.
+- ⚠️ Dalla fase 3 l'audio TTS di ogni frase va **messo in cache su file**: il livello gratuito F0
+  conta i caratteri sintetizzati.
+- `Aggiornamento.kt` è il **sesto gemello** del controllo aggiornamenti (vedi *Il pulsante di
+  download deve dire quale versione scarica*).
 
 ## AppSphere nativa — l'unico modulo Android che non è un WebView
 

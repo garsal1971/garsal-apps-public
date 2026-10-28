@@ -1,0 +1,9 @@
+// Progetto Gradle a sé, come spese-in-giro e appsphere-native: Pronuncia non è
+// una bolla della suite e non legge le sue tabelle — del progetto Supabase usa
+// solo il login e la Edge Function `azure-speech-token`. Stando dentro
+// `android-app`, ogni tocco a `settings.gradle` sveglierebbe le build degli altri APK.
+plugins {
+    id 'com.android.application'             version '8.9.1'  apply false
+    id 'org.jetbrains.kotlin.android'         version '2.1.20' apply false
+    id 'org.jetbrains.kotlin.plugin.compose'  version '2.1.20' apply false
+}

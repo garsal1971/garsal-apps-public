@@ -1,0 +1,79 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+android {
+    namespace 'com.garsal.pronuncia'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.garsal.pronuncia"
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName "1.0.0"
+
+        // ⚠️ Solo arm64: lo Speech SDK di Azure si porta dentro le librerie native
+        // per quattro ABI, e tenerle tutte vorrebbe dire un APK tre volte più
+        // pesante per architetture che nessun telefono di casa monta più.
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    // Come in spese-in-giro: la scelta fra dev e produzione la fa il build type,
+    // e nel codice si legge BuildConfig e basta.
+    buildTypes {
+        debug {
+            buildConfigField "String", "SUPABASE_URL", '"https://hcmmywitrbmcsmytjbaf.supabase.co"'
+            buildConfigField "String", "SUPABASE_ANON_KEY", '"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjbW15d2l0cmJtY3NteXRqYmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODE1NDUsImV4cCI6MjA4OTM1NzU0NX0.pAtj6THjWXibrMulU1IVGH-BFx4YkjkNT_x07lNUfWE"'
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "SUPABASE_URL", '"https://jajlmmdsjlvzgcxiiypk.supabase.co"'
+            buildConfigField "String", "SUPABASE_ANON_KEY", '"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU"'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    packaging {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
+        }
+        // Le .so dello Speech SDK si estraggono all'installazione: il SDK le
+        // carica con System.loadLibrary e su alcuni telefoni da APK compresso fallisce.
+        jniLibs { useLegacyPackaging true }
+    }
+}
+
+dependencies {
+    implementation platform('androidx.compose:compose-bom:2025.04.01')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.material3:material3'
+    // ⚠️ NON aggiungere `material-icons-extended` (vedi CLAUDE.md): le icone qui
+    // sono emoji dentro del testo.
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1'
+
+    // Azure Speech: sintesi (voci neurali en-GB) e, dalla fase 2, Pronunciation
+    // Assessment. Niente supabase-kt: del progetto Supabase servono il login e
+    // una Edge Function, due chiamate HTTP che non valgono una libreria.
+    implementation 'com.microsoft.cognitiveservices.speech:client-sdk:1.43.0'
+}
