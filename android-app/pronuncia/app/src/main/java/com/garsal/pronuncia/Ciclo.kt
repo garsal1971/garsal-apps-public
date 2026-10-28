@@ -22,6 +22,8 @@ data class StatoCiclo(
     val buone: Int = 0,
     val nota: String? = null,
     val inPausa: Boolean = false,
+    /** La frase in corso viene dal ripasso (fase 6). */
+    val ripasso: Boolean = false,
     /** Un avviso che vale mentre il ciclo gira (es. cuffie non trovate). */
     val avviso: String? = null,
 )
@@ -45,6 +47,8 @@ data class StatoCiclo(
  * aspettarne la fine: in una chiamata il microfono va lasciato subito. Dopo una
  * pausa la frase si rilegge da capo — a metà non vorrebbe dire niente — e i
  * tentativi già fatti restano.
+ *
+ * Fase 6: una frase ogni [Ripasso.OGNI] viene dal ripasso (vedi `Ripasso`).
  *
  * Gira dentro `CicloService`, non nella schermata: deve continuare a schermo
  * spento.
@@ -132,14 +136,22 @@ object Ciclo {
         var frase: Frase? = null
         var lenta = false
         while (true) {
-            val f = frase ?: (Frasi.aCaso(ctx, p.livello, p.tema, precedente)
-                ?: run { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return })
             if (frase == null) {
-                frase = f
-                precedente = f.id
+                // Fase 6: una frase ogni Ripasso.OGNI è da ripassare, se ce n'è;
+                // altrimenti si resta sulle frasi a caso.
+                val n = stato.value.frasi + 1
+                val daRipassare = if (n % Ripasso.OGNI == 0)
+                    runCatching { Ripasso.prossima(ctx, p.livello, p.tema, precedente) }.getOrNull() else null
+                val nuova = daRipassare ?: Frasi.aCaso(ctx, p.livello, p.tema, precedente)
+                    ?: run { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
+                frase = nuova
+                precedente = nuova.id
                 tentativo = 0
-                stato.update { it.copy(frase = f, tentativo = 0, ultimo = null, frasi = it.frasi + 1) }
+                stato.update {
+                    it.copy(frase = nuova, tentativo = 0, ultimo = null, frasi = n, ripasso = daRipassare != null)
+                }
             }
+            val f = frase!!
             val fine = interrompibile { giro(f, lenta) }
             lenta = false
             when (fine) {
