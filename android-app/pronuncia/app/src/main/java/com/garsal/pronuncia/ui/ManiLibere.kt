@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.CicloService
 import com.garsal.pronuncia.Frasi
+import com.garsal.pronuncia.Ripasso
 import java.util.Locale
 
 /**
@@ -74,7 +75,7 @@ fun ManiLibere() {
             if (s.attivo) {
                 s.frase?.let { f ->
                     Text(
-                        "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}",
+                        "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}" + if (s.ripasso) " · 🔁 da ripassare" else "",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -101,7 +102,7 @@ fun ManiLibere() {
             } else {
                 Text(
                     "Legge una frase, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA ripete le " +
-                        "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Continua finché " +
+                        "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché " +
                         "non premi Ferma, anche a schermo spento.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +
                         "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +

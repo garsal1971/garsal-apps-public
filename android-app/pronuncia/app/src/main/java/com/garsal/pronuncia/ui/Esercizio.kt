@@ -38,6 +38,7 @@ import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.Esito
 import com.garsal.pronuncia.Frase
 import com.garsal.pronuncia.Storico
+import com.garsal.pronuncia.Ripasso
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.NessunaVoce
 import com.garsal.pronuncia.Parola
@@ -68,6 +69,7 @@ fun Esercizio() {
     var fase by remember { mutableStateOf(Fase.FERMO) }
     var esito by remember { mutableStateOf<Esito?>(null) }
     var nota by remember { mutableStateOf<String?>(null) }
+    var ripasso by remember { mutableStateOf(false) }
     // Il microfono è uno: col ciclo a mani libere acceso, l'esercizio a mano aspetta.
     val ciclo by Ciclo.stato.collectAsState()
     val libero = fase == Fase.FERMO && !ciclo.attivo
@@ -76,6 +78,19 @@ fun Esercizio() {
         frase = Frasi.aCaso(ctx, livello, tema, frase?.id)
         esito = null
         nota = null
+        ripasso = false
+    }
+
+    // Fase 6: una frase dallo storico, fra quelle da ripassare.
+    fun ripassa() {
+        scope.launch {
+            val r = runCatching { Ripasso.prossima(ctx, livello, tema, frase?.id) }.getOrNull()
+            if (r == null) {
+                nota = "Niente da ripassare per questo filtro: le frasi andate male tornano qui da sole."
+            } else {
+                frase = r; esito = null; nota = null; ripasso = true
+            }
+        }
     }
 
     fun ascolta(lenta: Boolean) {
@@ -143,7 +158,7 @@ fun Esercizio() {
                 Text("Nessuna frase per questo filtro.")
             } else {
                 Text(
-                    "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}",
+                    "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}" + if (ripasso) " · 🔁 da ripassare" else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -162,6 +177,9 @@ fun Esercizio() {
                 }
                 OutlinedButton(onClick = { nuova() }, enabled = libero, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("⏭ Altra")
+                }
+                OutlinedButton(onClick = { ripassa() }, enabled = libero, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("🔁 Ripasso")
                 }
             }
 

@@ -3649,7 +3649,8 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 
 Il ciclo a cui arriva (per fasi): l'app legge una frase en-GB → la si ripete → Pronunciation
 Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase dopo o nuovo tentativo
-(max 3), coi comandi «repeat / next / slower / stop», in un servizio in primo piano a schermo spento.
+(max 3), coi comandi «repeat / next / slower / stop», in un servizio in primo piano a schermo spento,
+con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi sono tutte fatte.
 
 - **Fase 1** (v1.0.0): login, token Azure, prova della voce (Sonia/Ryan, normale/lenta via SSML),
   impostazioni salvate ma non ancora usate — microfono (telefono / cuffie BT) e lingua del
@@ -3686,6 +3687,12 @@ Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase d
   contano), ultimi 50 tentativi col dettaglio al tocco, e 🗑 Cancella lo storico. «Riuscito» è
   `SOGLIA_BUONA`, passata alle query e non riscritta. ⚠️ KSP (`2.1.20-2.0.1`) è agganciato alla
   versione di Kotlin, e lo schema di Room si committa in `app/schemas/` per le migration future.
+- **Fase 6** (v1.5.0): 🔁 **ripasso** (`Ripasso.kt`). Da ripassare = frase con almeno un tentativo
+  sotto `SOGLIA_BUONA` e gli ultimi **due** non entrambi sopra (due riuscite di fila la fanno
+  uscire), più le frasi **mai fatte** che contengono una delle 10 parole più sbagliate. Nel ciclo una
+  frase ogni `Ripasso.OGNI` (3) viene da lì se ce n'è, nell'esercizio dal pulsante «🔁 Ripasso»; la
+  frase porta «🔁 da ripassare». ⚠️ Nessuna tabella: si ricava ogni volta dallo storico, quindi
+  cancellando lo storico si azzera anche il ripasso. Filtri di livello e tema valgono anche qui.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

@@ -70,6 +70,8 @@ data class ParolaTentativo(
 
 data class Giorno(val giorno: String, val tentativi: Int, val frasi: Int, val media: Double, val riuscite: Int)
 
+data class Punteggio(val fraseId: String, val pronuncia: Double)
+
 data class ParolaDifficile(val parola: String, val volte: Int, val sbagliate: Int, val media: Double)
 
 @Dao
@@ -101,6 +103,19 @@ interface StoricoDao {
            HAVING sbagliate > 0 ORDER BY sbagliate DESC, media ASC LIMIT :quanti""",
     )
     fun paroleDifficili(soglia: Double, quanti: Int): Flow<List<ParolaDifficile>>
+
+    /** Per il ripasso (fase 6): letture una tantum, non Flow. */
+    @Query("SELECT frase_id AS fraseId, pronuncia FROM tentativi ORDER BY quando DESC")
+    suspend fun punteggi(): List<Punteggio>
+
+    @Query(
+        """SELECT parola, COUNT(*) AS volte,
+           SUM(CASE WHEN errore != 'None' OR accuratezza < :soglia THEN 1 ELSE 0 END) AS sbagliate,
+           AVG(accuratezza) AS media
+           FROM parole WHERE errore != 'Insertion' GROUP BY parola
+           HAVING sbagliate > 0 ORDER BY sbagliate DESC, media ASC LIMIT :quanti""",
+    )
+    suspend fun paroleDifficiliOra(soglia: Double, quanti: Int): List<ParolaDifficile>
 
     @Query("SELECT * FROM tentativi ORDER BY quando DESC LIMIT :quanti")
     fun ultimi(quanti: Int): Flow<List<Tentativo>>
