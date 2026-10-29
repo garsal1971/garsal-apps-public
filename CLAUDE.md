@@ -3693,6 +3693,12 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   frase ogni `Ripasso.OGNI` (3) viene da lì se ce n'è, nell'esercizio dal pulsante «🔁 Ripasso»; la
   frase porta «🔁 da ripassare». ⚠️ Nessuna tabella: si ricava ogni volta dallo storico, quindi
   cancellando lo storico si azzera anche il ripasso. Filtri di livello e tema valgono anche qui.
+- **Silenzi non pagati** (v1.6.0, `Ascolto.kt`): il microfono lo legge l'app (`AudioRecord`, 16 kHz) con
+  un rilevatore di voce suo, e ad Azure l'audio va per **push stream** solo dall'inizio della voce (con
+  300 ms di coda prima) a 600 ms di silenzio dopo. Un silenzio intero (8 s di attesa, in locale) non apre
+  nemmeno il riconoscimento. Lato Azure silenzio iniziale 3 s e segmentazione 1 s — ⚠️ più corta
+  taglierebbe la frase alla prima virgola. La soglia si adatta al rumore di fondo ma va tarata sul
+  telefono. Con le cuffie BT la sorgente è `VOICE_COMMUNICATION`.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
