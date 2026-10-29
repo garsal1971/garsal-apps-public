@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -22,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +34,7 @@ import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.CicloService
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.Ripasso
+import com.garsal.pronuncia.Servizi
 import java.util.Locale
 
 /**
@@ -43,6 +47,7 @@ fun ManiLibere(parole: Boolean) {
     val ctx = LocalContext.current
     val s by Ciclo.stato.collectAsState()
     var nota by remember { mutableStateOf<String?>(null) }
+    var riascolto by remember { mutableStateOf(Servizi.prefs.riascoltoCiclo) }
 
     fun avvia() {
         nota = null
@@ -71,6 +76,12 @@ fun ManiLibere(parole: Boolean) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (parole) "🎧 Mani libere · parole" else "🎧 Mani libere", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            // Letta a ogni tentativo: vale anche a ciclo acceso.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("🔁 Fammi riascoltare la mia voce prima del voto", Modifier.weight(1f))
+                Switch(checked = riascolto, onCheckedChange = { riascolto = it; Servizi.prefs.riascoltoCiclo = it })
+            }
 
             if (s.attivo) {
                 s.frase?.let { f ->
@@ -102,10 +113,10 @@ fun ManiLibere(parole: Boolean) {
             } else {
                 Text(
                     (if (parole)
-                        "Legge una parola, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA te la rilegge piano " +
+                        "Legge una parola, tu la ripeti, ti fa riascoltare la tua voce (se acceso) e ti dice il voto. Sotto $SOGLIA_INTERA te la rilegge piano " +
                             "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una parola ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché "
                     else
-                        "Legge una frase, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA ripete le " +
+                        "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
                             "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché ") +
                         "non premi Ferma, anche a schermo spento.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +

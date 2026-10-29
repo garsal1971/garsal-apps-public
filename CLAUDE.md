@@ -3716,6 +3716,11 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   restituisce il controllo **non boccia** e lo dice. ⚠️ Storico e ripasso restano sul voto
   complessivo, o cambierebbe all'indietro quali frasi erano riuscite. Le frasi restano scritte
   all'inglese.
+- **Riascolto nel ciclo** (v1.9.0): a mani libere il giro è frase → tu la ripeti → l'app ti fa
+  riascoltare la registrazione (`Riascolto`, in `USAGE_VOICE_COMMUNICATION` con le cuffie BT) →
+  dice il voto («Your score: 85» / «Voto: 85», `Feedback.voto`) → Good o Try again. Il riascolto
+  si spegne con lo switch nella card (`Prefs.riascoltoCiclo`, di partenza acceso, letta a ogni
+  tentativo); il voto si dice sempre.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

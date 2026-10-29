@@ -31,6 +31,8 @@ data class StatoCiclo(
 /**
  * Il ciclo a mani libere: legge una frase, ascolta, commenta, e avanti.
  *
+ * - dopo il tentativo, se acceso (`Prefs.riascoltoCiclo`), si riascolta la
+ *   propria registrazione; poi si dice il voto;
  * - se il [Giudizio] la promuove (voto ≥ [SOGLIA_BUONA] più i controlli
  *   accesi nelle impostazioni) si dice «Good» e si passa alla prossima;
  * - sotto, «Try again», le 1-2 parole peggiori lente e la frase di nuovo,
@@ -116,7 +118,15 @@ object Ciclo {
                 Storico.registra(ctx, frase, esito, "mani_libere")
                 tentativo++
                 stato.update { it.copy(tentativo = tentativo, ultimo = esito.pronuncia) }
+                // Il riascolto: la propria voce prima del giudizio, così il
+                // voto si confronta con quel che si è appena sentito.
+                if (p.riascoltoCiclo) Servizi.valutatore.ultimaVoce?.let { v ->
+                    cosa("🔁 La tua voce")
+                    Riascolto.suona(v, Servizi.tts.comunicazione)
+                }
                 val verdetto = Giudizio.di(esito, p)
+                cosa("📊 Il voto")
+                Servizi.tts.parla(Feedback.voto(lingua, esito.pronuncia), voceFb, linguaFb)
                 if (verdetto.buona) {
                     stato.update { it.copy(buone = it.buone + 1) }
                     di(Feedback.Cosa.BRAVO)

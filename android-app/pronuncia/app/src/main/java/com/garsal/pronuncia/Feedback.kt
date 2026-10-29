@@ -26,6 +26,15 @@ object Feedback {
         }
     }
 
+    /** Il voto detto a voce, prima di «Good» o «Try again». */
+    fun voto(l: LinguaFeedback, v: Double): String {
+        val n = Math.round(v)
+        return when (l) {
+            LinguaFeedback.INGLESE -> "Your score: $n."
+            LinguaFeedback.ITALIANO -> "Voto: $n."
+        }
+    }
+
     /** Voce e lingua del commento: l'inglese con la voce scelta, l'italiano con
      *  la voce italiana dello stesso genere — una voce inglese che legge
      *  l'italiano lo storpia. */
