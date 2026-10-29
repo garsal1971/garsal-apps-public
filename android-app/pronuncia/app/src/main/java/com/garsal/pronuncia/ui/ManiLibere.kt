@@ -39,7 +39,7 @@ import java.util.Locale
  * Livello e tema sono quelli scelti nell'esercizio.
  */
 @Composable
-fun ManiLibere() {
+fun ManiLibere(parole: Boolean) {
     val ctx = LocalContext.current
     val s by Ciclo.stato.collectAsState()
     var nota by remember { mutableStateOf<String?>(null) }
@@ -70,7 +70,7 @@ fun ManiLibere() {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("🎧 Mani libere", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(if (parole) "🎧 Mani libere · parole" else "🎧 Mani libere", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             if (s.attivo) {
                 s.frase?.let { f ->
@@ -101,8 +101,12 @@ fun ManiLibere() {
                 ) { Text("⏹ Ferma", style = MaterialTheme.typography.titleMedium) }
             } else {
                 Text(
-                    "Legge una frase, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA ripete le " +
-                        "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché " +
+                    (if (parole)
+                        "Legge una parola, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA te la rilegge piano " +
+                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una parola ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché "
+                    else
+                        "Legge una frase, tu la ripeti, e ti dice com'è andata. Sotto $SOGLIA_INTERA ripete le " +
+                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché ") +
                         "non premi Ferma, anche a schermo spento.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +
                         "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +
@@ -116,7 +120,7 @@ fun ManiLibere() {
 
             if (s.frasi > 0) {
                 Text(
-                    "Questa sessione: ${s.frasi} frasi, ${s.buone} riuscite.",
+                    "Questa sessione: ${s.frasi} ${if (s.frase?.parola == true) "parole" else "frasi"}, ${s.buone} riuscite.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

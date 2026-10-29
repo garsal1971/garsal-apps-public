@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -100,6 +101,7 @@ private fun Connesso(onStorico: () -> Unit) {
     var microfono by remember { mutableStateOf(prefs.microfono) }
     var feedback by remember { mutableStateOf(prefs.linguaFeedback) }
     var dialogoVersione by remember { mutableStateOf(false) }
+    var parole by remember { mutableStateOf(prefs.parole) }
 
     Text(
         "Connesso come ${Servizi.auth.email() ?: "?"}",
@@ -111,9 +113,17 @@ private fun Connesso(onStorico: () -> Unit) {
         Text("📈 Storico")
     }
 
-    ManiLibere()
+    // Si sceglie prima di cominciare, e vale per tutt'e due: il ciclo a mani
+    // libere la rilegge a ogni elemento nuovo.
+    Tendina("Esercitati su", parole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) {
+        parole = it; prefs.parole = it
+    }
 
-    Esercizio()
+    ManiLibere(parole)
+
+    // La chiave riparte da capo l'esercizio quando si cambia: una frase
+    // rimasta a schermo in modalità parole sarebbe una scelta non rispettata.
+    key(parole) { Esercizio(parole) }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

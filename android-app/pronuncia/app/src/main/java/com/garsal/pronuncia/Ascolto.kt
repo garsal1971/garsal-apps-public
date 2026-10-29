@@ -49,6 +49,17 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
     }
 
     private var rumore = -1.0
+    private val registrato = java.io.ByteArrayOutputStream()
+
+    /** Quel che è andato ad Azure, PCM 16 kHz mono 16 bit: è la voce che il
+     *  pulsante «Riascoltami» fa sentire. */
+    fun registrazione(): ByteArray = registrato.toByteArray()
+
+    /** Manda un frame ad Azure e lo tiene per il riascolto. */
+    fun invia(push: PushAudioInputStream, f: ByteArray) {
+        push.write(f)
+        registrato.write(f)
+    }
     private val coda = ArrayDeque<ByteArray>()
 
     /**
@@ -85,7 +96,7 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
             currentCoroutineContext().ensureActive()
             if (finito()) return
             val f = leggi() ?: return
-            push.write(f)
+            invia(push, f)
             if (energia(f) > sogliaSilenzio()) zitto = 0
             else if (++zitto >= FINE_MS / FRAME_MS) return
         }

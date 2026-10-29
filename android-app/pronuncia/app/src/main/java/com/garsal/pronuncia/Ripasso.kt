@@ -22,10 +22,13 @@ object Ripasso {
     private const val RIUSCITE_PER_USCIRE = 2
     private const val PAROLE = 10
 
-    suspend fun prossima(ctx: Context, livello: String?, tema: String?, esclusa: String? = null): Frase? =
-        withContext(Dispatchers.IO) { candidate(ctx, livello, tema).filter { it.id != esclusa }.randomOrNull() }
+    suspend fun prossima(ctx: Context, livello: String?, tema: String?, esclusa: String? = null, soloParole: Boolean = false): Frase? =
+        withContext(Dispatchers.IO) { candidate(ctx, livello, tema, soloParole).filter { it.id != esclusa }.randomOrNull() }
 
-    suspend fun candidate(ctx: Context, livello: String?, tema: String?): List<Frase> = withContext(Dispatchers.IO) {
+    /** Con [soloParole] lo stesso giro sulle parole sole: una parola sbagliata
+     *  torna finché non riesce due volte di fila, e quelle mai fatte entrano se
+     *  sono fra le più sbagliate nelle frasi. */
+    suspend fun candidate(ctx: Context, livello: String?, tema: String?, soloParole: Boolean = false): List<Frase> = withContext(Dispatchers.IO) {
         val dao = Storico.dao(ctx)
         // Dal più recente: i primi due per frase sono gli ultimi due tentativi.
         val perFrase = dao.punteggi().groupBy({ it.fraseId }, { it.pronuncia })
@@ -34,7 +37,7 @@ object Ripasso {
                 !(p.size >= RIUSCITE_PER_USCIRE && p.take(RIUSCITE_PER_USCIRE).all { it >= SOGLIA_BUONA })
         }.keys
         val difficili = dao.paroleDifficiliOra(SOGLIA_BUONA, PAROLE).map { it.parola }.toSet()
-        Frasi.tutte(ctx).filter { f ->
+        Frasi.catalogo(ctx, soloParole).filter { f ->
             (livello == null || f.livello == livello) && (tema == null || f.tema == tema) &&
                 (f.id in daRipassare ||
                     (f.id !in perFrase && f.testo.split(Regex("\\s+")).any { Storico.normalizza(it) in difficili }))

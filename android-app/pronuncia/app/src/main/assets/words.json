@@ -1,0 +1,1445 @@
+{
+ "version": 1,
+ "words": [
+  {
+   "id": "w-a1-v-01",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "ticket"
+  },
+  {
+   "id": "w-a1-v-02",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "station"
+  },
+  {
+   "id": "w-a1-v-03",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "train"
+  },
+  {
+   "id": "w-a1-v-04",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "bus"
+  },
+  {
+   "id": "w-a1-v-05",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "hotel"
+  },
+  {
+   "id": "w-a1-v-06",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "room"
+  },
+  {
+   "id": "w-a1-v-07",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "key"
+  },
+  {
+   "id": "w-a1-v-08",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "map"
+  },
+  {
+   "id": "w-a1-v-09",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "airport"
+  },
+  {
+   "id": "w-a1-v-10",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "passport"
+  },
+  {
+   "id": "w-a1-v-11",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "luggage"
+  },
+  {
+   "id": "w-a1-v-12",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "bag"
+  },
+  {
+   "id": "w-a1-v-13",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "taxi"
+  },
+  {
+   "id": "w-a1-v-14",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "street"
+  },
+  {
+   "id": "w-a1-v-15",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "left"
+  },
+  {
+   "id": "w-a1-v-16",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "right"
+  },
+  {
+   "id": "w-a1-v-17",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "water"
+  },
+  {
+   "id": "w-a1-v-18",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "money"
+  },
+  {
+   "id": "w-a1-v-19",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "beach"
+  },
+  {
+   "id": "w-a1-v-20",
+   "level": "A1",
+   "theme": "viaggio",
+   "text": "holiday"
+  },
+  {
+   "id": "w-a1-p-01",
+   "level": "A1",
+   "theme": "politica",
+   "text": "vote"
+  },
+  {
+   "id": "w-a1-p-02",
+   "level": "A1",
+   "theme": "politica",
+   "text": "law"
+  },
+  {
+   "id": "w-a1-p-03",
+   "level": "A1",
+   "theme": "politica",
+   "text": "king"
+  },
+  {
+   "id": "w-a1-p-04",
+   "level": "A1",
+   "theme": "politica",
+   "text": "queen"
+  },
+  {
+   "id": "w-a1-p-05",
+   "level": "A1",
+   "theme": "politica",
+   "text": "people"
+  },
+  {
+   "id": "w-a1-p-06",
+   "level": "A1",
+   "theme": "politica",
+   "text": "country"
+  },
+  {
+   "id": "w-a1-p-07",
+   "level": "A1",
+   "theme": "politica",
+   "text": "city"
+  },
+  {
+   "id": "w-a1-p-08",
+   "level": "A1",
+   "theme": "politica",
+   "text": "town"
+  },
+  {
+   "id": "w-a1-p-09",
+   "level": "A1",
+   "theme": "politica",
+   "text": "leader"
+  },
+  {
+   "id": "w-a1-p-10",
+   "level": "A1",
+   "theme": "politica",
+   "text": "party"
+  },
+  {
+   "id": "w-a1-p-11",
+   "level": "A1",
+   "theme": "politica",
+   "text": "police"
+  },
+  {
+   "id": "w-a1-p-12",
+   "level": "A1",
+   "theme": "politica",
+   "text": "flag"
+  },
+  {
+   "id": "w-a1-p-13",
+   "level": "A1",
+   "theme": "politica",
+   "text": "rule"
+  },
+  {
+   "id": "w-a1-p-14",
+   "level": "A1",
+   "theme": "politica",
+   "text": "free"
+  },
+  {
+   "id": "w-a1-p-15",
+   "level": "A1",
+   "theme": "politica",
+   "text": "job"
+  },
+  {
+   "id": "w-a1-p-16",
+   "level": "A1",
+   "theme": "politica",
+   "text": "school"
+  },
+  {
+   "id": "w-a1-p-17",
+   "level": "A1",
+   "theme": "politica",
+   "text": "tax"
+  },
+  {
+   "id": "w-a1-p-18",
+   "level": "A1",
+   "theme": "politica",
+   "text": "war"
+  },
+  {
+   "id": "w-a1-p-19",
+   "level": "A1",
+   "theme": "politica",
+   "text": "peace"
+  },
+  {
+   "id": "w-a1-p-20",
+   "level": "A1",
+   "theme": "politica",
+   "text": "news"
+  },
+  {
+   "id": "w-a1-s-01",
+   "level": "A1",
+   "theme": "storia",
+   "text": "past"
+  },
+  {
+   "id": "w-a1-s-02",
+   "level": "A1",
+   "theme": "storia",
+   "text": "story"
+  },
+  {
+   "id": "w-a1-s-03",
+   "level": "A1",
+   "theme": "storia",
+   "text": "museum"
+  },
+  {
+   "id": "w-a1-s-04",
+   "level": "A1",
+   "theme": "storia",
+   "text": "tower"
+  },
+  {
+   "id": "w-a1-s-05",
+   "level": "A1",
+   "theme": "storia",
+   "text": "bridge"
+  },
+  {
+   "id": "w-a1-s-06",
+   "level": "A1",
+   "theme": "storia",
+   "text": "church"
+  },
+  {
+   "id": "w-a1-s-07",
+   "level": "A1",
+   "theme": "storia",
+   "text": "army"
+  },
+  {
+   "id": "w-a1-s-08",
+   "level": "A1",
+   "theme": "storia",
+   "text": "ship"
+  },
+  {
+   "id": "w-a1-s-09",
+   "level": "A1",
+   "theme": "storia",
+   "text": "battle"
+  },
+  {
+   "id": "w-a1-s-10",
+   "level": "A1",
+   "theme": "storia",
+   "text": "palace"
+  },
+  {
+   "id": "w-a1-s-11",
+   "level": "A1",
+   "theme": "storia",
+   "text": "ancient"
+  },
+  {
+   "id": "w-a1-s-12",
+   "level": "A1",
+   "theme": "storia",
+   "text": "village"
+  },
+  {
+   "id": "w-a1-s-13",
+   "level": "A1",
+   "theme": "storia",
+   "text": "wall"
+  },
+  {
+   "id": "w-a1-s-14",
+   "level": "A1",
+   "theme": "storia",
+   "text": "gold"
+  },
+  {
+   "id": "w-a1-s-15",
+   "level": "A1",
+   "theme": "storia",
+   "text": "sword"
+  },
+  {
+   "id": "w-a1-s-16",
+   "level": "A1",
+   "theme": "storia",
+   "text": "horse"
+  },
+  {
+   "id": "w-a1-s-17",
+   "level": "A1",
+   "theme": "storia",
+   "text": "farmer"
+  },
+  {
+   "id": "w-a1-s-18",
+   "level": "A1",
+   "theme": "storia",
+   "text": "temple"
+  },
+  {
+   "id": "w-a1-s-19",
+   "level": "A1",
+   "theme": "storia",
+   "text": "crown"
+  },
+  {
+   "id": "w-a1-s-20",
+   "level": "A1",
+   "theme": "storia",
+   "text": "date"
+  },
+  {
+   "id": "w-a2-v-01",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "journey"
+  },
+  {
+   "id": "w-a2-v-02",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "platform"
+  },
+  {
+   "id": "w-a2-v-03",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "reservation"
+  },
+  {
+   "id": "w-a2-v-04",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "schedule"
+  },
+  {
+   "id": "w-a2-v-05",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "delay"
+  },
+  {
+   "id": "w-a2-v-06",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "departure"
+  },
+  {
+   "id": "w-a2-v-07",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "arrival"
+  },
+  {
+   "id": "w-a2-v-08",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "abroad"
+  },
+  {
+   "id": "w-a2-v-09",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "souvenir"
+  },
+  {
+   "id": "w-a2-v-10",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "receipt"
+  },
+  {
+   "id": "w-a2-v-11",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "currency"
+  },
+  {
+   "id": "w-a2-v-12",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "queue"
+  },
+  {
+   "id": "w-a2-v-13",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "motorway"
+  },
+  {
+   "id": "w-a2-v-14",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "timetable"
+  },
+  {
+   "id": "w-a2-v-15",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "sightseeing"
+  },
+  {
+   "id": "w-a2-v-16",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "cruise"
+  },
+  {
+   "id": "w-a2-v-17",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "island"
+  },
+  {
+   "id": "w-a2-v-18",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "guidebook"
+  },
+  {
+   "id": "w-a2-v-19",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "accommodation"
+  },
+  {
+   "id": "w-a2-v-20",
+   "level": "A2",
+   "theme": "viaggio",
+   "text": "booking"
+  },
+  {
+   "id": "w-a2-p-01",
+   "level": "A2",
+   "theme": "politica",
+   "text": "government"
+  },
+  {
+   "id": "w-a2-p-02",
+   "level": "A2",
+   "theme": "politica",
+   "text": "election"
+  },
+  {
+   "id": "w-a2-p-03",
+   "level": "A2",
+   "theme": "politica",
+   "text": "minister"
+  },
+  {
+   "id": "w-a2-p-04",
+   "level": "A2",
+   "theme": "politica",
+   "text": "citizen"
+  },
+  {
+   "id": "w-a2-p-05",
+   "level": "A2",
+   "theme": "politica",
+   "text": "council"
+  },
+  {
+   "id": "w-a2-p-06",
+   "level": "A2",
+   "theme": "politica",
+   "text": "debate"
+  },
+  {
+   "id": "w-a2-p-07",
+   "level": "A2",
+   "theme": "politica",
+   "text": "policy"
+  },
+  {
+   "id": "w-a2-p-08",
+   "level": "A2",
+   "theme": "politica",
+   "text": "mayor"
+  },
+  {
+   "id": "w-a2-p-09",
+   "level": "A2",
+   "theme": "politica",
+   "text": "nation"
+  },
+  {
+   "id": "w-a2-p-10",
+   "level": "A2",
+   "theme": "politica",
+   "text": "protest"
+  },
+  {
+   "id": "w-a2-p-11",
+   "level": "A2",
+   "theme": "politica",
+   "text": "rights"
+  },
+  {
+   "id": "w-a2-p-12",
+   "level": "A2",
+   "theme": "politica",
+   "text": "decision"
+  },
+  {
+   "id": "w-a2-p-13",
+   "level": "A2",
+   "theme": "politica",
+   "text": "public"
+  },
+  {
+   "id": "w-a2-p-14",
+   "level": "A2",
+   "theme": "politica",
+   "text": "support"
+  },
+  {
+   "id": "w-a2-p-15",
+   "level": "A2",
+   "theme": "politica",
+   "text": "union"
+  },
+  {
+   "id": "w-a2-p-16",
+   "level": "A2",
+   "theme": "politica",
+   "text": "budget"
+  },
+  {
+   "id": "w-a2-p-17",
+   "level": "A2",
+   "theme": "politica",
+   "text": "crime"
+  },
+  {
+   "id": "w-a2-p-18",
+   "level": "A2",
+   "theme": "politica",
+   "text": "court"
+  },
+  {
+   "id": "w-a2-p-19",
+   "level": "A2",
+   "theme": "politica",
+   "text": "region"
+  },
+  {
+   "id": "w-a2-p-20",
+   "level": "A2",
+   "theme": "politica",
+   "text": "opinion"
+  },
+  {
+   "id": "w-a2-s-01",
+   "level": "A2",
+   "theme": "storia",
+   "text": "medieval"
+  },
+  {
+   "id": "w-a2-s-02",
+   "level": "A2",
+   "theme": "storia",
+   "text": "kingdom"
+  },
+  {
+   "id": "w-a2-s-03",
+   "level": "A2",
+   "theme": "storia",
+   "text": "soldier"
+  },
+  {
+   "id": "w-a2-s-04",
+   "level": "A2",
+   "theme": "storia",
+   "text": "knight"
+  },
+  {
+   "id": "w-a2-s-05",
+   "level": "A2",
+   "theme": "storia",
+   "text": "invasion"
+  },
+  {
+   "id": "w-a2-s-06",
+   "level": "A2",
+   "theme": "storia",
+   "text": "emperor"
+  },
+  {
+   "id": "w-a2-s-07",
+   "level": "A2",
+   "theme": "storia",
+   "text": "monument"
+  },
+  {
+   "id": "w-a2-s-08",
+   "level": "A2",
+   "theme": "storia",
+   "text": "ruins"
+  },
+  {
+   "id": "w-a2-s-09",
+   "level": "A2",
+   "theme": "storia",
+   "text": "period"
+  },
+  {
+   "id": "w-a2-s-10",
+   "level": "A2",
+   "theme": "storia",
+   "text": "tradition"
+  },
+  {
+   "id": "w-a2-s-11",
+   "level": "A2",
+   "theme": "storia",
+   "text": "explorer"
+  },
+  {
+   "id": "w-a2-s-12",
+   "level": "A2",
+   "theme": "storia",
+   "text": "settler"
+  },
+  {
+   "id": "w-a2-s-13",
+   "level": "A2",
+   "theme": "storia",
+   "text": "pharaoh"
+  },
+  {
+   "id": "w-a2-s-14",
+   "level": "A2",
+   "theme": "storia",
+   "text": "pyramid"
+  },
+  {
+   "id": "w-a2-s-15",
+   "level": "A2",
+   "theme": "storia",
+   "text": "legend"
+  },
+  {
+   "id": "w-a2-s-16",
+   "level": "A2",
+   "theme": "storia",
+   "text": "heritage"
+  },
+  {
+   "id": "w-a2-s-17",
+   "level": "A2",
+   "theme": "storia",
+   "text": "discovery"
+  },
+  {
+   "id": "w-a2-s-18",
+   "level": "A2",
+   "theme": "storia",
+   "text": "victory"
+  },
+  {
+   "id": "w-a2-s-19",
+   "level": "A2",
+   "theme": "storia",
+   "text": "treasure"
+  },
+  {
+   "id": "w-a2-s-20",
+   "level": "A2",
+   "theme": "storia",
+   "text": "dynasty"
+  },
+  {
+   "id": "w-b1-v-01",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "itinerary"
+  },
+  {
+   "id": "w-b1-v-02",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "destination"
+  },
+  {
+   "id": "w-b1-v-03",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "excursion"
+  },
+  {
+   "id": "w-b1-v-04",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "passenger"
+  },
+  {
+   "id": "w-b1-v-05",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "terminal"
+  },
+  {
+   "id": "w-b1-v-06",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "customs"
+  },
+  {
+   "id": "w-b1-v-07",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "insurance"
+  },
+  {
+   "id": "w-b1-v-08",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "landmark"
+  },
+  {
+   "id": "w-b1-v-09",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "scenery"
+  },
+  {
+   "id": "w-b1-v-10",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "voyage"
+  },
+  {
+   "id": "w-b1-v-11",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "hostel"
+  },
+  {
+   "id": "w-b1-v-12",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "backpacker"
+  },
+  {
+   "id": "w-b1-v-13",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "commuter"
+  },
+  {
+   "id": "w-b1-v-14",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "overnight"
+  },
+  {
+   "id": "w-b1-v-15",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "refund"
+  },
+  {
+   "id": "w-b1-v-16",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "layover"
+  },
+  {
+   "id": "w-b1-v-17",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "cancellation"
+  },
+  {
+   "id": "w-b1-v-18",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "tourism"
+  },
+  {
+   "id": "w-b1-v-19",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "harbour"
+  },
+  {
+   "id": "w-b1-v-20",
+   "level": "B1",
+   "theme": "viaggio",
+   "text": "cathedral"
+  },
+  {
+   "id": "w-b1-p-01",
+   "level": "B1",
+   "theme": "politica",
+   "text": "parliament"
+  },
+  {
+   "id": "w-b1-p-02",
+   "level": "B1",
+   "theme": "politica",
+   "text": "democracy"
+  },
+  {
+   "id": "w-b1-p-03",
+   "level": "B1",
+   "theme": "politica",
+   "text": "candidate"
+  },
+  {
+   "id": "w-b1-p-04",
+   "level": "B1",
+   "theme": "politica",
+   "text": "campaign"
+  },
+  {
+   "id": "w-b1-p-05",
+   "level": "B1",
+   "theme": "politica",
+   "text": "referendum"
+  },
+  {
+   "id": "w-b1-p-06",
+   "level": "B1",
+   "theme": "politica",
+   "text": "legislation"
+  },
+  {
+   "id": "w-b1-p-07",
+   "level": "B1",
+   "theme": "politica",
+   "text": "opposition"
+  },
+  {
+   "id": "w-b1-p-08",
+   "level": "B1",
+   "theme": "politica",
+   "text": "coalition"
+  },
+  {
+   "id": "w-b1-p-09",
+   "level": "B1",
+   "theme": "politica",
+   "text": "constituency"
+  },
+  {
+   "id": "w-b1-p-10",
+   "level": "B1",
+   "theme": "politica",
+   "text": "manifesto"
+  },
+  {
+   "id": "w-b1-p-11",
+   "level": "B1",
+   "theme": "politica",
+   "text": "majority"
+  },
+  {
+   "id": "w-b1-p-12",
+   "level": "B1",
+   "theme": "politica",
+   "text": "minority"
+  },
+  {
+   "id": "w-b1-p-13",
+   "level": "B1",
+   "theme": "politica",
+   "text": "taxation"
+  },
+  {
+   "id": "w-b1-p-14",
+   "level": "B1",
+   "theme": "politica",
+   "text": "welfare"
+  },
+  {
+   "id": "w-b1-p-15",
+   "level": "B1",
+   "theme": "politica",
+   "text": "diplomat"
+  },
+  {
+   "id": "w-b1-p-16",
+   "level": "B1",
+   "theme": "politica",
+   "text": "embassy"
+  },
+  {
+   "id": "w-b1-p-17",
+   "level": "B1",
+   "theme": "politica",
+   "text": "treaty"
+  },
+  {
+   "id": "w-b1-p-18",
+   "level": "B1",
+   "theme": "politica",
+   "text": "reform"
+  },
+  {
+   "id": "w-b1-p-19",
+   "level": "B1",
+   "theme": "politica",
+   "text": "authority"
+  },
+  {
+   "id": "w-b1-p-20",
+   "level": "B1",
+   "theme": "politica",
+   "text": "representative"
+  },
+  {
+   "id": "w-b1-s-01",
+   "level": "B1",
+   "theme": "storia",
+   "text": "revolution"
+  },
+  {
+   "id": "w-b1-s-02",
+   "level": "B1",
+   "theme": "storia",
+   "text": "independence"
+  },
+  {
+   "id": "w-b1-s-03",
+   "level": "B1",
+   "theme": "storia",
+   "text": "colony"
+  },
+  {
+   "id": "w-b1-s-04",
+   "level": "B1",
+   "theme": "storia",
+   "text": "civilisation"
+  },
+  {
+   "id": "w-b1-s-05",
+   "level": "B1",
+   "theme": "storia",
+   "text": "archaeology"
+  },
+  {
+   "id": "w-b1-s-06",
+   "level": "B1",
+   "theme": "storia",
+   "text": "aristocracy"
+  },
+  {
+   "id": "w-b1-s-07",
+   "level": "B1",
+   "theme": "storia",
+   "text": "monarchy"
+  },
+  {
+   "id": "w-b1-s-08",
+   "level": "B1",
+   "theme": "storia",
+   "text": "chronicle"
+  },
+  {
+   "id": "w-b1-s-09",
+   "level": "B1",
+   "theme": "storia",
+   "text": "siege"
+  },
+  {
+   "id": "w-b1-s-10",
+   "level": "B1",
+   "theme": "storia",
+   "text": "conquest"
+  },
+  {
+   "id": "w-b1-s-11",
+   "level": "B1",
+   "theme": "storia",
+   "text": "reign"
+  },
+  {
+   "id": "w-b1-s-12",
+   "level": "B1",
+   "theme": "storia",
+   "text": "rebellion"
+  },
+  {
+   "id": "w-b1-s-13",
+   "level": "B1",
+   "theme": "storia",
+   "text": "artefact"
+  },
+  {
+   "id": "w-b1-s-14",
+   "level": "B1",
+   "theme": "storia",
+   "text": "peasant"
+  },
+  {
+   "id": "w-b1-s-15",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Renaissance"
+  },
+  {
+   "id": "w-b1-s-16",
+   "level": "B1",
+   "theme": "storia",
+   "text": "crusade"
+  },
+  {
+   "id": "w-b1-s-17",
+   "level": "B1",
+   "theme": "storia",
+   "text": "manuscript"
+  },
+  {
+   "id": "w-b1-s-18",
+   "level": "B1",
+   "theme": "storia",
+   "text": "industrial"
+  },
+  {
+   "id": "w-b1-s-19",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Victorian"
+  },
+  {
+   "id": "w-b1-s-20",
+   "level": "B1",
+   "theme": "storia",
+   "text": "Tudor"
+  },
+  {
+   "id": "w-b2-v-01",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "picturesque"
+  },
+  {
+   "id": "w-b2-v-02",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "breathtaking"
+  },
+  {
+   "id": "w-b2-v-03",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "quarantine"
+  },
+  {
+   "id": "w-b2-v-04",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "embarkation"
+  },
+  {
+   "id": "w-b2-v-05",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "disembark"
+  },
+  {
+   "id": "w-b2-v-06",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "reimbursement"
+  },
+  {
+   "id": "w-b2-v-07",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "hospitality"
+  },
+  {
+   "id": "w-b2-v-08",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "wanderlust"
+  },
+  {
+   "id": "w-b2-v-09",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "expedition"
+  },
+  {
+   "id": "w-b2-v-10",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "adventurous"
+  },
+  {
+   "id": "w-b2-v-11",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "accessible"
+  },
+  {
+   "id": "w-b2-v-12",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "cosmopolitan"
+  },
+  {
+   "id": "w-b2-v-13",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "renowned"
+  },
+  {
+   "id": "w-b2-v-14",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "panoramic"
+  },
+  {
+   "id": "w-b2-v-15",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "archipelago"
+  },
+  {
+   "id": "w-b2-v-16",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Leicester"
+  },
+  {
+   "id": "w-b2-v-17",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Worcester"
+  },
+  {
+   "id": "w-b2-v-18",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Edinburgh"
+  },
+  {
+   "id": "w-b2-v-19",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "Gloucester"
+  },
+  {
+   "id": "w-b2-v-20",
+   "level": "B2",
+   "theme": "viaggio",
+   "text": "thoroughfare"
+  },
+  {
+   "id": "w-b2-p-01",
+   "level": "B2",
+   "theme": "politica",
+   "text": "sovereignty"
+  },
+  {
+   "id": "w-b2-p-02",
+   "level": "B2",
+   "theme": "politica",
+   "text": "bureaucracy"
+  },
+  {
+   "id": "w-b2-p-03",
+   "level": "B2",
+   "theme": "politica",
+   "text": "accountability"
+  },
+  {
+   "id": "w-b2-p-04",
+   "level": "B2",
+   "theme": "politica",
+   "text": "legislature"
+  },
+  {
+   "id": "w-b2-p-05",
+   "level": "B2",
+   "theme": "politica",
+   "text": "constitutional"
+  },
+  {
+   "id": "w-b2-p-06",
+   "level": "B2",
+   "theme": "politica",
+   "text": "jurisdiction"
+  },
+  {
+   "id": "w-b2-p-07",
+   "level": "B2",
+   "theme": "politica",
+   "text": "parliamentary"
+  },
+  {
+   "id": "w-b2-p-08",
+   "level": "B2",
+   "theme": "politica",
+   "text": "unprecedented"
+  },
+  {
+   "id": "w-b2-p-09",
+   "level": "B2",
+   "theme": "politica",
+   "text": "scrutiny"
+  },
+  {
+   "id": "w-b2-p-10",
+   "level": "B2",
+   "theme": "politica",
+   "text": "devolution"
+  },
+  {
+   "id": "w-b2-p-11",
+   "level": "B2",
+   "theme": "politica",
+   "text": "ideology"
+  },
+  {
+   "id": "w-b2-p-12",
+   "level": "B2",
+   "theme": "politica",
+   "text": "controversial"
+  },
+  {
+   "id": "w-b2-p-13",
+   "level": "B2",
+   "theme": "politica",
+   "text": "governance"
+  },
+  {
+   "id": "w-b2-p-14",
+   "level": "B2",
+   "theme": "politica",
+   "text": "impartiality"
+  },
+  {
+   "id": "w-b2-p-15",
+   "level": "B2",
+   "theme": "politica",
+   "text": "rhetoric"
+  },
+  {
+   "id": "w-b2-p-16",
+   "level": "B2",
+   "theme": "politica",
+   "text": "statutory"
+  },
+  {
+   "id": "w-b2-p-17",
+   "level": "B2",
+   "theme": "politica",
+   "text": "mandate"
+  },
+  {
+   "id": "w-b2-p-18",
+   "level": "B2",
+   "theme": "politica",
+   "text": "incumbent"
+  },
+  {
+   "id": "w-b2-p-19",
+   "level": "B2",
+   "theme": "politica",
+   "text": "prerogative"
+  },
+  {
+   "id": "w-b2-p-20",
+   "level": "B2",
+   "theme": "politica",
+   "text": "electorate"
+  },
+  {
+   "id": "w-b2-s-01",
+   "level": "B2",
+   "theme": "storia",
+   "text": "archaeological"
+  },
+  {
+   "id": "w-b2-s-02",
+   "level": "B2",
+   "theme": "storia",
+   "text": "hierarchy"
+  },
+  {
+   "id": "w-b2-s-03",
+   "level": "B2",
+   "theme": "storia",
+   "text": "feudalism"
+  },
+  {
+   "id": "w-b2-s-04",
+   "level": "B2",
+   "theme": "storia",
+   "text": "chivalry"
+  },
+  {
+   "id": "w-b2-s-05",
+   "level": "B2",
+   "theme": "storia",
+   "text": "colonialism"
+  },
+  {
+   "id": "w-b2-s-06",
+   "level": "B2",
+   "theme": "storia",
+   "text": "chronological"
+  },
+  {
+   "id": "w-b2-s-07",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Elizabethan"
+  },
+  {
+   "id": "w-b2-s-08",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Edwardian"
+  },
+  {
+   "id": "w-b2-s-09",
+   "level": "B2",
+   "theme": "storia",
+   "text": "antiquity"
+  },
+  {
+   "id": "w-b2-s-10",
+   "level": "B2",
+   "theme": "storia",
+   "text": "catastrophe"
+  },
+  {
+   "id": "w-b2-s-11",
+   "level": "B2",
+   "theme": "storia",
+   "text": "epoch"
+  },
+  {
+   "id": "w-b2-s-12",
+   "level": "B2",
+   "theme": "storia",
+   "text": "sovereign"
+  },
+  {
+   "id": "w-b2-s-13",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Plantagenet"
+  },
+  {
+   "id": "w-b2-s-14",
+   "level": "B2",
+   "theme": "storia",
+   "text": "abolition"
+  },
+  {
+   "id": "w-b2-s-15",
+   "level": "B2",
+   "theme": "storia",
+   "text": "suffragette"
+  },
+  {
+   "id": "w-b2-s-16",
+   "level": "B2",
+   "theme": "storia",
+   "text": "armistice"
+  },
+  {
+   "id": "w-b2-s-17",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Byzantine"
+  },
+  {
+   "id": "w-b2-s-18",
+   "level": "B2",
+   "theme": "storia",
+   "text": "Anglo-Saxon"
+  },
+  {
+   "id": "w-b2-s-19",
+   "level": "B2",
+   "theme": "storia",
+   "text": "parchment"
+  },
+  {
+   "id": "w-b2-s-20",
+   "level": "B2",
+   "theme": "storia",
+   "text": "nobility"
+  }
+ ]
+}
