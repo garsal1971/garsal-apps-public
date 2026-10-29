@@ -3720,6 +3720,11 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   dice il voto («Your score: 85» / «Voto: 85», `Feedback.voto`) → Good o Try again. Il riascolto
   si spegne con lo switch nella card (`Prefs.riascoltoCiclo`, di partenza acceso, letta a ogni
   tentativo); il voto si dice sempre.
+- **Soglie per frasi e per parole** (v1.10.0): i tre controlli sono `Controllo` (in `Prefs.kt`)
+  e le soglie sono due serie, `Prefs.soglia(c, parole)`. Di partenza per le frasi 70/60/70, per le
+  parole singole spento/50/spento — su una parola sola la parola peggiore è lei stessa e il ritmo
+  non c'è. In ⚙️ Severità la tendina «Soglie per» sceglie quale serie si sta tarando. ⚠️ Le chiavi
+  delle frasi restano quelle della v1.8.0 (`soglia_parola`…), le parole hanno `_parole`.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

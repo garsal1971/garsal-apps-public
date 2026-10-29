@@ -107,7 +107,7 @@ object Ciclo {
             Servizi.tts.pronuncia(frase.testo, voce, accento, lenta)
             while (true) {
                 cosa("🎙 Tocca a te")
-                val esito = try { Servizi.valutatore.valuta(frase.testo, accento, p.sogliaRitmo != null) } catch (e: NessunaVoce) { null }
+                val esito = try { Servizi.valutatore.valuta(frase.testo, accento, p.soglia(Controllo.RITMO, frase.parola) != null) } catch (e: NessunaVoce) { null }
                 if (esito == null) {
                     if (++silenzi >= SILENZI) return Fine.Silenzio
                     di(Feedback.Cosa.SILENZIO)
@@ -124,7 +124,7 @@ object Ciclo {
                     cosa("🔁 La tua voce")
                     Riascolto.suona(v, Servizi.tts.comunicazione)
                 }
-                val verdetto = Giudizio.di(esito, p)
+                val verdetto = Giudizio.di(esito, p, frase.parola)
                 cosa("📊 Il voto")
                 Servizi.tts.parla(Feedback.voto(lingua, esito.pronuncia), voceFb, linguaFb)
                 if (verdetto.buona) {

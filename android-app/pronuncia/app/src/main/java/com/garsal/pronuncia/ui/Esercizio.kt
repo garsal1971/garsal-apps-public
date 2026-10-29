@@ -41,6 +41,7 @@ import com.garsal.pronuncia.Storico
 import com.garsal.pronuncia.Ripasso
 import com.garsal.pronuncia.Riascolto
 import com.garsal.pronuncia.Frasi
+import com.garsal.pronuncia.Controllo
 import com.garsal.pronuncia.Giudizio
 import com.garsal.pronuncia.NessunaVoce
 import com.garsal.pronuncia.Parola
@@ -128,7 +129,7 @@ fun Esercizio(parole: Boolean) {
         miaVoce = null
         scope.launch {
             try {
-                val e = Servizi.valutatore.valuta(f.testo, prefs.accento, prefs.sogliaRitmo != null)
+                val e = Servizi.valutatore.valuta(f.testo, prefs.accento, prefs.soglia(Controllo.RITMO, f.parola) != null)
                 esito = e
                 miaVoce = Servizi.valutatore.ultimaVoce
                 Storico.registra(ctx, f, e, "esercizio")
@@ -235,16 +236,16 @@ fun Esercizio(parole: Boolean) {
             }
 
             nota?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            esito?.let { Risultato(it) }
+            esito?.let { Risultato(it, frase?.parola == true) }
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Risultato(e: Esito) {
+private fun Risultato(e: Esito, parola: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val verdetto = remember(e) { Giudizio.di(e, Servizi.prefs) }
+        val verdetto = remember(e) { Giudizio.di(e, Servizi.prefs, parola) }
         val buona = verdetto.buona
         Text(
             "${if (buona) "✅ Good" else "🔁 Da ripetere"} · ${uno(e.pronuncia)}/100",

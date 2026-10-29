@@ -24,6 +24,9 @@ data class Verdetto(
  * - **suono peggiore**: basta un fonema sotto soglia, e si dice quale;
  * - **ritmo e intonazione**: il `ProsodyScore` di Azure.
  *
+ * Le soglie sono due serie, una per le frasi e una per le parole singole
+ * (`Prefs.soglia`, `Controllo`).
+ *
  * ⚠️ Il ritmo Microsoft lo documenta solo per l'inglese americano. Se Azure non
  * lo restituisce (`Esito.ritmo == null`) il controllo NON boccia: lo dice in
  * [Verdetto.note]. Un controllo che non si può fare non è un controllo fallito.
@@ -32,14 +35,11 @@ data class Verdetto(
  * riscriverebbe all'indietro quali frasi erano «riuscite».
  */
 object Giudizio {
-    const val PAROLA = 70
-    const val SUONO = 60
-    const val RITMO = 70
-
     /** Le soglie fra cui si sceglie; `null` = controllo spento. */
     val SOGLIE: List<Int?> = listOf(null, 50, 60, 70, 80, 90)
 
-    fun di(e: Esito, p: Prefs): Verdetto {
+    /** [parola]: il tentativo è su una parola singola, e valgono le sue soglie. */
+    fun di(e: Esito, p: Prefs, parola: Boolean): Verdetto {
         val motivi = mutableListOf<String>()
         val note = mutableListOf<String>()
         val curare = linkedSetOf<Parola>()
@@ -49,7 +49,7 @@ object Giudizio {
         // Le parole della frase: le inserite non ci sono, quindi non contano.
         val dette = e.parole.filter { it.errore != "Insertion" }
 
-        p.sogliaParola?.let { s ->
+        p.soglia(Controllo.PAROLA, parola)?.let { s ->
             dette.firstOrNull { it.errore == "Omission" }?.let {
                 motivi += "parola saltata: «${it.testo}»"; curare += it
             }
@@ -58,7 +58,7 @@ object Giudizio {
                 ?.let { motivi += "«${it.testo}» ${uno(it.accuratezza)}, sotto $s"; curare += it }
         }
 
-        p.sogliaSuono?.let { s ->
+        p.soglia(Controllo.SUONO, parola)?.let { s ->
             dette.filter { it.errore != "Omission" }
                 .flatMap { w -> w.fonemi.map { Triple(w, it.first, it.second) } }
                 .minByOrNull { it.third }
@@ -66,7 +66,7 @@ object Giudizio {
                 ?.let { (w, f, v) -> motivi += "suono /$f/ in «${w.testo}» ${uno(v)}, sotto $s"; curare += w }
         }
 
-        p.sogliaRitmo?.let { s ->
+        p.soglia(Controllo.RITMO, parola)?.let { s ->
             val r = e.ritmo
             when {
                 r == null -> note += "Ritmo e intonazione: Azure non li ha valutati" +

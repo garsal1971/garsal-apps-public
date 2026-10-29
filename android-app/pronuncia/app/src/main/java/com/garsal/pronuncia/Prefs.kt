@@ -29,6 +29,16 @@ enum class Voce {
     }
 }
 
+/** I tre controlli severi del `Giudizio`, con la soglia di partenza per le
+ *  frasi e per le parole singole (0 = spento). Su una parola sola il suono
+ *  peggiore è il solo che dica qualcosa: la parola peggiore è lei stessa, e il
+ *  ritmo di una parola non c'è. */
+enum class Controllo(val chiave: String, val etichetta: String, val frase: Int, val parola: Int) {
+    PAROLA("parola", "Parola peggiore", 70, 0),
+    SUONO("suono", "Suono peggiore", 60, 50),
+    RITMO("ritmo", "Ritmo e intonazione", 70, 0),
+}
+
 /** Da dove si ascolta nel ciclo a mani libere (`CicloService.instrada`). */
 enum class Microfono(val etichetta: String) {
     TELEFONO("📱 Telefono"),
@@ -72,18 +82,17 @@ class Prefs(ctx: Context) {
         get() = Accento.da(p.getString("accento", null))
         set(v) = p.edit().putString("accento", v.name).apply()
 
-    /** I tre controlli severi (vedi `Giudizio`): la soglia, o `null` = spento. */
-    var sogliaParola: Int?
-        get() = p.getInt("soglia_parola", Giudizio.PAROLA).takeIf { it > 0 }
-        set(v) = p.edit().putInt("soglia_parola", v ?: 0).apply()
+    /** I tre controlli severi (vedi `Giudizio`), con soglie diverse per le
+     *  frasi e per le parole singole: la soglia, o `null` = spento.
+     *  ⚠️ Le chiavi delle frasi sono quelle della v1.8.0: chi le aveva già
+     *  cambiate le ritrova. Le parole hanno il suffisso `_parole`. */
+    fun soglia(c: Controllo, parole: Boolean): Int? =
+        p.getInt(chiave(c, parole), if (parole) c.parola else c.frase).takeIf { it > 0 }
 
-    var sogliaSuono: Int?
-        get() = p.getInt("soglia_suono", Giudizio.SUONO).takeIf { it > 0 }
-        set(v) = p.edit().putInt("soglia_suono", v ?: 0).apply()
+    fun impostaSoglia(c: Controllo, parole: Boolean, v: Int?) =
+        p.edit().putInt(chiave(c, parole), v ?: 0).apply()
 
-    var sogliaRitmo: Int?
-        get() = p.getInt("soglia_ritmo", Giudizio.RITMO).takeIf { it > 0 }
-        set(v) = p.edit().putInt("soglia_ritmo", v ?: 0).apply()
+    private fun chiave(c: Controllo, parole: Boolean) = "soglia_${c.chiave}" + if (parole) "_parole" else ""
 
     var microfono: Microfono
         get() = Microfono.da(p.getString("microfono", null))

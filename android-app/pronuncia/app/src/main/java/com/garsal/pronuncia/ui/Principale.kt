@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.garsal.pronuncia.Accento
+import com.garsal.pronuncia.Controllo
 import com.garsal.pronuncia.DialogoAggiornamento
 import com.garsal.pronuncia.Giudizio
 import com.garsal.pronuncia.LinguaFeedback
@@ -101,9 +102,12 @@ private fun Connesso(onStorico: () -> Unit) {
 
     var voce by remember { mutableStateOf(prefs.voce) }
     var accento by remember { mutableStateOf(prefs.accento) }
-    var sParola by remember { mutableStateOf(prefs.sogliaParola) }
-    var sSuono by remember { mutableStateOf(prefs.sogliaSuono) }
-    var sRitmo by remember { mutableStateOf(prefs.sogliaRitmo) }
+    // Le soglie che si stanno guardando: frasi o parole singole. Parte da
+    // quel che si esercita adesso, che è quasi sempre quel che si vuole tarare.
+    var soglieParole by remember { mutableStateOf(prefs.parole) }
+    var soglie by remember(soglieParole) {
+        mutableStateOf(Controllo.entries.associateWith { prefs.soglia(it, soglieParole) })
+    }
     var microfono by remember { mutableStateOf(prefs.microfono) }
     var feedback by remember { mutableStateOf(prefs.linguaFeedback) }
     var dialogoVersione by remember { mutableStateOf(false) }
@@ -147,14 +151,19 @@ private fun Connesso(onStorico: () -> Unit) {
             }
             Text("Severità", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Text(
-                "Oltre al voto complessivo (almeno 80), boccia se anche solo una parola, un suono o il ritmo resta sotto la sua soglia. Valgono per l'esercizio e per le mani libere.",
+                "Oltre al voto complessivo (almeno 80), boccia se anche solo una parola, un suono o il ritmo resta sotto la sua soglia. Le soglie delle frasi e quelle delle parole singole sono separate; valgono per l'esercizio e per le mani libere.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Tendina("Parola peggiore", sParola, Giudizio.SOGLIE, ::soglia) { sParola = it; prefs.sogliaParola = it }
-            Tendina("Suono peggiore", sSuono, Giudizio.SOGLIE, ::soglia) { sSuono = it; prefs.sogliaSuono = it }
-            Tendina("Ritmo e intonazione", sRitmo, Giudizio.SOGLIE, ::soglia) { sRitmo = it; prefs.sogliaRitmo = it }
-            if (sRitmo != null && accento == Accento.BRITANNICO) {
+            Tendina("Soglie per", soglieParole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) {
+                soglieParole = it
+            }
+            Controllo.entries.forEach { c ->
+                Tendina(c.etichetta, soglie[c], Giudizio.SOGLIE, ::soglia) {
+                    soglie = soglie + (c to it); prefs.impostaSoglia(c, soglieParole, it)
+                }
+            }
+            if (soglie[Controllo.RITMO] != null && accento == Accento.BRITANNICO) {
                 Text(
                     "⚠️ Microsoft garantisce ritmo e intonazione solo per l'inglese americano: con il britannico, se Azure non li valuta, il controllo non boccia e te lo dice.",
                     style = MaterialTheme.typography.bodySmall,
