@@ -18,7 +18,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * La voce dell'app: Azure TTS con le voci neurali, en-GB per le frasi e it-IT
+ * La voce dell'app: Azure TTS con le voci neurali, en-GB o en-US (l'accento
+ * scelto) per le frasi e it-IT
  * per il feedback in italiano.
  *
  * Si passa da **SSML** e non dal testo semplice perché «slower» è una
@@ -39,9 +40,9 @@ class Tts(ctx: Context, private val azure: AzureToken) {
      *  all'altoparlante o si perderebbe. Lo accende `CicloService`. */
     @Volatile var comunicazione = false
 
-    /** Una frase in inglese con la voce scelta. */
-    suspend fun pronuncia(testo: String, voce: Voce, lenta: Boolean = false) =
-        parla(testo, voce.id, "en-GB", lenta)
+    /** Una frase in inglese con la voce e l'accento scelti. */
+    suspend fun pronuncia(testo: String, voce: Voce, accento: Accento, lenta: Boolean = false) =
+        parla(testo, voce.id(accento), accento.lingua, lenta)
 
     /** Pronuncia [testo] e torna quando l'audio è finito. Lancia con un
      *  messaggio leggibile se Azure rifiuta. */
