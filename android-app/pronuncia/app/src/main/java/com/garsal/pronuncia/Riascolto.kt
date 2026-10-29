@@ -15,12 +15,14 @@ import kotlinx.coroutines.withContext
  * tentativo dopo la sostituisce. Annullare la coroutine ferma il suono.
  */
 object Riascolto {
-    suspend fun suona(pcm: ByteArray) = withContext(Dispatchers.IO) {
+    /** [comunicazione]: con le cuffie Bluetooth come microfono il collegamento
+     *  è quello delle chiamate, e l'audio deve uscire di lì (come in `Tts`). */
+    suspend fun suona(pcm: ByteArray, comunicazione: Boolean = false) = withContext(Dispatchers.IO) {
         if (pcm.size < 2) return@withContext
         val traccia = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setUsage(if (comunicazione) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
             )

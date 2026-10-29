@@ -108,5 +108,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("parole", false)
         set(v) = p.edit().putBoolean("parole", v).apply()
 
+    /** Mani libere: dopo il tentativo l'app fa riascoltare la registrazione,
+     *  poi dà il voto. Letta a ogni tentativo: cambiarla a ciclo acceso vale subito. */
+    var riascoltoCiclo: Boolean
+        get() = p.getBoolean("riascolto_ciclo", true)
+        set(v) = p.edit().putBoolean("riascolto_ciclo", v).apply()
+
     fun esci() = p.edit().remove("access_token").remove("refresh_token").apply()
 }
