@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-formazione v1.0.0</title>
+    <title>Auto-formazione v1.1.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -82,6 +82,8 @@
                 padding: 0.1rem 0.6rem; color: #fff; background: var(--primary); }
         .voto.basso { background: var(--danger); }
         .voto.medio { background: var(--warning); }
+        .voto-input { width: 6rem; min-height: 2.8rem; font: inherit; font-size: 1.2rem; font-weight: 700; padding: 0.3rem 0.5rem;
+                      border: 2px solid var(--border); background: var(--input-bg); text-align: center; }
         .voto.mini { font-size: 0.9rem; padding: 0 0.45rem; }
         .ia-chi { font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; padding: 0.05rem 0.45rem; background: var(--dark); color: #fff; }
         .md { line-height: 1.35; }
@@ -162,7 +164,11 @@
         <label class="form-label" for="motore">🤖 Motore IA</label>
         <select id="motore" class="form-input" onchange="ricordaFornitore(this.value)"></select>
 
-        <button id="btnCorreggi" class="btn btn-primary btn-wide" onclick="correggi()">🚀 Correggi</button>
+        <div class="row" style="margin-top:0.9rem">
+            <button id="btnCorreggi" class="btn btn-primary grow" style="font-size:1.2rem" onclick="correggi()">🚀 Correggi</button>
+            <button id="btnChiedoIo" class="btn grow" style="font-size:1.2rem" onclick="chiedoIo()">✋ Chiedo io</button>
+        </div>
+        <div class="nota">✋ Chiedo io copia prompt e testo: li incolli tu in una chat IA e poi incolli qui la risposta.</div>
         <div id="risultato"></div>
     </div>
 
@@ -176,8 +182,8 @@
 // ════════════════════════════════════════════════════════════
 // AUTO-FORMAZIONE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-10-28T10:00:00Z';
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-10-29T09:00:00Z';
 console.log('%c 🎓 AUTO-FORMAZIONE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#00796B;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -493,6 +499,67 @@ function testoCambiato() {
     }
 }
 
+// ⚠️ Gemella di CODA_VOTO / leggiVoto() in supabase/functions/af-ai: la
+// richiesta del voto e la regex che lo legge vanno cambiate insieme, o
+// «Chiedo io» chiederebbe una forma che la pagina non sa più leggere.
+const CODA_VOTO =
+    '\n\nAl termine della correzione scrivi, su una riga a sé e come ultima riga, ' +
+    'il voto complessivo da 1 a 10 (numero intero) esattamente in questa forma:\n' +
+    'VOTO: <numero>/10';
+function leggiVoto(testo) {
+    const tutti = [...String(testo || '').matchAll(/VOTO\**\s*[:=]\s*\**\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:\/\s*10)?/gi)];
+    if (!tutti.length) return null;
+    const n = Math.round(Number(tutti[tutti.length - 1][1].replace(',', '.')));
+    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
+}
+
+async function copiaNegliAppunti(testo) {
+    try { await navigator.clipboard.writeText(testo); return true; } catch {}
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = testo; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+    } catch { return false; }
+}
+
+/** ✋ Chiedo io: la correzione la si chiede a mano a un'IA qualsiasi. */
+async function chiedoIo() {
+    if (S.inCorso) return;
+    const prompt = document.getElementById('prompt').value.trim();
+    const testo  = document.getElementById('testo').value.trim();
+    if (!prompt) { showToast('Scrivi il prompt di correzione'); return; }
+    if (!testo)  { showToast("Scrivi il testo dell'esercizio"); return; }
+    const richiesta = `${prompt}${CODA_VOTO}\n\n--- TESTO DELL'ESERCIZIO ---\n${testo}`;
+    const copiato = await copiaNegliAppunti(richiesta);
+    S.correzione = { prompt, testo, answer: '', voto: null, provider: 'manuale', model: null, manuale: true, richiesta, copiato };
+    renderCorrezione();
+    showToast(copiato ? '📋 Prompt e testo copiati: incollali nella tua chat IA' : 'Copia non riuscita: copia il testo dal riquadro', 4000);
+}
+function manualeCambiato() {
+    const c = S.correzione; if (!c?.manuale) return;
+    c.answer = document.getElementById('rispostaManuale').value;
+    const letto = leggiVoto(c.answer);
+    const box = document.getElementById('votoManuale');
+    // Il voto letto si propone solo finché la casella non l'ha toccata la mano.
+    if (letto && !box.dataset.toccato) box.value = letto;
+    votoManualeCambiato(false);
+}
+function votoManualeCambiato(aMano = true) {
+    const c = S.correzione; if (!c?.manuale) return;
+    const box = document.getElementById('votoManuale');
+    if (aMano) box.dataset.toccato = '1';
+    const n = Number(box.value);
+    c.voto = Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
+    const ok = !!c.voto && !!c.answer.trim();
+    document.getElementById('btnConferma').disabled = !ok;
+    document.getElementById('manualeNota').textContent = !c.answer.trim()
+        ? 'Incolla la risposta per poter confermare.'
+        : !c.voto ? 'Scrivi un voto intero da 1 a 10 per poter confermare.' : '';
+}
+
 async function correggi() {
     if (S.inCorso) return;
     const prompt = document.getElementById('prompt').value.trim();
@@ -505,6 +572,7 @@ async function correggi() {
     S.inCorso = true; S.correzione = null;
     const btn = document.getElementById('btnCorreggi'), out = document.getElementById('risultato');
     btn.disabled = true;
+    document.getElementById('btnChiedoIo').disabled = true;
     out.innerHTML = '<div class="ia-wait">⏳ Correzione in corso…</div>';
     try {
         const r = await fetch(FUNZIONE, {
@@ -521,12 +589,30 @@ async function correggi() {
         out.innerHTML = `<div class="form-error">❌ ${esc(e.message)}</div>`;
     } finally {
         S.inCorso = false; btn.disabled = false;
+        document.getElementById('btnChiedoIo').disabled = false;
     }
 }
 
 function renderCorrezione() {
     const c = S.correzione, out = document.getElementById('risultato');
     if (!c) { out.innerHTML = ''; return; }
+    if (c.manuale) {
+        out.innerHTML = `
+        <div class="esito">
+            <div class="form-label" style="margin-top:0">📋 Da incollare nella tua chat IA ${c.copiato ? '<span class="muted" style="font-weight:500">(già copiato)</span>' : ''}</div>
+            <textarea class="form-input" readonly style="min-height:5rem" onclick="this.select()">${esc(c.richiesta)}</textarea>
+            <button class="btn" style="margin-top:0.4rem" onclick="copiaNegliAppunti(S.correzione.richiesta).then(ok => showToast(ok ? '📋 Copiato' : 'Copia non riuscita'))">📋 Copia di nuovo</button>
+            <label class="form-label" for="rispostaManuale">✍️ Risposta dell'IA</label>
+            <textarea id="rispostaManuale" class="form-input" oninput="manualeCambiato()" placeholder="Incolla qui la correzione…">${esc(c.answer)}</textarea>
+            <label class="form-label" for="votoManuale">Voto (1-10)</label>
+            <input id="votoManuale" class="voto-input" type="number" min="1" max="10" step="1" inputmode="numeric"
+                   value="${c.voto ?? ''}" oninput="votoManualeCambiato()">
+            <div id="manualeNota" class="nota avviso"></div>
+        </div>
+        <button id="btnConferma" class="btn btn-conferma btn-wide" onclick="conferma()" disabled>✅ Conferma e salva</button>`;
+        votoManualeCambiato(false);
+        return;
+    }
     // ⚠️ Senza un voto leggibile la conferma resta spenta: si rifà la correzione.
     const votoHtml = c.voto
         ? `<span class="voto ${classeVoto(c.voto)}">${c.voto}/10</span>`
@@ -541,7 +627,7 @@ function renderCorrezione() {
 
 async function conferma() {
     const c = S.correzione, t = tipo();
-    if (!c || !c.voto || !t) return;
+    if (!c || !c.voto || !t || !String(c.answer || '').trim()) return;
     const azioneId = t.ob_action_id && S.azioni.some(a => a.id === t.ob_action_id) ? t.ob_action_id : null;
     if (!azioneId && !confirm('Nessuna azione di Obiettivi aperta è collegata a questo tipo di esercizio.\n\nSalvo solo l\'esercizio?')) return;
     const btn = document.getElementById('btnConferma');
