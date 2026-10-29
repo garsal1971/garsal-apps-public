@@ -67,5 +67,11 @@ class Prefs(ctx: Context) {
         get() = p.getString("tema", null)
         set(v) = p.edit().putString("tema", v).apply()
 
+    /** Cosa si esercita: le frasi intere o le parole sole. Vale per
+     *  l'esercizio e per il ciclo a mani libere. */
+    var parole: Boolean
+        get() = p.getBoolean("parole", false)
+        set(v) = p.edit().putBoolean("parole", v).apply()
+
     fun esci() = p.edit().remove("access_token").remove("refresh_token").apply()
 }

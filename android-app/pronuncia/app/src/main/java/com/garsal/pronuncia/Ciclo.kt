@@ -121,13 +121,20 @@ object Ciclo {
                 }
                 if (tentativo >= TENTATIVI) { di(Feedback.Cosa.AVANTI); return Fine.Avanti }
                 di(Feedback.Cosa.RIPROVA)
-                cosa("🐢 Le parole da curare")
-                esito.peggiori().forEach {
-                    val parola = it.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' }
-                    if (parola.isNotEmpty()) Servizi.tts.pronuncia(parola, voce, lenta = true)
+                if (frase.parola) {
+                    // Una parola sola: le «parole da curare» sarebbero lei,
+                    // quindi la si rilegge piano e basta.
+                    cosa("🐢 Ascolta, piano")
+                    Servizi.tts.pronuncia(frase.testo, voce, lenta = true)
+                } else {
+                    cosa("🐢 Le parole da curare")
+                    esito.peggiori().forEach {
+                        val parola = it.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' }
+                        if (parola.isNotEmpty()) Servizi.tts.pronuncia(parola, voce, lenta = true)
+                    }
+                    cosa("🔊 Ascolta")
+                    Servizi.tts.pronuncia(frase.testo, voce)
                 }
-                cosa("🔊 Ascolta")
-                Servizi.tts.pronuncia(frase.testo, voce)
             }
         }
 
@@ -139,10 +146,13 @@ object Ciclo {
             if (frase == null) {
                 // Fase 6: una frase ogni Ripasso.OGNI è da ripassare, se ce n'è;
                 // altrimenti si resta sulle frasi a caso.
+                // Frasi o parole si rilegge qui, a ogni elemento nuovo: la
+                // scelta cambiata a ciclo acceso vale dal prossimo.
+                val soloParole = p.parole
                 val n = stato.value.frasi + 1
                 val daRipassare = if (n % Ripasso.OGNI == 0)
-                    runCatching { Ripasso.prossima(ctx, p.livello, p.tema, precedente) }.getOrNull() else null
-                val nuova = daRipassare ?: Frasi.aCaso(ctx, p.livello, p.tema, precedente)
+                    runCatching { Ripasso.prossima(ctx, p.livello, p.tema, precedente, soloParole) }.getOrNull() else null
+                val nuova = daRipassare ?: Frasi.aCaso(ctx, p.livello, p.tema, precedente, soloParole)
                     ?: run { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
                 frase = nuova
                 precedente = nuova.id

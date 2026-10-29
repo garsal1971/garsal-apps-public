@@ -3699,6 +3699,13 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   nemmeno il riconoscimento. Lato Azure silenzio iniziale 3 s e segmentazione 1 s — ⚠️ più corta
   taglierebbe la frase alla prima virgola. La soglia si adatta al rumore di fondo ma va tarata sul
   telefono. Con le cuffie BT la sorgente è `VOICE_COMMUNICATION`.
+- **Parole singole e riascolto** (v1.7.0): «Esercitati su» (💬 Frasi intere / 🔤 Parole singole,
+  `Prefs.parole`) sta sopra le due modalità e vale per tutt'e due; il ciclo la rilegge a ogni elemento
+  nuovo. 240 parole in `assets/words.json` (A1–B2 × tre temi, 20 per incrocio, id `w-…` che non si
+  cambiano), lette da `Frasi.catalogo` e registrate nello stesso storico (la `Frase` ha `parola = true`).
+  Il ripasso vale anche sulle parole. Nel ciclo, una parola sotto soglia si rilegge piano invece delle
+  «parole da curare». Nell'esercizio **▶ Riascoltami** suona la voce dell'ultimo tentativo — l'audio
+  mandato ad Azure, tenuto da `Ascolto` — **solo in memoria**: il tentativo dopo la sostituisce.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

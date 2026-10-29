@@ -57,6 +57,11 @@ class NessunaVoce : Exception("Non ho sentito niente: riprova parlando dopo il t
  */
 class Valutatore(private val azure: AzureToken) {
 
+    /** La voce dell'ultimo tentativo, per «Riascoltami». Solo in memoria:
+     *  il tentativo dopo la sostituisce, e non si salva da nessuna parte. */
+    @Volatile var ultimaVoce: ByteArray? = null
+        private set
+
     suspend fun valuta(riferimento: String): Esito = withContext(Dispatchers.IO) {
         Ascolto(Servizi.tts.comunicazione).use { mic ->
             // Il token prima della voce: se va rinnovato, il ritardo cade qui
@@ -64,6 +69,7 @@ class Valutatore(private val azure: AzureToken) {
             val t = azure.prendi()
             // ⚠️ Un silenzio intero non apre nemmeno il riconoscimento: è il
             // punto di Ascolto, che i secondi di Azure li conta sull'audio inviato.
+            ultimaVoce = null
             val inizio = mic.aspettaVoce() ?: throw NessunaVoce()
             SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
                 cfg.speechRecognitionLanguage = "en-GB"
@@ -94,8 +100,9 @@ class Valutatore(private val azure: AzureToken) {
                                 val lista = PhraseListGrammar.fromRecognizer(rec)
                                 Comando.PAROLE.forEach(lista::addPhrase)
                                 val futuro = rec.recognizeOnceAsync()
-                                inizio.forEach(push::write)
+                                inizio.forEach { mic.invia(push, it) }
                                 mic.inviaFinoAlSilenzio(push) { futuro.isDone }
+                                ultimaVoce = mic.registrazione()
                                 // Fine dello stream = fine della frase per Azure.
                                 push.close(); chiuso = true
                                 // ⚠️ Interrompibile: una pausa (chiamata, tasto delle

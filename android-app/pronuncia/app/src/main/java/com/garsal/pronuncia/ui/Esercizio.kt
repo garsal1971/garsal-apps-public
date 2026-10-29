@@ -39,6 +39,7 @@ import com.garsal.pronuncia.Esito
 import com.garsal.pronuncia.Frase
 import com.garsal.pronuncia.Storico
 import com.garsal.pronuncia.Ripasso
+import com.garsal.pronuncia.Riascolto
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.NessunaVoce
 import com.garsal.pronuncia.Parola
@@ -56,27 +57,32 @@ private enum class Fase { FERMO, PARLA, ASCOLTA }
  * Fase 2: una frase, ascoltarla, ripeterla, vedere i punteggi. Il ciclo a mani
  * libere (`Ciclo`) usa le stesse due chiamate — `Tts.pronuncia` e
  * `Valutatore.valuta` — in un servizio, senza questa schermata.
+ *
+ * Con [parole] si esercitano le parole singole invece delle frasi intere.
  */
 @Composable
-fun Esercizio() {
+fun Esercizio(parole: Boolean) {
     val ctx = LocalContext.current
     val prefs = Servizi.prefs
     val scope = rememberCoroutineScope()
 
     var livello by remember { mutableStateOf(prefs.livello) }
     var tema by remember { mutableStateOf(prefs.tema) }
-    var frase by remember { mutableStateOf<Frase?>(Frasi.aCaso(ctx, livello, tema)) }
+    var frase by remember { mutableStateOf<Frase?>(Frasi.aCaso(ctx, livello, tema, soloParole = parole)) }
     var fase by remember { mutableStateOf(Fase.FERMO) }
     var esito by remember { mutableStateOf<Esito?>(null) }
     var nota by remember { mutableStateOf<String?>(null) }
     var ripasso by remember { mutableStateOf(false) }
+    // La mia voce dell'ultimo tentativo, per «Riascoltami». Solo in memoria.
+    var miaVoce by remember { mutableStateOf<ByteArray?>(null) }
     // Il microfono è uno: col ciclo a mani libere acceso, l'esercizio a mano aspetta.
     val ciclo by Ciclo.stato.collectAsState()
     val libero = fase == Fase.FERMO && !ciclo.attivo
 
     fun nuova() {
-        frase = Frasi.aCaso(ctx, livello, tema, frase?.id)
+        frase = Frasi.aCaso(ctx, livello, tema, frase?.id, parole)
         esito = null
+        miaVoce = null
         nota = null
         ripasso = false
     }
@@ -84,11 +90,12 @@ fun Esercizio() {
     // Fase 6: una frase dallo storico, fra quelle da ripassare.
     fun ripassa() {
         scope.launch {
-            val r = runCatching { Ripasso.prossima(ctx, livello, tema, frase?.id) }.getOrNull()
+            val r = runCatching { Ripasso.prossima(ctx, livello, tema, frase?.id, parole) }.getOrNull()
             if (r == null) {
-                nota = "Niente da ripassare per questo filtro: le frasi andate male tornano qui da sole."
+                nota = if (parole) "Niente da ripassare per questo filtro: le parole andate male tornano qui da sole."
+                else "Niente da ripassare per questo filtro: le frasi andate male tornano qui da sole."
             } else {
-                frase = r; esito = null; nota = null; ripasso = true
+                frase = r; esito = null; nota = null; ripasso = true; miaVoce = null
             }
         }
     }
@@ -116,16 +123,33 @@ fun Esercizio() {
         fase = Fase.ASCOLTA
         nota = null
         esito = null
+        miaVoce = null
         scope.launch {
             try {
                 val e = Servizi.valutatore.valuta(f.testo)
                 esito = e
+                miaVoce = Servizi.valutatore.ultimaVoce
                 Storico.registra(ctx, f, e, "esercizio")
             } catch (e: SessioneScaduta) {
                 Servizi.connesso.value = false
             } catch (e: NessunaVoce) {
                 nota = e.message
             } catch (e: Exception) {
+                nota = "⚠️ ${e.message ?: e.javaClass.simpleName}"
+            }
+            fase = Fase.FERMO
+        }
+    }
+
+    fun riascolta() {
+        val v = miaVoce ?: return
+        if (fase != Fase.FERMO) return
+        fase = Fase.PARLA
+        scope.launch {
+            try {
+                Riascolto.suona(v)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 nota = "⚠️ ${e.message ?: e.javaClass.simpleName}"
             }
             fase = Fase.FERMO
@@ -155,7 +179,7 @@ fun Esercizio() {
 
             val f = frase
             if (f == null) {
-                Text("Nessuna frase per questo filtro.")
+                Text(if (parole) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.")
             } else {
                 Text(
                     "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}" + if (ripasso) " · 🔁 da ripassare" else "",
@@ -192,10 +216,20 @@ fun Esercizio() {
                     when (fase) {
                         Fase.ASCOLTA -> "🎙 Ti ascolto… parla adesso"
                         Fase.PARLA -> "🔊 Sta parlando…"
-                        Fase.FERMO -> "🎙 Ripeti la frase"
+                        Fase.FERMO -> if (parole) "🎙 Ripeti la parola" else "🎙 Ripeti la frase"
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
+            }
+
+            // Dopo la valutazione: la propria voce accanto alla voce dell'app,
+            // che è il confronto per cui il pulsante esiste.
+            if (esito != null && miaVoce != null) {
+                OutlinedButton(
+                    onClick = { riascolta() },
+                    enabled = libero,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("▶ Riascoltami") }
             }
 
             nota?.let { Text(it, color = MaterialTheme.colorScheme.error) }
