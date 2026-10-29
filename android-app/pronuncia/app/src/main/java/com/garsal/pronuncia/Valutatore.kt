@@ -10,6 +10,8 @@ import com.microsoft.cognitiveservices.speech.ResultReason
 import com.microsoft.cognitiveservices.speech.SpeechConfig
 import com.microsoft.cognitiveservices.speech.SpeechRecognizer
 import com.microsoft.cognitiveservices.speech.audio.AudioConfig
+import com.microsoft.cognitiveservices.speech.audio.AudioInputStream
+import com.microsoft.cognitiveservices.speech.audio.AudioStreamFormat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
@@ -41,8 +43,9 @@ data class Esito(
 class NessunaVoce : Exception("Non ho sentito niente: riprova parlando dopo il tocco.")
 
 /**
- * Pronunciation Assessment di Azure su una frase: un riconoscimento solo, che
- * finisce da sé al primo silenzio dopo la voce (il VAD dell'SDK).
+ * Pronunciation Assessment di Azure su una frase: un riconoscimento solo, con
+ * l'audio passato da [Ascolto] — che lo manda solo dall'inizio della voce a
+ * poco dopo la fine, per non pagare i silenzi.
  *
  * ⚠️ `EnableMiscue = true`: le parole saltate tornano come `Omission` e quelle in
  * più come `Insertion`. Senza, una frase detta a metà prenderebbe un'accuratezza
@@ -55,45 +58,66 @@ class NessunaVoce : Exception("Non ho sentito niente: riprova parlando dopo il t
 class Valutatore(private val azure: AzureToken) {
 
     suspend fun valuta(riferimento: String): Esito = withContext(Dispatchers.IO) {
-        val t = azure.prendi()
-        SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
-            cfg.speechRecognitionLanguage = "en-GB"
-            // Otto secondi per cominciare a parlare: il default (5) è corto per
-            // chi deve ancora decidere da dove partire con una frase lunga.
-            cfg.setProperty(PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs, "8000")
-            AudioConfig.fromDefaultMicrophoneInput().use { audio ->
-                SpeechRecognizer(cfg, audio).use { rec ->
-                    PronunciationAssessmentConfig(
-                        riferimento,
-                        PronunciationAssessmentGradingSystem.HundredMark,
-                        PronunciationAssessmentGranularity.Phoneme,
-                        true,
-                    ).use { pa ->
-                        pa.setPhonemeAlphabet("IPA")
-                        pa.applyTo(rec)
-                        // I comandi a voce sono parole corte e fuori contesto:
-                        // la lista le rende più facili da riconoscere.
-                        // ⚠️ Non va in un `use`: chiusa prima del riconoscimento
-                        // le sue parole sparirebbero. Vive quanto il recognizer.
-                        val lista = PhraseListGrammar.fromRecognizer(rec)
-                        Comando.PAROLE.forEach(lista::addPhrase)
-                        // ⚠️ Interrompibile: una pausa (chiamata, tasto delle
-                        // cuffie) annulla la coroutine, e il microfono va
-                        // lasciato subito — `get()` da solo non si annulla.
-                        val futuro = rec.recognizeOnceAsync()
-                        runInterruptible { futuro.get() }.use { r ->
-                            when (r.reason) {
-                                ResultReason.RecognizedSpeech ->
-                                    leggi(r.properties.getProperty(PropertyId.SpeechServiceResponse_JsonResult), r.text)
-                                ResultReason.NoMatch -> throw NessunaVoce()
-                                ResultReason.Canceled -> {
-                                    val d = CancellationDetails.fromResult(r)
-                                    throw IllegalStateException("Valutazione annullata: ${d.reason} — ${d.errorDetails}")
+        Ascolto(Servizi.tts.comunicazione).use { mic ->
+            // Il token prima della voce: se va rinnovato, il ritardo cade qui
+            // e non mentre si sta parlando.
+            val t = azure.prendi()
+            // ⚠️ Un silenzio intero non apre nemmeno il riconoscimento: è il
+            // punto di Ascolto, che i secondi di Azure li conta sull'audio inviato.
+            val inizio = mic.aspettaVoce() ?: throw NessunaVoce()
+            SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
+                cfg.speechRecognitionLanguage = "en-GB"
+                // L'audio arriva già dall'inizio della voce: tre secondi di
+                // silenzio iniziale sono una rete, non un'attesa.
+                cfg.setProperty(PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs, "3000")
+                // ⚠️ La fine la decide Ascolto chiudendo lo stream. Una
+                // segmentazione più corta taglierebbe la frase alla prima
+                // virgola, e il resto conterebbe come parole saltate.
+                cfg.setProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "1000")
+                val push = AudioInputStream.createPushStream(AudioStreamFormat.getWaveFormatPCM(Ascolto.HZ.toLong(), 16, 1))
+                var chiuso = false
+                try {
+                    AudioConfig.fromStreamInput(push).use { audio ->
+                        SpeechRecognizer(cfg, audio).use { rec ->
+                            PronunciationAssessmentConfig(
+                                riferimento,
+                                PronunciationAssessmentGradingSystem.HundredMark,
+                                PronunciationAssessmentGranularity.Phoneme,
+                                true,
+                            ).use { pa ->
+                                pa.setPhonemeAlphabet("IPA")
+                                pa.applyTo(rec)
+                                // I comandi a voce sono parole corte e fuori contesto:
+                                // la lista le rende più facili da riconoscere.
+                                // ⚠️ Non va in un `use`: chiusa prima del riconoscimento
+                                // le sue parole sparirebbero. Vive quanto il recognizer.
+                                val lista = PhraseListGrammar.fromRecognizer(rec)
+                                Comando.PAROLE.forEach(lista::addPhrase)
+                                val futuro = rec.recognizeOnceAsync()
+                                inizio.forEach(push::write)
+                                mic.inviaFinoAlSilenzio(push) { futuro.isDone }
+                                // Fine dello stream = fine della frase per Azure.
+                                push.close(); chiuso = true
+                                // ⚠️ Interrompibile: una pausa (chiamata, tasto delle
+                                // cuffie) annulla la coroutine — `get()` da solo non
+                                // si annulla.
+                                runInterruptible { futuro.get() }.use { r ->
+                                    when (r.reason) {
+                                        ResultReason.RecognizedSpeech ->
+                                            leggi(r.properties.getProperty(PropertyId.SpeechServiceResponse_JsonResult), r.text)
+                                        ResultReason.NoMatch -> throw NessunaVoce()
+                                        ResultReason.Canceled -> {
+                                            val d = CancellationDetails.fromResult(r)
+                                            throw IllegalStateException("Valutazione annullata: ${d.reason} — ${d.errorDetails}")
+                                        }
+                                        else -> throw IllegalStateException("Risposta inattesa: ${r.reason}")
+                                    }
                                 }
-                                else -> throw IllegalStateException("Risposta inattesa: ${r.reason}")
                             }
                         }
                     }
+                } finally {
+                    if (!chiuso) runCatching { push.close() }
                 }
             }
         }
