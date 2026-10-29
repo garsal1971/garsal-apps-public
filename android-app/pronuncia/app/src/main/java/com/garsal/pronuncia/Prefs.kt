@@ -3,12 +3,30 @@ package com.garsal.pronuncia
 import android.content.Context
 import android.content.SharedPreferences
 
-/** Le voci en-GB fra cui si sceglie. L'id è quello che Azure vuole nel campo voce. */
-enum class Voce(val id: String, val etichetta: String) {
-    SONIA("en-GB-SoniaNeural", "Sonia (donna)"),
-    RYAN("en-GB-RyanNeural", "Ryan (uomo)");
+/** L'inglese su cui ci si esercita: decide la lingua della valutazione di
+ *  Azure e le voci che leggono le frasi. Le frasi restano scritte all'inglese
+ *  (colour, centre): la pronuncia cambia, l'ortografia no. */
+enum class Accento(val lingua: String, val etichetta: String, val donna: String, val uomo: String) {
+    BRITANNICO("en-GB", "🇬🇧 Britannico", "en-GB-SoniaNeural", "en-GB-RyanNeural"),
+    AMERICANO("en-US", "🇺🇸 Americano", "en-US-AvaNeural", "en-US-AndrewNeural");
 
-    companion object { fun da(id: String?) = entries.firstOrNull { it.id == id } ?: SONIA }
+    companion object { fun da(n: String?) = entries.firstOrNull { it.name == n } ?: BRITANNICO }
+}
+
+/** La voce si sceglie per genere: il nome vero lo decide l'accento. */
+enum class Voce {
+    DONNA, UOMO;
+
+    /** L'id che Azure vuole nel campo voce. */
+    fun id(a: Accento) = if (this == UOMO) a.uomo else a.donna
+    fun etichetta(a: Accento) = id(a).split('-').last().removeSuffix("Neural") +
+        if (this == UOMO) " (uomo)" else " (donna)"
+
+    companion object {
+        /** ⚠️ Fino alla v1.7.0 si archiviava l'id della voce («en-GB-RyanNeural»):
+         *  le preferenze vecchie si rileggono da lì. */
+        fun da(s: String?) = entries.firstOrNull { it.name == s } ?: if (s?.contains("Ryan") == true) UOMO else DONNA
+    }
 }
 
 /** Da dove si ascolta nel ciclo a mani libere (`CicloService.instrada`). */
@@ -48,7 +66,24 @@ class Prefs(ctx: Context) {
 
     var voce: Voce
         get() = Voce.da(p.getString("voce", null))
-        set(v) = p.edit().putString("voce", v.id).apply()
+        set(v) = p.edit().putString("voce", v.name).apply()
+
+    var accento: Accento
+        get() = Accento.da(p.getString("accento", null))
+        set(v) = p.edit().putString("accento", v.name).apply()
+
+    /** I tre controlli severi (vedi `Giudizio`): la soglia, o `null` = spento. */
+    var sogliaParola: Int?
+        get() = p.getInt("soglia_parola", Giudizio.PAROLA).takeIf { it > 0 }
+        set(v) = p.edit().putInt("soglia_parola", v ?: 0).apply()
+
+    var sogliaSuono: Int?
+        get() = p.getInt("soglia_suono", Giudizio.SUONO).takeIf { it > 0 }
+        set(v) = p.edit().putInt("soglia_suono", v ?: 0).apply()
+
+    var sogliaRitmo: Int?
+        get() = p.getInt("soglia_ritmo", Giudizio.RITMO).takeIf { it > 0 }
+        set(v) = p.edit().putInt("soglia_ritmo", v ?: 0).apply()
 
     var microfono: Microfono
         get() = Microfono.da(p.getString("microfono", null))

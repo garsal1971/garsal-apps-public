@@ -3706,6 +3706,15 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   Il ripasso vale anche sulle parole. Nel ciclo, una parola sotto soglia si rilegge piano invece delle
   «parole da curare». Nell'esercizio **▶ Riascoltami** suona la voce dell'ultimo tentativo — l'audio
   mandato ad Azure, tenuto da `Ascolto` — **solo in memoria**: il tentativo dopo la sostituisce.
+- **Accento e giudizio severo** (v1.8.0): la tendina «Pronuncia» (🇬🇧 Britannico / 🇺🇸 Americano,
+  `Prefs.accento`) decide la lingua della valutazione e le voci (Sonia/Ryan o Ava/Andrew; la voce
+  ora si archivia per genere, `Voce.DONNA/UOMO`, e le preferenze vecchie si rileggono dall'id). Il
+  «Good» lo decide `Giudizio.di`: voto ≥ `SOGLIA_BUONA` **e** i tre controlli accesi in ⚙️ Severità
+  — parola peggiore (70), suono peggiore (60), ritmo e intonazione (70, `ProsodyScore`), ognuno
+  con la sua soglia o spento. ⚠️ Microsoft documenta il ritmo solo per en-US: se Azure non lo
+  restituisce il controllo **non boccia** e lo dice. ⚠️ Storico e ripasso restano sul voto
+  complessivo, o cambierebbe all'indietro quali frasi erano riuscite. Le frasi restano scritte
+  all'inglese.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

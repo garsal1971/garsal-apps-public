@@ -19,8 +19,8 @@ android {
         applicationId "com.garsal.pronuncia"
         minSdk 26
         targetSdk 36
-        versionCode 8
-        versionName "1.7.0"
+        versionCode 9
+        versionName "1.8.0"
 
         // ⚠️ Solo arm64: lo Speech SDK di Azure si porta dentro le librerie native
         // per quattro ABI, e tenerle tutte vorrebbe dire un APK tre volte più

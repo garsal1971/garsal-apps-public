@@ -29,8 +29,8 @@ object Feedback {
     /** Voce e lingua del commento: l'inglese con la voce scelta, l'italiano con
      *  la voce italiana dello stesso genere — una voce inglese che legge
      *  l'italiano lo storpia. */
-    fun voce(l: LinguaFeedback, v: Voce): Pair<String, String> = when (l) {
-        LinguaFeedback.INGLESE -> v.id to "en-GB"
-        LinguaFeedback.ITALIANO -> (if (v == Voce.RYAN) "it-IT-DiegoNeural" else "it-IT-ElsaNeural") to "it-IT"
+    fun voce(l: LinguaFeedback, v: Voce, a: Accento): Pair<String, String> = when (l) {
+        LinguaFeedback.INGLESE -> v.id(a) to a.lingua
+        LinguaFeedback.ITALIANO -> (if (v == Voce.UOMO) "it-IT-DiegoNeural" else "it-IT-ElsaNeural") to "it-IT"
     }
 }

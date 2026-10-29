@@ -28,6 +28,9 @@ data class Esito(
     val fluidita: Double,
     val completezza: Double,
     val parole: List<Parola>,
+    /** Ritmo e intonazione (`ProsodyScore`); `null` = non chiesto o non
+     *  restituito — per Microsoft c'è solo in inglese americano. */
+    val ritmo: Double? = null,
 ) {
     /** Le parole peggiori fra quelle dette: un'omissione non si «ripronuncia
      *  meglio», si dice e basta, ma resta la cosa da far ripetere. Le inserite
@@ -43,7 +46,7 @@ data class Esito(
 class NessunaVoce : Exception("Non ho sentito niente: riprova parlando dopo il tocco.")
 
 /**
- * Pronunciation Assessment di Azure su una frase: un riconoscimento solo, con
+ * Pronunciation Assessment di Azure su una frase, nell'accento scelto (en-GB o en-US): un riconoscimento solo, con
  * l'audio passato da [Ascolto] — che lo manda solo dall'inizio della voce a
  * poco dopo la fine, per non pagare i silenzi.
  *
@@ -62,7 +65,8 @@ class Valutatore(private val azure: AzureToken) {
     @Volatile var ultimaVoce: ByteArray? = null
         private set
 
-    suspend fun valuta(riferimento: String): Esito = withContext(Dispatchers.IO) {
+    /** [ritmo] chiede ad Azure anche ritmo e intonazione (vedi `Giudizio`). */
+    suspend fun valuta(riferimento: String, accento: Accento, ritmo: Boolean): Esito = withContext(Dispatchers.IO) {
         Ascolto(Servizi.tts.comunicazione).use { mic ->
             // Il token prima della voce: se va rinnovato, il ritardo cade qui
             // e non mentre si sta parlando.
@@ -72,7 +76,7 @@ class Valutatore(private val azure: AzureToken) {
             ultimaVoce = null
             val inizio = mic.aspettaVoce() ?: throw NessunaVoce()
             SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
-                cfg.speechRecognitionLanguage = "en-GB"
+                cfg.speechRecognitionLanguage = accento.lingua
                 // L'audio arriva già dall'inizio della voce: tre secondi di
                 // silenzio iniziale sono una rete, non un'attesa.
                 cfg.setProperty(PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs, "3000")
@@ -92,6 +96,7 @@ class Valutatore(private val azure: AzureToken) {
                                 true,
                             ).use { pa ->
                                 pa.setPhonemeAlphabet("IPA")
+                                if (ritmo) pa.enableProsodyAssessment()
                                 pa.applyTo(rec)
                                 // I comandi a voce sono parole corte e fuori contesto:
                                 // la lista le rende più facili da riconoscere.
@@ -155,6 +160,7 @@ class Valutatore(private val azure: AzureToken) {
             fluidita = pa.optDouble("FluencyScore", 0.0),
             completezza = pa.optDouble("CompletenessScore", 0.0),
             parole = elenco,
+            ritmo = if (pa.has("ProsodyScore")) pa.optDouble("ProsodyScore") else null,
         )
     }
 }

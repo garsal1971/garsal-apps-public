@@ -41,6 +41,7 @@ import com.garsal.pronuncia.Storico
 import com.garsal.pronuncia.Ripasso
 import com.garsal.pronuncia.Riascolto
 import com.garsal.pronuncia.Frasi
+import com.garsal.pronuncia.Giudizio
 import com.garsal.pronuncia.NessunaVoce
 import com.garsal.pronuncia.Parola
 import com.garsal.pronuncia.Servizi
@@ -48,7 +49,8 @@ import com.garsal.pronuncia.SessioneScaduta
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/** Sopra questa soglia la frase è «Good»: è la stessa del ciclo a mani libere. */
+/** Il voto complessivo minimo per «Good»: è la stessa del ciclo a mani libere.
+ *  Sopra di lei decidono i controlli accesi (vedi `Giudizio`). */
 const val SOGLIA_BUONA = 80.0
 
 private enum class Fase { FERMO, PARLA, ASCOLTA }
@@ -107,7 +109,7 @@ fun Esercizio(parole: Boolean) {
         nota = null
         scope.launch {
             try {
-                Servizi.tts.pronuncia(f.testo, prefs.voce, lenta)
+                Servizi.tts.pronuncia(f.testo, prefs.voce, prefs.accento, lenta)
             } catch (e: SessioneScaduta) {
                 Servizi.connesso.value = false
             } catch (e: Exception) {
@@ -126,7 +128,7 @@ fun Esercizio(parole: Boolean) {
         miaVoce = null
         scope.launch {
             try {
-                val e = Servizi.valutatore.valuta(f.testo)
+                val e = Servizi.valutatore.valuta(f.testo, prefs.accento, prefs.sogliaRitmo != null)
                 esito = e
                 miaVoce = Servizi.valutatore.ultimaVoce
                 Storico.registra(ctx, f, e, "esercizio")
@@ -242,16 +244,24 @@ fun Esercizio(parole: Boolean) {
 @Composable
 private fun Risultato(e: Esito) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val buona = e.pronuncia >= SOGLIA_BUONA
+        val verdetto = remember(e) { Giudizio.di(e, Servizi.prefs) }
+        val buona = verdetto.buona
         Text(
             "${if (buona) "✅ Good" else "🔁 Da ripetere"} · ${uno(e.pronuncia)}/100",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = colore(e.pronuncia),
+            color = if (buona) colore(e.pronuncia) else Color(0xFFC62828),
         )
+        // Perché no: un «Da ripetere» con 85 sotto si legge come un errore,
+        // se non si dice quale controllo l'ha fermato.
+        verdetto.motivi.forEach { Text("✗ $it", color = Color(0xFFC62828), style = MaterialTheme.typography.bodyMedium) }
+        verdetto.note.forEach {
+            Text("ℹ️ $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         RigaPunteggio("Accuratezza", e.accuratezza)
         RigaPunteggio("Fluidità", e.fluidita)
         RigaPunteggio("Completezza", e.completezza)
+        e.ritmo?.let { RigaPunteggio("Ritmo e intonazione", it) }
         if (e.riconosciuto.isNotBlank()) {
             Text(
                 "Ho sentito: «${e.riconosciuto}»",
@@ -264,7 +274,7 @@ private fun Risultato(e: Esito) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             e.parole.forEach { ParolaChip(it) }
         }
-        val peggiori = e.peggiori()
+        val peggiori = if (buona) e.peggiori() else verdetto.daCurare
         if (peggiori.isNotEmpty()) {
             Text("Da curare:", fontWeight = FontWeight.Bold)
             peggiori.forEach { p ->

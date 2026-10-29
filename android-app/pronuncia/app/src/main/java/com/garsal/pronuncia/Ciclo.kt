@@ -31,7 +31,8 @@ data class StatoCiclo(
 /**
  * Il ciclo a mani libere: legge una frase, ascolta, commenta, e avanti.
  *
- * - sopra [SOGLIA_BUONA] si dice «Good» e si passa alla prossima;
+ * - se il [Giudizio] la promuove (voto ≥ [SOGLIA_BUONA] più i controlli
+ *   accesi nelle impostazioni) si dice «Good» e si passa alla prossima;
  * - sotto, «Try again», le 1-2 parole peggiori lente e la frase di nuovo,
  *   fino a [TENTATIVI]; poi «Let's move on»;
  * - ⚠️ un silenzio NON è un tentativo (vedi `NessunaVoce`), ma [SILENZI] di fila
@@ -89,8 +90,9 @@ object Ciclo {
     suspend fun esegui(ctx: Context) {
         val p = Servizi.prefs
         val voce = p.voce
+        val accento = p.accento
         val lingua = p.linguaFeedback
-        val (voceFb, linguaFb) = Feedback.voce(lingua, voce)
+        val (voceFb, linguaFb) = Feedback.voce(lingua, voce, accento)
         suspend fun di(c: Feedback.Cosa) = Servizi.tts.parla(Feedback.testo(lingua, c), voceFb, linguaFb)
 
         var precedente: String? = null
@@ -100,10 +102,10 @@ object Ciclo {
         /** Una frase, dalla lettura fino a un esito. */
         suspend fun giro(frase: Frase, lenta: Boolean): Fine {
             cosa(if (lenta) "🐢 Ascolta, piano" else "🔊 Ascolta")
-            Servizi.tts.pronuncia(frase.testo, voce, lenta)
+            Servizi.tts.pronuncia(frase.testo, voce, accento, lenta)
             while (true) {
                 cosa("🎙 Tocca a te")
-                val esito = try { Servizi.valutatore.valuta(frase.testo) } catch (e: NessunaVoce) { null }
+                val esito = try { Servizi.valutatore.valuta(frase.testo, accento, p.sogliaRitmo != null) } catch (e: NessunaVoce) { null }
                 if (esito == null) {
                     if (++silenzi >= SILENZI) return Fine.Silenzio
                     di(Feedback.Cosa.SILENZIO)
@@ -114,7 +116,8 @@ object Ciclo {
                 Storico.registra(ctx, frase, esito, "mani_libere")
                 tentativo++
                 stato.update { it.copy(tentativo = tentativo, ultimo = esito.pronuncia) }
-                if (esito.pronuncia >= SOGLIA_BUONA) {
+                val verdetto = Giudizio.di(esito, p)
+                if (verdetto.buona) {
                     stato.update { it.copy(buone = it.buone + 1) }
                     di(Feedback.Cosa.BRAVO)
                     return Fine.Avanti
@@ -125,15 +128,15 @@ object Ciclo {
                     // Una parola sola: le «parole da curare» sarebbero lei,
                     // quindi la si rilegge piano e basta.
                     cosa("🐢 Ascolta, piano")
-                    Servizi.tts.pronuncia(frase.testo, voce, lenta = true)
+                    Servizi.tts.pronuncia(frase.testo, voce, accento, lenta = true)
                 } else {
                     cosa("🐢 Le parole da curare")
-                    esito.peggiori().forEach {
+                    verdetto.daCurare.forEach {
                         val parola = it.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' }
-                        if (parola.isNotEmpty()) Servizi.tts.pronuncia(parola, voce, lenta = true)
+                        if (parola.isNotEmpty()) Servizi.tts.pronuncia(parola, voce, accento, lenta = true)
                     }
                     cosa("🔊 Ascolta")
-                    Servizi.tts.pronuncia(frase.testo, voce)
+                    Servizi.tts.pronuncia(frase.testo, voce, accento)
                 }
             }
         }

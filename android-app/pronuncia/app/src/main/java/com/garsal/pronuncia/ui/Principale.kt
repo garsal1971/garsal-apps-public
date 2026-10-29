@@ -37,7 +37,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.garsal.pronuncia.Accento
 import com.garsal.pronuncia.DialogoAggiornamento
+import com.garsal.pronuncia.Giudizio
 import com.garsal.pronuncia.LinguaFeedback
 import com.garsal.pronuncia.Microfono
 import com.garsal.pronuncia.Rilascio
@@ -64,7 +66,7 @@ fun SchermataPrincipale() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("🇬🇧 Pronuncia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("🗣️ Pronuncia", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             if (connesso) Connesso(onStorico = { storico = true }) else Accesso()
         }
     }
@@ -98,6 +100,10 @@ private fun Connesso(onStorico: () -> Unit) {
     val (versione, _) = remember { Rilascio.installata(ctx) }
 
     var voce by remember { mutableStateOf(prefs.voce) }
+    var accento by remember { mutableStateOf(prefs.accento) }
+    var sParola by remember { mutableStateOf(prefs.sogliaParola) }
+    var sSuono by remember { mutableStateOf(prefs.sogliaSuono) }
+    var sRitmo by remember { mutableStateOf(prefs.sogliaRitmo) }
     var microfono by remember { mutableStateOf(prefs.microfono) }
     var feedback by remember { mutableStateOf(prefs.linguaFeedback) }
     var dialogoVersione by remember { mutableStateOf(false) }
@@ -115,6 +121,10 @@ private fun Connesso(onStorico: () -> Unit) {
 
     // Si sceglie prima di cominciare, e vale per tutt'e due: il ciclo a mani
     // libere la rilegge a ogni elemento nuovo.
+    // L'accento vale per tutto: voci, valutazione e feedback in inglese. Sta
+    // qui e non nelle impostazioni perché si sceglie prima di cominciare.
+    Tendina("Pronuncia", accento, Accento.entries, { it.etichetta }) { accento = it; prefs.accento = it }
+
     Tendina("Esercitati su", parole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) {
         parole = it; prefs.parole = it
     }
@@ -128,12 +138,28 @@ private fun Connesso(onStorico: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("⚙️ Impostazioni", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Tendina("Voce", voce, Voce.entries, { it.etichetta }) { voce = it; prefs.voce = it }
+            Tendina("Voce", voce, Voce.entries, { it.etichetta(accento) }) { voce = it; prefs.voce = it }
             Tendina("Microfono", microfono, Microfono.entries, { it.etichetta }) {
                 microfono = it; prefs.microfono = it
             }
             Tendina("Lingua del feedback", feedback, LinguaFeedback.entries, { it.etichetta }) {
                 feedback = it; prefs.linguaFeedback = it
+            }
+            Text("Severità", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Oltre al voto complessivo (almeno 80), boccia se anche solo una parola, un suono o il ritmo resta sotto la sua soglia. Valgono per l'esercizio e per le mani libere.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Tendina("Parola peggiore", sParola, Giudizio.SOGLIE, ::soglia) { sParola = it; prefs.sogliaParola = it }
+            Tendina("Suono peggiore", sSuono, Giudizio.SOGLIE, ::soglia) { sSuono = it; prefs.sogliaSuono = it }
+            Tendina("Ritmo e intonazione", sRitmo, Giudizio.SOGLIE, ::soglia) { sRitmo = it; prefs.sogliaRitmo = it }
+            if (sRitmo != null && accento == Accento.BRITANNICO) {
+                Text(
+                    "⚠️ Microsoft garantisce ritmo e intonazione solo per l'inglese americano: con il britannico, se Azure non li valuta, il controllo non boccia e te lo dice.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
                 "Lingua del feedback e microfono valgono per il ciclo a mani libere. Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica.",
@@ -158,6 +184,8 @@ private fun Connesso(onStorico: () -> Unit) {
 
     if (dialogoVersione) DialogoAggiornamento(onChiudi = { dialogoVersione = false })
 }
+
+private fun soglia(s: Int?) = s?.let { "Sotto $it boccia" } ?: "Spento"
 
 /** Una scelta fra poche opzioni fisse è sempre una tendina, con la sua ▾. */
 @OptIn(ExperimentalMaterial3Api::class)
