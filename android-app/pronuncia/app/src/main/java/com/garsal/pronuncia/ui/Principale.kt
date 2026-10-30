@@ -60,9 +60,9 @@ import com.garsal.pronuncia.Voce
  * ⚙️ Impostazioni. Si passa dall'una all'altra toccando la linguetta o
  * strusciando a destra e sinistra (`HorizontalPager`).
  *
- * ⚠️ Le impostazioni non stanno più nelle schede di esercizio (v1.12.0): lì
- * restano solo i comandi per esercitarsi. Livello, tema, accento e frasi/parole
- * si leggono dalle preferenze, e l'esercizio si rifà da capo quando cambiano.
+ * ⚠️ Frasi/parole, livello e tema stanno in cima a ciascuna scheda di
+ * esercizio, una serie per scheda (`Scelte`); il resto in ⚙️ Impostazioni.
+ * L'esercizio si rifà da capo quando cambiano.
  *
  * ⚠️ Una pagina del pager non visibile viene smontata: tornando sull'Esercizio
  * la frase è nuova. Il ciclo a mani libere invece non ne risente, vive in
@@ -91,20 +91,43 @@ fun SchermataPrincipale() {
 
 private val SCHEDE = listOf("🎯 Esercizio", "🎧 Mani libere", "📈 Storico", "⚙️ Impostazioni")
 
-/** Le scelte che più schede leggono, tenute qui perché cambiandole in
- *  ⚙️ Impostazioni l'Esercizio si rifaccia subito. */
-private class Scelte(prefs: com.garsal.pronuncia.Prefs) {
-    var accento by mutableStateOf(prefs.accento)
-    var parole by mutableStateOf(prefs.parole)
-    var livello by mutableStateOf(prefs.livello)
-    var tema by mutableStateOf(prefs.tema)
+/** Frasi/parole, livello e tema di una scheda: l'Esercizio e le Mani libere
+ *  hanno ciascuna i propri (v1.13.0). Tenute qui perché l'Esercizio si rifaccia
+ *  subito quando cambiano. */
+private class Scelte(private val prefs: com.garsal.pronuncia.Prefs, private val ciclo: Boolean) {
+    var parole by mutableStateOf(if (ciclo) prefs.paroleCiclo else prefs.parole)
+        private set
+    var livello by mutableStateOf(if (ciclo) prefs.livelloCiclo else prefs.livello)
+        private set
+    var tema by mutableStateOf(if (ciclo) prefs.temaCiclo else prefs.tema)
+        private set
+
+    fun parole(v: Boolean) { parole = v; if (ciclo) prefs.paroleCiclo = v else prefs.parole = v }
+    fun livello(v: String?) { livello = v; if (ciclo) prefs.livelloCiclo = v else prefs.livello = v }
+    fun tema(v: String?) { tema = v; if (ciclo) prefs.temaCiclo = v else prefs.tema = v }
+}
+
+/** In cima alle due schede di esercizio: cosa, che livello, che tema. */
+@Composable
+private fun Filtri(s: Scelte, nota: String? = null) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Tendina("Esercitati su", s.parole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) { s.parole(it) }
+            Tendina("Livello", s.livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) { s.livello(it) }
+            Tendina("Tema", s.tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) { s.tema(it) }
+            nota?.let { Nota(it) }
+        }
+    }
 }
 
 @Composable
 private fun Schede() {
     val pager = rememberPagerState { SCHEDE.size }
     val scope = rememberCoroutineScope()
-    val scelte = remember { Scelte(Servizi.prefs) }
+    val scelte = remember { Scelte(Servizi.prefs, ciclo = false) }
+    val scelteCiclo = remember { Scelte(Servizi.prefs, ciclo = true) }
+    // L'accento sta nelle impostazioni ma rifà l'esercizio: lo si tiene qui.
+    var accento by remember { mutableStateOf(Servizi.prefs.accento) }
     Column(Modifier.safeDrawingPadding()) {
         Text(
             "🗣️ Pronuncia",
@@ -130,11 +153,17 @@ private fun Schede() {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     when (i) {
-                        0 -> key(scelte.parole, scelte.livello, scelte.tema, scelte.accento) {
-                            Esercizio(scelte.parole, scelte.livello, scelte.tema)
+                        0 -> {
+                            Filtri(scelte)
+                            key(scelte.parole, scelte.livello, scelte.tema, accento) {
+                                Esercizio(scelte.parole, scelte.livello, scelte.tema)
+                            }
                         }
-                        1 -> ManiLibere(scelte.parole)
-                        else -> Impostazioni(scelte)
+                        1 -> {
+                            Filtri(scelteCiclo, "Valgono dal prossimo elemento, anche a ciclo acceso.")
+                            ManiLibere(scelteCiclo.parole)
+                        }
+                        else -> Impostazioni(accento, { accento = it }, scelte.parole)
                     }
                     Spacer(Modifier.heightIn(min = 24.dp))
                 }
@@ -158,12 +187,13 @@ private fun Area(titolo: String, contenuto: @Composable () -> Unit) {
 private fun Nota(t: String) = Text(t, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
 /**
- * Tre aree, una sotto l'altra: ⚙️ Generali (vale per tutto), 🎯 Davanti allo
- * schermo (l'esercizio a mano), 🎧 A mani libere (il ciclo). Livello e tema
- * stanno nella seconda ma li legge anche il ciclo: oggi è quel che sono.
+ * Due aree: ⚙️ Generali (vale per tutto) e 🎧 A mani libere (il ciclo).
+ * ⚠️ Fino alla v1.12.0 c'era anche «Davanti allo schermo», con livello e
+ * tema: dalla v1.13.0 stanno in cima alle due schede di esercizio, una serie
+ * per scheda, e l'area è rimasta vuota.
  */
 @Composable
-private fun Impostazioni(scelte: Scelte) {
+private fun Impostazioni(accento: Accento, onAccento: (Accento) -> Unit, paroleEsercizio: Boolean) {
     val prefs = Servizi.prefs
     val ctx = LocalContext.current
     val (versione, _) = remember { Rilascio.installata(ctx) }
@@ -171,7 +201,7 @@ private fun Impostazioni(scelte: Scelte) {
     var voce by remember { mutableStateOf(prefs.voce) }
     // Le soglie che si stanno guardando: frasi o parole singole. Parte da
     // quel che si esercita adesso, che è quasi sempre quel che si vuole tarare.
-    var soglieParole by remember { mutableStateOf(scelte.parole) }
+    var soglieParole by remember { mutableStateOf(paroleEsercizio) }
     var soglie by remember(soglieParole) {
         mutableStateOf(Controllo.entries.associateWith { prefs.soglia(it, soglieParole) })
     }
@@ -182,12 +212,8 @@ private fun Impostazioni(scelte: Scelte) {
 
     Area("⚙️ Generali") {
         Nota("Connesso come ${Servizi.auth.email() ?: "?"}")
-        Tendina("Pronuncia", scelte.accento, Accento.entries, { it.etichetta }) { scelte.accento = it; prefs.accento = it }
-        Tendina("Voce", voce, Voce.entries, { it.etichetta(scelte.accento) }) { voce = it; prefs.voce = it }
-        // Il ciclo a mani libere la rilegge a ogni elemento nuovo.
-        Tendina("Esercitati su", scelte.parole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) {
-            scelte.parole = it; prefs.parole = it
-        }
+        Tendina("Pronuncia", accento, Accento.entries, { it.etichetta }) { onAccento(it); prefs.accento = it }
+        Tendina("Voce", voce, Voce.entries, { it.etichetta(accento) }) { voce = it; prefs.voce = it }
         Text("Severità", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Nota("Oltre al voto complessivo (almeno 80), boccia se anche solo una parola, un suono o il ritmo resta sotto la sua soglia. Le soglie delle frasi e quelle delle parole singole sono separate; valgono per l'esercizio e per le mani libere.")
         Tendina("Soglie per", soglieParole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) {
@@ -198,7 +224,7 @@ private fun Impostazioni(scelte: Scelte) {
                 soglie = soglie + (c to it); prefs.impostaSoglia(c, soglieParole, it)
             }
         }
-        if (soglie[Controllo.RITMO] != null && scelte.accento == Accento.BRITANNICO) {
+        if (soglie[Controllo.RITMO] != null && accento == Accento.BRITANNICO) {
             Nota("⚠️ Microsoft garantisce ritmo e intonazione solo per l'inglese americano: con il britannico, se Azure non li valuta, il controllo non boccia e te lo dice.")
         }
         Row(
@@ -213,16 +239,6 @@ private fun Impostazioni(scelte: Scelte) {
                 modifier = Modifier.heightIn(min = 48.dp),
             ) { Text("Esci") }
         }
-    }
-
-    Area("🎯 Davanti allo schermo") {
-        Tendina("Livello", scelte.livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) {
-            scelte.livello = it; prefs.livello = it
-        }
-        Tendina("Tema", scelte.tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) {
-            scelte.tema = it; prefs.tema = it
-        }
-        Nota("Livello e tema valgono anche per il ciclo a mani libere.")
     }
 
     Area("🎧 A mani libere") {

@@ -196,11 +196,11 @@ object Ciclo {
                 // altrimenti si resta sulle frasi a caso.
                 // Frasi o parole si rilegge qui, a ogni elemento nuovo: la
                 // scelta cambiata a ciclo acceso vale dal prossimo.
-                val soloParole = p.parole
+                val soloParole = p.paroleCiclo
                 val n = stato.value.frasi + 1
                 val daRipassare = if (n % Ripasso.OGNI == 0)
-                    runCatching { Ripasso.prossima(ctx, p.livello, p.tema, precedente, soloParole) }.getOrNull() else null
-                val nuova = daRipassare ?: Frasi.aCaso(ctx, p.livello, p.tema, precedente, soloParole)
+                    runCatching { Ripasso.prossima(ctx, p.livelloCiclo, p.temaCiclo, precedente, soloParole) }.getOrNull() else null
+                val nuova = daRipassare ?: Frasi.aCaso(ctx, p.livelloCiclo, p.temaCiclo, precedente, soloParole)
                     ?: run { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
                 frase = nuova
                 precedente = nuova.id

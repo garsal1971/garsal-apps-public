@@ -40,7 +40,8 @@ import java.util.Locale
 /**
  * Fase 3: il ciclo a mani libere. Fase 4: pausa, comandi a voce e tasti delle cuffie. La schermata lo avvia, lo ferma e lo
  * racconta; il lavoro lo fa `CicloService`, che continua a schermo spento.
- * Livello, tema, microfono, feedback e riascolto si scelgono in ⚙️ Impostazioni.
+ * Frasi/parole, livello e tema sono i suoi, in cima alla scheda (`Prefs.paroleCiclo`…);
+ * microfono, feedback e riascolto stanno in ⚙️ Impostazioni → A mani libere.
  */
 @Composable
 fun ManiLibere(parole: Boolean) {
