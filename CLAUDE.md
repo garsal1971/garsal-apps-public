@@ -3725,6 +3725,14 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   parole singole spento/50/spento — su una parola sola la parola peggiore è lei stessa e il ritmo
   non c'è. In ⚙️ Severità la tendina «Soglie per» sceglie quale serie si sta tarando. ⚠️ Le chiavi
   delle frasi restano quelle della v1.8.0 (`soglia_parola`…), le parole hanno `_parole`.
+- **Perché è da ripetere** (v1.11.0): il `Verdetto` porta anche i `Difetto` strutturati. A mani
+  libere, dopo il voto, si dice il primo controllo che ha bocciato (non il voto basso, già detto):
+  sul suono le **lettere che lo scrivono dette in italiano** («ti acca, in» + *think* con la voce
+  inglese + il punteggio); a schermo, nel ciclo e nell'esercizio, **th**ink evidenziato.
+  `Grafema.kt` trova le lettere: Azure dà fonema e posizione, non le lettere, quindi una tabella
+  fonema → grafie possibili, e vince l'occorrenza più vicina alla posizione del suono. ⚠️ Senza
+  niente di plausibile vicino torna `null` e si dice solo la parola: meglio niente che la lettera
+  sbagliata. Le vocali (/ə/ soprattutto) sono il punto debole.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
