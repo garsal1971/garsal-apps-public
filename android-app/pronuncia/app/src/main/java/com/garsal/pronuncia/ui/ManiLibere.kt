@@ -82,7 +82,7 @@ fun ManiLibere(parole: Boolean) {
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(f.testo, style = MaterialTheme.typography.headlineSmall)
+                    TestoConTraduzione(f)
                 }
                 Text(
                     listOfNotNull(

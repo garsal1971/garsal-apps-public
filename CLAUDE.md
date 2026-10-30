@@ -3644,8 +3644,8 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 `android-app/pronuncia/` è un **progetto Gradle standalone** (come `spese-in-giro/`),
 `applicationId` `com.garsal.pronuncia`, APK `Pronuncia-latest.apk` su R2. Kotlin + Compose,
 **Azure Speech SDK** (`com.microsoft.cognitiveservices.speech:client-sdk`). Nessuna bolla in
-`cm_apps`, nessuna tabella: del progetto Supabase usa il **login Google** e la Edge Function
-`azure-speech-token`.
+`cm_apps`; del progetto Supabase usa il **login Google**, la Edge Function
+`azure-speech-token` e la sola tabella `pr_traduzioni`.
 
 Il ciclo a cui arriva (per fasi): l'app legge una frase en-GB → la si ripete → Pronunciation
 Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase dopo o nuovo tentativo
@@ -3745,6 +3745,14 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
 - **Schede più asciutte** (v1.14.0): niente titolo né riga «livello · tema» sopra la frase, in
   tutt'e due le schede di esercizio (sono già nelle tendine in cima); resta solo «🔁 da ripassare».
   I quattro pulsanti dell'esercizio stanno su due righe da due, larghi metà schermo (`weight(1f)`).
+- **Traduzione al tocco** (v1.15.0, `ui/Fumetto.kt`, `Traduzioni.kt`): tenendo premuto il testo
+  inglese, nell'Esercizio e a Mani libere, sopra compare un fumetto con la traduzione italiana che
+  sparisce al rilascio. Le traduzioni stanno in **`pr_traduzioni`** (`id` della frase/parola → `it`,
+  `20261030100000_pr_traduzioni.sql`, sola lettura agli `authenticated`) e **si correggono dalla
+  dashboard di Supabase**: la migration le semina con `ON CONFLICT DO NOTHING`, quindi non
+  riscrive una correzione fatta a mano. L'app le scarica una volta per avvio e le tiene in cache
+  (`filesDir/traduzioni.json`); senza nessuna copia il fumetto dice «Traduzione non disponibile».
+  ⚠️ Aggiungendo frasi o parole ai JSON, va aggiunta anche la loro riga in `pr_traduzioni`.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

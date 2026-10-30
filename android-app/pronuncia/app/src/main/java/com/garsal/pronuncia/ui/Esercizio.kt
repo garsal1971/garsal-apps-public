@@ -187,7 +187,7 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(f.testo, style = MaterialTheme.typography.headlineSmall)
+                TestoConTraduzione(f)
             }
 
             // Due righe da due, larghe metà schermo: niente scorrimento di lato.

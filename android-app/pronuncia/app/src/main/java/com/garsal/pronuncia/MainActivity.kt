@@ -20,6 +20,7 @@ object Servizi {
     lateinit var azure: AzureToken
     lateinit var tts: Tts
     lateinit var valutatore: Valutatore
+    lateinit var traduzioni: Traduzioni
 
     /** Cambia quando la sessione cambia (rientro dal login, uscita): la
      *  schermata la osserva invece di rileggere le preferenze a ogni frame. */
@@ -32,6 +33,7 @@ object Servizi {
         azure = AzureToken(auth)
         tts = Tts(ctx.applicationContext, azure)
         valutatore = Valutatore(azure)
+        traduzioni = Traduzioni(ctx.applicationContext, auth)
         connesso.value = auth.connesso
     }
 }
