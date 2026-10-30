@@ -3645,7 +3645,7 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 `applicationId` `com.garsal.pronuncia`, APK `Pronuncia-latest.apk` su R2. Kotlin + Compose,
 **Azure Speech SDK** (`com.microsoft.cognitiveservices.speech:client-sdk`). Nessuna bolla in
 `cm_apps`; del progetto Supabase usa il **login Google**, la Edge Function
-`azure-speech-token` e la sola tabella `pr_traduzioni`.
+`azure-speech-token`, la tabella `pr_traduzioni` e, a fine sessione, le RPC di Obiettivi.
 
 Il ciclo a cui arriva (per fasi): l'app legge una frase en-GB → la si ripete → Pronunciation
 Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase dopo o nuovo tentativo
@@ -3753,6 +3753,16 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   riscrive una correzione fatta a mano. L'app le scarica una volta per avvio e le tiene in cache
   (`filesDir/traduzioni.json`); senza nessuna copia il fumetto dice «Traduzione non disponibile».
   ⚠️ Aggiungendo frasi o parole ai JSON, va aggiunta anche la loro riga in `pr_traduzioni`.
+- **Sessioni e Obiettivi** (v1.16.0, `Obiettivo.kt`): la tendina «Quante in una sessione»
+  (5 · 10 · 20, `Prefs.quante` / `quanteCiclo`, una per scheda) fissa gli elementi di una
+  sessione. Un elemento conta quando ha almeno un tentativo. Fatto l'ultimo — nell'Esercizio col
+  pulsante «🏁 Concludi», a Mani libere da sé — il voto da 1 a 10 è la media dei punteggi
+  **migliori** di ogni elemento diviso 10 (`votoSessione`, minimo 1), e l'app completa l'azione
+  di Obiettivi scelta in ⚙️ Impostazioni → 🎯 Obiettivo (`ob_action_complete`) e registra il voto
+  sulle sue metriche di autovalutazione la cui scala lo contiene (`ob_record_measurement`, data
+  di oggi). ⚠️ Passa solo dalle RPC; l'id dell'azione sta nelle preferenze, non nel codice.
+  ⚠️ A Mani libere una sessione fermata prima non dà voto. Due sessioni nello stesso giorno
+  completano l'azione due volte ma lasciano una sola rilevazione (l'ultima).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

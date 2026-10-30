@@ -59,9 +59,9 @@ enum class LinguaFeedback(val etichetta: String) {
  * Preferenze e sessione, nelle preferenze di **questo** telefono.
  *
  * ⚠️ I token Supabase stanno qui e non in un archivio cifrato: è lo stesso
- * livello di protezione della sessione di supabase-kt nell'APK nativa, e il
- * token da solo apre una cosa sola — la Edge Function del token Azure — perché
- * l'app non legge nessuna tabella.
+ * livello di protezione della sessione di supabase-kt nell'APK nativa. Con
+ * quel token l'app chiede il token Azure, legge le traduzioni e, a fine
+ * sessione, completa un'azione di Obiettivi passando dalle sue RPC.
  */
 class Prefs(ctx: Context) {
     private val p: SharedPreferences = ctx.getSharedPreferences("pronuncia", Context.MODE_PRIVATE)
@@ -130,6 +130,26 @@ class Prefs(ctx: Context) {
     var temaCiclo: String?
         get() = if (p.contains("tema_ciclo")) p.getString("tema_ciclo", null) else tema
         set(v) = p.edit().putString("tema_ciclo", v).apply()
+
+    /** Quanti elementi in una sessione (v1.16.0), uno dei [QUANTE], per
+     *  scheda: l'esercizio e il ciclo hanno ciascuno il suo. */
+    var quante: Int
+        get() = p.getInt("quante", 10).takeIf { it in QUANTE } ?: 10
+        set(v) = p.edit().putInt("quante", v).apply()
+
+    var quanteCiclo: Int
+        get() = p.getInt("quante_ciclo", 10).takeIf { it in QUANTE } ?: 10
+        set(v) = p.edit().putInt("quante_ciclo", v).apply()
+
+    /** L'azione di Obiettivi che una sessione finita completa (`Obiettivo`);
+     *  `null` = nessuna. Il titolo accanto, per mostrarla senza rete. */
+    var azioneObiettivo: String?
+        get() = p.getString("azione_obiettivo", null)
+        set(v) = p.edit().putString("azione_obiettivo", v).apply()
+
+    var azioneTitolo: String?
+        get() = p.getString("azione_titolo", null)
+        set(v) = p.edit().putString("azione_titolo", v).apply()
 
     /** Mani libere: dopo il tentativo l'app fa riascoltare la registrazione,
      *  poi dà il voto. Letta a ogni tentativo: cambiarla a ciclo acceso vale subito. */

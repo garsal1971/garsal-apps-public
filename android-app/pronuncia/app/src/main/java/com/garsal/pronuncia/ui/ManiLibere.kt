@@ -73,9 +73,19 @@ fun ManiLibere(parole: Boolean) {
         if (mancano.isEmpty()) avvia() else permessi.launch(mancano.toTypedArray())
     }
 
+    // La sessione appena finita: il voto resta a schermo finché non se ne avvia un'altra.
+    if (!s.attivo) s.voto?.let { v ->
+        Riepilogo(v, s.fatte, s.media ?: 0.0, s.frase?.parola == true, s.esitoObiettivo, null)
+    }
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (s.attivo) {
+                Text(
+                    "${if (s.frase?.parola == true) "Parola" else "Frase"} ${minOf(s.quante, s.frasi)} di ${s.quante} · provate ${s.fatte}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
                 s.frase?.let { f ->
                     if (s.ripasso) Text(
                         "🔁 da ripassare",
@@ -108,11 +118,11 @@ fun ManiLibere(parole: Boolean) {
                 Text(
                     (if (parole)
                         "Legge una parola, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA te la rilegge piano " +
-                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una parola ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché "
+                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una parola ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Finite quelle scelte in «Quante», "
                     else
                         "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
-                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché ") +
-                        "non premi Ferma, anche a schermo spento.\n\n" +
+                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Finite quelle scelte in «Quante», ") +
+                        "ti dà un voto da 1 a 10 e aggiorna l'obiettivo. Funziona anche a schermo spento; se premi Ferma prima, niente voto.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +
                         "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +
                         "Una chiamata o il navigatore lo mettono in pausa, e riparte da sé.",
@@ -123,7 +133,7 @@ fun ManiLibere(parole: Boolean) {
                 }
             }
 
-            if (s.frasi > 0) {
+            if (s.frasi > 0 && s.voto == null) {
                 Text(
                     "Questa sessione: ${s.frasi} ${if (s.frase?.parola == true) "parole" else "frasi"}, ${s.buone} riuscite.",
                     style = MaterialTheme.typography.bodySmall,
