@@ -75,12 +75,10 @@ fun ManiLibere(parole: Boolean) {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (parole) "🎧 Mani libere · parole" else "🎧 Mani libere", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
             if (s.attivo) {
                 s.frase?.let { f ->
-                    Text(
-                        "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}" + if (s.ripasso) " · 🔁 da ripassare" else "",
+                    if (s.ripasso) Text(
+                        "🔁 da ripassare",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

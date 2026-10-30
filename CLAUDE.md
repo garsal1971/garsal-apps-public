@@ -3742,6 +3742,9 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   (accento, voce, severità per frasi/parole, versione, esci) e **A mani libere** (microfono, lingua
   del feedback, riascolto). Le severità restano due serie, frasi e parole, uguali per le due modalità.
   ⚠️ Una pagina non visibile viene smontata: tornando sull'Esercizio la frase è nuova.
+- **Schede più asciutte** (v1.14.0): niente titolo né riga «livello · tema» sopra la frase, in
+  tutt'e due le schede di esercizio (sono già nelle tendine in cima); resta solo «🔁 da ripassare».
+  I quattro pulsanti dell'esercizio stanno su due righe da due, larghi metà schermo (`weight(1f)`).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

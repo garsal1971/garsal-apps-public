@@ -178,35 +178,33 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("🎯 Esercizio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
-
             val f = frase
             if (f == null) {
                 Text(if (parole) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.")
             } else {
-                Text(
-                    "${f.livello} · ${Frasi.TEMI[f.tema] ?: f.tema}" + if (ripasso) " · 🔁 da ripassare" else "",
+                if (ripasso) Text(
+                    "🔁 da ripassare",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(f.testo, style = MaterialTheme.typography.headlineSmall)
             }
 
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(onClick = { ascolta(false) }, enabled = libero && f != null, modifier = Modifier.heightIn(min = 48.dp)) {
+            // Due righe da due, larghe metà schermo: niente scorrimento di lato.
+            val largo = Modifier.heightIn(min = 48.dp)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { ascolta(false) }, enabled = libero && f != null, modifier = largo.weight(1f)) {
                     Text("▶ Ascolta")
                 }
-                OutlinedButton(onClick = { ascolta(true) }, enabled = libero && f != null, modifier = Modifier.heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = { ascolta(true) }, enabled = libero && f != null, modifier = largo.weight(1f)) {
                     Text("🐢 Lenta")
                 }
-                OutlinedButton(onClick = { nuova() }, enabled = libero, modifier = Modifier.heightIn(min = 48.dp)) {
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { nuova() }, enabled = libero, modifier = largo.weight(1f)) {
                     Text("⏭ Altra")
                 }
-                OutlinedButton(onClick = { ripassa() }, enabled = libero, modifier = Modifier.heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = { ripassa() }, enabled = libero, modifier = largo.weight(1f)) {
                     Text("🔁 Ripasso")
                 }
             }
