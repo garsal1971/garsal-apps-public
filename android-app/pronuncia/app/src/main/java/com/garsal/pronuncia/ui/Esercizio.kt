@@ -69,15 +69,15 @@ private enum class Fase { FERMO, PARLA, ASCOLTA }
  * `Valutatore.valuta` — in un servizio, senza questa schermata.
  *
  * Con [parole] si esercitano le parole singole invece delle frasi intere.
+ * Livello e tema si scelgono in ⚙️ Impostazioni → Davanti allo schermo, e chi
+ * chiama rifà la scheda (`key`) quando cambiano.
  */
 @Composable
-fun Esercizio(parole: Boolean) {
+fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
     val ctx = LocalContext.current
     val prefs = Servizi.prefs
     val scope = rememberCoroutineScope()
 
-    var livello by remember { mutableStateOf(prefs.livello) }
-    var tema by remember { mutableStateOf(prefs.tema) }
     var frase by remember { mutableStateOf<Frase?>(Frasi.aCaso(ctx, livello, tema, soloParole = parole)) }
     var fase by remember { mutableStateOf(Fase.FERMO) }
     var esito by remember { mutableStateOf<Esito?>(null) }
@@ -180,12 +180,11 @@ fun Esercizio(parole: Boolean) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("🎯 Esercizio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-            Tendina("Livello", livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) {
-                livello = it; prefs.livello = it; nuova()
-            }
-            Tendina("Tema", tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) {
-                tema = it; prefs.tema = it; nuova()
-            }
+            Text(
+                "${if (parole) "🔤 Parole" else "💬 Frasi"} · livello ${livello ?: "tutti"} · tema ${tema?.let { Frasi.TEMI[it] } ?: "tutti"} — si cambiano in ⚙️ Impostazioni",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             val f = frase
             if (f == null) {
