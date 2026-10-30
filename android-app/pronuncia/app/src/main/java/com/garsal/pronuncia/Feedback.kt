@@ -35,6 +35,12 @@ object Feedback {
         }
     }
 
+    /** La fine della sessione, col voto da 1 a 10. */
+    fun fine(l: LinguaFeedback, voto: Int): String = when (l) {
+        LinguaFeedback.INGLESE -> "Session complete. Your grade: $voto out of 10. Well done!"
+        LinguaFeedback.ITALIANO -> "Sessione finita. Voto: $voto su 10. Bravo!"
+    }
+
     /** Voce e lingua del commento: l'inglese con la voce scelta, l'italiano con
      *  la voce italiana dello stesso genere — una voce inglese che legge
      *  l'italiano lo storpia. */

@@ -28,6 +28,13 @@ data class StatoCiclo(
     val avviso: String? = null,
     /** Il giudizio dell'ultimo tentativo, per dire a schermo perché è da ripetere. */
     val verdetto: Verdetto? = null,
+    /** La sessione (v1.16.0): quanti elementi, quanti già provati, il voto
+     *  finale da 1 a 10 e com'è andato l'aggiornamento di Obiettivi. */
+    val quante: Int = 0,
+    val fatte: Int = 0,
+    val media: Double? = null,
+    val voto: Int? = null,
+    val esitoObiettivo: String? = null,
 )
 
 /**
@@ -54,6 +61,13 @@ data class StatoCiclo(
  * tentativi già fatti restano.
  *
  * Fase 6: una frase ogni [Ripasso.OGNI] viene dal ripasso (vedi `Ripasso`).
+ *
+ * Una sessione è di `Prefs.quanteCiclo` elementi, letta all'avvio (v1.16.0):
+ * conta un elemento con almeno un tentativo — un «next» su uno mai provato non
+ * lo consuma. Finito l'ultimo si dice il voto da 1 a 10 (`votoSessione`) e si
+ * completa l'azione di Obiettivi (`Obiettivo.aggiorna`). ⚠️ Fermato prima (a
+ * voce, col tasto o dai silenzi) non c'è voto: una sessione a metà non è
+ * quella che si era chiesta, e il voto finirebbe nello storico di Obiettivi.
  *
  * Gira dentro `CicloService`, non nella schermata: deve continuare a schermo
  * spento.
@@ -125,6 +139,25 @@ object Ciclo {
         val (voceFb, linguaFb) = Feedback.voce(lingua, voce, accento)
         suspend fun di(c: Feedback.Cosa) = Servizi.tts.parla(Feedback.testo(lingua, c), voceFb, linguaFb)
 
+        val quante = p.quanteCiclo
+        val migliori = mutableMapOf<String, Double>()
+        stato.update { it.copy(quante = quante) }
+
+        /** L'ultimo elemento è fatto: voto, a voce e a schermo, e Obiettivi. */
+        suspend fun finisci() {
+            val v = votoSessione(migliori.values) ?: return
+            val media = migliori.values.average()
+            stato.update { it.copy(voto = v, media = media, cosa = "🏁 Sessione finita", nota = null) }
+            Servizi.tts.parla(Feedback.fine(lingua, v), voceFb, linguaFb)
+            val esito = try {
+                Obiettivo.aggiorna(v, "Mani libere: ${migliori.size} ${if (p.paroleCiclo) "parole" else "frasi"}, media ${Math.round(media)}")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                "⚠️ Obiettivi non aggiornato: ${e.message ?: e.javaClass.simpleName}"
+            }
+            stato.update { it.copy(esitoObiettivo = esito) }
+        }
+
         var precedente: String? = null
         var silenzi = 0
         var tentativo = 0
@@ -144,6 +177,8 @@ object Ciclo {
                 silenzi = 0
                 Comando.da(esito.riconosciuto, frase.testo)?.let { return Fine.Comandato(it) }
                 Storico.registra(ctx, frase, esito, "mani_libere")
+                migliori[frase.id] = maxOf(migliori[frase.id] ?: 0.0, esito.pronuncia)
+                stato.update { it.copy(fatte = migliori.size) }
                 tentativo++
                 stato.update { it.copy(tentativo = tentativo, ultimo = esito.pronuncia) }
                 // Il riascolto: la propria voce prima del giudizio, così il
@@ -212,6 +247,9 @@ object Ciclo {
             val f = frase!!
             val fine = interrompibile { giro(f, lenta) }
             lenta = false
+            // L'ultimo elemento della sessione, provato almeno una volta: basta.
+            if ((fine == Fine.Avanti || (fine is Fine.Comandato && fine.c == Comando.AVANTI)) &&
+                migliori.size >= quante) { finisci(); return }
             when (fine) {
                 Fine.Avanti -> frase = null
                 Fine.Silenzio -> {

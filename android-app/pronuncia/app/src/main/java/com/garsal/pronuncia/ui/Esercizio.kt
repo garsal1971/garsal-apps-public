@@ -25,6 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import com.garsal.pronuncia.Obiettivo
+import com.garsal.pronuncia.votoSessione
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -71,9 +74,15 @@ private enum class Fase { FERMO, PARLA, ASCOLTA }
  * Con [parole] si esercitano le parole singole invece delle frasi intere.
  * Frasi/parole, livello e tema si scelgono in cima alla scheda (`Filtri`), e
  * chi chiama rifà l'esercizio (`key`) quando cambiano.
+ *
+ * Una sessione è di [quante] elementi (v1.16.0): conta un elemento quando ha
+ * almeno un tentativo — «⏭ Altra» su uno mai provato lo cambia e basta. Fatto
+ * l'ultimo, «⏭ Altra» diventa «🏁 Concludi»: voto da 1 a 10 (`votoSessione`) e
+ * azione di Obiettivi completata (`Obiettivo.aggiorna`). Si conclude col
+ * pulsante e non al tentativo: l'ultimo elemento lo si può voler riprovare.
  */
 @Composable
-fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
+fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
     val ctx = LocalContext.current
     val prefs = Servizi.prefs
     val scope = rememberCoroutineScope()
@@ -85,9 +94,30 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
     var ripasso by remember { mutableStateOf(false) }
     // La mia voce dell'ultimo tentativo, per «Riascoltami». Solo in memoria.
     var miaVoce by remember { mutableStateOf<ByteArray?>(null) }
+    // La sessione: il punteggio migliore di ogni elemento provato.
+    val migliori = remember { mutableStateMapOf<String, Double>() }
+    var voto by remember { mutableStateOf<Int?>(null) }
+    var esitoObiettivo by remember { mutableStateOf<String?>(null) }
     // Il microfono è uno: col ciclo a mani libere acceso, l'esercizio a mano aspetta.
     val ciclo by Ciclo.stato.collectAsState()
     val libero = fase == Fase.FERMO && !ciclo.attivo
+
+    fun concludi() {
+        val v = votoSessione(migliori.values) ?: return
+        voto = v
+        esitoObiettivo = null
+        val n = migliori.size
+        val media = migliori.values.average()
+        scope.launch {
+            esitoObiettivo = try {
+                Obiettivo.aggiorna(v, "Esercizio: $n ${if (parole) "parole" else "frasi"}, media ${uno(media)}")
+            } catch (e: SessioneScaduta) {
+                Servizi.connesso.value = false; null
+            } catch (e: Exception) {
+                "⚠️ Obiettivi non aggiornato: ${e.message ?: e.javaClass.simpleName}"
+            }
+        }
+    }
 
     fun nuova() {
         frase = Frasi.aCaso(ctx, livello, tema, frase?.id, parole)
@@ -139,6 +169,7 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
                 val e = Servizi.valutatore.valuta(f.testo, prefs.accento, prefs.soglia(Controllo.RITMO, f.parola) != null)
                 esito = e
                 miaVoce = Servizi.valutatore.ultimaVoce
+                migliori[f.id] = maxOf(migliori[f.id] ?: 0.0, e.pronuncia)
                 Storico.registra(ctx, f, e, "esercizio")
             } catch (e: SessioneScaduta) {
                 Servizi.connesso.value = false
@@ -176,9 +207,24 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
         else permesso.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    voto?.let { v ->
+        Riepilogo(v, migliori.size, migliori.values.average(), parole, esitoObiettivo) {
+            migliori.clear(); voto = null; esitoObiettivo = null; nuova()
+        }
+        return
+    }
+
+    val provata = frase?.id?.let { it in migliori } == true
+    val finita = provata && migliori.size >= quante
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             val f = frase
+            Text(
+                "${if (parole) "Parola" else "Frase"} ${minOf(quante, migliori.size + if (provata) 0 else 1)} di $quante",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
             if (f == null) {
                 Text(if (parole) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.")
             } else {
@@ -201,10 +247,10 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { nuova() }, enabled = libero, modifier = largo.weight(1f)) {
-                    Text("⏭ Altra")
+                OutlinedButton(onClick = { if (finita) concludi() else nuova() }, enabled = libero, modifier = largo.weight(1f)) {
+                    Text(if (finita) "🏁 Concludi" else "⏭ Altra")
                 }
-                OutlinedButton(onClick = { ripassa() }, enabled = libero, modifier = largo.weight(1f)) {
+                OutlinedButton(onClick = { ripassa() }, enabled = libero && !finita, modifier = largo.weight(1f)) {
                     Text("🔁 Ripasso")
                 }
             }
@@ -236,6 +282,27 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
 
             nota?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             esito?.let { Risultato(it, frase?.parola == true) }
+        }
+    }
+}
+
+/** Fine sessione: il voto, e com'è andato l'aggiornamento di Obiettivi. */
+@Composable
+internal fun Riepilogo(voto: Int, n: Int, media: Double, parole: Boolean, esito: String?, onNuova: (() -> Unit)?) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("🏁 Sessione finita", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Voto: $voto/10", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = colore(voto * 10.0))
+            Text("$n ${if (parole) "parole" else "frasi"}, media dei punteggi migliori ${uno(media)}/100.")
+            Text(
+                esito ?: "Aggiorno Obiettivi…",
+                color = if (esito?.startsWith("⚠️") == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            onNuova?.let {
+                Button(onClick = it, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    Text("▶ Nuova sessione", style = MaterialTheme.typography.titleMedium)
+                }
+            }
         }
     }
 }

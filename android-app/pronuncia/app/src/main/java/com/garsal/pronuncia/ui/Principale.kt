@@ -51,6 +51,9 @@ import com.garsal.pronuncia.DialogoAggiornamento
 import com.garsal.pronuncia.Giudizio
 import com.garsal.pronuncia.LinguaFeedback
 import com.garsal.pronuncia.Microfono
+import com.garsal.pronuncia.Obiettivo
+import com.garsal.pronuncia.QUANTE
+import androidx.compose.runtime.LaunchedEffect
 import com.garsal.pronuncia.Rilascio
 import com.garsal.pronuncia.Servizi
 import com.garsal.pronuncia.Voce
@@ -101,10 +104,13 @@ private class Scelte(private val prefs: com.garsal.pronuncia.Prefs, private val 
         private set
     var tema by mutableStateOf(if (ciclo) prefs.temaCiclo else prefs.tema)
         private set
+    var quante by mutableStateOf(if (ciclo) prefs.quanteCiclo else prefs.quante)
+        private set
 
     fun parole(v: Boolean) { parole = v; if (ciclo) prefs.paroleCiclo = v else prefs.parole = v }
     fun livello(v: String?) { livello = v; if (ciclo) prefs.livelloCiclo = v else prefs.livello = v }
     fun tema(v: String?) { tema = v; if (ciclo) prefs.temaCiclo = v else prefs.tema = v }
+    fun quante(v: Int) { quante = v; if (ciclo) prefs.quanteCiclo = v else prefs.quante = v }
 }
 
 /** In cima alle due schede di esercizio: cosa, che livello, che tema. */
@@ -115,6 +121,7 @@ private fun Filtri(s: Scelte, nota: String? = null) {
             Tendina("Esercitati su", s.parole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) { s.parole(it) }
             Tendina("Livello", s.livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) { s.livello(it) }
             Tendina("Tema", s.tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) { s.tema(it) }
+            Tendina("Quante in una sessione", s.quante, QUANTE, { "$it ${if (s.parole) "parole" else "frasi"}" }) { s.quante(it) }
             nota?.let { Nota(it) }
         }
     }
@@ -155,12 +162,12 @@ private fun Schede() {
                     when (i) {
                         0 -> {
                             Filtri(scelte)
-                            key(scelte.parole, scelte.livello, scelte.tema, accento) {
-                                Esercizio(scelte.parole, scelte.livello, scelte.tema)
+                            key(scelte.parole, scelte.livello, scelte.tema, scelte.quante, accento) {
+                                Esercizio(scelte.parole, scelte.livello, scelte.tema, scelte.quante)
                             }
                         }
                         1 -> {
-                            Filtri(scelteCiclo, "Valgono dal prossimo elemento, anche a ciclo acceso.")
+                            Filtri(scelteCiclo, "Frasi o parole, livello e tema valgono dal prossimo elemento anche a ciclo acceso; quante, dalla prossima sessione.")
                             ManiLibere(scelteCiclo.parole)
                         }
                         else -> Impostazioni(accento, { accento = it }, scelte.parole)
@@ -254,6 +261,10 @@ private fun Impostazioni(accento: Accento, onAccento: (Accento) -> Unit, paroleE
         Nota("Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica.")
     }
 
+    Area("🎯 Obiettivo") {
+        AreaObiettivo()
+    }
+
     if (dialogoVersione) DialogoAggiornamento(onChiudi = { dialogoVersione = false })
 }
 
@@ -306,4 +317,30 @@ internal fun <T> Tendina(
             }
         }
     }
+}
+
+/**
+ * Quale azione di Obiettivi completa una sessione finita (`Obiettivo`). Le
+ * azioni si leggono all'apertura; senza rete resta a schermo quella scelta,
+ * col titolo salvato accanto all'id.
+ */
+@Composable
+private fun AreaObiettivo() {
+    val prefs = Servizi.prefs
+    var scelta by remember { mutableStateOf(prefs.azioneObiettivo?.let { Obiettivo.Azione(it, prefs.azioneTitolo ?: "?") }) }
+    var azioni by remember { mutableStateOf<List<Obiettivo.Azione>?>(null) }
+    var errore by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        runCatching { Obiettivo.azioni() }
+            .onSuccess { azioni = it }
+            .onFailure { errore = "Non riesco a leggere le azioni: ${it.message ?: it.javaClass.simpleName}" }
+    }
+    Nota("A fine sessione l'app dà un voto da 1 a 10 (la media dei punteggi migliori, diviso 10), completa questa azione e registra il voto sulle sue metriche di autovalutazione.")
+    val opzioni = listOf<Obiettivo.Azione?>(null) + (azioni ?: emptyList()).let { l ->
+        if (scelta != null && l.none { it.id == scelta!!.id }) l + scelta!! else l
+    }
+    Tendina("Azione da completare", scelta, opzioni, { it?.titolo ?: "Nessuna" }) {
+        scelta = it; prefs.azioneObiettivo = it?.id; prefs.azioneTitolo = it?.titolo
+    }
+    errore?.let { Nota("⚠️ $it") }
 }
