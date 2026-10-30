@@ -3735,11 +3735,13 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   sbagliata. Le vocali (/ə/ soprattutto) sono il punto debole.
 - **Quattro schede** (v1.12.0, `ui/Principale.kt`): 🎯 Esercizio · 🎧 Mani libere · 📈 Storico ·
   ⚙️ Impostazioni, con le linguette in alto (`ScrollableTabRow`) e lo strusciamento destra/sinistra
-  (`HorizontalPager`). Le impostazioni sono tre riquadri: **Generali** (accento, voce, frasi/parole,
-  severità, versione, esci), **Davanti allo schermo** (livello e tema — li legge anche il ciclo) e
-  **A mani libere** (microfono, lingua del feedback, riascolto). Le schede di esercizio hanno solo i
-  comandi. ⚠️ Le scelte condivise stanno in `Scelte` e l'Esercizio si rifà (`key`) quando cambiano;
-  una pagina non visibile viene smontata, quindi tornando sull'Esercizio la frase è nuova.
+  (`HorizontalPager`). ⚠️ Dalla v1.13.0 **frasi/parole, livello e tema stanno in cima a ciascuna
+  scheda di esercizio, una serie per scheda** (`Scelte`, `Filtri`): l'esercizio usa
+  `Prefs.parole/livello/tema`, il ciclo `Prefs.paroleCiclo/livelloCiclo/temaCiclo`, che finché non
+  si toccano ripiegano su quelli dell'esercizio. Le impostazioni sono due riquadri: **Generali**
+  (accento, voce, severità per frasi/parole, versione, esci) e **A mani libere** (microfono, lingua
+  del feedback, riascolto). Le severità restano due serie, frasi e parole, uguali per le due modalità.
+  ⚠️ Una pagina non visibile viene smontata: tornando sull'Esercizio la frase è nuova.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

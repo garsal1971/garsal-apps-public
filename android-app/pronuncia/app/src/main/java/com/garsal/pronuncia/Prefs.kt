@@ -111,11 +111,25 @@ class Prefs(ctx: Context) {
         get() = p.getString("tema", null)
         set(v) = p.edit().putString("tema", v).apply()
 
-    /** Cosa si esercita: le frasi intere o le parole sole. Vale per
-     *  l'esercizio e per il ciclo a mani libere. */
+    /** Cosa si esercita davanti allo schermo: le frasi intere o le parole sole. */
     var parole: Boolean
         get() = p.getBoolean("parole", false)
         set(v) = p.edit().putBoolean("parole", v).apply()
+
+    /** Le stesse tre scelte per il ciclo a mani libere (v1.13.0): ogni scheda ha
+     *  le sue. ⚠️ Finché non le si cambia valgono quelle dell'esercizio, che
+     *  fino alla v1.12.0 erano le sole e le usava anche il ciclo. */
+    var paroleCiclo: Boolean
+        get() = if (p.contains("parole_ciclo")) p.getBoolean("parole_ciclo", false) else parole
+        set(v) = p.edit().putBoolean("parole_ciclo", v).apply()
+
+    var livelloCiclo: String?
+        get() = if (p.contains("livello_ciclo")) p.getString("livello_ciclo", null) else livello
+        set(v) = p.edit().putString("livello_ciclo", v).apply()
+
+    var temaCiclo: String?
+        get() = if (p.contains("tema_ciclo")) p.getString("tema_ciclo", null) else tema
+        set(v) = p.edit().putString("tema_ciclo", v).apply()
 
     /** Mani libere: dopo il tentativo l'app fa riascoltare la registrazione,
      *  poi dà il voto. Letta a ogni tentativo: cambiarla a ciclo acceso vale subito. */

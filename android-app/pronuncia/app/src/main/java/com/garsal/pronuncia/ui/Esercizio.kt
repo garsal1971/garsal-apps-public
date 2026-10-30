@@ -69,8 +69,8 @@ private enum class Fase { FERMO, PARLA, ASCOLTA }
  * `Valutatore.valuta` — in un servizio, senza questa schermata.
  *
  * Con [parole] si esercitano le parole singole invece delle frasi intere.
- * Livello e tema si scelgono in ⚙️ Impostazioni → Davanti allo schermo, e chi
- * chiama rifà la scheda (`key`) quando cambiano.
+ * Frasi/parole, livello e tema si scelgono in cima alla scheda (`Filtri`), e
+ * chi chiama rifà l'esercizio (`key`) quando cambiano.
  */
 @Composable
 fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
@@ -180,11 +180,6 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("🎯 Esercizio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-            Text(
-                "${if (parole) "🔤 Parole" else "💬 Frasi"} · livello ${livello ?: "tutti"} · tema ${tema?.let { Frasi.TEMI[it] } ?: "tutti"} — si cambiano in ⚙️ Impostazioni",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
             val f = frase
             if (f == null) {
