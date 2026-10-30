@@ -51,8 +51,10 @@ import java.util.Locale
  * grandi cinque colonne affiancate andrebbero a capo ognuna per conto suo.
  */
 @Composable
-fun SchermataStorico(onChiudi: () -> Unit) {
-    BackHandler(onBack = onChiudi)
+fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
+    // Dalla v1.12.0 è una scheda della schermata principale: lì non c'è un
+    // «indietro» da offrire, ci si sposta con le linguette o strusciando.
+    if (onChiudi != null) BackHandler(onBack = onChiudi)
     val ctx = LocalContext.current
     val dao = remember { Storico.dao(ctx) }
     val giorni by dao.perGiorno(SOGLIA_BUONA, 30).collectAsState(emptyList())
@@ -68,7 +70,7 @@ fun SchermataStorico(onChiudi: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                TextButton(onClick = onChiudi, modifier = Modifier.heightIn(min = 48.dp)) { Text("‹ Indietro") }
+                if (onChiudi != null) TextButton(onClick = onChiudi, modifier = Modifier.heightIn(min = 48.dp)) { Text("‹ Indietro") }
                 Text("📈 Storico", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             }
             if (totale == 0) {

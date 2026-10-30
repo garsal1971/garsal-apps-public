@@ -40,14 +40,13 @@ import java.util.Locale
 /**
  * Fase 3: il ciclo a mani libere. Fase 4: pausa, comandi a voce e tasti delle cuffie. La schermata lo avvia, lo ferma e lo
  * racconta; il lavoro lo fa `CicloService`, che continua a schermo spento.
- * Livello e tema sono quelli scelti nell'esercizio.
+ * Livello, tema, microfono, feedback e riascolto si scelgono in ⚙️ Impostazioni.
  */
 @Composable
 fun ManiLibere(parole: Boolean) {
     val ctx = LocalContext.current
     val s by Ciclo.stato.collectAsState()
     var nota by remember { mutableStateOf<String?>(null) }
-    var riascolto by remember { mutableStateOf(Servizi.prefs.riascoltoCiclo) }
 
     fun avvia() {
         nota = null
@@ -76,12 +75,6 @@ fun ManiLibere(parole: Boolean) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (parole) "🎧 Mani libere · parole" else "🎧 Mani libere", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
-            // Letta a ogni tentativo: vale anche a ciclo acceso.
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("🔁 Fammi riascoltare la mia voce prima del voto", Modifier.weight(1f))
-                Switch(checked = riascolto, onCheckedChange = { riascolto = it; Servizi.prefs.riascoltoCiclo = it })
-            }
 
             if (s.attivo) {
                 s.frase?.let { f ->
@@ -115,10 +108,10 @@ fun ManiLibere(parole: Boolean) {
             } else {
                 Text(
                     (if (parole)
-                        "Legge una parola, tu la ripeti, ti fa riascoltare la tua voce (se acceso) e ti dice il voto. Sotto $SOGLIA_INTERA te la rilegge piano " +
+                        "Legge una parola, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA te la rilegge piano " +
                             "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una parola ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché "
                     else
-                        "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
+                        "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
                             "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Continua finché ") +
                         "non premi Ferma, anche a schermo spento.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +
