@@ -26,6 +26,8 @@ data class StatoCiclo(
     val ripasso: Boolean = false,
     /** Un avviso che vale mentre il ciclo gira (es. cuffie non trovate). */
     val avviso: String? = null,
+    /** Il giudizio dell'ultimo tentativo, per dire a schermo perché è da ripetere. */
+    val verdetto: Verdetto? = null,
 )
 
 /**
@@ -89,6 +91,32 @@ object Ciclo {
         }
     }
 
+    /**
+     * Il difetto detto a voce: le parti in italiano con la voce italiana (le
+     * lettere si dicono all'italiana, «ti acca», come chiesto) e la parola con
+     * la voce inglese, che la pronuncia come va pronunciata.
+     */
+    private suspend fun diciDifetto(d: Difetto, voce: Voce, accento: Accento) {
+        val (vIt, lIt) = Feedback.voce(LinguaFeedback.ITALIANO, voce, accento)
+        suspend fun it(t: String) = Servizi.tts.parla(t, vIt, lIt)
+        suspend fun en(p: Parola) {
+            val w = p.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' }
+            if (w.isNotEmpty()) Servizi.tts.pronuncia(w, voce, accento)
+        }
+        fun n(v: Double) = "${Math.round(v)}."
+        when (d) {
+            is Difetto.Suono -> {
+                val lettere = d.grafema?.let { Grafema.lettere(d.parola.testo.substring(it)) }
+                it(if (lettere.isNullOrBlank()) "Un suono in" else "$lettere, in")
+                en(d.parola); it(n(d.voto))
+            }
+            is Difetto.ParolaBassa -> { it("La parola"); en(d.parola); it(n(d.voto)) }
+            is Difetto.Saltata -> { it("Hai saltato"); en(d.parola) }
+            is Difetto.Ritmo -> it("Ritmo e intonazione: ${n(d.voto)}")
+            is Difetto.Voto -> Unit
+        }
+    }
+
     suspend fun esegui(ctx: Context) {
         val p = Servizi.prefs
         val voce = p.voce
@@ -125,8 +153,15 @@ object Ciclo {
                     Riascolto.suona(v, Servizi.tts.comunicazione)
                 }
                 val verdetto = Giudizio.di(esito, p, frase.parola)
+                stato.update { it.copy(verdetto = verdetto) }
                 cosa("📊 Il voto")
                 Servizi.tts.parla(Feedback.voto(lingua, esito.pronuncia), voceFb, linguaFb)
+                // Perché è da ripetere, se non è il solo voto basso (quello si è
+                // appena sentito): il primo controllo che ha bocciato.
+                verdetto.difetti.firstOrNull { it !is Difetto.Voto }?.let { d ->
+                    cosa("🔎 Cosa curare")
+                    diciDifetto(d, voce, accento)
+                }
                 if (verdetto.buona) {
                     stato.update { it.copy(buone = it.buone + 1) }
                     di(Feedback.Cosa.BRAVO)
@@ -171,7 +206,7 @@ object Ciclo {
                 precedente = nuova.id
                 tentativo = 0
                 stato.update {
-                    it.copy(frase = nuova, tentativo = 0, ultimo = null, frasi = n, ripasso = daRipassare != null)
+                    it.copy(frase = nuova, tentativo = 0, ultimo = null, frasi = n, ripasso = daRipassare != null, verdetto = null)
                 }
             }
             val f = frase!!

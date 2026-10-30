@@ -28,6 +28,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
+import com.garsal.pronuncia.Difetto
+import com.garsal.pronuncia.Verdetto
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -241,6 +248,26 @@ fun Esercizio(parole: Boolean) {
     }
 }
 
+/** Perché è da ripetere, un motivo per riga. Sul suono, la parola con le
+ *  lettere che lo scrivono in grassetto e sottolineate: **th**ink. */
+@Composable
+fun MotiviVerdetto(v: Verdetto) {
+    v.motivi.forEachIndexed { i, m ->
+        val d = v.difetti.getOrNull(i)
+        val testo = if (d is Difetto.Suono && d.grafema != null) buildAnnotatedString {
+            append("✗ ${Math.round(d.voto)} in «")
+            val w = d.parola.testo
+            append(w.substring(0, d.grafema.first))
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)) {
+                append(w.substring(d.grafema))
+            }
+            append(w.substring(d.grafema.last + 1))
+            append("» · suono /${d.fonema}/, sotto ${d.soglia}")
+        } else AnnotatedString("✗ $m")
+        Text(testo, color = Color(0xFFC62828), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Risultato(e: Esito, parola: Boolean) {
@@ -255,7 +282,7 @@ private fun Risultato(e: Esito, parola: Boolean) {
         )
         // Perché no: un «Da ripetere» con 85 sotto si legge come un errore,
         // se non si dice quale controllo l'ha fermato.
-        verdetto.motivi.forEach { Text("✗ $it", color = Color(0xFFC62828), style = MaterialTheme.typography.bodyMedium) }
+        MotiviVerdetto(verdetto)
         verdetto.note.forEach {
             Text("ℹ️ $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

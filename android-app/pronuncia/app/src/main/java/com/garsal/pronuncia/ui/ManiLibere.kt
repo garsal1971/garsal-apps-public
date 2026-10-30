@@ -100,6 +100,8 @@ fun ManiLibere(parole: Boolean) {
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.titleMedium,
                 )
+                // Perché te la fa ripetere: il voto da solo (92) non lo dice.
+                s.verdetto?.takeIf { !it.buona }?.let { MotiviVerdetto(it) }
                 s.avviso?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
                 Button(
                     onClick = { ctx.startService(Intent(ctx, CicloService::class.java).setAction(CicloService.PAUSA)) },
