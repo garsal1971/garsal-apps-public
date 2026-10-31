@@ -3769,6 +3769,12 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   ⚠️ A differenza del Bluetooth vale anche per l'Esercizio; senza cuffie USB si ascolta dal
   telefono, e a mani libere lo dice l'avviso di `CicloService.instrada()`. L'audio in uscita lo
   instrada Android da sé.
+- **Difetto breve e bip** (v1.18.0): a mani libere, dopo il voto, su una parola si dicono **solo le
+  lettere del suono** («ti acca»; lettere non trovate = niente) e su una frase **solo la parola
+  peggiore** in inglese (anche se a bocciare è stato il solo voto: `daCurare`); poi «Riprova» e la
+  ripetizione di sempre. Prima di ogni ascolto, nell'esercizio e nel ciclo, un **bip** breve
+  (`Bip.kt`, `ToneGenerator`, canale della chiamata con le cuffie BT). ⚠️ Suona **prima** di aprire il
+  microfono (`Valutatore.valuta`): aperto prima, il rilevatore prenderebbe il bip per la voce.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
