@@ -34,7 +34,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.ParolaTentativo
+import com.garsal.pronuncia.StatParola
 import com.garsal.pronuncia.Storico
+import com.garsal.pronuncia.StoricoRemoto
 import com.garsal.pronuncia.Tentativo
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -61,7 +63,9 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
     val parole by dao.paroleDifficili(SOGLIA_BUONA, 20).collectAsState(emptyList())
     val ultimi by dao.ultimi(50).collectAsState(emptyList())
     val totale by dao.totale().collectAsState(0)
+    val perParola by dao.perParola().collectAsState(emptyList())
     var svuota by remember { mutableStateOf(false) }
+    var erroreSvuota by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -78,7 +82,7 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
                 return@Column
             }
             Text(
-                "$totale tentativi in archivio, su questo telefono.",
+                "$totale tentativi in archivio, sul telefono e nel database.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -101,6 +105,8 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
                 }
             }
 
+            Sezione("📚 Le mie parole") { MieParole(perParola, Frasi.parole(ctx).size) }
+
             Sezione("🧩 Parole più difficili") {
                 if (parole.isEmpty()) Text("Nessuna parola sbagliata finora. 👏")
                 parole.forEach { p ->
@@ -119,6 +125,7 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
                 ultimi.forEach { t -> RigaTentativo(t) }
             }
 
+            erroreSvuota?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             OutlinedButton(onClick = { svuota = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text("🗑 Cancella lo storico")
             }
@@ -129,12 +136,75 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
         AlertDialog(
             onDismissRequest = { svuota = false },
             title = { Text("Cancellare lo storico?") },
-            text = { Text("Se ne vanno tutti i $totale tentativi e le loro parole, e non si recuperano. Le frasi restano.") },
+            text = { Text("Se ne vanno tutti i $totale tentativi e le loro parole, dal telefono e dal database, e non si recuperano. Le frasi restano.") },
             confirmButton = {
-                TextButton(onClick = { svuota = false; scope.launch { dao.svuota() } }) { Text("Cancella") }
+                TextButton(onClick = {
+                    svuota = false
+                    scope.launch {
+                        erroreSvuota = runCatching { StoricoRemoto.svuota(ctx) }.exceptionOrNull()
+                            ?.let { "Non ho cancellato niente: ${it.message ?: it.javaClass.simpleName}" }
+                    }
+                }) { Text("Cancella") }
             },
             dismissButton = { TextButton(onClick = { svuota = false }) { Text("Annulla") } },
         )
+    }
+}
+
+private enum class Ordine(val etichetta: String) {
+    RIPETUTE("Più ripetute"), PEGGIORI("Voto migliore più basso"), MIGLIORI("Voto migliore più alto"), RECENTI("Più recenti")
+}
+
+/**
+ * Per ogni parola del catalogo provata almeno una volta: quante volte, il
+ * voto migliore, l'ultimo e la media (v1.20.0). ⚠️ Si mostrano a blocchi di
+ * 30: la schermata scorre già tutta, e duemila righe disegnate insieme
+ * costerebbero; il resto si trova coi filtri.
+ */
+@Composable
+private fun MieParole(righe: List<StatParola>, catalogo: Int) {
+    var tema by remember { mutableStateOf<String?>(null) }
+    var livello by remember { mutableStateOf<String?>(null) }
+    var ordine by remember { mutableStateOf(Ordine.RIPETUTE) }
+    var quante by remember { mutableStateOf(30) }
+    Text(
+        "${righe.size} parole provate su $catalogo.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (righe.isEmpty()) {
+        Text("Ancora nessuna parola singola: si scelgono con «🔤 Parole singole».")
+        return
+    }
+    Tendina("Tema", tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) { tema = it; quante = 30 }
+    Tendina("Livello", livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) { livello = it; quante = 30 }
+    Tendina("Ordina", ordine, Ordine.entries.toList(), { it.etichetta }) { ordine = it; quante = 30 }
+    val scelte = righe.filter { (tema == null || it.tema == tema) && (livello == null || it.livello == livello) }
+        .let { l ->
+            when (ordine) {
+                Ordine.RIPETUTE -> l.sortedWith(compareByDescending<StatParola> { it.volte }.thenBy { it.testo })
+                Ordine.PEGGIORI -> l.sortedBy { it.migliore }
+                Ordine.MIGLIORI -> l.sortedByDescending { it.migliore }
+                Ordine.RECENTI -> l.sortedByDescending { it.quando }
+            }
+        }
+    if (scelte.isEmpty()) Text("Nessuna parola provata con questi filtri.")
+    scelte.take(quante).forEach { p ->
+        Column {
+            Text(p.testo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "${p.livello} · ${Frasi.TEMI[p.tema] ?: p.tema} · ripetuta ${p.volte} ${if (p.volte == 1) "volta" else "volte"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text("migliore ${uno(p.migliore)} · ultimo ${uno(p.ultimo)} · media ${uno(p.media)}", color = colore(p.migliore), fontWeight = FontWeight.Bold)
+        }
+        HorizontalDivider()
+    }
+    if (scelte.size > quante) {
+        OutlinedButton(onClick = { quante += 30 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("Mostra altre ${minOf(30, scelte.size - quante)} (di ${scelte.size})")
+        }
     }
 }
 

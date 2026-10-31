@@ -22,8 +22,10 @@ import java.time.LocalDate
  * Lo storico dei tentativi (fase 5): una riga per tentativo, mani libere o
  * esercizio a mano, con le sue parole.
  *
- * ⚠️ Sta SOLO su questo telefono (Room), non su Supabase: Pronuncia non ha
- * tabelle nel progetto, e disinstallando l'app lo storico se ne va con lei.
+ * ⚠️ Si scrive PRIMA qui (Room) e poi parte verso `pr_tentativi` su Supabase
+ * (v1.20.0, `StoricoRemoto`): senza rete il tentativo resta con `inviato`
+ * falso e parte alla prossima occasione. Su un telefono nuovo, o dopo una
+ * reinstallazione, lo storico vuoto si riprende dal database.
  *
  * ⚠️ La frase si cita per `fraseId` (che non si cambia mai, vedi `Frasi`) MA
  * il testo si copia sulla riga: un testo corretto domani non deve riscrivere
@@ -51,6 +53,8 @@ data class Tentativo(
     val fluidita: Double,
     val completezza: Double,
     val riconosciuto: String,
+    /** Già in `pr_tentativi`. Le righe riprese dal database nascono vere. */
+    @ColumnInfo(defaultValue = "0") val inviato: Boolean = false,
 )
 
 /** Una parola di un tentativo. `parola` è minuscola e senza punteggiatura,
@@ -71,6 +75,13 @@ data class ParolaTentativo(
 data class Giorno(val giorno: String, val tentativi: Int, val frasi: Int, val media: Double, val riuscite: Int)
 
 data class Punteggio(val fraseId: String, val pronuncia: Double)
+
+/** Una parola del catalogo e com'è andata: quante volte, il migliore,
+ *  l'ultimo e la media del voto complessivo (v1.20.0). */
+data class StatParola(
+    val fraseId: String, val testo: String, val livello: String, val tema: String,
+    val volte: Int, val migliore: Double, val ultimo: Double, val media: Double, val quando: Long,
+)
 
 data class ParolaDifficile(val parola: String, val volte: Int, val sbagliate: Int, val media: Double)
 
@@ -126,20 +137,46 @@ interface StoricoDao {
     @Query("SELECT COUNT(*) FROM tentativi")
     fun totale(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM tentativi")
+    suspend fun quanti(): Int
+
+    /** ⚠️ «ultimo» è il voto del tentativo più recente, non il massimo della data. */
+    @Query(
+        """SELECT t.frase_id AS fraseId, MAX(t.testo) AS testo, MAX(t.livello) AS livello, MAX(t.tema) AS tema,
+           COUNT(*) AS volte, MAX(t.pronuncia) AS migliore, AVG(t.pronuncia) AS media, MAX(t.quando) AS quando,
+           (SELECT u.pronuncia FROM tentativi u WHERE u.frase_id = t.frase_id ORDER BY u.quando DESC LIMIT 1) AS ultimo
+           FROM tentativi t WHERE t.frase_id LIKE 'w-%' GROUP BY t.frase_id""",
+    )
+    fun perParola(): Flow<List<StatParola>>
+
+    @Query("SELECT * FROM tentativi WHERE inviato = 0 ORDER BY id LIMIT :quanti")
+    suspend fun daInviare(quanti: Int): List<Tentativo>
+
+    @Query("UPDATE tentativi SET inviato = 1 WHERE id IN (:ids)")
+    suspend fun segnaInviati(ids: List<Long>)
+
     @Query("DELETE FROM tentativi")
     suspend fun svuota()
 }
 
-@Database(entities = [Tentativo::class, ParolaTentativo::class], version = 1)
+@Database(entities = [Tentativo::class, ParolaTentativo::class], version = 2)
 abstract class Archivio : RoomDatabase() {
     abstract fun storico(): StoricoDao
+}
+
+/** v1.20.0: la colonna che dice se il tentativo è già nel database. */
+private val DA_1_A_2 = object : androidx.room.migration.Migration(1, 2) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tentativi ADD COLUMN inviato INTEGER NOT NULL DEFAULT 0")
+    }
 }
 
 object Storico {
     @Volatile private var db: Archivio? = null
 
     fun dao(ctx: Context): StoricoDao = (db ?: synchronized(this) {
-        db ?: Room.databaseBuilder(ctx.applicationContext, Archivio::class.java, "storico.db").build().also { db = it }
+        db ?: Room.databaseBuilder(ctx.applicationContext, Archivio::class.java, "storico.db")
+            .addMigrations(DA_1_A_2).build().also { db = it }
     }).storico()
 
     fun normalizza(p: String) = p.lowercase().trim { !it.isLetterOrDigit() && it != '\'' }
@@ -165,5 +202,8 @@ object Storico {
                 dao(ctx).registra(t, parole)
             }
         }
+        // Fuori dal runCatching di sopra: l'invio ha il suo, e non deve
+        // ritardare il ciclo — parte e basta.
+        StoricoRemoto.inviaPiuTardi(ctx)
     }
 }

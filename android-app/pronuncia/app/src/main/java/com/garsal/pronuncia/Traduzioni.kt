@@ -52,22 +52,35 @@ class Traduzioni(ctx: Context, private val auth: Auth) {
         o.keys().asSequence().associateWith { o.getString(it) }
     }.getOrDefault(emptyMap())
 
+    /** ⚠️ A pagine da 1000: PostgREST di Supabase non ne restituisce di più
+     *  per chiamata, e dalla v1.20.0 le traduzioni sono più di duemila. */
     private suspend fun scarica(jwt: String): Map<String, String> = withContext(Dispatchers.IO) {
-        val c = URL(BuildConfig.SUPABASE_URL + "/rest/v1/pr_traduzioni?select=id,it&limit=5000")
-            .openConnection() as HttpURLConnection
-        try {
-            c.connectTimeout = 15_000
-            c.readTimeout = 20_000
-            c.setRequestProperty("Authorization", "Bearer $jwt")
-            c.setRequestProperty("apikey", BuildConfig.SUPABASE_ANON_KEY)
-            if (c.responseCode !in 200..299) error("HTTP ${c.responseCode}")
-            val a = JSONArray(c.inputStream.bufferedReader().readText())
-            (0 until a.length()).associate { i ->
-                val r = a.getJSONObject(i)
-                r.getString("id") to r.getString("it")
+        val tutte = HashMap<String, String>()
+        var da = 0
+        while (true) {
+            val c = URL(BuildConfig.SUPABASE_URL + "/rest/v1/pr_traduzioni?select=id,it&order=id")
+                .openConnection() as HttpURLConnection
+            val n = try {
+                c.connectTimeout = 15_000
+                c.readTimeout = 20_000
+                c.setRequestProperty("Authorization", "Bearer $jwt")
+                c.setRequestProperty("apikey", BuildConfig.SUPABASE_ANON_KEY)
+                c.setRequestProperty("Range", "$da-${da + PAGINA - 1}")
+                if (c.responseCode !in 200..299) error("HTTP ${c.responseCode}")
+                val a = JSONArray(c.inputStream.bufferedReader().readText())
+                for (i in 0 until a.length()) {
+                    val r = a.getJSONObject(i)
+                    tutte[r.getString("id")] = r.getString("it")
+                }
+                a.length()
+            } finally {
+                c.disconnect()
             }
-        } finally {
-            c.disconnect()
+            if (n < PAGINA) break
+            da += PAGINA
         }
+        tutte
     }
+
+    private companion object { const val PAGINA = 1000 }
 }

@@ -1,0 +1,205 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "8ce5e7e42f26ceaad4fe75a70136d999",
+    "entities": [
+      {
+        "tableName": "tentativi",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `quando` INTEGER NOT NULL, `giorno` TEXT NOT NULL, `frase_id` TEXT NOT NULL, `testo` TEXT NOT NULL, `livello` TEXT NOT NULL, `tema` TEXT NOT NULL, `fonte` TEXT NOT NULL, `pronuncia` REAL NOT NULL, `accuratezza` REAL NOT NULL, `fluidita` REAL NOT NULL, `completezza` REAL NOT NULL, `riconosciuto` TEXT NOT NULL, `inviato` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quando",
+            "columnName": "quando",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "giorno",
+            "columnName": "giorno",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fraseId",
+            "columnName": "frase_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "testo",
+            "columnName": "testo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "livello",
+            "columnName": "livello",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tema",
+            "columnName": "tema",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fonte",
+            "columnName": "fonte",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pronuncia",
+            "columnName": "pronuncia",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accuratezza",
+            "columnName": "accuratezza",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fluidita",
+            "columnName": "fluidita",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completezza",
+            "columnName": "completezza",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riconosciuto",
+            "columnName": "riconosciuto",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inviato",
+            "columnName": "inviato",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tentativi_giorno",
+            "unique": false,
+            "columnNames": [
+              "giorno"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tentativi_giorno` ON `${TABLE_NAME}` (`giorno`)"
+          },
+          {
+            "name": "index_tentativi_frase_id",
+            "unique": false,
+            "columnNames": [
+              "frase_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tentativi_frase_id` ON `${TABLE_NAME}` (`frase_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "parole",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tentativo_id` INTEGER NOT NULL, `parola` TEXT NOT NULL, `accuratezza` REAL NOT NULL, `errore` TEXT NOT NULL, FOREIGN KEY(`tentativo_id`) REFERENCES `tentativi`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tentativoId",
+            "columnName": "tentativo_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parola",
+            "columnName": "parola",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accuratezza",
+            "columnName": "accuratezza",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "errore",
+            "columnName": "errore",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_parole_tentativo_id",
+            "unique": false,
+            "columnNames": [
+              "tentativo_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_parole_tentativo_id` ON `${TABLE_NAME}` (`tentativo_id`)"
+          },
+          {
+            "name": "index_parole_parola",
+            "unique": false,
+            "columnNames": [
+              "parola"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_parole_parola` ON `${TABLE_NAME}` (`parola`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tentativi",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tentativo_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8ce5e7e42f26ceaad4fe75a70136d999')"
+    ]
+  }
+}

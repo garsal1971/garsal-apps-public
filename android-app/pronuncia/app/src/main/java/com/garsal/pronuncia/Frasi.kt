@@ -15,7 +15,18 @@ data class Frase(val id: String, val livello: String, val tema: String, val test
  */
 object Frasi {
     val LIVELLI = listOf("A1", "A2", "B1", "B2")
-    val TEMI = linkedMapOf("viaggio" to "✈️ Viaggio", "politica" to "🏛️ Politica", "storia" to "📜 Storia")
+    val TEMI = linkedMapOf(
+        "viaggio" to "✈️ Viaggio", "politica" to "🏛️ Politica", "storia" to "📜 Storia",
+        "natura" to "🌿 Piante e animali", "citta" to "🏙️ Città e luoghi", "famosi" to "⭐ Personaggi famosi",
+        "cibo" to "🍽️ Cibo", "casa" to "🏠 Casa e famiglia", "lavoro" to "💼 Lavoro", "salute" to "🩺 Salute",
+    )
+
+    /** ⚠️ Le frasi hanno i soli primi tre temi, le parole (v1.20.0) tutti e
+     *  dieci: un tema senza frasi lascerebbe l'esercizio senza niente da dire. */
+    val TEMI_FRASI = setOf("viaggio", "politica", "storia")
+
+    fun temi(soloParole: Boolean): List<String> =
+        if (soloParole) TEMI.keys.toList() else TEMI.keys.filter { it in TEMI_FRASI }
 
     @Volatile private var frasi: List<Frase>? = null
     @Volatile private var parole: List<Frase>? = null
