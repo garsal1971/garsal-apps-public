@@ -67,10 +67,14 @@ class Valutatore(private val azure: AzureToken) {
 
     /** [ritmo] chiede ad Azure anche ritmo e intonazione (vedi `Giudizio`). */
     suspend fun valuta(riferimento: String, accento: Accento, ritmo: Boolean): Esito = withContext(Dispatchers.IO) {
+        // Il token prima della voce: se va rinnovato, il ritardo cade qui
+        // e non mentre si sta parlando.
+        val t = azure.prendi()
+        // Il bip dice «parla adesso» (v1.18.0). ⚠️ Suona PRIMA di aprire il
+        // microfono: aperto prima, il bip finirebbe nella registrazione e il
+        // rilevatore lo prenderebbe per l'inizio della voce.
+        Bip.suona(Servizi.tts.comunicazione)
         Ascolto(Servizi.tts.comunicazione).use { mic ->
-            // Il token prima della voce: se va rinnovato, il ritardo cade qui
-            // e non mentre si sta parlando.
-            val t = azure.prendi()
             // ⚠️ Un silenzio intero non apre nemmeno il riconoscimento: è il
             // punto di Ascolto, che i secondi di Azure li conta sull'audio inviato.
             ultimaVoce = null

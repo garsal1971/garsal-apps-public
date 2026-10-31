@@ -44,8 +44,9 @@ data class StatoCiclo(
  *   propria registrazione; poi si dice il voto;
  * - se il [Giudizio] la promuove (voto ≥ [SOGLIA_BUONA] più i controlli
  *   accesi nelle impostazioni) si dice «Good» e si passa alla prossima;
- * - sotto, «Try again», le 1-2 parole peggiori lente e la frase di nuovo,
- *   fino a [TENTATIVI]; poi «Let's move on»;
+ * - sotto, il difetto in breve (le lettere del suono su una parola, la parola
+ *   peggiore su una frase), «Try again», le 1-2 parole peggiori lente e la
+ *   frase di nuovo, fino a [TENTATIVI]; poi «Let's move on»;
  * - ⚠️ un silenzio NON è un tentativo (vedi `NessunaVoce`), ma [SILENZI] di fila
  *   fermano la sessione: un microfono aperto a vuoto consuma i minuti gratuiti
  *   di riconoscimento, e se nessuno risponde da tre frasi non c'è nessuno.
@@ -106,28 +107,29 @@ object Ciclo {
     }
 
     /**
-     * Il difetto detto a voce: le parti in italiano con la voce italiana (le
-     * lettere si dicono all'italiana, «ti acca», come chiesto) e la parola con
-     * la voce inglese, che la pronuncia come va pronunciata.
+     * Il difetto detto a voce, in breve (v1.18.0): su una parola singola le sole
+     * lettere del suono, dette all'italiana con la voce italiana («ti acca»); su
+     * una frase la sola parola peggiore, con la voce inglese. Niente punteggio:
+     * il voto si è appena sentito, e poi viene la ripetizione.
+     * ⚠️ Lettere non trovate (`grafema` null) = non si dice niente: meglio
+     * niente che una lettera sbagliata, e la parola la rilegge la ripetizione.
      */
-    private suspend fun diciDifetto(d: Difetto, voce: Voce, accento: Accento) {
-        val (vIt, lIt) = Feedback.voce(LinguaFeedback.ITALIANO, voce, accento)
-        suspend fun it(t: String) = Servizi.tts.parla(t, vIt, lIt)
-        suspend fun en(p: Parola) {
+    private suspend fun diciDifetto(d: Difetto, v: Verdetto, parola: Boolean, voce: Voce, accento: Accento) {
+        if (parola) {
+            val s = d as? Difetto.Suono ?: return
+            val lettere = s.grafema?.let { Grafema.lettere(s.parola.testo.substring(it)) }
+            if (lettere.isNullOrBlank()) return
+            val (vIt, lIt) = Feedback.voce(LinguaFeedback.ITALIANO, voce, accento)
+            Servizi.tts.parla(lettere, vIt, lIt)
+        } else {
+            val p = when (d) {
+                is Difetto.Suono -> d.parola
+                is Difetto.ParolaBassa -> d.parola
+                is Difetto.Saltata -> d.parola
+                else -> v.daCurare.firstOrNull()
+            } ?: return
             val w = p.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' }
             if (w.isNotEmpty()) Servizi.tts.pronuncia(w, voce, accento)
-        }
-        fun n(v: Double) = "${Math.round(v)}."
-        when (d) {
-            is Difetto.Suono -> {
-                val lettere = d.grafema?.let { Grafema.lettere(d.parola.testo.substring(it)) }
-                it(if (lettere.isNullOrBlank()) "Un suono in" else "$lettere, in")
-                en(d.parola); it(n(d.voto))
-            }
-            is Difetto.ParolaBassa -> { it("La parola"); en(d.parola); it(n(d.voto)) }
-            is Difetto.Saltata -> { it("Hai saltato"); en(d.parola) }
-            is Difetto.Ritmo -> it("Ritmo e intonazione: ${n(d.voto)}")
-            is Difetto.Voto -> Unit
         }
     }
 
@@ -193,9 +195,12 @@ object Ciclo {
                 Servizi.tts.parla(Feedback.voto(lingua, esito.pronuncia), voceFb, linguaFb)
                 // Perché è da ripetere, se non è il solo voto basso (quello si è
                 // appena sentito): il primo controllo che ha bocciato.
-                verdetto.difetti.firstOrNull { it !is Difetto.Voto }?.let { d ->
+                // Su una frase bocciata dal solo voto si dice comunque la parola
+                // peggiore (diciDifetto ripiega su `daCurare`).
+                (verdetto.difetti.firstOrNull { it !is Difetto.Voto }
+                    ?: verdetto.difetti.firstOrNull().takeIf { !frase.parola })?.let { d ->
                     cosa("🔎 Cosa curare")
-                    diciDifetto(d, voce, accento)
+                    diciDifetto(d, verdetto, frase.parola, voce, accento)
                 }
                 if (verdetto.buona) {
                     stato.update { it.copy(buone = it.buone + 1) }
