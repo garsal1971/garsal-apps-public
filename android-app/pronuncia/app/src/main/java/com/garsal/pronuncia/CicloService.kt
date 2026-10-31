@@ -205,6 +205,8 @@ class CicloService : Service() {
      *  si può, `null` se è tutto a posto (o non era richiesto). */
     @Suppress("DEPRECATION")
     private fun instrada(): String? {
+        if (Servizi.prefs.microfono == Microfono.USB)
+            return if (Ascolto.micUsb() == null) "Cuffie USB non trovate: ascolto col microfono del telefono." else null
         if (Servizi.prefs.microfono != Microfono.CUFFIE) return null
         val ok = runCatching {
             if (Build.VERSION.SDK_INT >= 31) {

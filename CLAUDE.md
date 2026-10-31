@@ -3763,6 +3763,12 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   di oggi). ⚠️ Passa solo dalle RPC; l'id dell'azione sta nelle preferenze, non nel codice.
   ⚠️ A Mani libere una sessione fermata prima non dà voto. Due sessioni nello stesso giorno
   completano l'azione due volte ma lasciano una sola rilevazione (l'ultima).
+- **Cuffie USB** (v1.17.0): terza voce del Microfono, `Microfono.USB`. Niente collegamento SCO:
+  `Ascolto` chiede ad `AudioRecord` di preferire il microfono USB (`setPreferredDevice` su
+  `TYPE_USB_HEADSET`/`TYPE_USB_DEVICE`, `Ascolto.micUsb()`), con la sorgente `VOICE_RECOGNITION`.
+  ⚠️ A differenza del Bluetooth vale anche per l'Esercizio; senza cuffie USB si ascolta dal
+  telefono, e a mani libere lo dice l'avviso di `CicloService.instrada()`. L'audio in uscita lo
+  instrada Android da sé.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

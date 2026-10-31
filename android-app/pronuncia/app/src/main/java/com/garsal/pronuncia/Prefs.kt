@@ -42,7 +42,10 @@ enum class Controllo(val chiave: String, val etichetta: String, val frase: Int, 
 /** Da dove si ascolta nel ciclo a mani libere (`CicloService.instrada`). */
 enum class Microfono(val etichetta: String) {
     TELEFONO("📱 Telefono"),
-    CUFFIE("🎧 Cuffie Bluetooth");
+    CUFFIE("🎧 Cuffie Bluetooth"),
+    /** Cuffie col filo USB (v1.17.0): niente collegamento SCO, si chiede ad
+     *  `AudioRecord` di preferire il loro microfono (`Ascolto`). */
+    USB("🔌 Cuffie USB");
 
     companion object { fun da(n: String?) = entries.firstOrNull { it.name == n } ?: TELEFONO }
 }
