@@ -3645,7 +3645,7 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 `applicationId` `com.garsal.pronuncia`, APK `Pronuncia-latest.apk` su R2. Kotlin + Compose,
 **Azure Speech SDK** (`com.microsoft.cognitiveservices.speech:client-sdk`). Nessuna bolla in
 `cm_apps`; del progetto Supabase usa il **login Google**, la Edge Function
-`azure-speech-token`, la tabella `pr_traduzioni` e, a fine sessione, le RPC di Obiettivi.
+`azure-speech-token`, le tabelle `pr_traduzioni` e `pr_tentativi` e, a fine sessione, le RPC di Obiettivi.
 
 Il ciclo a cui arriva (per fasi): l'app legge una frase en-GB → la si ripete → Pronunciation
 Assessment (en-GB, HundredMark, Phoneme, miscue) → feedback vocale → frase dopo o nuovo tentativo
@@ -3779,6 +3779,22 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   nell'esercizio e nel ciclo, il picco si porta al 90 % del massimo con un guadagno unico (niente
   distorsione), al più ×8 perché su una registrazione quasi muta salirebbe solo il fruscio. ⚠️ Solo
   la copia che si ascolta: l'audio mandato ad Azure resta com'è.
+- **2000 parole e storico nel database** (v1.20.0): `words.json` passa da 240 a **2000** parole —
+  dieci temi × A1–B2 × 50 — coi sette temi nuovi 🌿 Piante e animali (`natura`), 🏙️ Città e luoghi
+  (`citta`), ⭐ Personaggi famosi (`famosi`), 🍽️ Cibo, 🏠 Casa e famiglia, 💼 Lavoro, 🩺 Salute.
+  Le 240 di prima tengono i loro id; le nuove sono `w-<livello>-<lettera del tema>-NN`
+  (`n c f k h l m`). I personaggi si dicono col mestiere («John Lennon, singer») e il livello è la
+  difficoltà di pronuncia. ⚠️ **Le frasi hanno i soli tre temi di prima** (`Frasi.TEMI_FRASI`):
+  la tendina offre i dieci solo con «🔤 Parole singole», e tornando alle frasi un tema delle sole
+  parole si azzera. Traduzioni in `20261031110000_pr_traduzioni_parole_2000.sql`; `Traduzioni`
+  ora le legge **a pagine da 1000**, il tetto di PostgREST. Lo storico va anche in
+  **`pr_tentativi`** (`20261031100000_pr_tentativi.sql`, RLS del proprietario, `StoricoRemoto.kt`):
+  Room resta la prima copia (colonna `inviato`, schema v2), le righe partono a blocchi da 100 e il
+  `client_id` (installazione + id locale, unico) rende innocuo un rinvio. Una volta per
+  installazione si riprendono le righe nate altrove, così su un telefono nuovo lo storico torna;
+  🗑 Cancella svuota **prima il database e poi il telefono**. In 📈 Storico, **📚 Le mie parole**:
+  per ogni parola provata ripetizioni, voto migliore, ultimo e medio, con filtri e ordinamento —
+  ricavati dai tentativi, nessuna tabella di contatori.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

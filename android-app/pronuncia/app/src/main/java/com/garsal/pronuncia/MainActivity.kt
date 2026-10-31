@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
         // ⚠️ Solo al primo avvio: una ricreazione del sistema ripresenterebbe
         // lo stesso intent, cioè un token già speso al posto di una sessione buona.
         if (savedInstanceState == null) gestisciRientro(intent)
+        StoricoRemoto.sincronizzaPiuTardi(this)
         setContent { TemaPronuncia { SchermataPrincipale() } }
     }
 
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
         if (uri.scheme != "garsalpronuncia" || uri.host != "oauth") return
         Servizi.auth.completa(uri)
         Servizi.connesso.value = Servizi.auth.connesso
+        StoricoRemoto.sincronizzaPiuTardi(this)
         // Il deep link si consuma una volta sola: `getIntent()` lo
         // restituirebbe a ogni ricreazione dell'Activity.
         intent.data = null

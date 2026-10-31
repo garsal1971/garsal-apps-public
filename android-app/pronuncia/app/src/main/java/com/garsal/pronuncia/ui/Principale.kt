@@ -107,7 +107,11 @@ private class Scelte(private val prefs: com.garsal.pronuncia.Prefs, private val 
     var quante by mutableStateOf(if (ciclo) prefs.quanteCiclo else prefs.quante)
         private set
 
-    fun parole(v: Boolean) { parole = v; if (ciclo) prefs.paroleCiclo = v else prefs.parole = v }
+    fun parole(v: Boolean) {
+        parole = v; if (ciclo) prefs.paroleCiclo = v else prefs.parole = v
+        // Un tema delle sole parole, tornando alle frasi, non avrebbe niente da offrire.
+        if (tema != null && tema !in Frasi.temi(v)) tema(null)
+    }
     fun livello(v: String?) { livello = v; if (ciclo) prefs.livelloCiclo = v else prefs.livello = v }
     fun tema(v: String?) { tema = v; if (ciclo) prefs.temaCiclo = v else prefs.tema = v }
     fun quante(v: Int) { quante = v; if (ciclo) prefs.quanteCiclo = v else prefs.quante = v }
@@ -120,7 +124,7 @@ private fun Filtri(s: Scelte, nota: String? = null) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Tendina("Esercitati su", s.parole, listOf(false, true), { if (it) "🔤 Parole singole" else "💬 Frasi intere" }) { s.parole(it) }
             Tendina("Livello", s.livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) { s.livello(it) }
-            Tendina("Tema", s.tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) { s.tema(it) }
+            Tendina("Tema", s.tema, listOf(null) + Frasi.temi(s.parole), { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) { s.tema(it) }
             Tendina("Quante in una sessione", s.quante, QUANTE, { "$it ${if (s.parole) "parole" else "frasi"}" }) { s.quante(it) }
             nota?.let { Nota(it) }
         }

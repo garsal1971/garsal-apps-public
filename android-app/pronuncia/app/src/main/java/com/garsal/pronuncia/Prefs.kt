@@ -160,5 +160,17 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("riascolto_ciclo", true)
         set(v) = p.edit().putBoolean("riascolto_ciclo", v).apply()
 
+    /** Un id per questa installazione: con l'id locale del tentativo fa il
+     *  `client_id` di `pr_tentativi`, che rende un rinvio innocuo. */
+    val installazione: String
+        get() = p.getString("installazione", null) ?: java.util.UUID.randomUUID().toString().also {
+            p.edit().putString("installazione", it).apply()
+        }
+
+    /** Lo storico nato su altre installazioni è già stato ripreso. */
+    var storicoRipreso: Boolean
+        get() = p.getBoolean("storico_ripreso", false)
+        set(v) = p.edit().putBoolean("storico_ripreso", v).apply()
+
     fun esci() = p.edit().remove("access_token").remove("refresh_token").apply()
 }
