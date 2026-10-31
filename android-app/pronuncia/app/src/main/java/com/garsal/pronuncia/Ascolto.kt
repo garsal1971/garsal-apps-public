@@ -29,6 +29,11 @@ import kotlin.math.sqrt
  * `VOICE_COMMUNICATION`: è quella che segue il dispositivo di comunicazione
  * scelto da `CicloService.instrada()`. Con `VOICE_RECOGNITION` si registrerebbe
  * dal microfono del telefono anche a cuffie collegate.
+ *
+ * Con le cuffie USB (`Microfono.USB`, v1.17.0) la sorgente resta
+ * `VOICE_RECOGNITION` e si chiede a `AudioRecord` di preferire il loro
+ * microfono ([micUsb]). ⚠️ Vale per l'esercizio e per il ciclo; senza cuffie
+ * USB collegate si ascolta dal telefono, come senza la scelta.
  */
 @SuppressLint("MissingPermission") // il permesso lo chiedono Esercizio e ManiLibere prima di valutare
 class Ascolto(comunicazione: Boolean) : AutoCloseable {
@@ -45,6 +50,7 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
             max(minimo, HZ * 2 * 2),
         )
         check(rec.state == AudioRecord.STATE_INITIALIZED) { "Il microfono non si apre: forse lo sta usando un'altra app." }
+        if (!comunicazione && Servizi.prefs.microfono == Microfono.USB) micUsb()?.let { rec.setPreferredDevice(it) }
         rec.startRecording()
     }
 
@@ -134,6 +140,13 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
     }
 
     companion object {
+        /** Il microfono delle cuffie USB collegate, o `null`. */
+        fun micUsb(): android.media.AudioDeviceInfo? = runCatching {
+            Servizi.audio.getDevices(android.media.AudioManager.GET_DEVICES_INPUTS).firstOrNull {
+                it.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET || it.type == android.media.AudioDeviceInfo.TYPE_USB_DEVICE
+            }
+        }.getOrNull()
+
         const val HZ = 16000
         const val FRAME_MS = 20
         private const val BYTE_FRAME = HZ / 1000 * FRAME_MS * 2
