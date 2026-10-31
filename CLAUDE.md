@@ -3775,6 +3775,10 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   ripetizione di sempre. Prima di ogni ascolto, nell'esercizio e nel ciclo, un **bip** breve
   (`Bip.kt`, `ToneGenerator`, canale della chiamata con le cuffie BT). ⚠️ Suona **prima** di aprire il
   microfono (`Valutatore.valuta`): aperto prima, il rilevatore prenderebbe il bip per la voce.
+- **Riascolto a volume pieno** (v1.19.0, `Riascolto.normalizza`): prima di suonare la propria voce,
+  nell'esercizio e nel ciclo, il picco si porta al 90 % del massimo con un guadagno unico (niente
+  distorsione), al più ×8 perché su una registrazione quasi muta salirebbe solo il fruscio. ⚠️ Solo
+  la copia che si ascolta: l'audio mandato ad Azure resta com'è.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
