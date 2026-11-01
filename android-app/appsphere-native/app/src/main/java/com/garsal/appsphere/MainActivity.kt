@@ -110,6 +110,9 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         AuthRepo.rinnovaSeServe()
+        // 🪥 Il filtro Bluetooth dello spazzolino: si riconsegna a ogni apertura,
+        // nel caso Android l'abbia perso (riavvio, aggiornamento, Xiaomi).
+        com.garsal.appsphere.abituati.Spazzolino.registra(this)
     }
 
     override fun onNewIntent(intent: Intent) {

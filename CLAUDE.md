@@ -4612,6 +4612,26 @@ vuol dire «nessun game over da jolly»: nel vecchio JavaScript `|| 3` trasforma
 ⚠️ `hb_clona` copia ora anche `times_target`, `window_days` e `max_per_day`: fino al
 24 settembre 2026 «Ricomincia» dal telefono su una count_window dava una copia senza N né M.
 
+### 🪥 Lo spazzolino Oral-B spunta un'abitudine (APK 1.0.155)
+
+`abituati/Spazzolino.kt`. Gli spazzolini Oral-B smart (iO, Genius) trasmettono via Bluetooth un
+annuncio del costruttore 220 (P&G): byte 3 = stato (3 = in funzione), byte 5-6 = minuti e secondi
+del lavaggio. Si ascolta senza abbinare. In Abituati → ⚙️ → 🪥 si sceglie l'abitudine (solo
+`daily`/`daily_multiple`, salvata per id nelle preferenze `spazzolino`) e si abbina lo spazzolino
+(🔍 Cerca, 30 s in primo piano); da lì l'ascolto lo fa il chip Bluetooth con un `PendingIntent`
+(`SpazzolinoReceiver`), **senza servizio né notifica fissa**, riconsegnato all'apertura
+dell'app, al riavvio e all'aggiornamento.
+- Conta un lavaggio di almeno `MINIMO_SECONDI` (120), in funzione o fermo da meno di 10 minuti.
+- Va sull'orario **più vicino**; fra mezzanotte e le 3 sul giorno prima.
+- ⚠️ Un orario che ha già una riga in `hb_completions` (✓, ✕, mancato) **non si tocca**; si
+  scrive solo da `hb_set_completion`.
+- Il riquadro mostra ultimo segnale ed ultimo esito: è il modo per capire se il telefono lo vede.
+- ⚠️ Su Xiaomi servono Avvio automatico, batteria «Nessuna restrizione» e app bloccata nei
+  recenti, o il sistema non sveglia il receiver. Un lavaggio non visto non si recupera: lo
+  storico dello spazzolino lo legge solo l'app Oral-B.
+- ⚠️ Lettura dei byte presa dalla libreria `oralb-ble` di Home Assistant, non da una specifica:
+  se un modello usa un altro codice di stato, l'«Ultimo segnale» lo mostra.
+
 ### ⚠️ Calorie nativo: due pagine, e il conto è quello della pagina
 
 ⚠️ **Dal 9 settembre 2026 Calorie NON ha più una bolla in home**: peso e calorie sono un'app sola

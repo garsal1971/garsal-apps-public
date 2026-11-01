@@ -223,6 +223,9 @@ internal fun Impostazioni(stato: AbituatiState, onAggiorna: () -> Unit, onSvuota
                 }
             }
         }
+        item {
+            Riquadro("🪥 Spazzolino Oral-B") { RiquadroSpazzolino(stato.abitudini) }
+        }
     }
 }
 
