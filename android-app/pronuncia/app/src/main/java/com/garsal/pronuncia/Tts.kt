@@ -44,6 +44,21 @@ class Tts(ctx: Context, private val azure: AzureToken) {
     suspend fun pronuncia(testo: String, voce: Voce, accento: Accento, lenta: Boolean = false) =
         parla(testo, voce.id(accento), accento.lingua, lenta)
 
+    /**
+     * Lo spelling di [testo] in inglese, lettera per lettera (v1.23.0): ogni
+     * parola in un `<say-as interpret-as="characters">`, con una pausa fra una
+     * parola e l'altra. Solo lettere (accentate comprese) e cifre: un apostrofo o un trattino letti
+     * ad alta voce («apostrophe») confonderebbero più di quanto aiutino.
+     */
+    suspend fun compita(testo: String, voce: Voce, accento: Accento) {
+        val parole = testo.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotBlank() }
+        if (parole.isEmpty()) return
+        val corpo = parole.joinToString("<break time=\"600ms\"/>") {
+            "<say-as interpret-as=\"characters\">${it.uppercase()}</say-as>"
+        }
+        suona(audio(avvolgi("<prosody rate=\"-15%\">$corpo</prosody>", voce.id(accento), accento.lingua)))
+    }
+
     /** Pronuncia [testo] e torna quando l'audio è finito. Lancia con un
      *  messaggio leggibile se Azure rifiuta. */
     suspend fun parla(testo: String, voceId: String, lingua: String, lenta: Boolean = false) {
@@ -112,9 +127,13 @@ class Tts(ctx: Context, private val azure: AzureToken) {
             .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             .replace("\"", "&quot;").replace("'", "&apos;")
         val corpo = if (lenta) "<prosody rate=\"-30%\">$sicuro</prosody>" else sicuro
-        return "<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" xml:lang=\"$lingua\">" +
-            "<voice name=\"$voceId\">$corpo</voice></speak>"
+        return avvolgi(corpo, voceId, lingua)
     }
+
+    /** ⚠️ [corpo] è SSML già pronto: chi lo passa ne ha già escapato il testo. */
+    private fun avvolgi(corpo: String, voceId: String, lingua: String): String =
+        "<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" xml:lang=\"$lingua\">" +
+            "<voice name=\"$voceId\">$corpo</voice></speak>"
 
     private fun sha(s: String) = MessageDigest.getInstance("SHA-256")
         .digest(s.toByteArray()).joinToString("") { "%02x".format(it) }

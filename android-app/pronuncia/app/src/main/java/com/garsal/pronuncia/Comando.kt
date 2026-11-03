@@ -8,12 +8,20 @@ package com.garsal.pronuncia
  * microfono sempre aperto. Costerebbe minuti di riconoscimento a ogni frase
  * letta, e capterebbe la voce dell'app stessa.
  */
-enum class Comando { RIPETI, AVANTI, LENTO, FERMA;
+enum class Comando { RIPETI, AVANTI, LENTO, FERMA,
+    /** v1.23.0: lo spelling della parola, lettera per lettera, con la voce
+     *  inglese. Sulle frasi non c'è: lo dice e rilegge la frase. */
+    SPELLING,
+    /** v1.23.0: la traduzione italiana (`pr_traduzioni`), con la voce italiana. */
+    TRADUCI;
 
     companion object {
         /** Le parole riconosciute come comando. In inglese: il riconoscimento è
          *  en-GB, e una parola italiana tornerebbe storpiata. */
-        val PAROLE = listOf("repeat", "again", "next", "skip", "slower", "slowly", "stop")
+        val PAROLE = listOf(
+            "repeat", "again", "next", "skip", "slower", "slowly", "stop",
+            "spell", "spelling", "translate", "translation",
+        )
 
         /**
          * Il comando, se [riconosciuto] è SOLO un comando (al più due parole,
@@ -28,6 +36,8 @@ enum class Comando { RIPETI, AVANTI, LENTO, FERMA;
                 "next", "skip" -> AVANTI
                 "slower", "slowly", "slow" -> LENTO
                 "stop" -> FERMA
+                "spell", "spelling" -> SPELLING
+                "translate", "translation" -> TRADUCI
                 else -> null
             }
         }

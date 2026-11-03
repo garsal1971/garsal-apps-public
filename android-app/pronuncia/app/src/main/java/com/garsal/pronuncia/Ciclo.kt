@@ -53,6 +53,10 @@ data class StatoCiclo(
  *
  * Fase 4: al posto della frase si può dire un [Comando] («repeat», «next»,
  * «slower», «stop»), e lo stesso arriva dai tasti delle cuffie ([comanda]).
+ * v1.23.0: anche «spell» (lo spelling in inglese, sulle sole parole: su una
+ * frase lo dice) e «translate» (la traduzione di `pr_traduzioni` con la voce
+ * italiana). Dopo, come dopo «repeat», la frase si rilegge e si aspetta il
+ * tentativo: ⚠️ nessuno dei due è un tentativo, e i tentativi fatti restano.
  * [pausa] la tengono il tasto play/pausa e l'audio focus (una chiamata, il
  * navigatore).
  *
@@ -134,6 +138,26 @@ object Ciclo {
             if (w.isNotEmpty()) Servizi.tts.pronuncia(w, voce, accento)
         }
     }
+
+    /** Lo spelling o la traduzione chiesti a voce. Torna [Fine.Pausa] se una
+     *  pausa lo interrompe, altrimenti [Fine.Avanti] (cioè: si va avanti col giro). */
+    private suspend fun aiuto(c: Comando, frase: Frase, voce: Voce, accento: Accento, di: suspend (Feedback.Cosa) -> Unit): Fine =
+        interrompibile {
+            when (c) {
+                Comando.SPELLING -> if (frase.parola) {
+                    cosa("🔤 Spelling")
+                    Servizi.tts.compita(frase.testo, voce, accento)
+                } else di(Feedback.Cosa.SOLO_PAROLE)
+                Comando.TRADUCI -> {
+                    cosa("🇮🇹 Traduzione")
+                    val tr = Servizi.traduzioni.mappa.value[frase.id]
+                    val (vIt, lIt) = Feedback.voce(LinguaFeedback.ITALIANO, voce, accento)
+                    Servizi.tts.parla(tr ?: "Traduzione non disponibile.", vIt, lIt)
+                }
+                else -> Unit
+            }
+            Fine.Avanti
+        }
 
     suspend fun esegui(ctx: Context) {
         val p = Servizi.prefs
@@ -230,6 +254,10 @@ object Ciclo {
         }
 
         esterno.value = null
+        // Le traduzioni per «translate»: la schermata le scarica già, ma il
+        // ciclo può partire prima che lo abbia fatto. Senza rete resta la cache
+        // (gli errori di rete li assorbe già `aggiorna`).
+        Servizi.traduzioni.aggiorna()
         di(Feedback.Cosa.INIZIO)
         var frase: Frase? = null
         var lenta = false
@@ -275,6 +303,12 @@ object Ciclo {
                     }
                     Comando.RIPETI -> Unit
                     Comando.LENTO -> lenta = true
+                    // Spelling o traduzione, poi il giro rilegge la frase e ascolta.
+                    Comando.SPELLING, Comando.TRADUCI ->
+                        if (aiuto(fine.c, f, voce, accento) { di(it) } == Fine.Pausa) {
+                            cosa("⏸ In pausa")
+                            pausa.first { !it }
+                        }
                     Comando.FERMA -> {
                         stato.update { it.copy(nota = "Fermato a voce.") }
                         di(Feedback.Cosa.PAUSA)

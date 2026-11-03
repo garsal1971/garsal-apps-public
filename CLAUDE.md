@@ -3810,6 +3810,18 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   ⚠️ «⏭ Altra» / «next» su un elemento mai provato lo manda **in fondo alla coda**, non fuori: la
   sessione resta di N e non torna mai la stessa parola. Nessuna tabella: tutto dallo storico.
   Bip portato a **300 ms**.
+- **Pronuncia all'italiana, spelling e traduzione a voce** (v1.23.0): ogni parola di `words.json` ha
+  il campo **`pron`** («ticket» → «tìchit», l'accento grave segna la sillaba accentata), mostrato accanto
+  alla parola, più piccolo e grigio, in 🎯 Esercizio e 🎧 Mani libere (`TestoConTraduzione`, nello stesso
+  `Text` perché vada a capo con la parola). ⚠️ È britannica anche con l'accento 🇺🇸, e approssimativa:
+  ricavata una volta dal dizionario Britfone (IPA) con una conversione a regole, più una sessantina di voci
+  scritte a mano (nomi di luogo, parole mancanti). Sta nell'APK e non in `pr_traduzioni`: per correggerla
+  serve una versione nuova. ⚠️ Aggiungendo parole, va scritto anche il loro `pron`. A Mani libere due
+  comandi in più, detti al posto della parola come gli altri: **«spell» / «spelling»** — lo spelling con
+  la voce inglese (`Tts.compita`, SSML `say-as characters`); su una frase non c'è e lo dice
+  (`Feedback.Cosa.SOLO_PAROLE`) — e **«translate» / «translation»** — la traduzione di `pr_traduzioni` con
+  la voce italiana, «Traduzione non disponibile» se manca. Dopo, la parola si rilegge e si aspetta il
+  tentativo; ⚠️ nessuno dei due è un tentativo e non va nello storico (`Ciclo.aiuto`).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

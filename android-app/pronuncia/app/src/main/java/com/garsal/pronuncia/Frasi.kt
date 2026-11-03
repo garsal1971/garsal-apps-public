@@ -4,8 +4,16 @@ import android.content.Context
 import org.json.JSONObject
 
 /** Una frase — o una parola sola — da ripetere. `id` è stabile: dalla fase 5
- *  lo storico la cita per id. Le parole hanno l'id che comincia con `w-`. */
-data class Frase(val id: String, val livello: String, val tema: String, val testo: String, val parola: Boolean = false)
+ *  lo storico la cita per id. Le parole hanno l'id che comincia con `w-`.
+ *
+ *  [pronuncia] (v1.23.0) è la pronuncia britannica scritta all'italiana
+ *  («house» → «àus»), campo `pron` di `words.json`: c'è sulle sole parole.
+ *  ⚠️ È un aiuto approssimativo, non una trascrizione: l'accento grave segna
+ *  la sillaba accentata. `null` = non c'è, e a schermo non si mostra niente. */
+data class Frase(
+    val id: String, val livello: String, val tema: String, val testo: String,
+    val parola: Boolean = false, val pronuncia: String? = null,
+)
 
 /**
  * Le frasi stanno in `assets/phrases.json`, le parole sole in
@@ -51,7 +59,10 @@ object Frasi {
         val arr = JSONObject(testo).getJSONArray(chiave)
         return (0 until arr.length()).map {
             val o = arr.getJSONObject(it)
-            Frase(o.getString("id"), o.getString("level"), o.getString("theme"), o.getString("text"), parola)
+            Frase(
+                o.getString("id"), o.getString("level"), o.getString("theme"), o.getString("text"), parola,
+                o.optString("pron").takeIf { it.isNotBlank() },
+            )
         }
     }
 
