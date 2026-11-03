@@ -17,13 +17,17 @@ object Frasi {
     val LIVELLI = listOf("A1", "A2", "B1", "B2")
     val TEMI = linkedMapOf(
         "viaggio" to "✈️ Viaggio", "politica" to "🏛️ Politica", "storia" to "📜 Storia",
-        "natura" to "🌿 Piante e animali", "citta" to "🏙️ Città e luoghi", "famosi" to "⭐ Personaggi famosi",
+        "natura" to "🌿 Piante e animali", "citta" to "🏙️ Città e luoghi", "comuni" to "🔗 Parole di uso comune",
         "cibo" to "🍽️ Cibo", "casa" to "🏠 Casa e famiglia", "lavoro" to "💼 Lavoro", "salute" to "🩺 Salute",
     )
 
     /** ⚠️ Le frasi hanno i soli primi tre temi, le parole (v1.20.0) tutti e
      *  dieci: un tema senza frasi lascerebbe l'esercizio senza niente da dire. */
     val TEMI_FRASI = setOf("viaggio", "politica", "storia")
+
+    /** Un tema rimasto nelle preferenze ma tolto dal catalogo (v1.21.0:
+     *  «famosi») vale «tutti»: filtrarci sopra non darebbe niente da dire. */
+    fun temaValido(tema: String?): String? = tema?.takeIf { it in TEMI }
 
     fun temi(soloParole: Boolean): List<String> =
         if (soloParole) TEMI.keys.toList() else TEMI.keys.filter { it in TEMI_FRASI }
@@ -54,6 +58,7 @@ object Frasi {
     /** Una frase (o parola) a caso fra quelle del filtro, diversa da [esclusa]
      *  quando si può. `null` nel filtro = tutti. */
     fun aCaso(ctx: Context, livello: String?, tema: String?, esclusa: String? = null, soloParole: Boolean = false): Frase? {
+        val tema = temaValido(tema)
         val scelte = catalogo(ctx, soloParole).filter {
             (livello == null || it.livello == livello) && (tema == null || it.tema == tema)
         }
