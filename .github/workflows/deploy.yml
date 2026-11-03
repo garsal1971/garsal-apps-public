@@ -175,7 +175,8 @@ jobs:
             fi
           done
 
-          supabase db push --linked
+          # --yes: la CLI ora chiede conferma, e qui non c'è un terminale per dargliela.
+          supabase db push --linked --yes
 
       - name: Deploy Supabase Edge Functions
         if: steps.check_changes.outputs.functions == 'true'
