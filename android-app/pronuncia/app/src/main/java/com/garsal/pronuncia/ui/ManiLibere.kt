@@ -33,7 +33,6 @@ import androidx.core.content.ContextCompat
 import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.CicloService
 import com.garsal.pronuncia.Frasi
-import com.garsal.pronuncia.Ripasso
 import com.garsal.pronuncia.Servizi
 import java.util.Locale
 
@@ -87,11 +86,11 @@ fun ManiLibere(parole: Boolean) {
                     color = MaterialTheme.colorScheme.primary,
                 )
                 s.frase?.let { f ->
-                    if (s.ripasso) Text(
-                        "🔁 da ripassare",
+                    s.peggiore?.let { v -> Text(
+                        "🔁 già fatta · voto più basso ${Math.round(v)}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    ) }
                     TestoConTraduzione(f)
                 }
                 Text(
@@ -118,10 +117,10 @@ fun ManiLibere(parole: Boolean) {
                 Text(
                     (if (parole)
                         "Legge una parola, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA te la rilegge piano " +
-                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una parola ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Finite quelle scelte in «Quante», "
+                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le parole di «Quante» si scelgono all'avvio: metà mai fatte e metà già fatte, dal voto più basso. Finite quelle, "
                     else
                         "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
-                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Una frase ogni ${Ripasso.OGNI} è da ripassare, presa dallo storico. Finite quelle scelte in «Quante», ") +
+                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le frasi di «Quante» si scelgono all'avvio: metà mai fatte e metà già fatte, dal voto più basso. Finite quelle, ") +
                         "ti dà un voto da 1 a 10 e aggiorna l'obiettivo. Funziona anche a schermo spento; se premi Ferma prima, niente voto.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop». " +
                         "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +

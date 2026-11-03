@@ -3802,6 +3802,13 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   nello storico, ma «📚 Le mie parole» elenca le sole parole del catalogo. Un tema rimasto nelle
   preferenze e tolto dal catalogo vale «tutti» (`Frasi.temaValido`). Traduzioni in
   `20261103100000_pr_traduzioni_parole_comuni.sql`.
+- **Sessione scelta all'avvio, via il ripasso** (v1.22.0, `Sessione.kt`; `Ripasso.kt` tolto): le N
+  di «Quante» si scelgono tutte prima di cominciare — metà **mai fatte** (a caso, con N dispari una in
+  più) e metà **già fatte**, dal **voto più basso mai preso** in su; se un gruppo non basta si completa
+  con l'altro. Si alternano nuova / già fatta, e la già fatta porta «🔁 già fatta · voto più basso N».
+  ⚠️ «⏭ Altra» / «next» su un elemento mai provato lo manda **in fondo alla coda**, non fuori: la
+  sessione resta di N e non torna mai la stessa parola. Nessuna tabella: tutto dallo storico.
+  Bip portato a **300 ms**.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
