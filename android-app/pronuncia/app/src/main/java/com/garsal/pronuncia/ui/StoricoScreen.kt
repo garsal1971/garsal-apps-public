@@ -105,7 +105,11 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
                 }
             }
 
-            Sezione("📚 Le mie parole") { MieParole(perParola, Frasi.parole(ctx).size) }
+            Sezione("📚 Le mie parole") {
+                // Solo le parole del catalogo: quelle di un tema tolto restano in archivio e non si elencano.
+                val catalogo = remember { Frasi.parole(ctx).map { it.id }.toSet() }
+                MieParole(perParola.filter { it.fraseId in catalogo }, catalogo.size)
+            }
 
             Sezione("🧩 Parole più difficili") {
                 if (parole.isEmpty()) Text("Nessuna parola sbagliata finora. 👏")

@@ -29,6 +29,7 @@ object Ripasso {
      *  torna finché non riesce due volte di fila, e quelle mai fatte entrano se
      *  sono fra le più sbagliate nelle frasi. */
     suspend fun candidate(ctx: Context, livello: String?, tema: String?, soloParole: Boolean = false): List<Frase> = withContext(Dispatchers.IO) {
+        val tema = Frasi.temaValido(tema)
         val dao = Storico.dao(ctx)
         // Dal più recente: i primi due per frase sono gli ultimi due tentativi.
         val perFrase = dao.punteggi().groupBy({ it.fraseId }, { it.pronuncia })

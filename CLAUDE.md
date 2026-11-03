@@ -3782,7 +3782,7 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   la copia che si ascolta: l'audio mandato ad Azure resta com'è.
 - **2000 parole e storico nel database** (v1.20.0): `words.json` passa da 240 a **2000** parole —
   dieci temi × A1–B2 × 50 — coi sette temi nuovi 🌿 Piante e animali (`natura`), 🏙️ Città e luoghi
-  (`citta`), ⭐ Personaggi famosi (`famosi`), 🍽️ Cibo, 🏠 Casa e famiglia, 💼 Lavoro, 🩺 Salute.
+  (`citta`), ⭐ Personaggi famosi (`famosi`, tolto dalla v1.21.0), 🍽️ Cibo, 🏠 Casa e famiglia, 💼 Lavoro, 🩺 Salute.
   Le 240 di prima tengono i loro id; le nuove sono `w-<livello>-<lettera del tema>-NN`
   (`n c f k h l m`). I personaggi si dicono col mestiere («John Lennon, singer») e il livello è la
   difficoltà di pronuncia. ⚠️ **Le frasi hanno i soli tre temi di prima** (`Frasi.TEMI_FRASI`):
@@ -3796,6 +3796,13 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   🗑 Cancella svuota **prima il database e poi il telefono**. In 📈 Storico, **📚 Le mie parole**:
   per ogni parola provata ripetizioni, voto migliore, ultimo e medio, con filtri e ordinamento —
   ricavati dai tentativi, nessuna tabella di contatori.
+- **Via i personaggi famosi, dentro le parole di uso comune** (v1.21.0): il tema `famosi` è
+  tolto e al suo posto c'è 🔗 **Parole di uso comune** (`comuni`, id `w-<livello>-u-NN`):
+  also, still, already, however, nevertheless… sempre 50 per livello, 2000 in tutto. ⚠️ Gli id
+  `w-*-f-*` **non si riusano**: le loro righe restano in `pr_traduzioni` e i tentativi restano
+  nello storico, ma «📚 Le mie parole» elenca le sole parole del catalogo. Un tema rimasto nelle
+  preferenze e tolto dal catalogo vale «tutti» (`Frasi.temaValido`). Traduzioni in
+  `20261103100000_pr_traduzioni_parole_comuni.sql`.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

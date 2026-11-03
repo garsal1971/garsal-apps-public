@@ -1,5 +1,5 @@
 {
- "version": 2,
+ "version": 3,
  "words": [
   {
    "id": "w-a1-v-01",
@@ -6002,1206 +6002,6 @@
    "text": "Marylebone Road"
   },
   {
-   "id": "w-a1-f-01",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "John Lennon, singer"
-  },
-  {
-   "id": "w-a1-f-02",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Paul McCartney, singer"
-  },
-  {
-   "id": "w-a1-f-03",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Elvis Presley, singer"
-  },
-  {
-   "id": "w-a1-f-04",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Madonna, singer"
-  },
-  {
-   "id": "w-a1-f-05",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Elton John, singer"
-  },
-  {
-   "id": "w-a1-f-06",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Adele, singer"
-  },
-  {
-   "id": "w-a1-f-07",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Michael Jackson, singer"
-  },
-  {
-   "id": "w-a1-f-08",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Mick Jagger, singer"
-  },
-  {
-   "id": "w-a1-f-09",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "David Bowie, singer"
-  },
-  {
-   "id": "w-a1-f-10",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Ed Sheeran, singer"
-  },
-  {
-   "id": "w-a1-f-11",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Taylor Swift, singer"
-  },
-  {
-   "id": "w-a1-f-12",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Bob Dylan, singer"
-  },
-  {
-   "id": "w-a1-f-13",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Tom Hanks, actor"
-  },
-  {
-   "id": "w-a1-f-14",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Tom Cruise, actor"
-  },
-  {
-   "id": "w-a1-f-15",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Brad Pitt, actor"
-  },
-  {
-   "id": "w-a1-f-16",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Julia Roberts, actress"
-  },
-  {
-   "id": "w-a1-f-17",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Emma Watson, actress"
-  },
-  {
-   "id": "w-a1-f-18",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Hugh Grant, actor"
-  },
-  {
-   "id": "w-a1-f-19",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Charlie Chaplin, actor"
-  },
-  {
-   "id": "w-a1-f-20",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Marilyn Monroe, actress"
-  },
-  {
-   "id": "w-a1-f-21",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Walt Disney, film maker"
-  },
-  {
-   "id": "w-a1-f-22",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Steven Spielberg, director"
-  },
-  {
-   "id": "w-a1-f-23",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Pelé, footballer"
-  },
-  {
-   "id": "w-a1-f-24",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "David Beckham, footballer"
-  },
-  {
-   "id": "w-a1-f-25",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Lionel Messi, footballer"
-  },
-  {
-   "id": "w-a1-f-26",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Roger Federer, tennis player"
-  },
-  {
-   "id": "w-a1-f-27",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Serena Williams, tennis player"
-  },
-  {
-   "id": "w-a1-f-28",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Usain Bolt, runner"
-  },
-  {
-   "id": "w-a1-f-29",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Muhammad Ali, boxer"
-  },
-  {
-   "id": "w-a1-f-30",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Michael Jordan, basketball player"
-  },
-  {
-   "id": "w-a1-f-31",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Albert Einstein, scientist"
-  },
-  {
-   "id": "w-a1-f-32",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Isaac Newton, scientist"
-  },
-  {
-   "id": "w-a1-f-33",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Charles Darwin, scientist"
-  },
-  {
-   "id": "w-a1-f-34",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Marie Curie, scientist"
-  },
-  {
-   "id": "w-a1-f-35",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Galileo Galilei, scientist"
-  },
-  {
-   "id": "w-a1-f-36",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Leonardo da Vinci, painter"
-  },
-  {
-   "id": "w-a1-f-37",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Pablo Picasso, painter"
-  },
-  {
-   "id": "w-a1-f-38",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Vincent van Gogh, painter"
-  },
-  {
-   "id": "w-a1-f-39",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "William Shakespeare, writer"
-  },
-  {
-   "id": "w-a1-f-40",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Charles Dickens, writer"
-  },
-  {
-   "id": "w-a1-f-41",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Jane Austen, writer"
-  },
-  {
-   "id": "w-a1-f-42",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Agatha Christie, writer"
-  },
-  {
-   "id": "w-a1-f-43",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "J. K. Rowling, writer"
-  },
-  {
-   "id": "w-a1-f-44",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Queen Elizabeth, queen"
-  },
-  {
-   "id": "w-a1-f-45",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "King Charles, king"
-  },
-  {
-   "id": "w-a1-f-46",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Princess Diana, princess"
-  },
-  {
-   "id": "w-a1-f-47",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Winston Churchill, prime minister"
-  },
-  {
-   "id": "w-a1-f-48",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Barack Obama, president"
-  },
-  {
-   "id": "w-a1-f-49",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Abraham Lincoln, president"
-  },
-  {
-   "id": "w-a1-f-50",
-   "level": "A1",
-   "theme": "famosi",
-   "text": "Mozart, composer"
-  },
-  {
-   "id": "w-a2-f-01",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Freddie Mercury, singer"
-  },
-  {
-   "id": "w-a2-f-02",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Amy Winehouse, singer"
-  },
-  {
-   "id": "w-a2-f-03",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "George Michael, singer"
-  },
-  {
-   "id": "w-a2-f-04",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Rod Stewart, singer"
-  },
-  {
-   "id": "w-a2-f-05",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Sting, singer"
-  },
-  {
-   "id": "w-a2-f-06",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Bono, singer"
-  },
-  {
-   "id": "w-a2-f-07",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Kylie Minogue, singer"
-  },
-  {
-   "id": "w-a2-f-08",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Whitney Houston, singer"
-  },
-  {
-   "id": "w-a2-f-09",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Frank Sinatra, singer"
-  },
-  {
-   "id": "w-a2-f-10",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Beyoncé, singer"
-  },
-  {
-   "id": "w-a2-f-11",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Ringo Starr, drummer"
-  },
-  {
-   "id": "w-a2-f-12",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Eric Clapton, guitarist"
-  },
-  {
-   "id": "w-a2-f-13",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Jimi Hendrix, guitarist"
-  },
-  {
-   "id": "w-a2-f-14",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Daniel Craig, actor"
-  },
-  {
-   "id": "w-a2-f-15",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Sean Connery, actor"
-  },
-  {
-   "id": "w-a2-f-16",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Anthony Hopkins, actor"
-  },
-  {
-   "id": "w-a2-f-17",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Kate Winslet, actress"
-  },
-  {
-   "id": "w-a2-f-18",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Keira Knightley, actress"
-  },
-  {
-   "id": "w-a2-f-19",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Judi Dench, actress"
-  },
-  {
-   "id": "w-a2-f-20",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Helen Mirren, actress"
-  },
-  {
-   "id": "w-a2-f-21",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Audrey Hepburn, actress"
-  },
-  {
-   "id": "w-a2-f-22",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Leonardo DiCaprio, actor"
-  },
-  {
-   "id": "w-a2-f-23",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Meryl Streep, actress"
-  },
-  {
-   "id": "w-a2-f-24",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Alfred Hitchcock, director"
-  },
-  {
-   "id": "w-a2-f-25",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Christopher Nolan, director"
-  },
-  {
-   "id": "w-a2-f-26",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Wayne Rooney, footballer"
-  },
-  {
-   "id": "w-a2-f-27",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Harry Kane, footballer"
-  },
-  {
-   "id": "w-a2-f-28",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Cristiano Ronaldo, footballer"
-  },
-  {
-   "id": "w-a2-f-29",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Diego Maradona, footballer"
-  },
-  {
-   "id": "w-a2-f-30",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Andy Murray, tennis player"
-  },
-  {
-   "id": "w-a2-f-31",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Lewis Hamilton, racing driver"
-  },
-  {
-   "id": "w-a2-f-32",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Mo Farah, runner"
-  },
-  {
-   "id": "w-a2-f-33",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Stephen Hawking, scientist"
-  },
-  {
-   "id": "w-a2-f-34",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Alexander Fleming, scientist"
-  },
-  {
-   "id": "w-a2-f-35",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Alan Turing, mathematician"
-  },
-  {
-   "id": "w-a2-f-36",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Ada Lovelace, mathematician"
-  },
-  {
-   "id": "w-a2-f-37",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Thomas Edison, inventor"
-  },
-  {
-   "id": "w-a2-f-38",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Alexander Graham Bell, inventor"
-  },
-  {
-   "id": "w-a2-f-39",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Steve Jobs, businessman"
-  },
-  {
-   "id": "w-a2-f-40",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Bill Gates, businessman"
-  },
-  {
-   "id": "w-a2-f-41",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Mark Zuckerberg, businessman"
-  },
-  {
-   "id": "w-a2-f-42",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Michelangelo, sculptor"
-  },
-  {
-   "id": "w-a2-f-43",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Claude Monet, painter"
-  },
-  {
-   "id": "w-a2-f-44",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Andy Warhol, artist"
-  },
-  {
-   "id": "w-a2-f-45",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Ernest Hemingway, writer"
-  },
-  {
-   "id": "w-a2-f-46",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "George Orwell, writer"
-  },
-  {
-   "id": "w-a2-f-47",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Roald Dahl, writer"
-  },
-  {
-   "id": "w-a2-f-48",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Nelson Mandela, president"
-  },
-  {
-   "id": "w-a2-f-49",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Martin Luther King, activist"
-  },
-  {
-   "id": "w-a2-f-50",
-   "level": "A2",
-   "theme": "famosi",
-   "text": "Mahatma Gandhi, leader"
-  },
-  {
-   "id": "w-b1-f-01",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Robbie Williams, singer"
-  },
-  {
-   "id": "w-b1-f-02",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Annie Lennox, singer"
-  },
-  {
-   "id": "w-b1-f-03",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Florence Welch, singer"
-  },
-  {
-   "id": "w-b1-f-04",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Stormzy, rapper"
-  },
-  {
-   "id": "w-b1-f-05",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Dua Lipa, singer"
-  },
-  {
-   "id": "w-b1-f-06",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Harry Styles, singer"
-  },
-  {
-   "id": "w-b1-f-07",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Benedict Cumberbatch, actor"
-  },
-  {
-   "id": "w-b1-f-08",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Ralph Fiennes, actor"
-  },
-  {
-   "id": "w-b1-f-09",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Colin Firth, actor"
-  },
-  {
-   "id": "w-b1-f-10",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Michael Caine, actor"
-  },
-  {
-   "id": "w-b1-f-11",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Ian McKellen, actor"
-  },
-  {
-   "id": "w-b1-f-12",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Maggie Smith, actress"
-  },
-  {
-   "id": "w-b1-f-13",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Emma Thompson, actress"
-  },
-  {
-   "id": "w-b1-f-14",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Olivia Colman, actress"
-  },
-  {
-   "id": "w-b1-f-15",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Rowan Atkinson, comedian"
-  },
-  {
-   "id": "w-b1-f-16",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "John Cleese, comedian"
-  },
-  {
-   "id": "w-b1-f-17",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "David Attenborough, broadcaster"
-  },
-  {
-   "id": "w-b1-f-18",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Ridley Scott, director"
-  },
-  {
-   "id": "w-b1-f-19",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Danny Boyle, director"
-  },
-  {
-   "id": "w-b1-f-20",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Stanley Kubrick, director"
-  },
-  {
-   "id": "w-b1-f-21",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Bobby Charlton, footballer"
-  },
-  {
-   "id": "w-b1-f-22",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Gary Lineker, footballer"
-  },
-  {
-   "id": "w-b1-f-23",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Emma Raducanu, tennis player"
-  },
-  {
-   "id": "w-b1-f-24",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Chris Hoy, cyclist"
-  },
-  {
-   "id": "w-b1-f-25",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Bradley Wiggins, cyclist"
-  },
-  {
-   "id": "w-b1-f-26",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Jessica Ennis, athlete"
-  },
-  {
-   "id": "w-b1-f-27",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Rosalind Franklin, chemist"
-  },
-  {
-   "id": "w-b1-f-28",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Michael Faraday, physicist"
-  },
-  {
-   "id": "w-b1-f-29",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "James Watt, engineer"
-  },
-  {
-   "id": "w-b1-f-30",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Isambard Kingdom Brunel, engineer"
-  },
-  {
-   "id": "w-b1-f-31",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Tim Berners-Lee, computer scientist"
-  },
-  {
-   "id": "w-b1-f-32",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Florence Nightingale, nurse"
-  },
-  {
-   "id": "w-b1-f-33",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Emmeline Pankhurst, suffragette"
-  },
-  {
-   "id": "w-b1-f-34",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "J. R. R. Tolkien, writer"
-  },
-  {
-   "id": "w-b1-f-35",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Virginia Woolf, writer"
-  },
-  {
-   "id": "w-b1-f-36",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Oscar Wilde, writer"
-  },
-  {
-   "id": "w-b1-f-37",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Lewis Carroll, writer"
-  },
-  {
-   "id": "w-b1-f-38",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Arthur Conan Doyle, writer"
-  },
-  {
-   "id": "w-b1-f-39",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Charlotte Brontë, writer"
-  },
-  {
-   "id": "w-b1-f-40",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Mary Shelley, writer"
-  },
-  {
-   "id": "w-b1-f-41",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Margaret Thatcher, prime minister"
-  },
-  {
-   "id": "w-b1-f-42",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Tony Blair, prime minister"
-  },
-  {
-   "id": "w-b1-f-43",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Queen Victoria, queen"
-  },
-  {
-   "id": "w-b1-f-44",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Henry the Eighth, king"
-  },
-  {
-   "id": "w-b1-f-45",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Julius Caesar, emperor"
-  },
-  {
-   "id": "w-b1-f-46",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Napoleon Bonaparte, emperor"
-  },
-  {
-   "id": "w-b1-f-47",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Christopher Columbus, explorer"
-  },
-  {
-   "id": "w-b1-f-48",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Ludwig van Beethoven, composer"
-  },
-  {
-   "id": "w-b1-f-49",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Giuseppe Verdi, composer"
-  },
-  {
-   "id": "w-b1-f-50",
-   "level": "B1",
-   "theme": "famosi",
-   "text": "Banksy, street artist"
-  },
-  {
-   "id": "w-b2-f-01",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Siouxsie Sioux, singer"
-  },
-  {
-   "id": "w-b2-f-02",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Morrissey, singer"
-  },
-  {
-   "id": "w-b2-f-03",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Thom Yorke, singer"
-  },
-  {
-   "id": "w-b2-f-04",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Noel Gallagher, songwriter"
-  },
-  {
-   "id": "w-b2-f-05",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Kate Bush, singer-songwriter"
-  },
-  {
-   "id": "w-b2-f-06",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Joanna Lumley, actress"
-  },
-  {
-   "id": "w-b2-f-07",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Saoirse Ronan, actress"
-  },
-  {
-   "id": "w-b2-f-08",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Chiwetel Ejiofor, actor"
-  },
-  {
-   "id": "w-b2-f-09",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Daniel Day-Lewis, actor"
-  },
-  {
-   "id": "w-b2-f-10",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Timothée Chalamet, actor"
-  },
-  {
-   "id": "w-b2-f-11",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Laurence Olivier, actor"
-  },
-  {
-   "id": "w-b2-f-12",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Kenneth Branagh, actor"
-  },
-  {
-   "id": "w-b2-f-13",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Sacha Baron Cohen, comedian"
-  },
-  {
-   "id": "w-b2-f-14",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Stephen Fry, broadcaster"
-  },
-  {
-   "id": "w-b2-f-15",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Jeremy Clarkson, broadcaster"
-  },
-  {
-   "id": "w-b2-f-16",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Guy Ritchie, director"
-  },
-  {
-   "id": "w-b2-f-17",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Ken Loach, director"
-  },
-  {
-   "id": "w-b2-f-18",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Mike Leigh, director"
-  },
-  {
-   "id": "w-b2-f-19",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Alastair Cook, cricketer"
-  },
-  {
-   "id": "w-b2-f-20",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Jonny Wilkinson, rugby player"
-  },
-  {
-   "id": "w-b2-f-21",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Steve Redgrave, rower"
-  },
-  {
-   "id": "w-b2-f-22",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Ellen MacArthur, sailor"
-  },
-  {
-   "id": "w-b2-f-23",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Ernest Rutherford, physicist"
-  },
-  {
-   "id": "w-b2-f-24",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "James Clerk Maxwell, physicist"
-  },
-  {
-   "id": "w-b2-f-25",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Peter Higgs, physicist"
-  },
-  {
-   "id": "w-b2-f-26",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Dorothy Hodgkin, chemist"
-  },
-  {
-   "id": "w-b2-f-27",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Francis Crick, biologist"
-  },
-  {
-   "id": "w-b2-f-28",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Edward Jenner, physician"
-  },
-  {
-   "id": "w-b2-f-29",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Thomas Hobbes, philosopher"
-  },
-  {
-   "id": "w-b2-f-30",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "John Locke, philosopher"
-  },
-  {
-   "id": "w-b2-f-31",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Bertrand Russell, philosopher"
-  },
-  {
-   "id": "w-b2-f-32",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Adam Smith, economist"
-  },
-  {
-   "id": "w-b2-f-33",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "John Maynard Keynes, economist"
-  },
-  {
-   "id": "w-b2-f-34",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Geoffrey Chaucer, poet"
-  },
-  {
-   "id": "w-b2-f-35",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "John Keats, poet"
-  },
-  {
-   "id": "w-b2-f-36",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "William Wordsworth, poet"
-  },
-  {
-   "id": "w-b2-f-37",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Percy Bysshe Shelley, poet"
-  },
-  {
-   "id": "w-b2-f-38",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Seamus Heaney, poet"
-  },
-  {
-   "id": "w-b2-f-39",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Kazuo Ishiguro, novelist"
-  },
-  {
-   "id": "w-b2-f-40",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Salman Rushdie, novelist"
-  },
-  {
-   "id": "w-b2-f-41",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Thomas Gainsborough, painter"
-  },
-  {
-   "id": "w-b2-f-42",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "J. M. W. Turner, painter"
-  },
-  {
-   "id": "w-b2-f-43",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "John Constable, painter"
-  },
-  {
-   "id": "w-b2-f-44",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Christopher Wren, architect"
-  },
-  {
-   "id": "w-b2-f-45",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Elizabeth the First, queen"
-  },
-  {
-   "id": "w-b2-f-46",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Oliver Cromwell, Lord Protector"
-  },
-  {
-   "id": "w-b2-f-47",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Boudicca, queen"
-  },
-  {
-   "id": "w-b2-f-48",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Horatio Nelson, admiral"
-  },
-  {
-   "id": "w-b2-f-49",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Edward Elgar, composer"
-  },
-  {
-   "id": "w-b2-f-50",
-   "level": "B2",
-   "theme": "famosi",
-   "text": "Benjamin Britten, composer"
-  },
-  {
    "id": "w-a1-k-01",
    "level": "A1",
    "theme": "cibo",
@@ -12000,6 +10800,1206 @@
    "level": "B2",
    "theme": "salute",
    "text": "therapeutic"
+  },
+  {
+   "id": "w-a1-u-01",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "also"
+  },
+  {
+   "id": "w-a1-u-02",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "too"
+  },
+  {
+   "id": "w-a1-u-03",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "again"
+  },
+  {
+   "id": "w-a1-u-04",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "very"
+  },
+  {
+   "id": "w-a1-u-05",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "and"
+  },
+  {
+   "id": "w-a1-u-06",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "but"
+  },
+  {
+   "id": "w-a1-u-07",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "or"
+  },
+  {
+   "id": "w-a1-u-08",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "because"
+  },
+  {
+   "id": "w-a1-u-09",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "so"
+  },
+  {
+   "id": "w-a1-u-10",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "now"
+  },
+  {
+   "id": "w-a1-u-11",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "then"
+  },
+  {
+   "id": "w-a1-u-12",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "here"
+  },
+  {
+   "id": "w-a1-u-13",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "there"
+  },
+  {
+   "id": "w-a1-u-14",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "today"
+  },
+  {
+   "id": "w-a1-u-15",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "tomorrow"
+  },
+  {
+   "id": "w-a1-u-16",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "yesterday"
+  },
+  {
+   "id": "w-a1-u-17",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "always"
+  },
+  {
+   "id": "w-a1-u-18",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "never"
+  },
+  {
+   "id": "w-a1-u-19",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "often"
+  },
+  {
+   "id": "w-a1-u-20",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "sometimes"
+  },
+  {
+   "id": "w-a1-u-21",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "with"
+  },
+  {
+   "id": "w-a1-u-22",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "without"
+  },
+  {
+   "id": "w-a1-u-23",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "for"
+  },
+  {
+   "id": "w-a1-u-24",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "from"
+  },
+  {
+   "id": "w-a1-u-25",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "about"
+  },
+  {
+   "id": "w-a1-u-26",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "under"
+  },
+  {
+   "id": "w-a1-u-27",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "over"
+  },
+  {
+   "id": "w-a1-u-28",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "before"
+  },
+  {
+   "id": "w-a1-u-29",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "after"
+  },
+  {
+   "id": "w-a1-u-30",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "near"
+  },
+  {
+   "id": "w-a1-u-31",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "far"
+  },
+  {
+   "id": "w-a1-u-32",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "yes"
+  },
+  {
+   "id": "w-a1-u-33",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "no"
+  },
+  {
+   "id": "w-a1-u-34",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "please"
+  },
+  {
+   "id": "w-a1-u-35",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "thank you"
+  },
+  {
+   "id": "w-a1-u-36",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "sorry"
+  },
+  {
+   "id": "w-a1-u-37",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "hello"
+  },
+  {
+   "id": "w-a1-u-38",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "goodbye"
+  },
+  {
+   "id": "w-a1-u-39",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "what"
+  },
+  {
+   "id": "w-a1-u-40",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "who"
+  },
+  {
+   "id": "w-a1-u-41",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "where"
+  },
+  {
+   "id": "w-a1-u-42",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "when"
+  },
+  {
+   "id": "w-a1-u-43",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "why"
+  },
+  {
+   "id": "w-a1-u-44",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "how"
+  },
+  {
+   "id": "w-a1-u-45",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "which"
+  },
+  {
+   "id": "w-a1-u-46",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "this"
+  },
+  {
+   "id": "w-a1-u-47",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "that"
+  },
+  {
+   "id": "w-a1-u-48",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "these"
+  },
+  {
+   "id": "w-a1-u-49",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "those"
+  },
+  {
+   "id": "w-a1-u-50",
+   "level": "A1",
+   "theme": "comuni",
+   "text": "all"
+  },
+  {
+   "id": "w-a2-u-01",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "still"
+  },
+  {
+   "id": "w-a2-u-02",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "yet"
+  },
+  {
+   "id": "w-a2-u-03",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "already"
+  },
+  {
+   "id": "w-a2-u-04",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "just"
+  },
+  {
+   "id": "w-a2-u-05",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "only"
+  },
+  {
+   "id": "w-a2-u-06",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "almost"
+  },
+  {
+   "id": "w-a2-u-07",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "quite"
+  },
+  {
+   "id": "w-a2-u-08",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "really"
+  },
+  {
+   "id": "w-a2-u-09",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "perhaps"
+  },
+  {
+   "id": "w-a2-u-10",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "maybe"
+  },
+  {
+   "id": "w-a2-u-11",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "probably"
+  },
+  {
+   "id": "w-a2-u-12",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "soon"
+  },
+  {
+   "id": "w-a2-u-13",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "later"
+  },
+  {
+   "id": "w-a2-u-14",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "early in the morning"
+  },
+  {
+   "id": "w-a2-u-15",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "usually"
+  },
+  {
+   "id": "w-a2-u-16",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "together"
+  },
+  {
+   "id": "w-a2-u-17",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "alone"
+  },
+  {
+   "id": "w-a2-u-18",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "enough"
+  },
+  {
+   "id": "w-a2-u-19",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "either"
+  },
+  {
+   "id": "w-a2-u-20",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "neither"
+  },
+  {
+   "id": "w-a2-u-21",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "both"
+  },
+  {
+   "id": "w-a2-u-22",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "each"
+  },
+  {
+   "id": "w-a2-u-23",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "every"
+  },
+  {
+   "id": "w-a2-u-24",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "some"
+  },
+  {
+   "id": "w-a2-u-25",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "any"
+  },
+  {
+   "id": "w-a2-u-26",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "nothing"
+  },
+  {
+   "id": "w-a2-u-27",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "something"
+  },
+  {
+   "id": "w-a2-u-28",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "everything"
+  },
+  {
+   "id": "w-a2-u-29",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "anything"
+  },
+  {
+   "id": "w-a2-u-30",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "nobody"
+  },
+  {
+   "id": "w-a2-u-31",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "somebody"
+  },
+  {
+   "id": "w-a2-u-32",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "everybody"
+  },
+  {
+   "id": "w-a2-u-33",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "somewhere"
+  },
+  {
+   "id": "w-a2-u-34",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "anywhere"
+  },
+  {
+   "id": "w-a2-u-35",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "everywhere"
+  },
+  {
+   "id": "w-a2-u-36",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "nowhere"
+  },
+  {
+   "id": "w-a2-u-37",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "inside"
+  },
+  {
+   "id": "w-a2-u-38",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "outside"
+  },
+  {
+   "id": "w-a2-u-39",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "between"
+  },
+  {
+   "id": "w-a2-u-40",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "behind"
+  },
+  {
+   "id": "w-a2-u-41",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "in front of"
+  },
+  {
+   "id": "w-a2-u-42",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "next to"
+  },
+  {
+   "id": "w-a2-u-43",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "during"
+  },
+  {
+   "id": "w-a2-u-44",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "until"
+  },
+  {
+   "id": "w-a2-u-45",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "since"
+  },
+  {
+   "id": "w-a2-u-46",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "if"
+  },
+  {
+   "id": "w-a2-u-47",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "than"
+  },
+  {
+   "id": "w-a2-u-48",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "while"
+  },
+  {
+   "id": "w-a2-u-49",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "instead"
+  },
+  {
+   "id": "w-a2-u-50",
+   "level": "A2",
+   "theme": "comuni",
+   "text": "of course"
+  },
+  {
+   "id": "w-b1-u-01",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "however"
+  },
+  {
+   "id": "w-b1-u-02",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "although"
+  },
+  {
+   "id": "w-b1-u-03",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "though"
+  },
+  {
+   "id": "w-b1-u-04",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "even"
+  },
+  {
+   "id": "w-b1-u-05",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "even though"
+  },
+  {
+   "id": "w-b1-u-06",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "unless"
+  },
+  {
+   "id": "w-b1-u-07",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "whether"
+  },
+  {
+   "id": "w-b1-u-08",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "otherwise"
+  },
+  {
+   "id": "w-b1-u-09",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "therefore"
+  },
+  {
+   "id": "w-b1-u-10",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "besides"
+  },
+  {
+   "id": "w-b1-u-11",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "moreover"
+  },
+  {
+   "id": "w-b1-u-12",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "meanwhile"
+  },
+  {
+   "id": "w-b1-u-13",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "afterwards"
+  },
+  {
+   "id": "w-b1-u-14",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "eventually"
+  },
+  {
+   "id": "w-b1-u-15",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "finally"
+  },
+  {
+   "id": "w-b1-u-16",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "actually"
+  },
+  {
+   "id": "w-b1-u-17",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "especially"
+  },
+  {
+   "id": "w-b1-u-18",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "nearly"
+  },
+  {
+   "id": "w-b1-u-19",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "hardly"
+  },
+  {
+   "id": "w-b1-u-20",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "rather"
+  },
+  {
+   "id": "w-b1-u-21",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "indeed"
+  },
+  {
+   "id": "w-b1-u-22",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "anyway"
+  },
+  {
+   "id": "w-b1-u-23",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "somehow"
+  },
+  {
+   "id": "w-b1-u-24",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "apart from"
+  },
+  {
+   "id": "w-b1-u-25",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "according to"
+  },
+  {
+   "id": "w-b1-u-26",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "because of"
+  },
+  {
+   "id": "w-b1-u-27",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "due to"
+  },
+  {
+   "id": "w-b1-u-28",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "thanks to"
+  },
+  {
+   "id": "w-b1-u-29",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "in spite of"
+  },
+  {
+   "id": "w-b1-u-30",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "despite"
+  },
+  {
+   "id": "w-b1-u-31",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "towards"
+  },
+  {
+   "id": "w-b1-u-32",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "throughout"
+  },
+  {
+   "id": "w-b1-u-33",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "beyond"
+  },
+  {
+   "id": "w-b1-u-34",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "within"
+  },
+  {
+   "id": "w-b1-u-35",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "across"
+  },
+  {
+   "id": "w-b1-u-36",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "along"
+  },
+  {
+   "id": "w-b1-u-37",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "against"
+  },
+  {
+   "id": "w-b1-u-38",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "among"
+  },
+  {
+   "id": "w-b1-u-39",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "upon"
+  },
+  {
+   "id": "w-b1-u-40",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "nowadays"
+  },
+  {
+   "id": "w-b1-u-41",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "recently"
+  },
+  {
+   "id": "w-b1-u-42",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "lately"
+  },
+  {
+   "id": "w-b1-u-43",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "suddenly"
+  },
+  {
+   "id": "w-b1-u-44",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "immediately"
+  },
+  {
+   "id": "w-b1-u-45",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "straight away"
+  },
+  {
+   "id": "w-b1-u-46",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "at least"
+  },
+  {
+   "id": "w-b1-u-47",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "at all"
+  },
+  {
+   "id": "w-b1-u-48",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "in fact"
+  },
+  {
+   "id": "w-b1-u-49",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "on purpose"
+  },
+  {
+   "id": "w-b1-u-50",
+   "level": "B1",
+   "theme": "comuni",
+   "text": "by the way"
+  },
+  {
+   "id": "w-b2-u-01",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "nevertheless"
+  },
+  {
+   "id": "w-b2-u-02",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "nonetheless"
+  },
+  {
+   "id": "w-b2-u-03",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "furthermore"
+  },
+  {
+   "id": "w-b2-u-04",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "consequently"
+  },
+  {
+   "id": "w-b2-u-05",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "thereby"
+  },
+  {
+   "id": "w-b2-u-06",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "whereas"
+  },
+  {
+   "id": "w-b2-u-07",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "whereby"
+  },
+  {
+   "id": "w-b2-u-08",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "hence"
+  },
+  {
+   "id": "w-b2-u-09",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "thus"
+  },
+  {
+   "id": "w-b2-u-10",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "notwithstanding"
+  },
+  {
+   "id": "w-b2-u-11",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "albeit"
+  },
+  {
+   "id": "w-b2-u-12",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "whilst"
+  },
+  {
+   "id": "w-b2-u-13",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "likewise"
+  },
+  {
+   "id": "w-b2-u-14",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "conversely"
+  },
+  {
+   "id": "w-b2-u-15",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "admittedly"
+  },
+  {
+   "id": "w-b2-u-16",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "arguably"
+  },
+  {
+   "id": "w-b2-u-17",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "presumably"
+  },
+  {
+   "id": "w-b2-u-18",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "seemingly"
+  },
+  {
+   "id": "w-b2-u-19",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "undoubtedly"
+  },
+  {
+   "id": "w-b2-u-20",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "inevitably"
+  },
+  {
+   "id": "w-b2-u-21",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "ultimately"
+  },
+  {
+   "id": "w-b2-u-22",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "predominantly"
+  },
+  {
+   "id": "w-b2-u-23",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "whatsoever"
+  },
+  {
+   "id": "w-b2-u-24",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "henceforth"
+  },
+  {
+   "id": "w-b2-u-25",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "heretofore"
+  },
+  {
+   "id": "w-b2-u-26",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "hitherto"
+  },
+  {
+   "id": "w-b2-u-27",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "insofar as"
+  },
+  {
+   "id": "w-b2-u-28",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "inasmuch as"
+  },
+  {
+   "id": "w-b2-u-29",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "in the meantime"
+  },
+  {
+   "id": "w-b2-u-30",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "on the contrary"
+  },
+  {
+   "id": "w-b2-u-31",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "on the other hand"
+  },
+  {
+   "id": "w-b2-u-32",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "by and large"
+  },
+  {
+   "id": "w-b2-u-33",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "as a matter of fact"
+  },
+  {
+   "id": "w-b2-u-34",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "in other words"
+  },
+  {
+   "id": "w-b2-u-35",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "for the time being"
+  },
+  {
+   "id": "w-b2-u-36",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "sooner or later"
+  },
+  {
+   "id": "w-b2-u-37",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "more or less"
+  },
+  {
+   "id": "w-b2-u-38",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "once in a while"
+  },
+  {
+   "id": "w-b2-u-39",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "all of a sudden"
+  },
+  {
+   "id": "w-b2-u-40",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "first and foremost"
+  },
+  {
+   "id": "w-b2-u-41",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "last but not least"
+  },
+  {
+   "id": "w-b2-u-42",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "regardless"
+  },
+  {
+   "id": "w-b2-u-43",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "irrespective of"
+  },
+  {
+   "id": "w-b2-u-44",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "in light of"
+  },
+  {
+   "id": "w-b2-u-45",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "with regard to"
+  },
+  {
+   "id": "w-b2-u-46",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "as far as"
+  },
+  {
+   "id": "w-b2-u-47",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "provided that"
+  },
+  {
+   "id": "w-b2-u-48",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "so as to"
+  },
+  {
+   "id": "w-b2-u-49",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "in order to"
+  },
+  {
+   "id": "w-b2-u-50",
+   "level": "B2",
+   "theme": "comuni",
+   "text": "let alone"
   }
  ]
 }
