@@ -26,6 +26,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.LaunchedEffect
+import com.garsal.pronuncia.Scelta
+import com.garsal.pronuncia.Sessione
 import com.garsal.pronuncia.Obiettivo
 import com.garsal.pronuncia.votoSessione
 import androidx.compose.runtime.remember
@@ -48,7 +52,6 @@ import com.garsal.pronuncia.Ciclo
 import com.garsal.pronuncia.Esito
 import com.garsal.pronuncia.Frase
 import com.garsal.pronuncia.Storico
-import com.garsal.pronuncia.Ripasso
 import com.garsal.pronuncia.Riascolto
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.Controllo
@@ -87,11 +90,20 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
     val prefs = Servizi.prefs
     val scope = rememberCoroutineScope()
 
-    var frase by remember { mutableStateOf<Frase?>(Frasi.aCaso(ctx, livello, tema, soloParole = parole)) }
+    // La sessione si sceglie tutta all'inizio (v1.22.0, `Sessione.scegli`).
+    val coda = remember { mutableStateListOf<Scelta>() }
+    var pronta by remember { mutableStateOf(false) }
+    var giro by remember { mutableStateOf(0) }
+    LaunchedEffect(giro) {
+        pronta = false
+        coda.clear()
+        coda.addAll(runCatching { Sessione.scegli(ctx, livello, tema, parole, quante) }.getOrDefault(emptyList()))
+        pronta = true
+    }
+    val frase = coda.firstOrNull()?.frase
     var fase by remember { mutableStateOf(Fase.FERMO) }
     var esito by remember { mutableStateOf<Esito?>(null) }
     var nota by remember { mutableStateOf<String?>(null) }
-    var ripasso by remember { mutableStateOf(false) }
     // La mia voce dell'ultimo tentativo, per «Riascoltami». Solo in memoria.
     var miaVoce by remember { mutableStateOf<ByteArray?>(null) }
     // La sessione: il punteggio migliore di ogni elemento provato.
@@ -119,25 +131,13 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
         }
     }
 
+    /** Avanti: una provata esce dalla coda, una mai provata va in fondo. */
     fun nuova() {
-        frase = Frasi.aCaso(ctx, livello, tema, frase?.id, parole)
+        val s0 = coda.removeFirstOrNull() ?: return
+        if (s0.frase.id !in migliori) coda.add(s0)
         esito = null
         miaVoce = null
         nota = null
-        ripasso = false
-    }
-
-    // Fase 6: una frase dallo storico, fra quelle da ripassare.
-    fun ripassa() {
-        scope.launch {
-            val r = runCatching { Ripasso.prossima(ctx, livello, tema, frase?.id, parole) }.getOrNull()
-            if (r == null) {
-                nota = if (parole) "Niente da ripassare per questo filtro: le parole andate male tornano qui da sole."
-                else "Niente da ripassare per questo filtro: le frasi andate male tornano qui da sole."
-            } else {
-                frase = r; esito = null; nota = null; ripasso = true; miaVoce = null
-            }
-        }
     }
 
     fun ascolta(lenta: Boolean) {
@@ -209,13 +209,13 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
 
     voto?.let { v ->
         Riepilogo(v, migliori.size, migliori.values.average(), parole, esitoObiettivo) {
-            migliori.clear(); voto = null; esitoObiettivo = null; nuova()
+            migliori.clear(); voto = null; esitoObiettivo = null; esito = null; miaVoce = null; nota = null; giro++
         }
         return
     }
 
     val provata = frase?.id?.let { it in migliori } == true
-    val finita = provata && migliori.size >= quante
+    val finita = provata && (migliori.size >= quante || coda.size <= 1)
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -225,18 +225,20 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
-            if (f == null) {
+            if (!pronta) {
+                Text("Scelgo ${if (parole) "le parole" else "le frasi"}…")
+            } else if (f == null) {
                 Text(if (parole) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.")
             } else {
-                if (ripasso) Text(
-                    "🔁 da ripassare",
+                coda.firstOrNull()?.peggiore?.let { v -> Text(
+                    "🔁 già fatta · voto più basso ${Math.round(v)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                ) }
                 TestoConTraduzione(f)
             }
 
-            // Due righe da due, larghe metà schermo: niente scorrimento di lato.
+            // Ascolta e Lenta affiancati, larghi metà schermo; sotto «Altra» da sola.
             val largo = Modifier.heightIn(min = 48.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { ascolta(false) }, enabled = libero && f != null, modifier = largo.weight(1f)) {
@@ -246,13 +248,8 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
                     Text("🐢 Lenta")
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { if (finita) concludi() else nuova() }, enabled = libero, modifier = largo.weight(1f)) {
-                    Text(if (finita) "🏁 Concludi" else "⏭ Altra")
-                }
-                OutlinedButton(onClick = { ripassa() }, enabled = libero && !finita, modifier = largo.weight(1f)) {
-                    Text("🔁 Ripasso")
-                }
+            OutlinedButton(onClick = { if (finita) concludi() else nuova() }, enabled = libero && f != null, modifier = largo.fillMaxWidth()) {
+                Text(if (finita) "🏁 Concludi" else "⏭ Altra")
             }
 
             Button(

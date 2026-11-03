@@ -22,8 +22,8 @@ data class StatoCiclo(
     val buone: Int = 0,
     val nota: String? = null,
     val inPausa: Boolean = false,
-    /** La frase in corso viene dal ripasso (fase 6). */
-    val ripasso: Boolean = false,
+    /** La frase in corso è già stata fatta: il suo voto più basso (v1.22.0). */
+    val peggiore: Double? = null,
     /** Un avviso che vale mentre il ciclo gira (es. cuffie non trovate). */
     val avviso: String? = null,
     /** Il giudizio dell'ultimo tentativo, per dire a schermo perché è da ripetere. */
@@ -61,7 +61,9 @@ data class StatoCiclo(
  * pausa la frase si rilegge da capo — a metà non vorrebbe dire niente — e i
  * tentativi già fatti restano.
  *
- * Fase 6: una frase ogni [Ripasso.OGNI] viene dal ripasso (vedi `Ripasso`).
+ * Gli elementi si scelgono tutti all'avvio (`Sessione.scegli`, v1.22.0): metà
+ * mai fatti e metà già fatti, dal voto più basso. «next» su uno mai provato lo
+ * manda in fondo alla coda, così la sessione resta di N.
  *
  * Una sessione è di `Prefs.quanteCiclo` elementi, letta all'avvio (v1.16.0):
  * conta un elemento con almeno un tentativo — un «next» su uno mai provato non
@@ -160,7 +162,8 @@ object Ciclo {
             stato.update { it.copy(esitoObiettivo = esito) }
         }
 
-        var precedente: String? = null
+        val coda = ArrayDeque(Sessione.scegli(ctx, p.livelloCiclo, p.temaCiclo, p.paroleCiclo, quante))
+        if (coda.isEmpty()) { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
         var silenzi = 0
         var tentativo = 0
 
@@ -232,21 +235,13 @@ object Ciclo {
         var lenta = false
         while (true) {
             if (frase == null) {
-                // Fase 6: una frase ogni Ripasso.OGNI è da ripassare, se ce n'è;
-                // altrimenti si resta sulle frasi a caso.
-                // Frasi o parole si rilegge qui, a ogni elemento nuovo: la
-                // scelta cambiata a ciclo acceso vale dal prossimo.
-                val soloParole = p.paroleCiclo
-                val n = stato.value.frasi + 1
-                val daRipassare = if (n % Ripasso.OGNI == 0)
-                    runCatching { Ripasso.prossima(ctx, p.livelloCiclo, p.temaCiclo, precedente, soloParole) }.getOrNull() else null
-                val nuova = daRipassare ?: Frasi.aCaso(ctx, p.livelloCiclo, p.temaCiclo, precedente, soloParole)
-                    ?: run { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
+                val n = migliori.size + 1
+                val scelta = coda.first()
+                val nuova = scelta.frase
                 frase = nuova
-                precedente = nuova.id
                 tentativo = 0
                 stato.update {
-                    it.copy(frase = nuova, tentativo = 0, ultimo = null, frasi = n, ripasso = daRipassare != null, verdetto = null)
+                    it.copy(frase = nuova, tentativo = 0, ultimo = null, frasi = n, peggiore = scelta.peggiore, verdetto = null)
                 }
             }
             val f = frase!!
@@ -256,7 +251,11 @@ object Ciclo {
             if ((fine == Fine.Avanti || (fine is Fine.Comandato && fine.c == Comando.AVANTI)) &&
                 migliori.size >= quante) { finisci(); return }
             when (fine) {
-                Fine.Avanti -> frase = null
+                Fine.Avanti -> {
+                    coda.removeFirst()
+                    if (coda.isEmpty()) { finisci(); return }
+                    frase = null
+                }
                 Fine.Silenzio -> {
                     stato.update { it.copy(nota = "Fermato: nessuna risposta per $SILENZI volte di fila.") }
                     di(Feedback.Cosa.PAUSA)
@@ -267,7 +266,13 @@ object Ciclo {
                     pausa.first { !it }
                 }
                 is Fine.Comandato -> when (fine.c) {
-                    Comando.AVANTI -> frase = null
+                    // Mai provata: in fondo alla coda, non fuori dalla sessione.
+                    Comando.AVANTI -> {
+                        val s0 = coda.removeFirst()
+                        if (s0.frase.id !in migliori) coda.addLast(s0)
+                        if (coda.isEmpty()) { finisci(); return }
+                        frase = null
+                    }
                     Comando.RIPETI -> Unit
                     Comando.LENTO -> lenta = true
                     Comando.FERMA -> {
