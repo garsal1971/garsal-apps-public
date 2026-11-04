@@ -3823,6 +3823,10 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   (`Feedback.Cosa.SOLO_PAROLE`) — e **«translate» / «translation»** — la traduzione di `pr_traduzioni` con
   la voce italiana, «Traduzione non disponibile» se manca. Dopo, la parola si rilegge e si aspetta il
   tentativo; ⚠️ nessuno dei due è un tentativo e non va nello storico (`Ciclo.aiuto`).
+- **Voto delle parole singole** (v1.24.0, `Valutatore.leggi`; nata in parallelo come 1.23.0 su un altro ramo e fusa con quella sotto): su una parola sola Azure a volte
+  restituisce fluidità e completezza a 0 con la parola riconosciuta, e il `PronScore` che le pesa
+  esce un quinto dell'accuratezza (55 → 11). In quel caso il voto è l'**accuratezza della parola**;
+  una parola `Omission` resta a zero. ⚠️ I tentativi già salvati restano col voto basso.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

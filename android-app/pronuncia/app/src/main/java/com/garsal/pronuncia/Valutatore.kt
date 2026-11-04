@@ -157,9 +157,19 @@ class Valutatore(private val azure: AzureToken) {
                 },
             )
         }
+        // ⚠️ Su una parola sola Azure a volte azzera fluidità e completezza
+        // pur avendo riconosciuto la parola (v1.23.0: 57 tentativi su 132), e il
+        // PronScore — che le pesa — esce un quinto dell'accuratezza: 55 → 11.
+        // Lì il voto è l'accuratezza della parola. Una parola saltata no: quella
+        // vale davvero zero.
+        val pron = pa.optDouble("PronScore", 0.0)
+        val dette = elenco.filter { it.errore != "Insertion" }
+        val azzerato = pa.optDouble("FluencyScore", 0.0) == 0.0 && pa.optDouble("CompletenessScore", 0.0) == 0.0
+        val voto = if (azzerato && dette.size == 1 && dette[0].errore != "Omission")
+            maxOf(pron, dette[0].accuratezza) else pron
         return Esito(
             riconosciuto = testo,
-            pronuncia = pa.optDouble("PronScore", 0.0),
+            pronuncia = voto,
             accuratezza = pa.optDouble("AccuracyScore", 0.0),
             fluidita = pa.optDouble("FluencyScore", 0.0),
             completezza = pa.optDouble("CompletenessScore", 0.0),
