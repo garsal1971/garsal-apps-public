@@ -2,8 +2,8 @@
   "app": "AppSfera Web",
   "version": "1.2.8",
   "versionCode": 51,
-  "builtAt": "2026-11-04T14:18:28Z",
-  "commit": "56478d050a79c75adb18eace1a63f3784814b394",
+  "builtAt": "2026-11-04T21:07:30Z",
+  "commit": "8a02941b5245e34d01419d9698c86c071caee46a",
   "bytes": 57457191,
-  "sha256": "119c5e2ab6ee1dc22b1db70ca27c22da13cb4aea7116f3448f48bcc280f0d53d"
+  "sha256": "c532e482003ca819b68c04d6a90a9c3f8594a5fbc66d2936a59d647de94c8438"
 }
