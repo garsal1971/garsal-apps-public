@@ -3809,6 +3809,10 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   ⚠️ «⏭ Altra» / «next» su un elemento mai provato lo manda **in fondo alla coda**, non fuori: la
   sessione resta di N e non torna mai la stessa parola. Nessuna tabella: tutto dallo storico.
   Bip portato a **300 ms**.
+- **Voto delle parole singole** (v1.23.0, `Valutatore.leggi`): su una parola sola Azure a volte
+  restituisce fluidità e completezza a 0 con la parola riconosciuta, e il `PronScore` che le pesa
+  esce un quinto dell'accuratezza (55 → 11). In quel caso il voto è l'**accuratezza della parola**;
+  una parola `Omission` resta a zero. ⚠️ I tentativi già salvati restano col voto basso.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
