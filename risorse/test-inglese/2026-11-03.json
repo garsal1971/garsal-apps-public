@@ -1,0 +1,42 @@
+{
+  "id": "2026-11-03",
+  "livello": "B1",
+  "grammatica": [
+    { "q": "If I ___ more free time, I would learn to cook properly.", "opts": ["have", "had", "has", "having"], "ok": 1 },
+    { "q": "I've worked for the same company ___ 2010.", "opts": ["for", "from", "during", "since"], "ok": 3 },
+    { "q": "She asked me where ___.", "opts": ["I lived", "did I live", "do I live", "I do live"], "ok": 0 },
+    { "q": "By the time we arrived, the film ___.", "opts": ["has started", "will start", "had started", "was start"], "ok": 2 },
+    { "q": "You ___ wear a suit tomorrow; the meeting is informal.", "opts": ["mustn't", "can't", "needn't", "won't"], "ok": 2 },
+    { "q": "I'm not used to ___ up so early.", "opts": ["getting", "get", "got", "gets"], "ok": 0 },
+    { "q": "This is the restaurant ___ we had our first dinner together.", "opts": ["which", "who", "what", "where"], "ok": 3 },
+    { "q": "I'd rather you ___ smoke in the car, please.", "opts": ["don't", "didn't", "won't", "haven't"], "ok": 1 },
+    { "q": "The report ___ by Friday at the latest.", "opts": ["must be finished", "must finish it", "must be finishing", "must have finish"], "ok": 0 },
+    { "q": "It's the ___ film I've seen this year.", "opts": ["worse", "baddest", "worst", "badder"], "ok": 2 }
+  ],
+  "lettura": {
+    "titolo": "The Tuesday Club",
+    "testo": "When Marco moved to Leeds for work, he thought his English was good enough. He had passed exams, read technical manuals and written hundreds of emails. But on his first evening at the pub with his new colleagues, he understood almost nothing. People spoke fast, dropped the ends of words and laughed at jokes he could not follow. He smiled, nodded and went home early, feeling tired and a little embarrassed.\n\nFor the next few weeks he avoided social events. Then his neighbour, a retired teacher called Margaret, told him about a conversation club that met every Tuesday in the local library. \"No grammar lessons,\" she said. \"Just people talking over a cup of tea.\" Marco was not convinced, but he decided to try it once.\n\nThe club was small: a Polish nurse, two Brazilian students, a Japanese engineer and a few local volunteers. Each week they chose a simple topic, such as food, holidays or something in the news, and talked in small groups. The volunteers did not correct every mistake. Instead, they repeated what people said in a more natural way, and Marco slowly started to hear the difference.\n\nAfter three months, something had changed. He still made mistakes, but he no longer panicked when he did not understand. He learned to say \"Sorry, could you say that again?\" without feeling stupid. At work, he began to join the conversation at lunch instead of eating alone at his desk.\n\nMarco now says the club taught him something his exams never did: speaking is not a test. It is a way of being with people.",
+    "domande": [
+      { "q": "Why did Marco leave the pub early on his first evening?", "opts": ["He had to finish some work emails.", "He couldn't follow what people were saying.", "His colleagues were not very friendly.", "He didn't like the atmosphere of the pub."], "ok": 1 },
+      { "q": "Who told Marco about the conversation club?", "opts": ["A colleague from his office.", "A teacher at the local library.", "The woman who lived near him.", "One of the Brazilian students."], "ok": 2 },
+      { "q": "How did the volunteers help the learners?", "opts": ["They corrected every grammar mistake.", "They gave short lessons on vocabulary.", "They said the learners' ideas again in a more natural way.", "They chose difficult topics from the news."], "ok": 2 },
+      { "q": "What was the most important change after three months?", "opts": ["He stopped making mistakes.", "He was no longer afraid when he didn't understand.", "He started eating lunch at his desk.", "He passed another English exam."], "ok": 1 },
+      { "q": "What is the main idea of the text?", "opts": ["Exams are the best way to learn a language.", "Living abroad is always difficult at the beginning.", "Speaking is about connecting with people, not passing a test.", "Libraries are good places to meet new friends."], "ok": 2 }
+    ]
+  },
+  "ascolto": {
+    "intro": "You will hear a voice message from Claire to her friend Sam.",
+    "testo": "Hi Sam, it's Claire. Listen, about Saturday, there's been a change of plan. The restaurant on Park Street called this morning. They've had a problem in the kitchen, so they've cancelled our booking. Annoying, I know. Anyway, Tom suggested an Indian place near the station instead, and they can take us at half past seven, not eight. Is that OK for you? Oh, and we're only eight people now, not ten, because Lucy and her husband can't come. Their little boy isn't well. If you're driving, don't park at the station, it's really expensive in the evening. There's a free car park behind the cinema, about five minutes' walk away. Could you text me by Thursday to confirm? And if you fancy it, a few of us are meeting for a drink at the Red Lion before dinner, around half six. Right, I think that's everything. Speak soon. Bye!",
+    "domande": [
+      { "q": "Why was the first booking cancelled?", "opts": ["The restaurant was full.", "There was a problem in the kitchen.", "Tom wanted Indian food.", "Claire changed the date."], "ok": 1 },
+      { "q": "What time is dinner now?", "opts": ["At 6.30.", "At 7.00.", "At 7.30.", "At 8.00."], "ok": 2 },
+      { "q": "How many people are going to the dinner?", "opts": ["Six.", "Eight.", "Ten.", "Twelve."], "ok": 1 },
+      { "q": "Where does Claire suggest Sam should park?", "opts": ["At the station.", "In Park Street.", "Behind the cinema.", "Near the Red Lion."], "ok": 2 },
+      { "q": "What does Claire ask Sam to do?", "opts": ["Call the restaurant.", "Book a table at the pub.", "Text her by Thursday.", "Bring Lucy and her husband."], "ok": 2 }
+    ]
+  },
+  "scrittura": {
+    "consegna": "You have just joined a conversation club in your city. Write an email to the organiser (120–150 words).",
+    "punti": ["a short introduction about yourself and your job", "why you want to improve your spoken English", "two topics you would like to talk about", "one question about how the club works"]
+  }
+}

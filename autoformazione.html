@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-formazione v1.0.0</title>
+    <title>Auto-formazione v1.2.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -82,6 +82,8 @@
                 padding: 0.1rem 0.6rem; color: #fff; background: var(--primary); }
         .voto.basso { background: var(--danger); }
         .voto.medio { background: var(--warning); }
+        .voto-input { width: 6rem; min-height: 2.8rem; font: inherit; font-size: 1.2rem; font-weight: 700; padding: 0.3rem 0.5rem;
+                      border: 2px solid var(--border); background: var(--input-bg); text-align: center; }
         .voto.mini { font-size: 0.9rem; padding: 0 0.45rem; }
         .ia-chi { font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; padding: 0.05rem 0.45rem; background: var(--dark); color: #fff; }
         .md { line-height: 1.35; }
@@ -98,6 +100,38 @@
         .ex details { margin-top: 0.3rem; }
         .ex summary { cursor: pointer; font-weight: 700; color: var(--primary); }
         .icon-btn { border: none; background: none; font-size: 1.3rem; cursor: pointer; min-width: 2.4rem; min-height: 2.4rem; }
+
+        /* 📝 Test inglese */
+        .t-sez { border: 2px solid var(--border); padding: 0.9rem; margin-top: 1rem; }
+        .t-sez-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+                      border-bottom: 2px solid var(--dark); padding-bottom: 0.3rem; margin-bottom: 0.6rem; }
+        .t-sez-head h3 { font-size: 1.4rem; font-weight: 900; }
+        .t-pt { font-family: 'Space Mono', monospace; font-size: 0.85rem; color: var(--muted); }
+        .t-q { padding: 0.6rem 0; border-top: 1px solid var(--border); }
+        .t-q:first-of-type { border-top: 0; }
+        .t-q-testo { font-weight: 700; margin-bottom: 0.35rem; }
+        .t-q-testo .n { font-family: 'Space Mono', monospace; font-weight: 400; color: var(--primary); margin-right: 0.4rem; }
+        .t-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.4rem; }
+        .t-opts.lunghe { grid-template-columns: 1fr; }
+        .t-opt { display: flex; gap: 0.5rem; align-items: flex-start; border: 2px solid var(--border); padding: 0.4rem 0.6rem;
+                 cursor: pointer; line-height: 1.25; min-height: 2.6rem; }
+        .t-opt input { margin-top: 0.25rem; accent-color: var(--primary); }
+        .t-opt:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
+        .t-opt.giusta { border-color: var(--success); background: #E3F6EF; }
+        .t-opt.sbagliata { border-color: var(--danger); background: #FCE8E6; }
+        .t-lettura { line-height: 1.4; max-width: 42rem; }
+        .t-lettura p { margin: 0 0 0.6rem; }
+        .t-player { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; background: var(--primary-soft); padding: 0.7rem; margin-bottom: 0.6rem; }
+        .t-consegna { border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        .t-consegna ul { margin: 0.3rem 0 0 1.3rem; }
+        .t-wc { text-align: right; font-family: 'Space Mono', monospace; font-size: 0.85rem; color: var(--muted); }
+        .t-wc.ok { color: var(--success); }
+        .t-punti { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.5rem; margin-bottom: 0.6rem; }
+        .t-punto { border: 2px solid var(--border); padding: 0.4rem 0.6rem; }
+        .t-punto .lab { font-size: 0.9rem; color: var(--muted); font-weight: 700; }
+        .t-punto .val { font-family: 'Space Mono', monospace; font-size: 1.3rem; font-weight: 700; }
+        .t-punto.tot { border-color: var(--primary); }
+        .t-andamento { width: 100%; height: auto; max-height: 11rem; margin: 0.3rem 0 0.8rem; }
 
         #authOverlay {
             position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 2500;
@@ -155,15 +189,27 @@
         <div id="azioneNota" class="nota"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="modoEsercizio">
         <label class="form-label" for="testo">✍️ Testo dell'esercizio</label>
         <textarea id="testo" class="form-input" oninput="testoCambiato()" placeholder="Incolla o scrivi qui il testo…"></textarea>
 
         <label class="form-label" for="motore">🤖 Motore IA</label>
         <select id="motore" class="form-input" onchange="ricordaFornitore(this.value)"></select>
 
-        <button id="btnCorreggi" class="btn btn-primary btn-wide" onclick="correggi()">🚀 Correggi</button>
+        <div class="row" style="margin-top:0.9rem">
+            <button id="btnCorreggi" class="btn btn-primary grow" style="font-size:1.2rem" onclick="correggi()">🚀 Correggi</button>
+            <button id="btnChiedoIo" class="btn grow" style="font-size:1.2rem" onclick="chiedoIo()">✋ Chiedo io</button>
+        </div>
+        <div class="nota">✋ Chiedo io copia prompt e testo: li incolli tu in una chat IA e poi incolli qui la risposta.</div>
         <div id="risultato"></div>
+    </div>
+
+    <!-- 📝 Test inglese: i contenuti stanno in /risorse/test-inglese/, uno per file. -->
+    <div class="card" id="modoTest" hidden>
+        <label class="form-label" for="testScelto">📝 Quale test</label>
+        <select id="testScelto" class="form-input" onchange="apriTest(this.value)"></select>
+        <div class="nota">Quattro parti da 25 punti. Grammatica, comprensione e ascolto si correggono da soli; la scrittura la corregge l'IA col prompt qui sopra.</div>
+        <div id="testCorpo"></div>
     </div>
 
     <div class="page-title" style="font-size:1.8rem">🗂 Esercizi fatti</div>
@@ -176,8 +222,8 @@
 // ════════════════════════════════════════════════════════════
 // AUTO-FORMAZIONE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-10-28T10:00:00Z';
+var APP_VERSION = 'v1.2.1';
+var BUILD_TIME  = '2026-11-04T14:30:00Z';
 console.log('%c 🎓 AUTO-FORMAZIONE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#00796B;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -207,7 +253,12 @@ const FUNZIONE = `${SUPABASE_URL}/functions/v1/af-ai`;
 const TIPI = [
     { key: 'inglese_mail', name: '✉️ Esercizi inglese mail',
       prompt: "Sei un insegnante di inglese commerciale. Correggi la mail che segue: elenca gli errori di grammatica, lessico e tono, spiega ciascuno in italiano, poi riscrivi la mail corretta in un inglese professionale e naturale." },
+    // ⚠️ Il prompt è quello della sola SCRITTURA: le altre tre parti si
+    // correggono da sé. Le righe CONTENUTO…/SCRITTURA: le legge leggiScrittura().
+    { key: 'test_inglese', name: '📝 Test inglese', test: true,
+      prompt: "Sei un esaminatore di inglese (livello B1). Correggi il testo scritto dallo studente per la consegna indicata. Usa questa griglia: Contenuto da 0 a 6, Organizzazione da 0 a 6, Grammatica da 0 a 7, Lessico da 0 a 6. Segnala al massimo 5 errori, ciascuno con la forma corretta e una spiegazione breve in italiano. Rispondi in italiano, in modo breve. Poi scrivi, ciascuna su una riga a sé:\nCONTENUTO: <n>/6\nORGANIZZAZIONE: <n>/6\nGRAMMATICA: <n>/7\nLESSICO: <n>/6\nSCRITTURA: <somma>/25" },
 ];
+const IDX_TEST = '/risorse/test-inglese/';
 
 const S = {
     tipi: [],            // righe di af_exercise_types, nell'ordine di TIPI
@@ -217,6 +268,7 @@ const S = {
     fornitori: null,
     inCorso: false,
     correzione: null,    // { prompt, testo, answer, voto, provider, model } in attesa di conferma
+    test: { elenco: null, id: null, dati: null, ascolti: 2, esito: null },
 };
 let sb = null;
 
@@ -384,17 +436,21 @@ function renderTabs() {
 async function apriTipo(key) {
     if (key === S.tipoKey) return;
     if (promptCambiato() && !confirm('Il prompt è cambiato e non è salvato: lo butto via?')) return;
-    S.tipoKey = key; S.correzione = null;
+    S.tipoKey = key; S.correzione = null; S.test.esito = null;
     document.getElementById('testo').value = '';
     document.getElementById('risultato').innerHTML = '';
     renderTabs(); renderTipo();
     await caricaEsercizi();
 }
 function renderTipo() {
-    const t = tipo();
+    const t = tipo(), cfg = TIPI.find(x => x.key === t?.key);
     document.getElementById('prompt').value = t?.prompt || '';
     segnaPromptCambiato();
     renderAzioni();
+    const eTest = !!cfg?.test;
+    document.getElementById('modoEsercizio').hidden = eTest;
+    document.getElementById('modoTest').hidden = !eTest;
+    if (eTest) caricaElencoTest();
 }
 function promptCambiato() { return (document.getElementById('prompt').value || '') !== (tipo()?.prompt || ''); }
 function segnaPromptCambiato() {
@@ -462,8 +518,9 @@ function elencoFornitori() { return S.fornitori?.length ? S.fornitori : FORNITOR
 function renderMotori() {
     const elenco = elencoFornitori(), r = fornitoreRicordato();
     const scelto = elenco.some(f => f.id === r) ? r : (elenco[0]?.id || 'gemini');
-    document.getElementById('motore').innerHTML = elenco.map(f =>
+    const html = elenco.map(f =>
         `<option value="${f.id}" ${f.id === scelto ? 'selected' : ''}>🤖 ${esc(f.nome)}${AVVISO_COSTO[f.id] ? ' 💶' : ''}</option>`).join('');
+    for (const id of ['motore', 'motoreTest']) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
 }
 async function caricaFornitori() {
     renderMotori();
@@ -493,6 +550,67 @@ function testoCambiato() {
     }
 }
 
+// ⚠️ Gemella di CODA_VOTO / leggiVoto() in supabase/functions/af-ai: la
+// richiesta del voto e la regex che lo legge vanno cambiate insieme, o
+// «Chiedo io» chiederebbe una forma che la pagina non sa più leggere.
+const CODA_VOTO =
+    '\n\nAl termine della correzione scrivi, su una riga a sé e come ultima riga, ' +
+    'il voto complessivo da 1 a 10 (numero intero) esattamente in questa forma:\n' +
+    'VOTO: <numero>/10';
+function leggiVoto(testo) {
+    const tutti = [...String(testo || '').matchAll(/VOTO\**\s*[:=]\s*\**\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:\/\s*10)?/gi)];
+    if (!tutti.length) return null;
+    const n = Math.round(Number(tutti[tutti.length - 1][1].replace(',', '.')));
+    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
+}
+
+async function copiaNegliAppunti(testo) {
+    try { await navigator.clipboard.writeText(testo); return true; } catch {}
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = testo; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+    } catch { return false; }
+}
+
+/** ✋ Chiedo io: la correzione la si chiede a mano a un'IA qualsiasi. */
+async function chiedoIo() {
+    if (S.inCorso) return;
+    const prompt = document.getElementById('prompt').value.trim();
+    const testo  = document.getElementById('testo').value.trim();
+    if (!prompt) { showToast('Scrivi il prompt di correzione'); return; }
+    if (!testo)  { showToast("Scrivi il testo dell'esercizio"); return; }
+    const richiesta = `${prompt}${CODA_VOTO}\n\n--- TESTO DELL'ESERCIZIO ---\n${testo}`;
+    const copiato = await copiaNegliAppunti(richiesta);
+    S.correzione = { prompt, testo, answer: '', voto: null, provider: 'manuale', model: null, manuale: true, richiesta, copiato };
+    renderCorrezione();
+    showToast(copiato ? '📋 Prompt e testo copiati: incollali nella tua chat IA' : 'Copia non riuscita: copia il testo dal riquadro', 4000);
+}
+function manualeCambiato() {
+    const c = S.correzione; if (!c?.manuale) return;
+    c.answer = document.getElementById('rispostaManuale').value;
+    const letto = leggiVoto(c.answer);
+    const box = document.getElementById('votoManuale');
+    // Il voto letto si propone solo finché la casella non l'ha toccata la mano.
+    if (letto && !box.dataset.toccato) box.value = letto;
+    votoManualeCambiato(false);
+}
+function votoManualeCambiato(aMano = true) {
+    const c = S.correzione; if (!c?.manuale) return;
+    const box = document.getElementById('votoManuale');
+    if (aMano) box.dataset.toccato = '1';
+    const n = Number(box.value);
+    c.voto = Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
+    const ok = !!c.voto && !!c.answer.trim();
+    document.getElementById('btnConferma').disabled = !ok;
+    document.getElementById('manualeNota').textContent = !c.answer.trim()
+        ? 'Incolla la risposta per poter confermare.'
+        : !c.voto ? 'Scrivi un voto intero da 1 a 10 per poter confermare.' : '';
+}
+
 async function correggi() {
     if (S.inCorso) return;
     const prompt = document.getElementById('prompt').value.trim();
@@ -505,6 +623,7 @@ async function correggi() {
     S.inCorso = true; S.correzione = null;
     const btn = document.getElementById('btnCorreggi'), out = document.getElementById('risultato');
     btn.disabled = true;
+    document.getElementById('btnChiedoIo').disabled = true;
     out.innerHTML = '<div class="ia-wait">⏳ Correzione in corso…</div>';
     try {
         const r = await fetch(FUNZIONE, {
@@ -521,12 +640,30 @@ async function correggi() {
         out.innerHTML = `<div class="form-error">❌ ${esc(e.message)}</div>`;
     } finally {
         S.inCorso = false; btn.disabled = false;
+        document.getElementById('btnChiedoIo').disabled = false;
     }
 }
 
 function renderCorrezione() {
     const c = S.correzione, out = document.getElementById('risultato');
     if (!c) { out.innerHTML = ''; return; }
+    if (c.manuale) {
+        out.innerHTML = `
+        <div class="esito">
+            <div class="form-label" style="margin-top:0">📋 Da incollare nella tua chat IA ${c.copiato ? '<span class="muted" style="font-weight:500">(già copiato)</span>' : ''}</div>
+            <textarea class="form-input" readonly style="min-height:5rem" onclick="this.select()">${esc(c.richiesta)}</textarea>
+            <button class="btn" style="margin-top:0.4rem" onclick="copiaNegliAppunti(S.correzione.richiesta).then(ok => showToast(ok ? '📋 Copiato' : 'Copia non riuscita'))">📋 Copia di nuovo</button>
+            <label class="form-label" for="rispostaManuale">✍️ Risposta dell'IA</label>
+            <textarea id="rispostaManuale" class="form-input" oninput="manualeCambiato()" placeholder="Incolla qui la correzione…">${esc(c.answer)}</textarea>
+            <label class="form-label" for="votoManuale">Voto (1-10)</label>
+            <input id="votoManuale" class="voto-input" type="number" min="1" max="10" step="1" inputmode="numeric"
+                   value="${c.voto ?? ''}" oninput="votoManualeCambiato()">
+            <div id="manualeNota" class="nota avviso"></div>
+        </div>
+        <button id="btnConferma" class="btn btn-conferma btn-wide" onclick="conferma()" disabled>✅ Conferma e salva</button>`;
+        votoManualeCambiato(false);
+        return;
+    }
     // ⚠️ Senza un voto leggibile la conferma resta spenta: si rifà la correzione.
     const votoHtml = c.voto
         ? `<span class="voto ${classeVoto(c.voto)}">${c.voto}/10</span>`
@@ -541,7 +678,7 @@ function renderCorrezione() {
 
 async function conferma() {
     const c = S.correzione, t = tipo();
-    if (!c || !c.voto || !t) return;
+    if (!c || !c.voto || !t || !String(c.answer || '').trim()) return;
     const azioneId = t.ob_action_id && S.azioni.some(a => a.id === t.ob_action_id) ? t.ob_action_id : null;
     if (!azioneId && !confirm('Nessuna azione di Obiettivi aperta è collegata a questo tipo di esercizio.\n\nSalvo solo l\'esercizio?')) return;
     const btn = document.getElementById('btnConferma');
@@ -582,6 +719,7 @@ async function conferma() {
 // ════════════════════════════════════════════════════════════
 function renderStorico() {
     const el = document.getElementById('storico');
+    if (TIPI.find(x => x.key === S.tipoKey)?.test) { renderStoricoTest(el); renderSceltaTest(); return; }
     if (!S.esercizi.length) { el.innerHTML = '<div class="muted">Nessun esercizio ancora.</div>'; return; }
     const media = S.esercizi.filter(e => e.voto).reduce((s, e, _, a) => s + e.voto / a.length, 0);
     el.innerHTML = `<div class="nota" style="margin-bottom:0.6rem">${S.esercizi.length} esercizi · voto medio ${media.toFixed(1).replace('.', ',')}/10</div>`
@@ -607,6 +745,367 @@ async function eliminaEsercizio(id) {
         S.esercizi = S.esercizi.filter(e => e.id !== id);
         renderStorico();
     } catch (e) { showToast('Errore: ' + e.message, 5000); }
+}
+
+// ════════════════════════════════════════════════════════════
+// 📝 TEST INGLESE — quattro parti da 25 punti.
+// I contenuti sono file JSON in /risorse/test-inglese/ (li scrive la skill
+// test-inglese), elencati in indice.json dal più vecchio al più nuovo.
+// ⚠️ Lo storico sta in af_exercises come gli altri esercizi: la prima riga
+// della risposta è «TOTALE: n/100 · G … · C … · A … · S … · test <id>»,
+// ed è quella che renderStoricoTest() legge. Non cambiarla da una parte sola.
+// ════════════════════════════════════════════════════════════
+const RE_TOTALE = /TOTALE:\s*(\d+(?:[.,]\d+)?)\s*\/\s*100.*?test\s+(\S+)/i;
+const fmtPt = n => (Math.round(n * 10) / 10).toString().replace('.', ',');
+const parole = s => (String(s || '').trim().match(/\S+/g) || []).length;
+
+async function caricaElencoTest() {
+    const corpo = document.getElementById('testCorpo');
+    if (S.test.elenco) { renderSceltaTest(); if (S.test.dati) return; }
+    corpo.innerHTML = '<div class="ia-wait">⏳ Carico i test…</div>';
+    try {
+        const r = await fetch(IDX_TEST + 'indice.json', { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        S.test.elenco = (await r.json()).test || [];
+    } catch (e) { corpo.innerHTML = `<div class="form-error">❌ Non trovo l'elenco dei test: ${esc(e.message)}</div>`; return; }
+    if (!S.test.elenco.length) { corpo.innerHTML = '<div class="muted">Nessun test pubblicato.</div>'; return; }
+    const fatti = idTestFatti();
+    const libero = [...S.test.elenco].reverse().find(t => !fatti.has(t.id));
+    await apriTest((libero || S.test.elenco[S.test.elenco.length - 1]).id);
+}
+function idTestFatti() {
+    return new Set(S.esercizi.map(e => (String(e.answer || '').match(RE_TOTALE) || [])[2]).filter(Boolean));
+}
+function renderSceltaTest() {
+    const sel = document.getElementById('testScelto');
+    if (!sel || !S.test.elenco) return;
+    const fatti = idTestFatti();
+    sel.innerHTML = [...S.test.elenco].reverse().map(t =>
+        `<option value="${esc(t.id)}" ${t.id === S.test.id ? 'selected' : ''}>${fatti.has(t.id) ? '✅ ' : ''}${esc(t.titolo || t.id)}</option>`).join('');
+}
+async function apriTest(id) {
+    const voce = S.test.elenco?.find(t => t.id === id); if (!voce) return;
+    if (S.test.dati && S.test.id !== id && !S.test.esito && document.getElementById('tScrittura')?.value.trim()
+        && !confirm('Cambio test? Quel che hai scritto si perde.')) { renderSceltaTest(); return; }
+    const corpo = document.getElementById('testCorpo');
+    corpo.innerHTML = '<div class="ia-wait">⏳ Carico il test…</div>';
+    try {
+        const r = await fetch(IDX_TEST + voce.file, { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        S.test.dati = await r.json();
+    } catch (e) { corpo.innerHTML = `<div class="form-error">❌ Test non leggibile: ${esc(e.message)}</div>`; return; }
+    S.test.id = id; S.test.ascolti = 2; S.test.esito = null;
+    try { speechSynthesis.cancel(); } catch {}
+    renderSceltaTest(); renderTest();
+}
+
+function domandeHtml(pref, arr, lunghe) {
+    return arr.map((q, i) => `
+        <div class="t-q">
+            <div class="t-q-testo"><span class="n">${String(i + 1).padStart(2, '0')}</span>${esc(q.q)}</div>
+            <div class="t-opts ${lunghe ? 'lunghe' : ''}">${q.opts.map((o, j) => `
+                <label class="t-opt" id="${pref}${i}_${j}"><input type="radio" name="${pref}${i}" value="${j}" id="in-${pref}${i}_${j}">${esc(o)}</label>`).join('')}
+            </div>
+        </div>`).join('');
+}
+function renderTest() {
+    const d = S.test.dati, corpo = document.getElementById('testCorpo');
+    const sc = d.scrittura || {};
+    corpo.innerHTML = `
+        <div class="t-sez"><div class="t-sez-head"><h3>1 · Grammar</h3><span class="t-pt">10 × 2,5 pt</span></div>
+            <div class="nota" style="margin:0 0 0.4rem">Choose the correct option.</div>
+            ${domandeHtml('g', d.grammatica, false)}</div>
+        <div class="t-sez"><div class="t-sez-head"><h3>2 · Reading</h3><span class="t-pt">5 × 5 pt</span></div>
+            <div class="t-lettura"><h4 style="margin-bottom:0.4rem">${esc(d.lettura.titolo || '')}</h4>
+                ${String(d.lettura.testo).split(/\n\s*\n/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
+            ${domandeHtml('r', d.lettura.domande, true)}</div>
+        <div class="t-sez"><div class="t-sez-head"><h3>3 · Listening</h3><span class="t-pt">5 × 5 pt</span></div>
+            <div class="nota" style="margin:0 0 0.5rem">${esc(d.ascolto.intro || '')} Puoi ascoltarlo <b>due volte</b>: leggi prima le domande.</div>
+            <div class="t-player"><button id="btnAscolta" class="btn btn-primary" onclick="ascolta()">▶ Ascolta</button>
+                <span id="tAscolti" class="t-pt">Ascolti rimasti: ${S.test.ascolti}</span></div>
+            <div id="tVoce" class="nota"></div>
+            ${domandeHtml('l', d.ascolto.domande, true)}</div>
+        <div class="t-sez"><div class="t-sez-head"><h3>4 · Writing</h3><span class="t-pt">25 pt · la corregge l'IA</span></div>
+            <div class="t-consegna">${esc(sc.consegna || '')}${sc.punti?.length ? `<ul>${sc.punti.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}</div>
+            <textarea id="tScrittura" class="form-input" style="margin-top:0.6rem;min-height:12rem" oninput="scritturaCambiata()" placeholder="Dear …"></textarea>
+            <div id="tWc" class="t-wc">0 parole</div></div>
+        <label class="form-label" for="motoreTest">🤖 Motore IA per la scrittura</label>
+        <select id="motoreTest" class="form-input" onchange="ricordaFornitore(this.value)"></select>
+        <div class="row" style="margin-top:0.9rem">
+            <button id="btnCorreggiTest" class="btn btn-primary grow" style="font-size:1.2rem" onclick="correggiTest()">🚀 Correggi il test</button>
+            <button id="btnChiedoIoTest" class="btn grow" style="font-size:1.2rem" onclick="chiedoIoTest()">✋ Chiedo io</button>
+        </div>
+        <div class="nota">✋ Chiedo io copia prompt, consegna e scrittura: li incolli tu in una chat IA e poi incolli qui la risposta.</div>
+        <div id="tEsito"></div>`;
+    renderMotori(); scegliVoce();
+}
+
+let voceGB = null;
+function scegliVoce() {
+    const nota = document.getElementById('tVoce');
+    if (!('speechSynthesis' in window)) {
+        if (nota) nota.textContent = 'Questo browser non legge ad alta voce: prova con Chrome o Edge sul PC.';
+        const b = document.getElementById('btnAscolta'); if (b) b.disabled = true;
+        return;
+    }
+    const prova = () => {
+        const vs = speechSynthesis.getVoices();
+        voceGB = vs.find(v => v.lang === 'en-GB' && /female|sonia|libby|kate|serena|google uk english female/i.test(v.name))
+              || vs.find(v => /^en[-_]GB/i.test(v.lang)) || null;
+        const n = document.getElementById('tVoce');
+        if (n) n.textContent = voceGB ? 'Voce: ' + voceGB.name : 'Nessuna voce britannica nel browser: uso quella inglese predefinita.';
+    };
+    prova(); speechSynthesis.onvoiceschanged = prova;
+}
+function ascolta() {
+    if (S.test.ascolti <= 0 || !S.test.dati) return;
+    const b = document.getElementById('btnAscolta');
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(S.test.dati.ascolto.testo);
+    u.lang = 'en-GB'; if (voceGB) u.voice = voceGB; u.rate = 0.95;
+    S.test.ascolti--;
+    document.getElementById('tAscolti').textContent = 'Ascolti rimasti: ' + S.test.ascolti;
+    b.disabled = true; b.textContent = '… in ascolto';
+    u.onend = u.onerror = () => {
+        b.textContent = S.test.ascolti > 0 ? '▶ Ascolta di nuovo' : 'Ascolti finiti';
+        b.disabled = S.test.ascolti <= 0;
+    };
+    speechSynthesis.speak(u);
+}
+
+function scritturaCambiata() {
+    const n = parole(document.getElementById('tScrittura').value), wc = document.getElementById('tWc');
+    wc.textContent = n + ' parole' + (n < 120 ? ' · minimo 120' : n > 150 ? ' · oltre 150' : '');
+    wc.className = 't-wc' + (n >= 120 && n <= 150 ? ' ok' : '');
+    // Una correzione vale per il testo che ha corretto.
+    if (S.test.esito && document.getElementById('tScrittura').value.trim() !== S.test.esito.testo) {
+        S.test.esito = null;
+        document.getElementById('tEsito').innerHTML = '<div class="nota avviso" style="margin-top:0.8rem">La scrittura è cambiata: rifai la correzione per poterla confermare.</div>';
+    }
+}
+
+/** Punteggio di una parte a scelta multipla, senza toccare la pagina. */
+function puntiParte(pref, arr, ptEach) {
+    let pt = 0; const errori = [], vuote = [];
+    arr.forEach((q, i) => {
+        const sel = document.querySelector(`input[name="${pref}${i}"]:checked`);
+        const v = sel ? Number(sel.value) : null;
+        if (v === null) vuote.push(i);
+        if (v === q.ok) pt += ptEach;
+        else errori.push(`${pref.toUpperCase()}${i + 1}: ${v === null ? '(nessuna)' : q.opts[v]} → ${q.opts[q.ok]}`);
+    });
+    return { pt, errori, vuote };
+}
+function coloraParte(pref, arr) {
+    arr.forEach((q, i) => q.opts.forEach((_, j) => {
+        const lab = document.getElementById(`${pref}${i}_${j}`); if (!lab) return;
+        const inp = lab.querySelector('input'); inp.disabled = true;
+        lab.classList.toggle('giusta', j === q.ok);
+        lab.classList.toggle('sbagliata', inp.checked && j !== q.ok);
+    }));
+}
+/** I punti della scrittura dalla risposta dell'IA: SCRITTURA: n/25, o la somma delle quattro voci. */
+function leggiScrittura(a) {
+    const num = re => { const m = [...String(a || '').matchAll(re)].pop(); return m ? Number(m[1].replace(',', '.')) : null; };
+    const tot = num(/SCRITTURA\**\s*[:=]\s*\**\s*(\d{1,2}(?:[.,]\d+)?)\s*\/\s*25/gi);
+    if (tot !== null && tot >= 0 && tot <= 25) return tot;
+    const voci = [/CONTENUTO\**\s*[:=]\s*\**\s*(\d(?:[.,]\d+)?)/gi, /ORGANIZZAZIONE\**\s*[:=]\s*\**\s*(\d(?:[.,]\d+)?)/gi,
+                  /GRAMMATICA\**\s*[:=]\s*\**\s*(\d(?:[.,]\d+)?)/gi, /LESSICO\**\s*[:=]\s*\**\s*(\d(?:[.,]\d+)?)/gi].map(num);
+    return voci.every(v => v !== null) ? Math.min(25, voci.reduce((s, v) => s + v, 0)) : null;
+}
+
+/** Controlli comuni prima di correggere: scrittura presente, domande vuote confermate. */
+function pronteTest() {
+    const d = S.test.dati;
+    const testo = document.getElementById('tScrittura').value.trim();
+    if (!testo) { showToast('Scrivi la parte 4 prima di correggere'); return null; }
+    const vuote = ['g', 'r', 'l'].reduce((n, p, k) => n + puntiParte(p, [d.grammatica, d.lettura.domande, d.ascolto.domande][k], 1).vuote.length, 0);
+    if (vuote && !confirm(`${vuote} domande senza risposta: valgono zero.\n\nCorreggo lo stesso?`)) return null;
+    return testo;
+}
+
+// ⚠️ La forma «SCRITTURA: n/25» è quella che leggiScrittura() sa leggere.
+const CODA_SCRITTURA = '\n\nAlla fine scrivi, su una riga a sé, il punteggio della scrittura nella forma esatta «SCRITTURA: n/25».';
+
+/** ✋ Chiedo io sul test: la scrittura la si fa correggere a mano a un'IA qualsiasi. */
+async function chiedoIoTest() {
+    if (S.inCorso || !S.test.dati) return;
+    const d = S.test.dati, t = tipo();
+    const testo = pronteTest(); if (!testo) return;
+    const prompt = document.getElementById('prompt').value.trim() || t.prompt;
+    const consegna = `${d.scrittura.consegna}\n${(d.scrittura.punti || []).map(p => '- ' + p).join('\n')}`;
+    const richiesta = `${prompt}${CODA_SCRITTURA}\n\nCONSEGNA:\n${consegna}\n\n--- TESTO DELLO STUDENTE ---\n${testo}`;
+    const copiato = await copiaNegliAppunti(richiesta);
+    const g = puntiParte('g', d.grammatica, 2.5), c = puntiParte('r', d.lettura.domande, 5), a = puntiParte('l', d.ascolto.domande, 5);
+    S.test.esito = { testo, prompt, answer: '', provider: 'manuale', model: null, g, c, a, s: null, manuale: true, richiesta, copiato };
+    renderEsitoTest();
+    showToast(copiato ? '📋 Copiato: incollalo nella tua chat IA' : 'Copia non riuscita: copia il testo dal riquadro', 4000);
+}
+function manualeTestCambiato() {
+    const e = S.test.esito; if (!e?.manuale) return;
+    e.answer = document.getElementById('tRispostaManuale').value;
+    const letto = leggiScrittura(e.answer), box = document.getElementById('tPuntiManuali');
+    // Il punteggio letto si propone solo finché la casella non l'ha toccata la mano.
+    if (letto !== null && !box.dataset.toccato) box.value = letto;
+    puntiManualiCambiati(false);
+}
+function puntiManualiCambiati(aMano = true) {
+    const e = S.test.esito; if (!e?.manuale) return;
+    const box = document.getElementById('tPuntiManuali');
+    if (aMano) box.dataset.toccato = '1';
+    const raw = box.value.trim().replace(',', '.'), n = Number(raw);
+    e.s = raw !== '' && Number.isFinite(n) && n >= 0 && n <= 25 ? n : null;
+    const ok = e.s !== null && !!e.answer.trim();
+    document.getElementById('btnConfermaTest').disabled = !ok;
+    document.getElementById('tTotManuale').textContent = e.s !== null ? fmtPt(e.g.pt + e.c.pt + e.a.pt + e.s) + '/100' : '—';
+    document.getElementById('tWriteManuale').textContent = e.s !== null ? fmtPt(e.s) + '/25' : '—';
+    document.getElementById('tManualeNota').textContent = !e.answer.trim()
+        ? 'Incolla la risposta per poter confermare.'
+        : e.s === null ? 'Scrivi i punti della scrittura (da 0 a 25) per poter confermare.' : '';
+}
+
+async function correggiTest() {
+    if (S.inCorso || !S.test.dati) return;
+    const d = S.test.dati, t = tipo();
+    const testo = pronteTest(); if (!testo) return;
+    const scelta = document.getElementById('motoreTest').value;
+    if (AVVISO_COSTO[scelta] && !confirm('💶 ' + AVVISO_COSTO[scelta] + '\n\nGemini e Groq sono gratuiti.\n\nCorreggo lo stesso?')) return;
+    const prompt = document.getElementById('prompt').value.trim() || t.prompt;
+    const consegna = `${d.scrittura.consegna}\n${(d.scrittura.punti || []).map(p => '- ' + p).join('\n')}`;
+
+    S.inCorso = true;
+    const btn = document.getElementById('btnCorreggiTest'), out = document.getElementById('tEsito');
+    btn.disabled = true;
+    out.innerHTML = '<div class="ia-wait">⏳ L\'IA sta correggendo la scrittura…</div>';
+    try {
+        const r = await fetch(FUNZIONE, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${await token()}`, 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: `${prompt}\n\nCONSEGNA:\n${consegna}`, testo, provider: scelta }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 401) { mostraLogin(); throw new Error('sessione scaduta: accedi di nuovo'); }
+        if (!r.ok || !j.ok) throw new Error(j.error || 'HTTP ' + r.status);
+        const g = puntiParte('g', d.grammatica, 2.5), c = puntiParte('r', d.lettura.domande, 5), a = puntiParte('l', d.ascolto.domande, 5);
+        const s = leggiScrittura(j.answer);
+        S.test.esito = { testo, prompt, answer: j.answer, provider: j.provider, model: j.model, g, c, a, s };
+        renderEsitoTest();
+    } catch (e) {
+        out.innerHTML = `<div class="form-error">❌ ${esc(e.message)}</div>`;
+    } finally { S.inCorso = false; btn.disabled = false; }
+}
+
+function riepilogoTest(e) {
+    const tot = e.g.pt + e.c.pt + e.a.pt + e.s;
+    const errori = [...e.g.errori, ...e.c.errori, ...e.a.errori];
+    return `TOTALE: ${fmtPt(tot)}/100 · G ${fmtPt(e.g.pt)} · C ${e.c.pt} · A ${e.a.pt} · S ${fmtPt(e.s)} · test ${S.test.id}\n\n`
+         + `#### Errori a scelta multipla\n${errori.length ? errori.map(x => '- ' + x).join('\n') : '- nessuno'}\n\n`
+         + `#### Scrittura\n${e.answer}`;
+}
+function renderEsitoTest() {
+    const e = S.test.esito, d = S.test.dati, out = document.getElementById('tEsito');
+    coloraParte('g', d.grammatica); coloraParte('r', d.lettura.domande); coloraParte('l', d.ascolto.domande);
+    if (e.manuale) {
+        out.innerHTML = `
+        <div class="esito">
+            <div class="t-punti">
+                <div class="t-punto"><div class="lab">Grammar</div><div class="val">${fmtPt(e.g.pt)}/25</div></div>
+                <div class="t-punto"><div class="lab">Reading</div><div class="val">${e.c.pt}/25</div></div>
+                <div class="t-punto"><div class="lab">Listening</div><div class="val">${e.a.pt}/25</div></div>
+                <div class="t-punto"><div class="lab">Writing</div><div class="val" id="tWriteManuale">—</div></div>
+                <div class="t-punto tot"><div class="lab">Totale</div><div class="val" id="tTotManuale">—</div></div>
+            </div>
+            <div class="form-label">📋 Da incollare nella tua chat IA ${e.copiato ? '<span class="muted" style="font-weight:500">(già copiato)</span>' : ''}</div>
+            <textarea class="form-input" readonly style="min-height:5rem" onclick="this.select()">${esc(e.richiesta)}</textarea>
+            <button class="btn" style="margin-top:0.4rem" onclick="copiaNegliAppunti(S.test.esito.richiesta).then(ok => showToast(ok ? '📋 Copiato' : 'Copia non riuscita'))">📋 Copia di nuovo</button>
+            <label class="form-label" for="tRispostaManuale">✍️ Risposta dell'IA</label>
+            <textarea id="tRispostaManuale" class="form-input" oninput="manualeTestCambiato()" placeholder="Incolla qui la correzione…">${esc(e.answer)}</textarea>
+            <label class="form-label" for="tPuntiManuali">Punti della scrittura (0-25)</label>
+            <input id="tPuntiManuali" class="voto-input" type="number" min="0" max="25" step="0.5" inputmode="decimal"
+                   value="${e.s ?? ''}" oninput="puntiManualiCambiati()">
+            <div id="tManualeNota" class="nota avviso"></div>
+        </div>
+        <button id="btnConfermaTest" class="btn btn-conferma btn-wide" onclick="confermaTest()" disabled>✅ Conferma e salva</button>`;
+        puntiManualiCambiati(false);
+        return;
+    }
+    const ok = e.s !== null;
+    const tot = ok ? e.g.pt + e.c.pt + e.a.pt + e.s : null;
+    const prec = S.esercizi.map(x => (String(x.answer || '').match(RE_TOTALE) || [])[1]).filter(Boolean)[0];
+    out.innerHTML = `
+        <div class="esito">
+            <div class="t-punti">
+                <div class="t-punto"><div class="lab">Grammar</div><div class="val">${fmtPt(e.g.pt)}/25</div></div>
+                <div class="t-punto"><div class="lab">Reading</div><div class="val">${e.c.pt}/25</div></div>
+                <div class="t-punto"><div class="lab">Listening</div><div class="val">${e.a.pt}/25</div></div>
+                <div class="t-punto"><div class="lab">Writing</div><div class="val">${ok ? fmtPt(e.s) + '/25' : '—'}</div></div>
+                <div class="t-punto tot"><div class="lab">Totale</div><div class="val">${ok ? fmtPt(tot) + '/100' : '—'}</div></div>
+            </div>
+            ${prec && ok ? `<div class="nota">Test precedente: ${esc(prec)}/100 (${tot - Number(prec.replace(',', '.')) >= 0 ? '+' : ''}${fmtPt(tot - Number(prec.replace(',', '.')))}).</div>` : ''}
+            ${ok ? '' : `<div class="form-error">⚠️ L'IA non ha scritto il punteggio della scrittura (SCRITTURA: n/25): rifai la correzione.</div>`}
+            <div class="row" style="margin-top:0.4rem"><span class="ia-chi">${esc(e.provider || '')}${e.model ? ' · ' + esc(e.model) : ''}</span></div>
+            <div class="md" style="margin-top:0.5rem">${markdownSemplice(e.answer)}</div>
+        </div>
+        <button id="btnConfermaTest" class="btn btn-conferma btn-wide" onclick="confermaTest()" ${ok ? '' : 'disabled'}>✅ Conferma e salva</button>`;
+}
+
+async function confermaTest() {
+    const e = S.test.esito, t = tipo();
+    if (!e || e.s === null || !t) return;
+    const tot = e.g.pt + e.c.pt + e.a.pt + e.s;
+    // af_exercises vuole un voto intero 1-10: è il totale diviso dieci.
+    const voto = Math.min(10, Math.max(1, Math.round(tot / 10)));
+    const azioneId = t.ob_action_id && S.azioni.some(a => a.id === t.ob_action_id) ? t.ob_action_id : null;
+    if (!azioneId && !confirm('Nessuna azione di Obiettivi aperta è collegata al test.\n\nSalvo solo il test?')) return;
+    const btn = document.getElementById('btnConfermaTest'); btn.disabled = true;
+    try {
+        await token();
+        // ⚠️ Prima il test, poi l'azione, come in conferma().
+        const { error } = await sb.from('af_exercises').insert({
+            type_id: t.id, text: e.testo, prompt: e.prompt, answer: riepilogoTest(e), voto,
+            provider: e.provider, model: e.model, ob_action_id: azioneId,
+        });
+        if (error) throw error;
+        btn.textContent = '✅ Salvato';
+        if (azioneId) {
+            const { data, error: errAz } = await sb.rpc('ob_action_complete', { p_action_id: azioneId, p_today: todayISO() });
+            if (errAz || !data?.ok) showToast('💾 Test salvato, ma l\'azione NON è stata completata: ' + (errAz?.message || data?.error || '?') + ' — chiudila da Obiettivi.', 8000);
+            else showToast(`✅ Test salvato · azione completata${data.points ? ' (' + (data.points > 0 ? '+' : '') + data.points + ' punti)' : ''}`, 4000);
+            await caricaAzioni(); renderAzioni();
+        } else showToast('💾 Test salvato');
+        await caricaEsercizi();
+    } catch (err) { btn.disabled = false; showToast('Errore: ' + err.message, 5000); }
+}
+
+function renderStoricoTest(el) {
+    const righe = S.esercizi.map(e => {
+        const m = String(e.answer || '').match(RE_TOTALE);
+        return { e, tot: m ? Number(m[1].replace(',', '.')) : null, id: m?.[2] || '' };
+    });
+    if (!righe.length) { el.innerHTML = '<div class="muted">Nessun test ancora.</div>'; return; }
+    const serie = righe.filter(r => r.tot !== null).reverse();   // dal più vecchio
+    let grafico = '';
+    if (serie.length >= 2) {
+        const W = 600, H = 160, px = 34, py = 18;
+        const x = i => px + i * (W - 2 * px) / (serie.length - 1), y = v => H - py - v / 100 * (H - 2 * py);
+        grafico = `<svg class="t-andamento" viewBox="0 0 ${W} ${H}" role="img" aria-label="Andamento del totale">
+            ${[0, 50, 100].map(v => `<line x1="${px}" x2="${W - px}" y1="${y(v)}" y2="${y(v)}" stroke="#E5E7EB"/><text x="4" y="${y(v) + 4}" font-size="11" fill="#6B7280">${v}</text>`).join('')}
+            <polyline fill="none" stroke="#00796B" stroke-width="3" points="${serie.map((r, i) => x(i) + ',' + y(r.tot)).join(' ')}"/>
+            ${serie.map((r, i) => `<circle cx="${x(i)}" cy="${y(r.tot)}" r="5" fill="#00796B"/><text x="${x(i)}" y="${y(r.tot) - 9}" font-size="12" text-anchor="middle" fill="#1F2937">${fmtPt(r.tot)}</text>`).join('')}
+        </svg>`;
+    }
+    el.innerHTML = `<div class="nota" style="margin-bottom:0.4rem">${righe.length} test fatti</div>${grafico}`
+        + righe.map(({ e, tot, id }) => `
+        <div class="ex">
+            <div class="ex-head">
+                <button class="icon-btn" title="Elimina" onclick="eliminaEsercizio('${e.id}')">🗑</button>
+                <span class="quando">${dataOra(e.created_at)}${id ? ' · test ' + esc(id) : ''}</span>
+                ${tot !== null ? `<span class="voto mini ${classeVoto(Math.round(tot / 10))}">${fmtPt(tot)}/100</span>` : ''}
+            </div>
+            <div class="nota">${esc((String(e.answer || '').split('\n')[0] || '').replace(/^TOTALE:\s*/i, ''))}</div>
+            <details><summary>Correzione</summary><div class="md">${markdownSemplice(String(e.answer || '').split('\n').slice(1).join('\n'))}</div></details>
+            <details><summary>Scrittura</summary><div class="ex-testo">${esc(e.text)}</div></details>
+        </div>`).join('');
 }
 
 // Il Markdown si disegna da testo GIÀ escapato: l'HTML di una risposta non

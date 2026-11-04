@@ -17,8 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -33,6 +39,11 @@ import com.garsal.pronuncia.Servizi
  * Il testo inglese di una frase: tenendolo premuto compare sopra un fumetto con
  * la traduzione italiana, che sparisce al rilascio.
  *
+ * Su una parola singola accanto al testo c'è la pronuncia scritta all'italiana
+ * (`Frase.pronuncia`, v1.23.0), più piccola e grigia: è nello stesso `Text`,
+ * così con i caratteri di sistema grandi va a capo insieme alla parola invece
+ * di finire tagliata in una seconda colonna.
+ *
  * ⚠️ Il fumetto è un `Popup` non focalizzabile: deve stare sopra tutto senza
  * rubare il tocco, o al rilascio il dito finirebbe sul popup e il fumetto non
  * si chiuderebbe più.
@@ -44,8 +55,16 @@ fun TestoConTraduzione(f: Frase, style: TextStyle = MaterialTheme.typography.hea
     var premuto by remember { mutableStateOf(false) }
 
     Box {
+        val pron = f.pronuncia
+        val grigio = MaterialTheme.colorScheme.onSurfaceVariant
         Text(
-            f.testo,
+            if (pron == null) buildAnnotatedString { append(f.testo) } else buildAnnotatedString {
+                append(f.testo)
+                append("  ")
+                withStyle(SpanStyle(color = grigio, fontStyle = FontStyle.Italic, fontSize = if (style.fontSize.isSpecified) style.fontSize * 0.7f else TextUnit.Unspecified)) {
+                    append("($pron)")
+                }
+            },
             style = style,
             modifier = Modifier.pointerInput(f.id) {
                 detectTapGestures(onPress = {

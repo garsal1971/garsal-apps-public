@@ -2200,7 +2200,9 @@ esterna c'è davvero e cancellando un tag i collegamenti spariscono da sé — l
 Migration: `20261028100000_af_autoformazione.sql`. Pagina: `autoformazione.html`, **solo web e con un login Google suo** (sessione in `localStorage.af_session`, rinnovata col refresh token), **nessuna bolla** in AppSphere. ⚠️ Perché il login torni sulla pagina, `https://garsal.men/autoformazione.html` deve stare fra i Redirect URLs di Supabase.
 - 🚀 **Correggi** chiama la Edge Function `af-ai` (stessi quattro motori di `ia-tunnel`, copiati): ⚠️ **non scrive niente**, e la richiesta del voto («VOTO: n/10» come ultima riga) la aggiunge **lei** in coda al prompt, accanto alla regex che lo legge (`leggiVoto`). Voto non leggibile = `null` e la pagina **blocca la conferma**.
 - ✅ **Conferma** scrive prima `af_exercises` e poi chiama `ob_action_complete` sull'azione collegata (i workflow non si offrono). Se la RPC fallisce l'esercizio resta salvato e la pagina lo dice. Cambiare il testo dopo la correzione la invalida.
+- ✋ **Chiedo io** (v1.1.0): copia negli appunti prompt + richiesta del voto + testo, da incollare in una chat IA qualsiasi; la risposta si incolla in una casella e il voto va in una casella 1-10 a parte (proposto da `leggiVoto` sul testo incollato, correggibile a mano). Si salva con `provider = 'manuale'`. ⚠️ `CODA_VOTO` / `leggiVoto` sono copiati nella pagina da `af-ai`: vanno cambiati insieme.
 - I tipi stanno in `TIPI` dentro la pagina: aggiungerne uno è una riga, la riga di `af_exercise_types` nasce da sé al primo accesso. ⚠️ `key` non si cambia.
+- 📝 **Test inglese** (v1.2.0, tipo `test_inglese`, `test: true` in `TIPI`): grammatica (10 × 2,5), comprensione (5 × 5) e ascolto (5 × 5, sintesi vocale en-GB del browser, due ascolti) si correggono nella pagina; la **scrittura** (25) la corregge `af-ai` col prompt del tipo, che deve far scrivere `SCRITTURA: n/25` (o le quattro voci CONTENUTO/ORGANIZZAZIONE/GRAMMATICA/LESSICO, che `leggiScrittura` somma). I contenuti sono file JSON in `risorse/test-inglese/`, elencati in `indice.json` dal più vecchio al più nuovo: li scrive la skill `test-inglese`, uno nuovo per test. ⚠️ Lo storico sta in `af_exercises`, **nessuna colonna nuova**: `voto` = totale/10 arrotondato (1-10), e la **prima riga di `answer`** è `TOTALE: n/100 · G … · C … · A … · S … · test <id>`, che `RE_TOTALE` legge per lo storico, il grafico e i ✅ della tendina. Cambiandone la forma, va cambiata anche `RE_TOTALE` (e la skill, che la legge per il confronto). ✋ **Chiedo io** anche sul test (v1.2.1, `chiedoIoTest`): copia prompt + `CODA_SCRITTURA` + consegna + scrittura, la risposta si incolla e i punti della scrittura (0-25) vanno in una casella proposta da `leggiScrittura`; si salva con `provider = 'manuale'`.
 
 ### Scorte Amazon (`amz_`)
 | Table | Purpose |
@@ -3809,7 +3811,19 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   ⚠️ «⏭ Altra» / «next» su un elemento mai provato lo manda **in fondo alla coda**, non fuori: la
   sessione resta di N e non torna mai la stessa parola. Nessuna tabella: tutto dallo storico.
   Bip portato a **300 ms**.
-- **Voto delle parole singole** (v1.23.0, `Valutatore.leggi`): su una parola sola Azure a volte
+- **Pronuncia all'italiana, spelling e traduzione a voce** (v1.23.0): ogni parola di `words.json` ha
+  il campo **`pron`** («ticket» → «tìchit», l'accento grave segna la sillaba accentata), mostrato accanto
+  alla parola, più piccolo e grigio, in 🎯 Esercizio e 🎧 Mani libere (`TestoConTraduzione`, nello stesso
+  `Text` perché vada a capo con la parola). ⚠️ È britannica anche con l'accento 🇺🇸, e approssimativa:
+  ricavata una volta dal dizionario Britfone (IPA) con una conversione a regole, più una sessantina di voci
+  scritte a mano (nomi di luogo, parole mancanti). Sta nell'APK e non in `pr_traduzioni`: per correggerla
+  serve una versione nuova. ⚠️ Aggiungendo parole, va scritto anche il loro `pron`. A Mani libere due
+  comandi in più, detti al posto della parola come gli altri: **«spell» / «spelling»** — lo spelling con
+  la voce inglese (`Tts.compita`, SSML `say-as characters`); su una frase non c'è e lo dice
+  (`Feedback.Cosa.SOLO_PAROLE`) — e **«translate» / «translation»** — la traduzione di `pr_traduzioni` con
+  la voce italiana, «Traduzione non disponibile» se manca. Dopo, la parola si rilegge e si aspetta il
+  tentativo; ⚠️ nessuno dei due è un tentativo e non va nello storico (`Ciclo.aiuto`).
+- **Voto delle parole singole** (v1.24.0, `Valutatore.leggi`; nata in parallelo come 1.23.0 su un altro ramo e fusa con quella sotto): su una parola sola Azure a volte
   restituisce fluidità e completezza a 0 con la parola riconosciuta, e il `PronScore` che le pesa
   esce un quinto dell'accuratezza (55 → 11). In quel caso il voto è l'**accuratezza della parola**;
   una parola `Omission` resta a zero. ⚠️ I tentativi già salvati restano col voto basso.
@@ -4628,6 +4642,26 @@ vuol dire «nessun game over da jolly»: nel vecchio JavaScript `|| 3` trasforma
 
 ⚠️ `hb_clona` copia ora anche `times_target`, `window_days` e `max_per_day`: fino al
 24 settembre 2026 «Ricomincia» dal telefono su una count_window dava una copia senza N né M.
+
+### 🪥 Lo spazzolino Oral-B spunta un'abitudine (APK 1.0.155)
+
+`abituati/Spazzolino.kt`. Gli spazzolini Oral-B smart (iO, Genius) trasmettono via Bluetooth un
+annuncio del costruttore 220 (P&G): byte 3 = stato (3 = in funzione), byte 5-6 = minuti e secondi
+del lavaggio. Si ascolta senza abbinare. In Abituati → ⚙️ → 🪥 si sceglie l'abitudine (solo
+`daily`/`daily_multiple`, salvata per id nelle preferenze `spazzolino`) e si abbina lo spazzolino
+(🔍 Cerca, 30 s in primo piano); da lì l'ascolto lo fa il chip Bluetooth con un `PendingIntent`
+(`SpazzolinoReceiver`), **senza servizio né notifica fissa**, riconsegnato all'apertura
+dell'app, al riavvio e all'aggiornamento.
+- Conta un lavaggio di almeno `MINIMO_SECONDI` (120), in funzione o fermo da meno di 10 minuti.
+- Va sull'orario **più vicino**; fra mezzanotte e le 3 sul giorno prima.
+- ⚠️ Un orario che ha già una riga in `hb_completions` (✓, ✕, mancato) **non si tocca**; si
+  scrive solo da `hb_set_completion`.
+- Il riquadro mostra ultimo segnale ed ultimo esito: è il modo per capire se il telefono lo vede.
+- ⚠️ Su Xiaomi servono Avvio automatico, batteria «Nessuna restrizione» e app bloccata nei
+  recenti, o il sistema non sveglia il receiver. Un lavaggio non visto non si recupera: lo
+  storico dello spazzolino lo legge solo l'app Oral-B.
+- ⚠️ Lettura dei byte presa dalla libreria `oralb-ble` di Home Assistant, non da una specifica:
+  se un modello usa un altro codice di stato, l'«Ultimo segnale» lo mostra.
 
 ### ⚠️ Calorie nativo: due pagine, e il conto è quello della pagina
 

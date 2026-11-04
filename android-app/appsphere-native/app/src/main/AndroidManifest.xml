@@ -8,6 +8,16 @@
          `notify` non fa niente e non lo dice, cioè un promemoria che sparisce. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- 🪥 Lo spazzolino Oral-B: si ascoltano i suoi annunci Bluetooth, senza
+         abbinarlo. Da Android 12 basta «Dispositivi nelle vicinanze»; prima
+         serviva la posizione. Il riavvio serve a riconsegnare il filtro. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Health Connect — lettura peso, per la sincronizzazione con la bilancia. -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <!-- Il grasso corporeo, per la massa grassa di «Ti pisasti?» (mai fatale). -->
@@ -161,6 +171,17 @@
         <receiver
             android:name=".notifiche.AzioniNotifica"
             android:exported="false" />
+
+        <!-- 🪥 Svegliato da Android quando vede lo spazzolino abbinato, e al
+             riavvio/aggiornamento per riconsegnare il filtro (abituati/Spazzolino.kt). -->
+        <receiver
+            android:name=".abituati.SpazzolinoReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Il dialogo con gli altri rinvii. Trasparente e fuori dai recenti:
              non è una schermata dell'app, è un pulsante che chiede «quanto?». -->
