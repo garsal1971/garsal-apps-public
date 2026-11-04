@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-formazione v1.2.0</title>
+    <title>Auto-formazione v1.2.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -222,8 +222,8 @@
 // ════════════════════════════════════════════════════════════
 // AUTO-FORMAZIONE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.2.0';
-var BUILD_TIME  = '2026-11-04T12:00:00Z';
+var APP_VERSION = 'v1.2.1';
+var BUILD_TIME  = '2026-11-04T14:30:00Z';
 console.log('%c 🎓 AUTO-FORMAZIONE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#00796B;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -831,7 +831,11 @@ function renderTest() {
             <div id="tWc" class="t-wc">0 parole</div></div>
         <label class="form-label" for="motoreTest">🤖 Motore IA per la scrittura</label>
         <select id="motoreTest" class="form-input" onchange="ricordaFornitore(this.value)"></select>
-        <button id="btnCorreggiTest" class="btn btn-primary btn-wide" onclick="correggiTest()">🚀 Correggi il test</button>
+        <div class="row" style="margin-top:0.9rem">
+            <button id="btnCorreggiTest" class="btn btn-primary grow" style="font-size:1.2rem" onclick="correggiTest()">🚀 Correggi il test</button>
+            <button id="btnChiedoIoTest" class="btn grow" style="font-size:1.2rem" onclick="chiedoIoTest()">✋ Chiedo io</button>
+        </div>
+        <div class="nota">✋ Chiedo io copia prompt, consegna e scrittura: li incolli tu in una chat IA e poi incolli qui la risposta.</div>
         <div id="tEsito"></div>`;
     renderMotori(); scegliVoce();
 }
@@ -910,13 +914,60 @@ function leggiScrittura(a) {
     return voci.every(v => v !== null) ? Math.min(25, voci.reduce((s, v) => s + v, 0)) : null;
 }
 
+/** Controlli comuni prima di correggere: scrittura presente, domande vuote confermate. */
+function pronteTest() {
+    const d = S.test.dati;
+    const testo = document.getElementById('tScrittura').value.trim();
+    if (!testo) { showToast('Scrivi la parte 4 prima di correggere'); return null; }
+    const vuote = ['g', 'r', 'l'].reduce((n, p, k) => n + puntiParte(p, [d.grammatica, d.lettura.domande, d.ascolto.domande][k], 1).vuote.length, 0);
+    if (vuote && !confirm(`${vuote} domande senza risposta: valgono zero.\n\nCorreggo lo stesso?`)) return null;
+    return testo;
+}
+
+// ⚠️ La forma «SCRITTURA: n/25» è quella che leggiScrittura() sa leggere.
+const CODA_SCRITTURA = '\n\nAlla fine scrivi, su una riga a sé, il punteggio della scrittura nella forma esatta «SCRITTURA: n/25».';
+
+/** ✋ Chiedo io sul test: la scrittura la si fa correggere a mano a un'IA qualsiasi. */
+async function chiedoIoTest() {
+    if (S.inCorso || !S.test.dati) return;
+    const d = S.test.dati, t = tipo();
+    const testo = pronteTest(); if (!testo) return;
+    const prompt = document.getElementById('prompt').value.trim() || t.prompt;
+    const consegna = `${d.scrittura.consegna}\n${(d.scrittura.punti || []).map(p => '- ' + p).join('\n')}`;
+    const richiesta = `${prompt}${CODA_SCRITTURA}\n\nCONSEGNA:\n${consegna}\n\n--- TESTO DELLO STUDENTE ---\n${testo}`;
+    const copiato = await copiaNegliAppunti(richiesta);
+    const g = puntiParte('g', d.grammatica, 2.5), c = puntiParte('r', d.lettura.domande, 5), a = puntiParte('l', d.ascolto.domande, 5);
+    S.test.esito = { testo, prompt, answer: '', provider: 'manuale', model: null, g, c, a, s: null, manuale: true, richiesta, copiato };
+    renderEsitoTest();
+    showToast(copiato ? '📋 Copiato: incollalo nella tua chat IA' : 'Copia non riuscita: copia il testo dal riquadro', 4000);
+}
+function manualeTestCambiato() {
+    const e = S.test.esito; if (!e?.manuale) return;
+    e.answer = document.getElementById('tRispostaManuale').value;
+    const letto = leggiScrittura(e.answer), box = document.getElementById('tPuntiManuali');
+    // Il punteggio letto si propone solo finché la casella non l'ha toccata la mano.
+    if (letto !== null && !box.dataset.toccato) box.value = letto;
+    puntiManualiCambiati(false);
+}
+function puntiManualiCambiati(aMano = true) {
+    const e = S.test.esito; if (!e?.manuale) return;
+    const box = document.getElementById('tPuntiManuali');
+    if (aMano) box.dataset.toccato = '1';
+    const raw = box.value.trim().replace(',', '.'), n = Number(raw);
+    e.s = raw !== '' && Number.isFinite(n) && n >= 0 && n <= 25 ? n : null;
+    const ok = e.s !== null && !!e.answer.trim();
+    document.getElementById('btnConfermaTest').disabled = !ok;
+    document.getElementById('tTotManuale').textContent = e.s !== null ? fmtPt(e.g.pt + e.c.pt + e.a.pt + e.s) + '/100' : '—';
+    document.getElementById('tWriteManuale').textContent = e.s !== null ? fmtPt(e.s) + '/25' : '—';
+    document.getElementById('tManualeNota').textContent = !e.answer.trim()
+        ? 'Incolla la risposta per poter confermare.'
+        : e.s === null ? 'Scrivi i punti della scrittura (da 0 a 25) per poter confermare.' : '';
+}
+
 async function correggiTest() {
     if (S.inCorso || !S.test.dati) return;
     const d = S.test.dati, t = tipo();
-    const testo = document.getElementById('tScrittura').value.trim();
-    if (!testo) { showToast('Scrivi la parte 4 prima di correggere'); return; }
-    const vuote = ['g', 'r', 'l'].reduce((n, p, k) => n + puntiParte(p, [d.grammatica, d.lettura.domande, d.ascolto.domande][k], 1).vuote.length, 0);
-    if (vuote && !confirm(`${vuote} domande senza risposta: valgono zero.\n\nCorreggo lo stesso?`)) return;
+    const testo = pronteTest(); if (!testo) return;
     const scelta = document.getElementById('motoreTest').value;
     if (AVVISO_COSTO[scelta] && !confirm('💶 ' + AVVISO_COSTO[scelta] + '\n\nGemini e Groq sono gratuiti.\n\nCorreggo lo stesso?')) return;
     const prompt = document.getElementById('prompt').value.trim() || t.prompt;
@@ -954,6 +1005,30 @@ function riepilogoTest(e) {
 function renderEsitoTest() {
     const e = S.test.esito, d = S.test.dati, out = document.getElementById('tEsito');
     coloraParte('g', d.grammatica); coloraParte('r', d.lettura.domande); coloraParte('l', d.ascolto.domande);
+    if (e.manuale) {
+        out.innerHTML = `
+        <div class="esito">
+            <div class="t-punti">
+                <div class="t-punto"><div class="lab">Grammar</div><div class="val">${fmtPt(e.g.pt)}/25</div></div>
+                <div class="t-punto"><div class="lab">Reading</div><div class="val">${e.c.pt}/25</div></div>
+                <div class="t-punto"><div class="lab">Listening</div><div class="val">${e.a.pt}/25</div></div>
+                <div class="t-punto"><div class="lab">Writing</div><div class="val" id="tWriteManuale">—</div></div>
+                <div class="t-punto tot"><div class="lab">Totale</div><div class="val" id="tTotManuale">—</div></div>
+            </div>
+            <div class="form-label">📋 Da incollare nella tua chat IA ${e.copiato ? '<span class="muted" style="font-weight:500">(già copiato)</span>' : ''}</div>
+            <textarea class="form-input" readonly style="min-height:5rem" onclick="this.select()">${esc(e.richiesta)}</textarea>
+            <button class="btn" style="margin-top:0.4rem" onclick="copiaNegliAppunti(S.test.esito.richiesta).then(ok => showToast(ok ? '📋 Copiato' : 'Copia non riuscita'))">📋 Copia di nuovo</button>
+            <label class="form-label" for="tRispostaManuale">✍️ Risposta dell'IA</label>
+            <textarea id="tRispostaManuale" class="form-input" oninput="manualeTestCambiato()" placeholder="Incolla qui la correzione…">${esc(e.answer)}</textarea>
+            <label class="form-label" for="tPuntiManuali">Punti della scrittura (0-25)</label>
+            <input id="tPuntiManuali" class="voto-input" type="number" min="0" max="25" step="0.5" inputmode="decimal"
+                   value="${e.s ?? ''}" oninput="puntiManualiCambiati()">
+            <div id="tManualeNota" class="nota avviso"></div>
+        </div>
+        <button id="btnConfermaTest" class="btn btn-conferma btn-wide" onclick="confermaTest()" disabled>✅ Conferma e salva</button>`;
+        puntiManualiCambiati(false);
+        return;
+    }
     const ok = e.s !== null;
     const tot = ok ? e.g.pt + e.c.pt + e.a.pt + e.s : null;
     const prec = S.esercizi.map(x => (String(x.answer || '').match(RE_TOTALE) || [])[1]).filter(Boolean)[0];
