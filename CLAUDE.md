@@ -2306,11 +2306,20 @@ invece di un'app a sé. Navigando altrove dai prezzi l'indietro torna normale.
 |---|---|
 | `ob_objectives` | Obiettivi, gerarchia a due livelli (`annual` → `quarterly`) via `parent_id` |
 | `ob_metrics` | Metriche di un obiettivo (1..N) |
-| `ob_measurements` | Rilevazioni: `value` e `note`, una per metrica e per giorno |
+| `ob_measurements` | Rilevazioni: `value`, `note` e `action_id` (l'azione che l'ha scritta, NULL = fuori da un'azione), una per metrica, giorno **e azione** |
 | `ob_milestones` | Curva attesa (`expected_value` per data) — base del semaforo |
 | `ob_actions` | Le azioni: il «cosa faccio». Gemella di `ts_tasks`, stessi sei tipi |
 | `ob_action_history` | Storico e punti delle azioni. Gemella di `ts_history`. `occurrence_date` = il giorno **per cui** l'azione era in calendario, accanto al `timestamp` che dice quando è stata chiusa |
 | `ob_action_metrics` | Quali metriche un'azione dovrebbe muovere (anche più d'una) |
+
+⚠️ **Una rilevazione porta l'azione** (`20261105120000_ob_measurements_azione.sql`, web v1.19.0,
+APK 1.0.156, Pronuncia 1.26.0): unicità `UNIQUE NULLS NOT DISTINCT (metric_id, measured_on,
+action_id)` e `ob_record_measurement(…, p_action_id)`. Prima era una per metrica e per giorno, e una
+metrica condivisa da più azioni (es. «Come è andata ?») teneva un valore solo al giorno: due azioni
+dello stesso giorno si sovrascrivevano. In 📊 Andamento c'è **un grafico per azione e metrica**, con
+le sole rilevazioni di quell'azione (`rilevazioniAzione`); le righe senza azione valgono come ripiego
+solo nei giorni in cui l'azione è stata eseguita. Gemelle: `rilevazioneDi()` in `obiettivi.html` e
+`PianoRepository.rilevazioniDel` nel nativo.
 
 `ob_metrics.role` distingue **`primary`** (il risultato, alimenta la barra e il semaforo — **una sola per
 obiettivo**, vincolo `uq_ob_metrics_one_primary`), **`control`** (secondo riscontro lagging) e **`leading`**

@@ -97,6 +97,8 @@ object ObiettiviRepository {
         nota: String,
         /** Solo per un `test`: il giudizio scritto. Vuoto = nessun giudizio (NULL). */
         giudizio: String? = null,
+        /** L'azione che la scrive: la rilevazione è una per metrica, giorno e azione. */
+        azioneId: String? = null,
     ): ObEsitoRilevazione = withContext(Dispatchers.IO) {
         db.rpc(
             "ob_record_measurement",
@@ -106,6 +108,7 @@ object ObiettiviRepository {
                 put("p_measured_on", giorno.toString())
                 put("p_note", nota)
                 giudizio?.trim()?.takeIf { it.isNotEmpty() }?.let { put("p_giudizio", it) }
+                azioneId?.let { put("p_action_id", it) }
             },
         ).decodeAs<ObEsitoRilevazione>()
     }

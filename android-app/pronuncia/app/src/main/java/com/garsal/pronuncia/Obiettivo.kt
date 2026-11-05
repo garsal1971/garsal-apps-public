@@ -32,9 +32,10 @@ fun votoSessione(migliori: Collection<Double>): Int? =
  * rifiuta un voto fuori scala). ⚠️ L'id dell'azione sta nelle preferenze del
  * telefono e non nel codice: la repo è pubblica.
  *
- * ⚠️ Una rilevazione è una per metrica e per giorno: due sessioni nello stesso
- * giorno lasciano il voto della seconda, mentre l'azione si completa due volte
- * (i punti si prendono due volte, come chiudendola due volte da Obiettivi).
+ * ⚠️ Una rilevazione è una per metrica, giorno e AZIONE (`p_action_id`): così
+ * il voto della sessione non sovrascrive quello di un'altra azione di Obiettivi
+ * collegata alla stessa metrica. Due sessioni nello stesso giorno lasciano il
+ * voto della seconda, mentre l'azione si completa due volte.
  */
 object Obiettivo {
 
@@ -65,7 +66,8 @@ object Obiettivo {
         metriche.forEach { mt ->
             val r = JSONObject(rpc("ob_record_measurement", JSONObject()
                 .put("p_metric_id", mt.getString("id")).put("p_value", voto)
-                .put("p_measured_on", oggi).put("p_note", nota)))
+                .put("p_measured_on", oggi).put("p_note", nota)
+                .put("p_action_id", id)))
             if (r.optBoolean("ok", true)) registrate++
         }
         return if (registrate == metriche.size) "✅ Obiettivo aggiornato: azione completata (+${esito.optInt("points")} punti) e voto $voto registrato."

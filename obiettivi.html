@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.18.0</title>
+    <title>Obiettivi v1.19.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -1416,8 +1416,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.18.0';
-var BUILD_TIME  = '2026-10-27T10:00:00Z';
+var APP_VERSION = 'v1.19.0';
+var BUILD_TIME  = '2026-11-05T15:50:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1562,7 +1562,7 @@ async function loadAll() {
         sb.from('ob_objectives').select('*').order('sort_order').order('due_date'),
         sb.from('ob_metrics').select('*').order('sort_order'),
         sb.from('ob_milestones').select('*').order('due_date'),
-        sb.from('ob_measurements').select('*').order('measured_on'),
+        sb.from('ob_measurements').select('*').order('measured_on').order('created_at'),
         sb.from('ob_actions').select('*').order('sort_order'),
         sb.from('ob_action_history').select('*').order('timestamp', { ascending: false }),
         sb.from('ob_action_metrics').select('*'),
@@ -1683,6 +1683,15 @@ function haGiudizio(m) { return m.kind === 'test' || m.kind === 'gofluent'; }
 
 function metricsOf(objId)    { return metrics.filter(m => m.objective_id === objId); }
 function measuresOf(metId)   { return measurements.filter(m => m.metric_id === metId); }
+
+// La rilevazione di una metrica scritta da un'azione in un giorno. Le righe
+// nate prima di ob_measurements.action_id non hanno l'azione: valgono come
+// ripiego, solo se di quell'azione non ce n'è una sua.
+function rilevazioneDi(metId, giorno, actionId) {
+    const delGiorno = measuresOf(metId).filter(x => String(x.measured_on).slice(0, 10) === giorno);
+    return delGiorno.find(x => actionId && x.action_id === actionId)
+        || delGiorno.find(x => !x.action_id) || null;
+}
 function milestonesOf(objId) { return milestones.filter(m => m.objective_id === objId); }
 function actionsOf(objId)    { return actions.filter(a => a.objective_id === objId); }
 function historyOf(objId)    { return actionHistory.filter(h => h.objective_id === objId); }
@@ -2334,13 +2343,16 @@ function renderTrend(obj) {
              Si aggiungono da Dettaglio → Metriche.</div>`;
     }
     html += conMetriche.map(a => {
-        const giorni = new Set(esecuzioniDi(a.id).map(h => giornoRilevazioni(h)));
+        // le sole esecuzioni riuscite: un salto non è un'esecuzione
+        const fatte  = esecuzioniDi(a.id).filter(h => h.action === 'completed' || h.action === 'completed_late');
+        const giorni = new Set(fatte.map(h => giornoRilevazioni(h)));
         return `<div class="trend-azione">
-            <div class="trend-azione-title">✅ ${esc(a.title)}</div>
+            <div class="trend-azione-title">✅ ${esc(a.title)}
+                <span class="trend-metric-meta">${fatte.length} ${fatte.length === 1 ? 'esecuzione' : 'esecuzioni'}</span></div>
             ${metricsOfAction(a.id).map(m => graficoMetrica(m,
-                measuresOf(m.id).filter(r => giorni.has(String(r.measured_on).slice(0, 10))),
-                giorni.size ? 'Nessuna rilevazione nei giorni in cui è stata eseguita.'
-                            : 'Azione non ancora eseguita.')).join('')}
+                rilevazioniAzione(m.id, a.id, giorni),
+                fatte.length ? 'Nessuna rilevazione registrata da questa azione.'
+                             : 'Azione non ancora eseguita.')).join('')}
         </div>`;
     }).join('');
     if (sciolte.length) {
@@ -2361,6 +2373,16 @@ function renderTrend(obj) {
             man mano che chiudi le azioni collegate alle metriche.</div>`;
     }
     return html;
+}
+
+// Le rilevazioni di una metrica scritte da un'azione: quelle che portano il
+// suo action_id, più le righe vecchie senza azione cadute in un giorno in cui
+// l'ha eseguita. Una riga di un'altra azione non entra mai, anche se è dello
+// stesso giorno — era il difetto della v1.18.0.
+function rilevazioniAzione(metId, actionId, giorni) {
+    return measuresOf(metId).filter(r => r.action_id
+        ? r.action_id === actionId
+        : giorni.has(String(r.measured_on).slice(0, 10)));
 }
 
 // Un'azione è riuscita se lo dice lo storico: `terminated` lo si diventa anche
@@ -3069,7 +3091,7 @@ function apriModificaEsecuzione(histId) {
     let nota = '';
     document.getElementById('eeMeasBody').innerHTML = mets.map(m => {
         const { da, a: fine } = scaleOf(m);
-        const r = measuresOf(m.id).find(x => String(x.measured_on).slice(0, 10) === giorno);
+        const r = rilevazioneDi(m.id, giorno, h.action_id);
         if (r && r.note && !nota) nota = r.note;
         const val  = r ? Number(r.value) : '';
         const voto = m.kind === 'autovalutazione', test = m.kind === 'test', gof = m.kind === 'gofluent';
@@ -3134,7 +3156,8 @@ async function salvaModificaEsecuzione() {
         if (valore === '') { errori.push(nome + ': valore mancante'); continue; }
         const { data, error } = await sb.rpc('ob_record_measurement', {
             p_metric_id: riga.dataset.metric, p_value: Number(valore), p_measured_on: giorno,
-            p_note: nota, p_giudizio: riga.querySelector('.meas-giudizio')?.value.trim() || null
+            p_note: nota, p_giudizio: riga.querySelector('.meas-giudizio')?.value.trim() || null,
+            p_action_id: h.action_id || null
         });
         if (error)          { if (handleAuthError(error)) return; errori.push(nome + ': ' + error.message); }
         else if (!data?.ok)   errori.push(nome + ': ' + (data?.error || 'errore'));
@@ -3201,7 +3224,7 @@ function chiediRilevazioni(actionId, occorrenza) {
     // del clic: la rilevazione appartiene alla volta che si sta chiudendo. Su
     // un'azione scaduta le due cose sono diverse, e datarle tutte a oggi
     // vorrebbe dire che due occorrenze arretrate chiuse nello stesso pomeriggio
-    // si sovrascrivono a vicenda — l'unicità è (metric_id, measured_on).
+    // si sovrascrivono a vicenda — l'unicità è (metrica, giorno, azione).
     misurandoGiorno = occorrenza || occorrenzaDi(a) || todayISO();
     document.getElementById('measMultiTitle').textContent = a.title;
     document.getElementById('measMultiDate').textContent = fmtDate(misurandoGiorno);
@@ -3281,7 +3304,8 @@ async function salvaRilevazioniAzione() {
             p_value:       Number(valore),
             p_measured_on: giorno,
             p_note:        nota,
-            p_giudizio:    riga.querySelector('.meas-giudizio')?.value.trim() || null
+            p_giudizio:    riga.querySelector('.meas-giudizio')?.value.trim() || null,
+            p_action_id:   misurandoAzione
         });
         if (error)     { if (handleAuthError(error)) return; errori.push(nome + ': ' + error.message); }
         else if (!data?.ok) errori.push(nome + ': ' + (data?.error || 'errore'));
