@@ -295,6 +295,7 @@ soli campi del preset (classe `no-tpl` sugli altri). Solo web: il nativo non lo 
   sovrascrive punti, panoramica e promemoria e riaccende il flag. ⚠️ **Il tipo non si cambia**:
   i task di tipo diverso dal template si saltano e lo si dice, perché passare da ricorrente a
   singolo o workflow li lascerebbe senza date o passi coerenti.
+- 🧩 **Forza default sulla scheda** (v19.31.0, `forzaDefaultTask`): in Gestione ogni task attivo con una categoria che ha un template **del suo stesso tipo** porta il bottone; con più template chiede quale. Fa le stesse cose del ⚡ sul solo task: tutt'e due passano da `applicaDefaultATask`, una regola sola.
 - 🔁 **I campi del tipo** (v19.30.0, ridotti nella v19.30.1; `leggiCampiDelTipo` /
   `applicaCampiDelTipo`, chiavi facoltative del jsonb): `ricorrenza` `{frequency, interval}` per
   `recurring`, `repeat_after_days` per `simple_recurring`, `workflow_steps` `[{id, title,

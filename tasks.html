@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.30.2</title>
+    <title>Tasks v19.31.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2415,8 +2415,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.30.2';
-        const BUILD_TIME  = '2026-11-05T11:44:04Z';
+        const APP_VERSION = 'v19.31.0';
+        const BUILD_TIME  = '2026-11-05T11:57:04Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -4615,6 +4615,7 @@
                                 ${['started', 'completed', 'failed', 'skipped'].includes(task.status) ? `
                                     <button onclick="editTask('${task.id}')" style="background: var(--primary); color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Modifica</button>
                                     <button onclick="deleteTask('${task.id}')" style="background: var(--danger); color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Cancella</button>
+                                    ${templateDelTask(task).length ? `<button onclick="forzaDefaultTask('${task.id}')" title="Applica il template della categoria" style="background: #6C5CE7; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">🧩 Forza default</button>` : ''}
                                 ` : `
                                     <button onclick="reactivateTask('${task.id}')" style="background: var(--warning); color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">🔄 Riattiva</button>
                                     <button onclick="deleteTask('${task.id}')" style="background: var(--danger); color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Cancella</button>
@@ -6135,54 +6136,13 @@
                 + (saltati ? `\n${saltati} task saltati: non sono di tipo «${TIPI_TASK_NOME[t.type] || t.type}».` : '');
             if (!await customConfirm(msg)) return;
 
-            if (reminderPresets.length === 0) await loadReminderPresets();
-            const pr = t.promemoria || {};
-            const etichette = ids => (ids || [])
-                .map(id => reminderPresets.find(p => String(p.int_id) === String(id))?.label)
-                .filter(Boolean);
-            const canali = {
-                telegram: !!pr.telegram, android: !!pr.android, browser: !!pr.browser,
-                smartBlock: !!pr.smart_block, completeButton: pr.telegram_complete_button !== false,
-                silenzioso: true
-            };
-
             showToast(`⏳ Applico il default a ${daFare.length} task…`);
             let ok = 0;
             const errori = [];
             for (const task of daFare) {
-                const dati = {
-                    categories: [catId, ...(task.categories || []).filter(c => c !== catId)],
-                    show_in_panoramica: t.show_in_panoramica !== false,
-                    late_points: t.late_points ?? 0,
-                    default_category_id: catId
-                };
-                // Frequenza e intervallo sì; la prossima occorrenza NO: la RPC la ricalcola
-                // dalla volta in corso con le regole nuove. I giorni restano del task: se la
-                // frequenza cambia e il task non ha giorni per quella nuova, li ricava dalla
-                // prossima occorrenza (come fa il form dalla data d'inizio). Step non si forzano.
-                const r = t.ricorrenza;
-                if (t.type === 'recurring' && r) {
-                    dati.recurring_frequency = r.frequency;
-                    dati.recurring_interval  = r.interval || 1;
-                    Object.assign(dati, giorniPerFrequenza(task, r.frequency));
-                }
-                if (t.type === 'simple_recurring' && t.repeat_after_days != null)
-                    dati.repeat_after_days = t.repeat_after_days;
-                if (t.type === 'workflow') {
-                    dati.workflow_points = { ...(t.workflow_points || {}) };
-                    dati.success_points = 0; dati.failure_points = 0; dati.skip_points = 0;
-                } else {
-                    dati.success_points = t.success_points ?? 0;
-                    dati.failure_points = t.failure_points ?? 0;
-                    dati.skip_points    = t.skip_points ?? 0;
-                }
-                const { error } = await sb.from('ts_tasks').update(dati).eq('id', task.id);
-                if (error) { errori.push(`${task.title}: ${error.message}`); continue; }
-                const dueDate = task.next_occurrence_date || task.start_date || null;
-                const avvisi = await syncNotificationRules(task.id, task.type, etichette(pr.telegram_ids), dueDate,
-                    task.title, etichette(pr.android_ids), etichette(pr.browser_ids), canali);
-                if (avvisi?.length) errori.push(`${task.title} (promemoria): ${avvisi.join(', ')}`);
-                ok++;
+                const e = await applicaDefaultATask(task, catId);
+                errori.push(...e.problemi);
+                if (e.ok) ok++;
             }
 
             loadNotificationRulesMap();
@@ -6195,6 +6155,83 @@
                 + (saltati ? ` · ${saltati} saltati per tipo` : '')
                 + (errori.length ? ` · ⚠️ ${errori.length} problemi` : ''));
             if (errori.length) alert('Problemi applicando il default:\n\n' + errori.join('\n'));
+        }
+
+        // Applica il template di catId a UN task (stesso tipo). Lo usano «⚡ Applica
+        // categoria» sui filtrati e «🧩 Forza default» sulla scheda: una regola sola.
+        async function applicaDefaultATask(task, catId) {
+            const t = categoryTemplates[catId];
+            const problemi = [];
+            if (reminderPresets.length === 0) await loadReminderPresets();
+            const pr = t.promemoria || {};
+            const etichette = ids => (ids || [])
+                .map(id => reminderPresets.find(p => String(p.int_id) === String(id))?.label)
+                .filter(Boolean);
+            const canali = {
+                telegram: !!pr.telegram, android: !!pr.android, browser: !!pr.browser,
+                smartBlock: !!pr.smart_block, completeButton: pr.telegram_complete_button !== false,
+                silenzioso: true
+            };
+            const dati = {
+                categories: [catId, ...(task.categories || []).filter(c => c !== catId)],
+                show_in_panoramica: t.show_in_panoramica !== false,
+                late_points: t.late_points ?? 0,
+                default_category_id: catId
+            };
+            // Frequenza e intervallo sì; la prossima occorrenza NO: la RPC la ricalcola
+            // dalla volta in corso con le regole nuove. I giorni restano del task: se la
+            // frequenza cambia e il task non ha giorni per quella nuova, li ricava dalla
+            // prossima occorrenza (come fa il form dalla data d'inizio). Step non si forzano.
+            const r = t.ricorrenza;
+            if (t.type === 'recurring' && r) {
+                dati.recurring_frequency = r.frequency;
+                dati.recurring_interval  = r.interval || 1;
+                Object.assign(dati, giorniPerFrequenza(task, r.frequency));
+            }
+            if (t.type === 'simple_recurring' && t.repeat_after_days != null)
+                dati.repeat_after_days = t.repeat_after_days;
+            if (t.type === 'workflow') {
+                dati.workflow_points = { ...(t.workflow_points || {}) };
+                dati.success_points = 0; dati.failure_points = 0; dati.skip_points = 0;
+            } else {
+                dati.success_points = t.success_points ?? 0;
+                dati.failure_points = t.failure_points ?? 0;
+                dati.skip_points    = t.skip_points ?? 0;
+            }
+            const { error } = await sb.from('ts_tasks').update(dati).eq('id', task.id);
+            if (error) return { ok: false, problemi: [`${task.title}: ${error.message}`] };
+            const dueDate = task.next_occurrence_date || task.start_date || null;
+            const avvisi = await syncNotificationRules(task.id, task.type, etichette(pr.telegram_ids), dueDate,
+                task.title, etichette(pr.android_ids), etichette(pr.browser_ids), canali);
+            if (avvisi?.length) problemi.push(`${task.title} (promemoria): ${avvisi.join(', ')}`);
+            return { ok: true, problemi };
+        }
+
+        // Le categorie del task che hanno un template dello stesso tipo.
+        function templateDelTask(task) {
+            return (task.categories || []).filter(c => categoryTemplates[c]?.type === task.type);
+        }
+
+        // 🧩 Forza default sulla scheda di un singolo task.
+        async function forzaDefaultTask(id) {
+            const task = tasks.find(x => x.id === id);
+            if (!task) return;
+            const ids = templateDelTask(task);
+            if (ids.length === 0) { showToast('⚠️ Nessuna categoria del task ha un template di questo tipo'); return; }
+            const catId = ids.length === 1 ? ids[0]
+                : await scegliCategoria('Quale default applicare?', `«${task.title}» ha più categorie con un template.`, ids);
+            if (!catId) return;
+            if (!await customConfirm(`Applicare il default di «${nomeCategoria(catId)}» a «${task.title}»?\n`
+                + `Sovrascrive punti, «Mostra in Panoramica», promemoria, frequenza e intervallo (la prossima data resta quella).`)) return;
+            const e = await applicaDefaultATask(task, catId);
+            loadNotificationRulesMap();
+            triggerFillQueue();
+            await loadTasks();
+            renderTasks();
+            renderDashboard();
+            renderManagement();
+            if (!e.ok || e.problemi.length) alert('Problemi applicando il default:\n\n' + e.problemi.join('\n'));
+            else showToast(`🧩 Default di «${nomeCategoria(catId)}» applicato`);
         }
 
         // Il task ha già giorni per questa frequenza? Se no, li ricava dalla prossima
