@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-formazione v1.2.1</title>
+    <title>Auto-formazione v1.3.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -222,8 +222,8 @@
 // ════════════════════════════════════════════════════════════
 // AUTO-FORMAZIONE — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.2.1';
-var BUILD_TIME  = '2026-11-04T14:30:00Z';
+var APP_VERSION = 'v1.3.0';
+var BUILD_TIME  = '2026-11-05T16:10:00Z';
 console.log('%c 🎓 AUTO-FORMAZIONE ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#00796B;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -676,6 +676,29 @@ function renderCorrezione() {
         <button id="btnConferma" class="btn btn-conferma btn-wide" onclick="conferma()" ${c.voto ? '' : 'disabled'}>✅ Conferma e salva</button>`;
 }
 
+// Il voto va anche sulle metriche collegate all'azione (📊 Andamento di
+// Obiettivi), legato a quell'azione: autovalutazioni la cui scala contiene il
+// voto 1-10, e le metriche «test» (1-100) col totale, se c'è. Passa solo da
+// ob_record_measurement. Torna quante rilevazioni sono passate, o un errore.
+async function registraVoto(azioneId, voto, totale, nota) {
+    const { data: link, error } = await sb.from('ob_action_metrics')
+        .select('metric_id, ob_metrics(id, kind, min_value, max_value)').eq('action_id', azioneId);
+    if (error) return { err: error.message };
+    let ok = 0, err = null;
+    for (const l of link || []) {
+        const m = l.ob_metrics; if (!m) continue;
+        let v = null;
+        if (m.kind === 'autovalutazione' && voto >= Number(m.min_value) && voto <= Number(m.max_value)) v = voto;
+        else if (m.kind === 'test' && totale != null) v = Math.min(Number(m.max_value), Math.max(Number(m.min_value), Math.round(totale)));
+        if (v === null) continue;
+        const { data: r, error: e } = await sb.rpc('ob_record_measurement', {
+            p_metric_id: m.id, p_value: v, p_measured_on: todayISO(), p_note: nota, p_giudizio: null, p_action_id: azioneId,
+        });
+        if (e || !r?.ok) err = e?.message || r?.error || '?'; else ok++;
+    }
+    return { ok, err };
+}
+
 async function conferma() {
     const c = S.correzione, t = tipo();
     if (!c || !c.voto || !t || !String(c.answer || '').trim()) return;
@@ -701,7 +724,9 @@ async function conferma() {
             if (errAz || !data?.ok) {
                 showToast('💾 Esercizio salvato, ma l\'azione NON è stata completata: ' + (errAz?.message || data?.error || '?') + ' — chiudila da Obiettivi.', 8000);
             } else {
-                showToast(`✅ Salvato · azione completata${data.points ? ' (' + (data.points > 0 ? '+' : '') + data.points + ' punti)' : ''}`, 4000);
+                const rv = await registraVoto(azioneId, c.voto, null, 'Autoformazione: ' + (TIPI.find(x => x.key === S.tipoKey)?.name || S.tipoKey));
+                showToast(`✅ Salvato · azione completata${data.points ? ' (' + (data.points > 0 ? '+' : '') + data.points + ' punti)' : ''}`
+                    + (rv.err ? ' · ⚠️ voto non registrato sulla metrica: ' + rv.err : rv.ok ? ' · voto registrato' : ''), rv.err ? 8000 : 4000);
             }
             await caricaAzioni(); renderAzioni();
         } else {
@@ -1070,7 +1095,11 @@ async function confermaTest() {
         if (azioneId) {
             const { data, error: errAz } = await sb.rpc('ob_action_complete', { p_action_id: azioneId, p_today: todayISO() });
             if (errAz || !data?.ok) showToast('💾 Test salvato, ma l\'azione NON è stata completata: ' + (errAz?.message || data?.error || '?') + ' — chiudila da Obiettivi.', 8000);
-            else showToast(`✅ Test salvato · azione completata${data.points ? ' (' + (data.points > 0 ? '+' : '') + data.points + ' punti)' : ''}`, 4000);
+            else {
+                const rv = await registraVoto(azioneId, voto, tot, 'Autoformazione: ' + (TIPI.find(x => x.key === S.tipoKey)?.name || S.tipoKey));
+                showToast(`✅ Test salvato · azione completata${data.points ? ' (' + (data.points > 0 ? '+' : '') + data.points + ' punti)' : ''}`
+                    + (rv.err ? ' · ⚠️ voto non registrato sulla metrica: ' + rv.err : rv.ok ? ' · voto registrato' : ''), rv.err ? 8000 : 4000);
+            }
             await caricaAzioni(); renderAzioni();
         } else showToast('💾 Test salvato');
         await caricaEsercizi();
