@@ -59,51 +59,6 @@ class ObiettiviViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Registra una rilevazione e ricarica gli avanzamenti.
-     *
-     * Il valore è uno solo — il voto o il numero misurato — e la validità
-     * rispetto alla scala la decide `ob_record_measurement`, non questo
-     * ViewModel: due controlli sono due regole che prima o poi divergono.
-     */
-    fun registra(
-        metrica: ObMetrica,
-        valore: Double,
-        giorno: LocalDate,
-        nota: String,
-        giudizio: String? = null,
-    ) {
-        viewModelScope.launch {
-            try {
-                val esito = ObiettiviRepository.registraRilevazione(
-                    metricaId = metrica.id,
-                    valore = valore,
-                    giorno = giorno,
-                    nota = nota,
-                    giudizio = giudizio,
-                )
-                if (!esito.ok) {
-                    _state.value = _state.value.copy(
-                        messaggio = esito.error ?: "Rilevazione non registrata"
-                    )
-                    return@launch
-                }
-                _state.value = _state.value.copy(
-                    messaggio = "Rilevato: ${esito.value}",
-                    ultimeRilevazioni = ObiettiviRepository.ultimeRilevazioni(),
-                    avanzamenti = ObiettiviRepository.avanzamenti(
-                        _state.value.obiettivi.map { it.id }
-                    ),
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "rilevazione non registrata", e)
-                _state.value = _state.value.copy(
-                    messaggio = e.message ?: "Rilevazione non registrata"
-                )
-            }
-        }
-    }
-
     fun messaggioMostrato() {
         _state.value = _state.value.copy(messaggio = null)
     }

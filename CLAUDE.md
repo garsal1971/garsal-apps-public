@@ -2320,6 +2320,12 @@ dello stesso giorno si sovrascrivevano. In 📊 Andamento c'è **un grafico per 
 le sole rilevazioni di quell'azione (`rilevazioniAzione`); le righe senza azione valgono come ripiego
 solo nei giorni in cui l'azione è stata eseguita. Gemelle: `rilevazioneDi()` in `obiettivi.html` e
 `PianoRepository.rilevazioniDel` nel nativo.
+⚠️ **Senza azione non c'è rilevazione** (`20261105140000_ob_measurements_azione_obbligatoria.sql`,
+APK 1.0.157): `action_id` è **NOT NULL**, le righe senza azione sono state cancellate, e
+`ob_record_measurement` rifiuta un `p_action_id` NULL (*azione mancante*). ⚠️ La FK è passata a
+**`ON DELETE CASCADE`**: cancellando un'azione si cancellano anche le sue rilevazioni. Il pulsante
+*Rileva* sulle metriche dell'elenco Obiettivi nativo è stato tolto: si rileva solo chiudendo
+un'azione (📆 Piano quotidiano, Pronuncia, Autoformazione).
 
 `ob_metrics.role` distingue **`primary`** (il risultato, alimenta la barra e il semaforo — **una sola per
 obiettivo**, vincolo `uq_ob_metrics_one_primary`), **`control`** (secondo riscontro lagging) e **`leading`**
