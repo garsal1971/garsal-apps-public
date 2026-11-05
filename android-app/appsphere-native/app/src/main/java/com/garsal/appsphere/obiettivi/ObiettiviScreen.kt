@@ -55,7 +55,6 @@ fun ObiettiviScreen(
     vm: ObiettiviViewModel = viewModel(),
 ) {
     val stato by vm.state.collectAsStateWithLifecycle()
-    var metricaDaRilevare by remember { mutableStateOf<ObMetrica?>(null) }
 
     Scaffold(
         topBar = { GarsalTopBar(titolo = "Obiettivi", onIndietro = onIndietro) }
@@ -83,7 +82,6 @@ fun ObiettiviScreen(
                         SchedaObiettivo(
                             obiettivo = obiettivo,
                             stato = stato,
-                            onRileva = { metricaDaRilevare = it },
                         )
                     }
                 }
@@ -119,23 +117,12 @@ fun ObiettiviScreen(
         }
     }
 
-    metricaDaRilevare?.let { metrica ->
-        RilevazioneDialog(
-            metrica = metrica,
-            onAnnulla = { metricaDaRilevare = null },
-            onConferma = { valore, giorno, nota, giudizio ->
-                vm.registra(metrica, valore, giorno, nota, giudizio)
-                metricaDaRilevare = null
-            },
-        )
-    }
 }
 
 @Composable
 private fun SchedaObiettivo(
     obiettivo: ObObiettivo,
     stato: ObiettiviState,
-    onRileva: (ObMetrica) -> Unit,
 ) {
     var aperto by remember { mutableStateOf(false) }
     val avanzamento = stato.avanzamenti[obiettivo.id]
@@ -207,7 +194,6 @@ private fun SchedaObiettivo(
                     Metrica(
                         metrica = metrica,
                         ultima = stato.ultimeRilevazioni[metrica.id],
-                        onRileva = { onRileva(metrica) },
                     )
                 }
 
@@ -228,7 +214,7 @@ private fun SchedaObiettivo(
                 // I sotto-obiettivi trimestrali, con le loro due barre.
                 stato.figliDi(obiettivo.id).forEach { figlio ->
                     Box(Modifier.padding(start = 12.dp)) {
-                        SchedaObiettivo(obiettivo = figlio, stato = stato, onRileva = onRileva)
+                        SchedaObiettivo(obiettivo = figlio, stato = stato)
                     }
                 }
             }
@@ -237,7 +223,7 @@ private fun SchedaObiettivo(
 }
 
 @Composable
-private fun Metrica(metrica: ObMetrica, ultima: ObRilevazione?, onRileva: () -> Unit) {
+private fun Metrica(metrica: ObMetrica, ultima: ObRilevazione?) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -252,7 +238,6 @@ private fun Metrica(metrica: ObMetrica, ultima: ObRilevazione?, onRileva: () -> 
                 color = Palette.dark,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onRileva) { Text("Rileva") }
         }
         val (da, a) = metrica.scala
         Text(
@@ -328,147 +313,5 @@ private fun segnoMilestone(stato: String) = when (stato) {
     else -> "•"
 }
 
-/**
- * La finestra di rilevazione.
- *
- * Un'**autovalutazione** si dà con lo slider, che vive dentro la scala della
- * metrica: un voto fuori scala lo rifiuterebbe comunque `ob_record_measurement`,
- * ma di qui non si può nemmeno comporre. Un'**automisurazione** ha un campo
- * numerico. La descrizione — come votare, o cosa si misura — è sempre in vista:
- * se cambia il metro la serie storica non è più confrontabile. Un **test di
- * valutazione** ha la casella del punteggio (1-100) e quella del giudizio.
- */
-@Composable
-private fun RilevazioneDialog(
-    metrica: ObMetrica,
-    onAnnulla: () -> Unit,
-    onConferma: (Double, LocalDate, String, String?) -> Unit,
-) {
-    val voto = metrica.kind == "autovalutazione"
-    val gof = metrica.kind == "gofluent"
-    val test = metrica.haGiudizio
-    val minimo = metrica.minValue ?: 1.0
-    val massimo = metrica.maxValue ?: 10.0
-
-    var punteggio by remember { mutableStateOf(((minimo + massimo) / 2).roundToInt()) }
-    var valore by remember { mutableStateOf("") }
-    var nota by remember { mutableStateOf("") }
-    var giudizio by remember { mutableStateOf("") }
-    var giorno by remember { mutableStateOf(LocalDate.now().toString()) }
-
-    val giornoValido = runCatching { LocalDate.parse(giorno) }.isSuccess
-    val numero = valore.trim().replace(',', '.').toDoubleOrNull()
-    val valoreValido = voto || (numero != null && (!test || numero in minimo..massimo))
-
-    AlertDialog(
-        onDismissRequest = onAnnulla,
-        title = { Text(metrica.name) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                metrica.descrizione?.takeIf { it.isNotBlank() }?.let {
-                    Text(
-                        (if (voto) "Come votare: " else if (test) "Quale test: " else "Cosa si misura: ") + it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Palette.muted,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Palette.inputBg)
-                            .padding(8.dp),
-                    )
-                }
-
-                if (gof) {
-                    Tendina(
-                        etichetta = "Livello",
-                        scelto = valore.toDoubleOrNull()?.let { metrica.testoValore(it) } ?: "— scegli il livello —",
-                        voci = GoFluentLivelli.mapIndexed { i, l -> (i + 1).toString() to l },
-                    ) { valore = it }
-                    OutlinedTextField(
-                        value = giudizio,
-                        onValueChange = { giudizio = it },
-                        label = { Text("Giudizio del test") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else if (voto) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Il tuo voto", style = MaterialTheme.typography.bodyMedium)
-                        Text("$punteggio", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                    Slider(
-                        value = punteggio.toFloat(),
-                        onValueChange = {
-                            punteggio = it.roundToInt()
-                                .coerceIn(minimo.roundToInt(), massimo.roundToInt())
-                        },
-                        valueRange = minimo.toFloat()..massimo.toFloat(),
-                    )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("${minimo.roundToInt()}", style = MaterialTheme.typography.bodySmall, color = Palette.muted)
-                        Text("${massimo.roundToInt()}", style = MaterialTheme.typography.bodySmall, color = Palette.muted)
-                    }
-                } else {
-                    OutlinedTextField(
-                        value = valore,
-                        onValueChange = { valore = it },
-                        label = {
-                            Text(
-                                if (test) "Punteggio (${minimo.roundToInt()}-${massimo.roundToInt()})"
-                                else "Valore ${metrica.unit.orEmpty()}".trim()
-                            )
-                        },
-                        singleLine = true,
-                        isError = valore.isNotBlank() && !valoreValido,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (test) {
-                        OutlinedTextField(
-                            value = giudizio,
-                            onValueChange = { giudizio = it },
-                            label = { Text("Giudizio del test") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
-
-                OutlinedTextField(
-                    value = giorno,
-                    onValueChange = { giorno = it },
-                    label = { Text("Giorno (aaaa-mm-gg)") },
-                    singleLine = true,
-                    isError = !giornoValido,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = nota,
-                    onValueChange = { nota = it },
-                    label = { Text("Nota") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = giornoValido && valoreValido,
-                onClick = {
-                    onConferma(
-                        if (voto) punteggio.toDouble() else numero!!,
-                        LocalDate.parse(giorno),
-                        nota,
-                        if (test) giudizio.trim().ifEmpty { null } else null,
-                    )
-                },
-            ) { Text("Registra") }
-        },
-        dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla") } },
-    )
-}
+// La rilevazione diretta su una metrica non c'è più: una rilevazione nasce solo
+// chiudendo un'azione (📆 Piano quotidiano). Vedi 20261105140000_ob_measurements_azione_obbligatoria.sql.
