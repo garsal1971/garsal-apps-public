@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.17.0</title>
+    <title>Obiettivi v1.18.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -326,6 +326,8 @@
         .kpi-value { font-size: 1.7rem; font-weight: 700; line-height: 1.1; color: var(--dark); }
         .kpi-sub { font-size: 0.72rem; color: var(--muted); }
 
+        .trend-azione { margin-bottom: 1.5rem; padding-left: 0.75rem; border-left: 3px solid var(--border); }
+        .trend-azione-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.6rem; }
         .trend-metric { margin-bottom: 1.25rem; }
         .trend-metric-head { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; }
         .trend-metric-name { font-size: 1.05rem; font-weight: 700; }
@@ -1414,7 +1416,7 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.17.0';
+var APP_VERSION = 'v1.18.0';
 var BUILD_TIME  = '2026-10-27T10:00:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
@@ -2314,12 +2316,39 @@ function renderTrend(obj) {
                    gg >= 0 ? 'alla scadenza' : 'oltre la scadenza')}
     </div>`;
 
-    // ── una curva per metrica ────────────────────────────────────────────
+    // ── una curva per azione e metrica ───────────────────────────────────
+    //
+    // Le rilevazioni non portano l'azione: si legano a lei per il GIORNO
+    // dell'esecuzione (giornoRilevazioni), la stessa lettura della modifica
+    // di un'esecuzione. Ogni azione mostra quindi, per ciascuna metrica che
+    // muove, i soli valori rilevati nei giorni in cui è stata eseguita.
+    // ⚠️ Due azioni eseguite lo stesso giorno sulla stessa metrica mostrano
+    // entrambe quel punto: la rilevazione è una sola e non dice di chi è.
     html += `<div class="section-title">Le metriche nel tempo</div>`;
-    html += mets.length
-        ? mets.map(m => graficoMetrica(m)).join('')
-        : `<div class="form-hint">Nessuna metrica: non c'è niente da diagrammare.
+    const conMetriche = acts.filter(a => metricsOfAction(a.id).length);
+    const collegate   = new Set(conMetriche.flatMap(a => metricsOfAction(a.id).map(m => m.id)));
+    const sciolte     = mets.filter(m => !collegate.has(m.id));
+
+    if (!mets.length) {
+        html += `<div class="form-hint">Nessuna metrica: non c'è niente da diagrammare.
              Si aggiungono da Dettaglio → Metriche.</div>`;
+    }
+    html += conMetriche.map(a => {
+        const giorni = new Set(esecuzioniDi(a.id).map(h => giornoRilevazioni(h)));
+        return `<div class="trend-azione">
+            <div class="trend-azione-title">✅ ${esc(a.title)}</div>
+            ${metricsOfAction(a.id).map(m => graficoMetrica(m,
+                measuresOf(m.id).filter(r => giorni.has(String(r.measured_on).slice(0, 10))),
+                giorni.size ? 'Nessuna rilevazione nei giorni in cui è stata eseguita.'
+                            : 'Azione non ancora eseguita.')).join('')}
+        </div>`;
+    }).join('');
+    if (sciolte.length) {
+        html += `<div class="trend-azione">
+            <div class="trend-azione-title">Metriche senza azione collegata</div>
+            ${sciolte.map(m => graficoMetrica(m)).join('')}
+        </div>`;
+    }
 
     // ── le azioni ────────────────────────────────────────────────────────
     html += `<div class="section-title">Le azioni</div>`;
@@ -2357,8 +2386,10 @@ function statTile(etichetta, valore, sotto) {
 // massimo osservati: così l'altezza della curva si legge come «quanto manca»,
 // e due rilevazioni vicine non sembrano un terremoto. Se un valore esce dalla
 // scala, l'asse si allarga per contenerlo invece di tagliarlo.
-function graficoMetrica(m) {
-    const righe = measuresOf(m.id).slice().sort((x, y) =>
+// `rilevazioni` (facoltativo) restringe la curva a un sottoinsieme — le sole
+// rilevazioni dei giorni di un'azione; senza, tutte quelle della metrica.
+function graficoMetrica(m, rilevazioni, vuoto) {
+    const righe = (rilevazioni || measuresOf(m.id)).slice().sort((x, y) =>
         String(x.measured_on).localeCompare(String(y.measured_on)));
     const { da, a } = scaleOf(m);
     const testa = `<div class="trend-metric-head">
@@ -2368,7 +2399,7 @@ function graficoMetrica(m) {
 
     if (!righe.length) {
         return `<div class="trend-metric">${testa}
-            <div class="form-hint">Nessuna rilevazione.</div></div>`;
+            <div class="form-hint">${esc(vuoto || 'Nessuna rilevazione.')}</div></div>`;
     }
     if (righe.length === 1) {
         const r = righe[0];
