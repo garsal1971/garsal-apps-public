@@ -8024,7 +8024,7 @@ tutto lo schermo, il velo è la striscia ai bordi, e il dito ci finisce sopra me
 elenco o si mira a un campo in alto: il popup spariva portandosi via i grammi appena scritti, e
 sembrava un tocco andato a vuoto più che una chiusura. Il ✕ sta nell'HTML della finestra e non
 dipende da cosa ci si mette dentro, quindi togliendo quelle due vie non si resta mai chiusi
-dentro. ⚠️ **Le altre app chiudono ancora col tocco sul velo**: chi le tocca valuti se portare
+dentro. Lo stesso in `obiettivi.html` dalla v1.19.1. ⚠️ **Le altre app chiudono ancora col tocco sul velo**: chi le tocca valuti se portare
 anche questo.
 
 Restano **fuori dall'elenco** il velo di caricamento e il cassetto del menù (`loading-overlay`,

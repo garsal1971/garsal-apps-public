@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obiettivi v1.19.0</title>
+    <title>Obiettivi v1.19.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -1416,8 +1416,8 @@
 // ════════════════════════════════════════════════════════════
 // OBIETTIVI — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.19.0';
-var BUILD_TIME  = '2026-11-05T15:50:00Z';
+var APP_VERSION = 'v1.19.1';
+var BUILD_TIME  = '2026-11-05T17:45:00Z';
 console.log('%c 🎯 OBIETTIVI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#6C5CE7;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -4158,12 +4158,9 @@ function setNavActive(el) {
 function openModal(id)  { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-document.querySelectorAll('.modal').forEach(m => {
-    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('active'); });
-});
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
-});
+// Un popup si chiude solo col ✕, coi suoi pulsanti o con l'indietro: il clic sul velo scuro e
+// l'Escape non chiudono più (v1.19.1). Premere dentro la finestra e rilasciare sul velo — una
+// selezione, uno slider — contava come clic sullo sfondo, e si perdeva quel che si era scritto.
 
 function showToast(msg, ms) {
     const t = document.getElementById('toast');
