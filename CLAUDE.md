@@ -295,14 +295,16 @@ soli campi del preset (classe `no-tpl` sugli altri). Solo web: il nativo non lo 
   sovrascrive punti, panoramica e promemoria e riaccende il flag. ⚠️ **Il tipo non si cambia**:
   i task di tipo diverso dal template si saltano e lo si dice, perché passare da ricorrente a
   singolo o workflow li lascerebbe senza date o passi coerenti.
-- 🔁 **I campi del tipo** (v19.30.0, `leggiCampiDelTipo` / `applicaCampiDelTipo`, chiavi
-  facoltative del jsonb): `ricorrenza` `{frequency, interval, days_of_week, days_of_month, dates}`
-  per `recurring`, `repeat_after_days` per `simple_recurring`, `orario` per `multiple` e
-  `free_repeat`, `workflow_steps` `[{id, title, depends_on}]` per `workflow`. Le date di un
-  multiplo e quelle di inizio/scadenza restano del task. ⚠️ Si applicano DOPO `updateTaskFields()`,
-  che spunta da sé il giorno della data d'inizio. ⚠️ Il forza default scrive ricorrenza e giorni
-  ma **non** `next_occurrence_date` (la RPC ricalcola dalla volta in corso), e **non** orario né
-  step, che sposterebbero un'occorrenza già fissata o lo stato dei passi.
+- 🔁 **I campi del tipo** (v19.30.0, ridotti nella v19.30.1; `leggiCampiDelTipo` /
+  `applicaCampiDelTipo`, chiavi facoltative del jsonb): `ricorrenza` `{frequency, interval}` per
+  `recurring`, `repeat_after_days` per `simple_recurring`, `workflow_steps` `[{id, title,
+  depends_on}]` per `workflow`. ⚠️ **Giorni della settimana/del mese, date annuali e orario NON
+  stanno nel template**: sono del singolo task (classe `no-tpl` sui loro gruppi), e nel nuovo task
+  li propone la data d'inizio (`updateRecurringFields`), come senza template. Chiavi vecchie
+  (`days_of_week`, `orario`…) in un template salvato con la v19.30.0 si ignorano. ⚠️ Il forza
+  default scrive frequenza e intervallo ma **non** `next_occurrence_date` (la RPC ricalcola dalla
+  volta in corso) né gli step; se la frequenza cambia e il task non ha giorni per quella nuova, li
+  ricava dalla prossima occorrenza (`giorniPerFrequenza`).
 - Le regole dei promemoria le scrive `syncNotificationRules(…, canali)`: col parametro `canali`
   usa quei canali invece di quelli del form, e con `silenzioso` niente toast per task.
 - Tabella dei Tasks e non colonna di `cm_categories`: le categorie sono condivise e si
