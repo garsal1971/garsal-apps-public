@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.30.0</title>
+    <title>Tasks v19.30.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2110,7 +2110,7 @@
                     </div>
                 </div>
 
-                <div class="form-group hidden" id="weekDaysGroup">
+                <div class="form-group hidden no-tpl" id="weekDaysGroup">
                     <label class="form-label">Giorni della Settimana</label>
                     <div class="checkbox-group">
                         <label><input type="checkbox" class="week-day" value="1"> Lun</label>
@@ -2123,7 +2123,7 @@
                     </div>
                 </div>
 
-                <div class="form-group hidden" id="monthDayGroup">
+                <div class="form-group hidden no-tpl" id="monthDayGroup">
                     <label class="form-label">Giorni del Mese (seleziona uno o più)</label>
                     <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; max-width: 500px;">
                         <label style="display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" class="month-day" value="1"> 1</label>
@@ -2160,7 +2160,7 @@
                     </div>
                 </div>
 
-                <div class="form-group hidden" id="yearDateGroup">
+                <div class="form-group hidden no-tpl" id="yearDateGroup">
                     <label class="form-label">Date annuali (seleziona una o più date)</label>
                     
                     <!-- Selettore rapido per aggiungere data -->
@@ -2257,7 +2257,7 @@
                 </div>
 
                 <!-- ORARIO (multipli e libera ripetizione) -->
-                <div class="form-group hidden" id="taskTimeGroup">
+                <div class="form-group hidden no-tpl" id="taskTimeGroup">
                     <label class="form-label">Orario</label>
                     <input type="time" class="form-input" id="taskTime"
                            oninput="if(smartBlockEnabled) renderReminders()">
@@ -2415,8 +2415,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.30.0';
-        const BUILD_TIME  = '2026-11-05T12:00:00Z';
+        const APP_VERSION = 'v19.30.1';
+        const BUILD_TIME  = '2026-11-05T14:00:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -5870,25 +5870,19 @@
             };
         }
 
-        // I campi propri del tipo: ricorrenza, giorni dopo il completamento, orario,
-        // step del workflow. Solo quelli del tipo scelto, come li legge saveTask().
+        // I campi propri del tipo: frequenza e intervallo, giorni dopo il completamento,
+        // step del workflow. ⚠️ Giorni della settimana/del mese, date annuali e orario NON
+        // stanno nel template (v19.30.1): sono del singolo task, e nel nuovo task li
+        // propone la data d'inizio (updateRecurringFields), come senza template.
         function leggiCampiDelTipo(tipo) {
-            const spunte = sel => Array.from(document.querySelectorAll(sel + ':checked'))
-                .map(i => parseInt(i.value, 10)).sort((a, b) => a - b);
             const out = {};
             if (tipo === 'recurring') {
-                const freq = document.getElementById('recurringFrequency').value;
                 out.ricorrenza = {
-                    frequency: freq,
-                    interval: parseInt(document.getElementById('recurringInterval').value, 10) || 1,
-                    days_of_week:  freq === 'weekly'  ? spunte('.week-day')  : [],
-                    days_of_month: freq === 'monthly' ? spunte('.month-day') : [],
-                    dates:         freq === 'yearly'  ? [...yearlyDates].sort() : []
+                    frequency: document.getElementById('recurringFrequency').value,
+                    interval: parseInt(document.getElementById('recurringInterval').value, 10) || 1
                 };
             } else if (tipo === 'simple_recurring') {
                 out.repeat_after_days = parseInt(document.getElementById('repeatAfterDays').value, 10) || 7;
-            } else if (tipo === 'multiple' || tipo === 'free_repeat') {
-                out.orario = document.getElementById('taskTime').value || null;
             } else if (tipo === 'workflow') {
                 out.workflow_steps = workflowSteps.map(st => ({ id: st.id, title: st.title, depends_on: [...(st.depends_on || [])] }));
             }
@@ -5900,7 +5894,7 @@
         function firmaTemplate(t) {
             const f = { type: t.type, show_in_panoramica: t.show_in_panoramica !== false, promemoria: t.promemoria || {},
                         ricorrenza: t.ricorrenza || null, repeat_after_days: t.repeat_after_days ?? null,
-                        orario: t.orario ?? null, workflow_steps: t.workflow_steps || null };
+                        workflow_steps: t.workflow_steps || null };
             if (t.type === 'workflow') f.workflow_points = t.workflow_points || {};
             else Object.assign(f, { s: t.success_points, f: t.failure_points, k: t.skip_points, l: t.late_points });
             return JSON.stringify(f);
@@ -5961,15 +5955,10 @@
             if (t.type === 'recurring' && r) {
                 document.getElementById('recurringFrequency').value = r.frequency || 'daily';
                 document.getElementById('recurringInterval').value = r.interval || 1;
-                updateRecurringFields();
-                document.querySelectorAll('.week-day').forEach(cb => cb.checked = (r.days_of_week || []).includes(parseInt(cb.value, 10)));
-                document.querySelectorAll('.month-day').forEach(cb => cb.checked = (r.days_of_month || []).includes(parseInt(cb.value, 10)));
-                if (r.frequency === 'yearly') { yearlyDates = [...(r.dates || [])]; renderYearlyDates(); }
+                updateRecurringFields();   // i giorni li propone la data d'inizio
             }
             if (t.type === 'simple_recurring' && t.repeat_after_days != null)
                 document.getElementById('repeatAfterDays').value = t.repeat_after_days;
-            if ((t.type === 'multiple' || t.type === 'free_repeat') && t.orario !== undefined)
-                document.getElementById('taskTime').value = t.orario || '';
             if (t.type === 'workflow' && Array.isArray(t.workflow_steps)) {
                 workflowSteps = t.workflow_steps.map(st => ({
                     id: st.id, title: st.title, depends_on: [...(st.depends_on || [])],
@@ -6051,7 +6040,7 @@
             const intest = document.getElementById('tplIntestazione');
             intest.classList.remove('hidden');
             intest.innerHTML = `<strong>${escHtml(nomeCategoria(catId))}</strong><br>`
-                + `Tipo coi suoi campi (ricorrenza, giorni, orario, step), punti, promemoria e «Mostra in Panoramica» che un nuovo task di questa categoria riceve. `
+                + `Tipo coi suoi campi (frequenza e intervallo, giorni dopo il completamento, step), punti, promemoria e «Mostra in Panoramica» che un nuovo task di questa categoria riceve. `
                 + `Cambiarlo non tocca i task esistenti: per quelli c'è «⚡ Applica categoria (forza default)».`;
             document.getElementById('taskSubmitBtn').textContent = categoryTemplates[catId] ? 'Salva il template' : 'Crea il template';
             document.getElementById('tplEliminaBtn').classList.toggle('hidden', !categoryTemplates[catId]);
@@ -6142,7 +6131,7 @@
                 return;
             }
             const msg = `Applicare «${nomeCategoria(catId)}» a ${daFare.length} task?\n`
-                + `Sovrascrive punti, «Mostra in Panoramica», promemoria e ricorrenza (la prossima data resta quella). Orario e step no.`
+                + `Sovrascrive punti, «Mostra in Panoramica», promemoria, frequenza e intervallo (la prossima data resta quella; i giorni restano del task).`
                 + (saltati ? `\n${saltati} task saltati: non sono di tipo «${TIPI_TASK_NOME[t.type] || t.type}».` : '');
             if (!await customConfirm(msg)) return;
 
@@ -6167,16 +6156,15 @@
                     late_points: t.late_points ?? 0,
                     default_category_id: catId
                 };
-                // Ricorrenza e giorni sì; la prossima occorrenza NO: la RPC la ricalcola
-                // dalla volta in corso con le regole nuove. Orario e step non si forzano:
-                // sposterebbero un'occorrenza già fissata o lo stato dei passi già fatti.
+                // Frequenza e intervallo sì; la prossima occorrenza NO: la RPC la ricalcola
+                // dalla volta in corso con le regole nuove. I giorni restano del task: se la
+                // frequenza cambia e il task non ha giorni per quella nuova, li ricava dalla
+                // prossima occorrenza (come fa il form dalla data d'inizio). Step non si forzano.
                 const r = t.ricorrenza;
                 if (t.type === 'recurring' && r) {
                     dati.recurring_frequency = r.frequency;
                     dati.recurring_interval  = r.interval || 1;
-                    if (r.frequency === 'weekly')  dati.recurring_days_of_week = r.days_of_week || [];
-                    if (r.frequency === 'monthly') dati.recurring_day_of_month = r.days_of_month || [];
-                    if (r.frequency === 'yearly')  dati.recurring_dates = r.dates || [];
+                    Object.assign(dati, giorniPerFrequenza(task, r.frequency));
                 }
                 if (t.type === 'simple_recurring' && t.repeat_after_days != null)
                     dati.repeat_after_days = t.repeat_after_days;
@@ -6207,6 +6195,20 @@
                 + (saltati ? ` · ${saltati} saltati per tipo` : '')
                 + (errori.length ? ` · ⚠️ ${errori.length} problemi` : ''));
             if (errori.length) alert('Problemi applicando il default:\n\n' + errori.join('\n'));
+        }
+
+        // Il task ha già giorni per questa frequenza? Se no, li ricava dalla prossima
+        // occorrenza (o dall'inizio). Le date dei task sono scritte «già locali»: si
+        // legge la parte AAAA-MM-GG senza passare dal fuso.
+        function giorniPerFrequenza(task, freq) {
+            const g = String(task.next_occurrence_date || task.start_date || '').slice(0, 10).split('-').map(Number);
+            const d = g.length === 3 && g[0] ? new Date(g[0], g[1] - 1, g[2]) : new Date();
+            const vuoto = v => !v || (Array.isArray(v) && v.length === 0);
+            if (freq === 'weekly'  && vuoto(task.recurring_days_of_week)) return { recurring_days_of_week: [d.getDay()] };
+            if (freq === 'monthly' && vuoto(task.recurring_day_of_month)) return { recurring_day_of_month: [d.getDate()] };
+            if (freq === 'yearly'  && vuoto(task.recurring_dates))
+                return { recurring_dates: [String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0')] };
+            return {};
         }
 
         // ── Scelta di una categoria (popup) ───────────────────────────────────
