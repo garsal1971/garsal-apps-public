@@ -98,6 +98,8 @@ data class ObRilevazione(
     val note: String? = "",
     /** Il giudizio scritto di un test (letto solo dove serve: le ultime non lo chiedono). */
     val giudizio: String? = null,
+    /** L'azione che l'ha scritta; NULL = rilevazione fuori da un'azione, o di prima. */
+    @SerialName("action_id") val actionId: String? = null,
 )
 
 /**

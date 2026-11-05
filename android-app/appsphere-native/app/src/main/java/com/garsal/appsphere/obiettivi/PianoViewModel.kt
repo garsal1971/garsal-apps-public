@@ -280,6 +280,7 @@ class PianoViewModel : ViewModel() {
                         giorno = richiesta.giorno,
                         nota = nota,
                         giudizio = giudizi[metricaId],
+                        azioneId = richiesta.azioneId,
                     )
                     if (esito.ok) fatte++ else errori += "$nome: ${esito.error ?: "errore"}"
                 } catch (e: Exception) {
@@ -346,7 +347,7 @@ class PianoViewModel : ViewModel() {
         viewModelScope.launch {
             val metriche = e.azioneId?.let { _state.value.metricheDiAzione(it) }.orEmpty()
             val rilevazioni = e.giornoRilevazioni?.let { g ->
-                runCatching { PianoRepository.rilevazioniDel(g, metriche.map { it.id }) }.getOrNull()
+                runCatching { PianoRepository.rilevazioniDel(g, metriche.map { it.id }, e.azioneId) }.getOrNull()
             }.orEmpty()
             _state.value = _state.value.copy(
                 daCorreggere = EsecuzioneDaCorreggere(e, _state.value.azioneDi(e.azioneId), metriche, rilevazioni),
@@ -384,7 +385,7 @@ class PianoViewModel : ViewModel() {
             if (giorno != null) valori.forEach { (metricaId, valore) ->
                 val nome = c.metriche.firstOrNull { it.id == metricaId }?.name ?: metricaId
                 try {
-                    val r = ObiettiviRepository.registraRilevazione(metricaId, valore, giorno, nota, giudizi[metricaId])
+                    val r = ObiettiviRepository.registraRilevazione(metricaId, valore, giorno, nota, giudizi[metricaId], c.esecuzione.azioneId)
                     if (!r.ok) errori += "$nome: ${r.error ?: "errore"}"
                 } catch (e: Exception) {
                     errori += "$nome: ${e.message ?: "errore"}"

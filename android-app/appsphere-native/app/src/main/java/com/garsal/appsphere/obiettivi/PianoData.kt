@@ -296,13 +296,21 @@ object PianoRepository {
         }
     }
 
-    /** Le rilevazioni di un giorno, per le metriche date. */
-    suspend fun rilevazioniDel(giorno: LocalDate, metriche: List<String>): Map<String, ObRilevazione> =
+    /**
+     * Le rilevazioni di un giorno scritte da un'azione, per le metriche date.
+     * Gemella di `rilevazioneDi()` in obiettivi.html: prima quella dell'azione,
+     * poi come ripiego una riga senza azione (le rilevazioni di prima della
+     * colonna); quelle di un'altra azione non si prendono mai.
+     */
+    suspend fun rilevazioniDel(giorno: LocalDate, metriche: List<String>, azioneId: String?): Map<String, ObRilevazione> =
         withContext(Dispatchers.IO) {
             if (metriche.isEmpty()) emptyMap()
-            else db.from("ob_measurements").select(Columns.raw("metric_id,measured_on,value,note,giudizio")) {
+            else db.from("ob_measurements").select(Columns.raw("metric_id,measured_on,value,note,giudizio,action_id")) {
                 filter { eq("measured_on", giorno.toString()); isIn("metric_id", metriche) }
-            }.decodeList<ObRilevazione>().associateBy { it.metricId }
+            }.decodeList<ObRilevazione>()
+                .filter { it.actionId == null || it.actionId == azioneId }
+                .groupBy { it.metricId }
+                .mapValues { (_, righe) -> righe.firstOrNull { azioneId != null && it.actionId == azioneId } ?: righe.first() }
         }
 
     suspend fun completa(id: String, oggi: LocalDate): Esito = rpc("ob_action_complete") {
