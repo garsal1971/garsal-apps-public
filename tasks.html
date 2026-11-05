@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.30.1</title>
+    <title>Tasks v19.30.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2415,8 +2415,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.30.1';
-        const BUILD_TIME  = '2026-11-05T14:00:00Z';
+        const APP_VERSION = 'v19.30.2';
+        const BUILD_TIME  = '2026-11-05T11:44:04Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -4481,7 +4481,7 @@
         function filtraTasks(containerElement = document) {
             const categoryFilter = containerElement.querySelector('#filterCategory')?.value || '';
             const priorityFilter = containerElement.querySelector('#filterPriority')?.value || '';
-            const statusFilter = containerElement.querySelector('#filterStatus')?.value || 'active_group';
+            const statusFilter = containerElement.querySelector('#filterStatus')?.value ?? 'active_group';
             const searchFilter = containerElement.querySelector('#filterSearch')?.value.toLowerCase().trim() || '';
             const typeFilter = containerElement.querySelector('#filterType')?.value || '';
 
@@ -4523,7 +4523,7 @@
         function applyTaskFilters(containerElement = document) {
             const categoryFilter = containerElement.querySelector('#filterCategory')?.value || '';
             const priorityFilter = containerElement.querySelector('#filterPriority')?.value || '';
-            const statusFilter = containerElement.querySelector('#filterStatus')?.value || 'active_group';
+            const statusFilter = containerElement.querySelector('#filterStatus')?.value ?? 'active_group';
             const searchFilter = containerElement.querySelector('#filterSearch')?.value.toLowerCase().trim() || '';
             const typeFilter = containerElement.querySelector('#filterType')?.value || '';
             
