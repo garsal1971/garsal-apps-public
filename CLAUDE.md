@@ -3827,6 +3827,13 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   restituisce fluidità e completezza a 0 con la parola riconosciuta, e il `PronScore` che le pesa
   esce un quinto dell'accuratezza (55 → 11). In quel caso il voto è l'**accuratezza della parola**;
   una parola `Omission` resta a zero. ⚠️ I tentativi già salvati restano col voto basso.
+- **Comandi a voce che arrivano davvero** (v1.25.0, `Valutatore.comandoNascosto`): con la parola
+  attesa come riferimento Azure scarta quel che non le somiglia, e «spell» detto al posto di
+  «airport» tornava come testo «.» con la parola saltata — il comando non arrivava mai a
+  `Comando.da` e il giro lo contava come tentativo a vuoto. Quando della parola attesa è tutto
+  `Omission`, il comando si cerca nelle parole `Insertion`, nel `Lexical` e nel `Display` della
+  risposta, e solo se lì non c'è con un secondo riconoscimento senza valutazione sulla stessa
+  registrazione (qualche secondo di Azure in più, solo in quel caso).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
