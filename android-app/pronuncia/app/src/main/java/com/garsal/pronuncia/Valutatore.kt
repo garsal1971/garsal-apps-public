@@ -119,8 +119,17 @@ class Valutatore(private val azure: AzureToken) {
                                 // si annulla.
                                 runInterruptible { futuro.get() }.use { r ->
                                     when (r.reason) {
-                                        ResultReason.RecognizedSpeech ->
-                                            leggi(r.properties.getProperty(PropertyId.SpeechServiceResponse_JsonResult), r.text)
+                                        ResultReason.RecognizedSpeech -> {
+                                            val json = r.properties.getProperty(PropertyId.SpeechServiceResponse_JsonResult)
+                                            val e = leggi(json, r.text)
+                                            // ⚠️ v1.25.0: con la parola attesa come riferimento
+                                            // Azure scarta quel che non le somiglia, e un
+                                            // «spell» detto al posto di «airport» torna come
+                                            // testo «.» e la parola saltata: il comando non
+                                            // arrivava mai a `Comando.da`. Quando non c'è niente
+                                            // della parola attesa, il comando si cerca altrove.
+                                            if (nienteDetto(e)) e.copy(riconosciuto = comandoNascosto(json, t, accento) ?: e.riconosciuto) else e
+                                        }
                                         ResultReason.NoMatch -> throw NessunaVoce()
                                         ResultReason.Canceled -> {
                                             val d = CancellationDetails.fromResult(r)
@@ -137,6 +146,47 @@ class Valutatore(private val azure: AzureToken) {
                 }
             }
         }
+    }
+
+    /** Della parola attesa non è stato detto niente: tutte saltate. */
+    private fun nienteDetto(e: Esito): Boolean {
+        val attese = e.parole.filter { it.errore != "Insertion" }
+        return attese.isNotEmpty() && attese.all { it.errore == "Omission" }
+    }
+
+    /**
+     * Il comando detto al posto della parola, quando il riconoscimento con la
+     * valutazione l'ha scartato: prima nelle parole «in più» e nel testo grezzo
+     * della risposta, poi — solo se lì non c'è — con un secondo riconoscimento
+     * sulla stessa registrazione, senza valutazione. Torna la parola del comando
+     * (che `Comando.da` riconosce), o `null`: allora resta un tentativo a vuoto.
+     */
+    private fun comandoNascosto(json: String, t: AzureToken.Token, accento: Accento): String? {
+        runCatching {
+            val best = JSONObject(json).getJSONArray("NBest").getJSONObject(0)
+            val parole = best.optJSONArray("Words")
+            val inPiu = (0 until (parole?.length() ?: 0)).map { parole!!.getJSONObject(it) }
+                .filter { it.optJSONObject("PronunciationAssessment")?.optString("ErrorType") == "Insertion" }
+                .joinToString(" ") { it.optString("Word") }
+            listOf(inPiu, best.optString("Lexical"), best.optString("Display"))
+                .firstOrNull { Comando.da(it, "") != null }?.let { return it }
+        }
+        val pcm = ultimaVoce ?: return null
+        return runCatching {
+            SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
+                cfg.speechRecognitionLanguage = accento.lingua
+                val push = AudioInputStream.createPushStream(AudioStreamFormat.getWaveFormatPCM(Ascolto.HZ.toLong(), 16, 1))
+                AudioConfig.fromStreamInput(push).use { audio ->
+                    SpeechRecognizer(cfg, audio).use { rec ->
+                        val lista = PhraseListGrammar.fromRecognizer(rec)
+                        Comando.PAROLE.forEach(lista::addPhrase)
+                        val futuro = rec.recognizeOnceAsync()
+                        push.write(pcm); push.close()
+                        futuro.get().use { r -> r.text.takeIf { Comando.da(it, "") != null } }
+                    }
+                }
+            }
+        }.getOrNull()
     }
 
     private fun leggi(json: String, testo: String): Esito {
