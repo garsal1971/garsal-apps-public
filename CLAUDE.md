@@ -265,6 +265,7 @@ d'ufficio con l'IBAN, che ha la sua colonna `iban`.
 | `ts_history` | Audit log of task state changes |
 | `ts_priorities` | Configurable priority levels (read-only from tasks.html) |
 | `ts_settings` | Key-value app settings |
+| `ts_category_templates` | 🧩 Il template di default di una categoria (`category_id` → `template` jsonb) |
 
 **Task types** in `ts_tasks.type`:
 - `single` — one-off task with a `start_date`
@@ -273,6 +274,32 @@ d'ufficio con l'IBAN, che ha la sua colonna `iban`.
 - `multiple` — task with multiple scheduled dates
 - `free_repeat` — repeatable without a fixed schedule
 - `workflow` — multi-step workflow task
+
+### 🧩 Template di default delle categorie (tasks.html v19.29.0)
+
+Migration `20261105100000_ts_category_templates.sql`. Un preset dei campi di un task — **tipo,
+punti (anche workflow), «Mostra in Panoramica» e promemoria per canale** (Telegram, Telefono,
+Browser, Smart Block; per `int_id` di `cm_reminder_presets`) — legato a una categoria. Si crea e
+si modifica da **Gestione → 🧩 Template della categoria**, che apre lo stesso form del task coi
+soli campi del preset (classe `no-tpl` sugli altri). Solo web: il nativo non lo legge.
+
+- **Nel nuovo task la categoria sta in cima** e sceglierla applica il suo template. Se più
+  categorie scelte ne hanno uno, si sceglie quale; con campi già toccati a mano non si chiede
+  niente, resta il bottone sotto le categorie.
+- ⚠️ **`ts_tasks.default_category_id` dice QUALE default il task rispetta**, NULL = nessuno o
+  modificato. Si spegne al salvataggio se un campo del template differisce dalla «foto» presa
+  quando il default è stato applicato o il task aperto — non dal template attuale: salvare un
+  task senza toccare quei campi non spegne il flag anche se il template è cambiato dopo.
+- ⚠️ **Cambiare il template non aggiorna i task.** Per allinearli: **Gestione → ⚡ Applica
+  categoria (forza default)** sui task **mostrati dai filtri**: aggiunge la categoria in testa,
+  sovrascrive punti, panoramica e promemoria e riaccende il flag. ⚠️ **Il tipo non si cambia**:
+  i task di tipo diverso dal template si saltano e lo si dice, perché passare da ricorrente a
+  singolo o workflow li lascerebbe senza date o passi coerenti.
+- Le regole dei promemoria le scrive `syncNotificationRules(…, canali)`: col parametro `canali`
+  usa quei canali invece di quelli del form, e con `silenzioso` niente toast per task.
+- Tabella dei Tasks e non colonna di `cm_categories`: le categorie sono condivise e si
+  gestiscono solo da AppSphere. Cancellando una categoria il template se ne va (`CASCADE`) e il
+  flag dei task torna NULL (`SET NULL`).
 
 ### Habit Tracker (`hb_`)
 | Table | Purpose |

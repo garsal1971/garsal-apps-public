@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.28.0</title>
+    <title>Tasks v19.29.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -915,6 +915,11 @@
             display: none !important;
         }
 
+        /* 🧩 Modalità template: il form del task mostra solo i campi del preset */
+        #taskForm.tpl-mode .no-tpl {
+            display: none !important;
+        }
+
         .task-card {
             display: grid;
             grid-template-columns: auto 1fr auto;
@@ -1692,7 +1697,13 @@
                         </div>
                     </div>
                 </div>
-                
+
+                <!-- 🧩 Template di categoria e «forza default» sui task filtrati -->
+                <div class="tpl-barra" style="display: flex; gap: 0.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1rem; padding-bottom: 0.2rem;">
+                    <button type="button" class="btn btn-secondary" style="flex: 0 0 auto; white-space: nowrap;" onclick="apriTemplateCategoria(this)">🧩 Template della categoria</button>
+                    <button type="button" class="btn btn-secondary" style="flex: 0 0 auto; white-space: nowrap;" onclick="forzaDefaultCategoria(this)">⚡ Applica categoria (forza default)</button>
+                </div>
+
                 <div id="tasksList"></div>
             </div>
 
@@ -1983,6 +1994,19 @@
         </div>
     </div>
 
+    <!-- 🧩 Scelta di una categoria (template da modificare, default da applicare) -->
+    <div id="sceltaCategoriaModal" class="modal" style="z-index:9998;">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="sceltaCategoriaTitolo">Scegli la categoria</h2>
+                <span class="modal-close" onclick="chiudiSceltaCategoria(null)">✕</span>
+            </div>
+            <p id="sceltaCategoriaNota" style="margin: 0.5rem 0 0; font-size: 0.9rem; color: var(--muted);"></p>
+            <div id="sceltaCategoriaElenco" style="display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0;"></div>
+            <button class="btn btn-secondary" onclick="chiudiSceltaCategoria(null)" style="width: 100%;">Annulla</button>
+        </div>
+    </div>
+
     <!-- Scelta dei giorni (🙈 Nascondi, ⏭ Salta): al posto del prompt() del browser -->
     <div id="giorniModal" class="modal" style="z-index:9998;" onclick="if(event.target===this)chiudiGiorni(null)">
         <div class="modal-content" style="max-width: 360px;">
@@ -2015,13 +2039,23 @@
 
             <form id="taskForm" onsubmit="saveTask(event)">
                 <input type="hidden" id="editTaskId">
-                
-                <div class="form-group">
+
+                <!-- 🧩 Template di categoria: in modalità template si vede solo questo -->
+                <div id="tplIntestazione" class="hidden" style="margin-bottom: 1rem; padding: 0.6rem 0.75rem; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.9rem;"></div>
+
+                <!-- ⚠️ La categoria viene PRIMA di tutto: sceglierla imposta il default -->
+                <div class="form-group no-tpl">
+                    <label class="form-label">Categorie</label>
+                    <div id="taskCategoriesSelect"></div>
+                    <div id="tplStatoDefault" style="font-size: 0.85rem;"></div>
+                </div>
+
+                <div class="form-group no-tpl">
                     <label class="form-label">Titolo</label>
                     <input type="text" class="form-input" id="taskTitle" required>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group no-tpl">
                     <label class="form-label">Descrizione (opzionale)</label>
                     <textarea class="form-textarea" id="taskDescription" rows="3"></textarea>
                 </div>
@@ -2038,31 +2072,26 @@
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group no-tpl">
                     <label class="form-label">Priorità</label>
                     <select class="form-select" id="taskPriority">
                         <option value="">Nessuna</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Categorie</label>
-                    <div id="taskCategoriesSelect"></div>
-                </div>
-
-                <div class="form-group" id="startDateGroup">
+                <div class="form-group no-tpl" id="startDateGroup">
                     <label class="form-label">Data/Ora Inizio</label>
                     <input type="text" class="form-input" id="taskStartDate" placeholder="GG-MM-AAAA HH:MM" readonly>
                 </div>
 
                 <!-- SINGOLO -->
-                <div class="form-group" id="deadlineGroup">
+                <div class="form-group no-tpl" id="deadlineGroup">
                     <label class="form-label">Scadenza</label>
                     <input type="text" class="form-input" id="taskDeadline" placeholder="GG-MM-AAAA HH:MM" readonly>
                 </div>
 
                 <!-- RICORRENTE -->
-                <div class="form-group hidden" id="recurringGroup">
+                <div class="form-group hidden no-tpl" id="recurringGroup">
                     <label class="form-label">Frequenza</label>
                     <select class="form-select" id="recurringFrequency" onchange="updateRecurringFields()">
                         <option value="daily">Giornaliero</option>
@@ -2073,7 +2102,7 @@
                 </div>
 
                 <!-- INTERVALLO -->
-                <div class="form-group hidden" id="intervalGroup">
+                <div class="form-group hidden no-tpl" id="intervalGroup">
                     <label class="form-label">Intervallo</label>
                     <div class="interval-input">
                         <input type="number" class="form-input" id="recurringInterval" min="1" value="1">
@@ -2081,7 +2110,7 @@
                     </div>
                 </div>
 
-                <div class="form-group hidden" id="weekDaysGroup">
+                <div class="form-group hidden no-tpl" id="weekDaysGroup">
                     <label class="form-label">Giorni della Settimana</label>
                     <div class="checkbox-group">
                         <label><input type="checkbox" class="week-day" value="1"> Lun</label>
@@ -2094,7 +2123,7 @@
                     </div>
                 </div>
 
-                <div class="form-group hidden" id="monthDayGroup">
+                <div class="form-group hidden no-tpl" id="monthDayGroup">
                     <label class="form-label">Giorni del Mese (seleziona uno o più)</label>
                     <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; max-width: 500px;">
                         <label style="display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" class="month-day" value="1"> 1</label>
@@ -2131,7 +2160,7 @@
                     </div>
                 </div>
 
-                <div class="form-group hidden" id="yearDateGroup">
+                <div class="form-group hidden no-tpl" id="yearDateGroup">
                     <label class="form-label">Date annuali (seleziona una o più date)</label>
                     
                     <!-- Selettore rapido per aggiungere data -->
@@ -2163,13 +2192,13 @@
                 </div>
 
                 <!-- RICORRENZA SEMPLICE -->
-                <div class="form-group hidden" id="simpleRecurringGroup">
+                <div class="form-group hidden no-tpl" id="simpleRecurringGroup">
                     <label class="form-label">Ripeti dopo (giorni dal completamento)</label>
                     <input type="number" class="form-input" id="repeatAfterDays" min="1" value="7">
                 </div>
 
                 <!-- WORKFLOW STEPS -->
-                <div class="form-group hidden" id="workflowGroup">
+                <div class="form-group hidden no-tpl" id="workflowGroup">
                     <label class="form-label" style="font-weight: 700; font-size: 1rem;">🔀 Step del Workflow</label>
                     
                     <!-- Grafo dipendenze (unica visualizzazione) -->
@@ -2197,7 +2226,7 @@
                 </div>
 
                 <!-- TASK MULTIPLO (Date specifiche) -->
-                <div class="form-group hidden" id="multipleDatesGroup">
+                <div class="form-group hidden no-tpl" id="multipleDatesGroup">
                     <label class="form-label">Date del task (seleziona una o più date)</label>
                     
                     <!-- Textbox che mostra le date selezionate e apre il calendario -->
@@ -2228,7 +2257,7 @@
                 </div>
 
                 <!-- ORARIO (multipli e libera ripetizione) -->
-                <div class="form-group hidden" id="taskTimeGroup">
+                <div class="form-group hidden no-tpl" id="taskTimeGroup">
                     <label class="form-label">Orario</label>
                     <input type="time" class="form-input" id="taskTime"
                            oninput="if(smartBlockEnabled) renderReminders()">
@@ -2322,7 +2351,7 @@
                 </div>
 
                 <!-- NASCOSTO -->
-                <div class="form-group" id="riservatoGroup" style="margin-top: 0.5rem; display:none;">
+                <div class="form-group no-tpl" id="riservatoGroup" style="margin-top: 0.5rem; display:none;">
                     <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; user-select:none;">
                         <input type="checkbox" id="taskRiservato" style="width:18px;height:18px;accent-color:var(--secondary);cursor:pointer;">
                         <span class="form-label" style="margin:0;">Task nascosto (riservato)</span>
@@ -2337,7 +2366,8 @@
                     </label>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Salva Task</button>
+                <button type="submit" class="btn btn-primary" id="taskSubmitBtn" style="width: 100%;">Salva Task</button>
+                <button type="button" class="btn btn-secondary hidden" id="tplEliminaBtn" onclick="eliminaTemplateCategoria()" style="width: 100%; margin-top: 0.5rem;">🗑️ Elimina il template</button>
             </form>
         </div>
     </div>
@@ -2385,8 +2415,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.28.0';
-        const BUILD_TIME  = '2026-10-27T10:00:00Z';
+        const APP_VERSION = 'v19.29.0';
+        const BUILD_TIME  = '2026-11-05T10:00:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -2564,6 +2594,11 @@
         let sbDeviceToken = null; // Token dispositivo Android (caricato da cm_user_notification_settings)
         let notificationRulesMap = {}; // entity_id → { presetIds: number[], telegramCompleteButton: bool }
         let selectedCategories = [];
+        // 🧩 Template di default delle categorie (ts_category_templates)
+        let categoryTemplates = {};     // category_id → template
+        let tplModeCategoria  = null;   // ≠ null: il form modifica il template di questa categoria
+        let defaultApplicato  = null;   // categoria il cui default il form sta rispettando
+        let defaultFoto       = null;   // firma dei campi del template quando il default è stato applicato
         let _setCreatedAtToNextOccurrence = false; // impostato in editTask(), letto in saveTask()
         let currentViewTaskId = null;
         let priorities = []; // Livelli di priorità
@@ -2622,6 +2657,7 @@
             applyFontScale();
             await loadCategories();
             console.log('Categories loaded:', categories.length);
+            await loadCategoryTemplates();
             await loadPriorities();
             console.log('Priorities loaded:', priorities.length);
             await loadTasks();
@@ -2738,7 +2774,14 @@
             }
         }
 
-        async function syncNotificationRules(taskId, taskType, reminderLabels, dueDate, entityTitle, androidLabels, browserLabels) {
+        // `canali` (facoltativo): i canali accesi, al posto di quelli del form. Lo passa
+        // «forza default» in Gestione, che scrive le regole di task che il form non ha
+        // aperto; `silenzioso` toglie il toast e il ricarico, fatti una volta in fondo.
+        async function syncNotificationRules(taskId, taskType, reminderLabels, dueDate, entityTitle, androidLabels, browserLabels, canali) {
+            const c = canali || {
+                telegram: telegramEnabled, android: androidEnabled, browser: browserEnabled,
+                smartBlock: smartBlockEnabled, completeButton: telegramCompleteButton, silenzioso: false
+            };
             try {
                 const token = sbAccessToken;
                 if (!token) {
@@ -2760,12 +2803,12 @@
                     return;
                 }
 
-                console.log(`🔔 syncNotificationRules — taskId=${taskId}, type=${taskType}, telegram=${telegramEnabled}, android=${androidEnabled}, smartBlock=${smartBlockEnabled}, labels=${JSON.stringify(reminderLabels)}, labelsAndroid=${JSON.stringify(androidLabels)}`);
+                console.log(`🔔 syncNotificationRules — taskId=${taskId}, type=${taskType}, telegram=${c.telegram}, android=${c.android}, smartBlock=${c.smartBlock}, labels=${JSON.stringify(reminderLabels)}, labelsAndroid=${JSON.stringify(androidLabels)}`);
 
                 const toasts = [];
 
                 // ── Smart Block ──────────────────────────────────────────────────
-                if (smartBlockEnabled) {
+                if (c.smartBlock) {
                     if (!dueDate) {
                         console.warn('⚠️ syncNotificationRules smart_block: due_at mancante, skip');
                         toasts.push('⚠️ Smart Block: imposta data e ora per il task');
@@ -2847,12 +2890,12 @@
                 };
 
                 // Telegram
-                const idsTG = telegramEnabled ? idsDaLabel(reminderLabels) : [];
+                const idsTG = c.telegram ? idsDaLabel(reminderLabels) : [];
                 if (idsTG.length === 0) {
                     await togliRegola('telegram');
                 } else {
                     const presetsTG = { reminders: idsTG, due_at: dueDate || null };
-                    if (taskType !== 'workflow' && telegramCompleteButton)
+                    if (taskType !== 'workflow' && c.completeButton)
                         presetsTG.telegram_complete_button = true;
 
                     const errTG = await scriviRegola('telegram', presetsTG);
@@ -2865,7 +2908,7 @@
                 }
 
                 // Telefono (APK nativo, canale 'android')
-                const idsAN = androidEnabled ? idsDaLabel(androidLabels) : [];
+                const idsAN = c.android ? idsDaLabel(androidLabels) : [];
                 if (idsAN.length === 0) {
                     await togliRegola('android');
                 } else {
@@ -2881,7 +2924,7 @@
                 }
 
                 // Browser (Web Push, canale 'browser'): niente pulsanti.
-                const idsBR = browserEnabled ? idsDaLabel(browserLabels) : [];
+                const idsBR = c.browser ? idsDaLabel(browserLabels) : [];
                 if (idsBR.length === 0) {
                     await togliRegola('browser');
                 } else {
@@ -2894,12 +2937,14 @@
                     }
                 }
 
-                if (toasts.length > 0) showToast(toasts.join(' · '));
                 console.log(`✅ syncNotificationRules: task ${taskId} completato`);
+                if (c.silenzioso) return toasts.filter(t => t.startsWith('❌') || t.startsWith('⚠️'));
+                if (toasts.length > 0) showToast(toasts.join(' · '));
                 loadNotificationRulesMap();
                 triggerFillQueue();
             } catch (e) {
                 console.error('❌ syncNotificationRules exception:', e);
+                if (c.silenzioso) return [`❌ ${e.message}`];
                 showToast(`❌ Eccezione promemoria: ${e.message}`);
             }
         }
@@ -4430,19 +4475,16 @@
             applyTaskFilters();
         }
 
-        function applyTaskFilters(containerElement = document) {
+        // I task che i filtri della lista lasciano passare (stato, categoria, priorità,
+        // tipo, testo). Una funzione sola, così «forza default» lavora esattamente sui
+        // task che la lista mostra.
+        function filtraTasks(containerElement = document) {
             const categoryFilter = containerElement.querySelector('#filterCategory')?.value || '';
             const priorityFilter = containerElement.querySelector('#filterPriority')?.value || '';
             const statusFilter = containerElement.querySelector('#filterStatus')?.value || 'active_group';
             const searchFilter = containerElement.querySelector('#filterSearch')?.value.toLowerCase().trim() || '';
             const typeFilter = containerElement.querySelector('#filterType')?.value || '';
-            
-            // Mostra/nascondi bottone clear
-            const clearBtn = containerElement.querySelector('#clearSearchBtn');
-            if (clearBtn) {
-                clearBtn.style.display = searchFilter ? 'block' : 'none';
-            }
-            
+
             let filteredTasks = tasks;
             
             // Filtra per stato
@@ -4475,7 +4517,24 @@
                     return title.includes(searchFilter) || description.includes(searchFilter);
                 });
             }
+            return filteredTasks;
+        }
+
+        function applyTaskFilters(containerElement = document) {
+            const categoryFilter = containerElement.querySelector('#filterCategory')?.value || '';
+            const priorityFilter = containerElement.querySelector('#filterPriority')?.value || '';
+            const statusFilter = containerElement.querySelector('#filterStatus')?.value || 'active_group';
+            const searchFilter = containerElement.querySelector('#filterSearch')?.value.toLowerCase().trim() || '';
+            const typeFilter = containerElement.querySelector('#filterType')?.value || '';
             
+            // Mostra/nascondi bottone clear
+            const clearBtn = containerElement.querySelector('#clearSearchBtn');
+            if (clearBtn) {
+                clearBtn.style.display = searchFilter ? 'block' : 'none';
+            }
+            
+            let filteredTasks = filtraTasks(containerElement);
+
             // Ordina per next_occurrence_date, senza data alla fine
             filteredTasks.sort((a, b) => {
                 const rawA = a.next_occurrence_date;
@@ -4547,7 +4606,7 @@
                             </div>
                             <!-- Riga 2: titolo normale + ellipsis -->
                             <div onclick="viewTask('${task.id}')" style="cursor: pointer; margin-bottom: 0.6rem;">
-                                <h3 style="margin: 0; font-size: var(--mgmt-title-size); color: #1F2937; font-weight: 400; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${task.title}</h3>
+                                <h3 style="margin: 0; font-size: var(--mgmt-title-size); color: #1F2937; font-weight: 400; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${task.default_category_id ? '<span title="Rispetta il default della categoria">🧩 </span>' : ''}${task.title}</h3>
                             </div>
                             <!-- Bottoni azione -->
                             <div style="display: flex; gap: 0.8rem; justify-content: flex-start; align-items: center;">
@@ -5486,6 +5545,9 @@
             const modalContent = document.querySelector('#taskModal .modal-content');
             if (modalContent) modalContent.scrollTop = 0;
             document.getElementById('taskForm').reset();
+            esciModalitaTemplate();
+            defaultApplicato = null;
+            defaultFoto      = null;
             selectedCategories = [];
             reminders = [];
             telegramCompleteButton = true;
@@ -5527,6 +5589,7 @@
             document.getElementById('taskShowInPanoramica').checked = true;
 
             updateTaskFields();
+            renderStatoDefault();
         }
 
         async function editTask(id) {
@@ -5534,6 +5597,7 @@
             if (!task) return;
 
             _setCreatedAtToNextOccurrence = false;
+            esciModalitaTemplate();
             document.getElementById('editTaskId').value = id;
             document.getElementById('taskModalTitle').textContent = 'Modifica Task';
             document.getElementById('taskTitle').value = task.title;
@@ -5720,6 +5784,13 @@
             if (reminderPresets.length === 0) await loadReminderPresets();
             renderReminders();
 
+            // 🧩 Il default che il task rispetta: la foto è quella di ADESSO, così
+            // salvare senza toccare i campi del template non spegne il flag anche se
+            // nel frattempo il template della categoria è cambiato.
+            defaultApplicato = task.default_category_id || null;
+            defaultFoto      = defaultApplicato ? firmaTemplate(leggiCampiTemplate()) : null;
+            renderStatoDefault();
+
             // Chiedi se impostare created_at alla next_occurrence_date
             if (task.next_occurrence_date) {
                 const nextOccStr = isoToEu(task.next_occurrence_date) || task.next_occurrence_date;
@@ -5731,6 +5802,372 @@
             const modalContentEdit = document.querySelector('#taskModal .modal-content');
             if (modalContentEdit) modalContentEdit.scrollTop = 0;
         }
+
+        // ========================================
+        // 🧩 TEMPLATE DI DEFAULT DELLE CATEGORIE
+        // ========================================
+        // Un preset dei campi (tipo, punti, panoramica, promemoria per canale) legato a
+        // una categoria, in ts_category_templates. Nel nuovo task la categoria si sceglie
+        // per prima e il form si riempie col suo template; se più categorie scelte ne
+        // hanno uno, si sceglie quale.
+        //
+        // ⚠️ Il flag (ts_tasks.default_category_id) dice QUALE default il task rispetta,
+        // e si spegne appena un campo del template cambia a mano: al salvataggio i campi
+        // si confrontano con la «foto» presa quando il default è stato applicato (o
+        // quando il task è stato aperto). Cambiare il template non tocca i task: per
+        // allinearli c'è «⚡ Applica categoria (forza default)» in Gestione.
+
+        const TIPI_TASK_NOME = {
+            single: 'Singolo', recurring: 'Ricorrente', simple_recurring: 'Ricorrenza semplice',
+            multiple: 'Multiplo', free_repeat: 'A libera ripetizione', workflow: 'Workflow'
+        };
+
+        async function loadCategoryTemplates() {
+            try {
+                const { data, error } = await sb.from('ts_category_templates').select('category_id, template');
+                if (error) { console.warn('⚠️ Template categorie non caricati:', error.message); return; }
+                categoryTemplates = {};
+                (data || []).forEach(r => { categoryTemplates[r.category_id] = r.template || {}; });
+                console.log('🧩 Template categorie:', Object.keys(categoryTemplates).length);
+            } catch (e) {
+                console.warn('⚠️ Template categorie: eccezione', e);
+            }
+        }
+
+        function nomeCategoria(id) {
+            const c = categories.find(x => x.id === id);
+            return c ? `${c.icon || ''} ${c.name}`.trim() : 'categoria sconosciuta';
+        }
+
+        // I campi del template, letti dal form così come sono adesso.
+        function leggiCampiTemplate() {
+            const num = (id, d) => { const v = parseInt(document.getElementById(id).value, 10); return isNaN(v) ? d : v; };
+            const ids = labels => (labels || [])
+                .map(l => reminderPresets.find(p => p.label === l)?.int_id)
+                .filter(v => v != null)
+                .sort((a, b) => a - b);
+            return {
+                type: document.getElementById('taskType').value,
+                success_points: num('successPoints', 0),
+                failure_points: num('failurePoints', 0),
+                skip_points:    num('skipPoints', 0),
+                late_points:    num('latePoints', 0),
+                workflow_points: {
+                    step_success: num('wfStepSuccessPoints', 5),
+                    step_failure: num('wfStepFailurePoints', -3),
+                    task_success: num('wfTaskSuccessPoints', 20),
+                    task_failure: num('wfTaskFailurePoints', -10)
+                },
+                show_in_panoramica: document.getElementById('taskShowInPanoramica').checked,
+                promemoria: {
+                    telegram: !!telegramEnabled, telegram_ids: ids(reminders),
+                    telegram_complete_button: telegramCompleteButton !== false,
+                    android:  !!androidEnabled,  android_ids:  ids(androidReminders),
+                    browser:  !!browserEnabled,  browser_ids:  ids(browserReminders),
+                    smart_block: !!smartBlockEnabled
+                }
+            };
+        }
+
+        // Firma confrontabile: per i workflow contano i punti workflow, per gli altri
+        // quelli standard (i campi nascosti dal tipo non devono spegnere il flag).
+        function firmaTemplate(t) {
+            const f = { type: t.type, show_in_panoramica: t.show_in_panoramica !== false, promemoria: t.promemoria || {} };
+            if (t.type === 'workflow') f.workflow_points = t.workflow_points || {};
+            else Object.assign(f, { s: t.success_points, f: t.failure_points, k: t.skip_points, l: t.late_points });
+            return JSON.stringify(f);
+        }
+
+        // La categoria da scrivere in default_category_id al salvataggio, o null.
+        function defaultRispettato() {
+            if (!defaultApplicato || !selectedCategories.includes(defaultApplicato)) return null;
+            return firmaTemplate(leggiCampiTemplate()) === defaultFoto ? defaultApplicato : null;
+        }
+
+        async function applicaTemplateAlForm(catId) {
+            const t = categoryTemplates[catId];
+            if (!t) return;
+            if (reminderPresets.length === 0) await loadReminderPresets();
+            const imposta = (id, v) => { if (v != null) document.getElementById(id).value = v; };
+            if (t.type) document.getElementById('taskType').value = t.type;
+            imposta('successPoints', t.success_points);
+            imposta('failurePoints', t.failure_points);
+            imposta('skipPoints',    t.skip_points);
+            imposta('latePoints',    t.late_points);
+            const wf = t.workflow_points || {};
+            imposta('wfStepSuccessPoints', wf.step_success);
+            imposta('wfStepFailurePoints', wf.step_failure);
+            imposta('wfTaskSuccessPoints', wf.task_success);
+            imposta('wfTaskFailurePoints', wf.task_failure);
+            document.getElementById('taskShowInPanoramica').checked = t.show_in_panoramica !== false;
+
+            const pr = t.promemoria || {};
+            const etichette = ids => (ids || [])
+                .map(id => reminderPresets.find(p => String(p.int_id) === String(id))?.label)
+                .filter(Boolean);
+            telegramEnabled        = !!pr.telegram;
+            reminders              = etichette(pr.telegram_ids);
+            telegramCompleteButton = pr.telegram_complete_button !== false;
+            androidEnabled         = !!pr.android;
+            androidReminders       = etichette(pr.android_ids);
+            browserEnabled         = !!pr.browser;
+            browserReminders       = etichette(pr.browser_ids);
+            smartBlockEnabled      = !!pr.smart_block;
+
+            updateTaskFields();
+            if (!tplModeCategoria) {
+                defaultApplicato = catId;
+                defaultFoto      = firmaTemplate(leggiCampiTemplate());
+            }
+            renderReminders();
+            renderStatoDefault();
+        }
+
+        // Dopo ogni scelta di categoria nel form, nel NUOVO task: se il default non è
+        // ancora applicato si applica; se ne arriva un secondo mentre il primo è ancora
+        // intatto, si chiede quale tenere. Con campi già toccati a mano non si chiede
+        // niente (sovrascriverebbe il lavoro): resta il bottone sotto le categorie.
+        async function dopoCambioCategorie(aggiunta) {
+            if (tplModeCategoria) return;
+            if (defaultApplicato && !selectedCategories.includes(defaultApplicato)) {
+                defaultApplicato = null;
+                defaultFoto      = null;
+            }
+            const nuovo = !document.getElementById('editTaskId').value;
+            if (nuovo && !defaultApplicato) {
+                const conTpl = selectedCategories.filter(id => categoryTemplates[id]);
+                if (conTpl.length === 1) {
+                    await applicaTemplateAlForm(conTpl[0]);
+                } else if (conTpl.length > 1) {
+                    const scelta = await scegliCategoria('Quale default?', 'Più categorie scelte hanno un template: quale usare?', conTpl);
+                    if (scelta) await applicaTemplateAlForm(scelta);
+                }
+            } else if (nuovo && aggiunta && aggiunta !== defaultApplicato && categoryTemplates[aggiunta]
+                       && firmaTemplate(leggiCampiTemplate()) === defaultFoto) {
+                const conTpl = selectedCategories.filter(id => categoryTemplates[id]);
+                const scelta = await scegliCategoria('Quale default?', 'Più categorie scelte hanno un template: quale usare?', conTpl);
+                if (scelta && scelta !== defaultApplicato) await applicaTemplateAlForm(scelta);
+            }
+            renderStatoDefault();
+        }
+
+        async function scegliEApplicaDefault() {
+            const conTpl = selectedCategories.filter(id => categoryTemplates[id]);
+            if (conTpl.length === 0) return;
+            const catId = conTpl.length === 1
+                ? conTpl[0]
+                : await scegliCategoria('Quale default?', 'Più categorie scelte hanno un template: quale usare?', conTpl);
+            if (catId) await applicaTemplateAlForm(catId);
+        }
+
+        // La riga sotto le categorie: quale default il task rispetta, o no.
+        function renderStatoDefault() {
+            const el = document.getElementById('tplStatoDefault');
+            if (!el) return;
+            if (tplModeCategoria) { el.innerHTML = ''; return; }
+            const conTpl = selectedCategories.filter(id => categoryTemplates[id]);
+            const btn = (testo, azione) => `<button type="button" class="btn btn-secondary btn-small" onclick="${azione}" style="margin-top:0.4rem;white-space:normal;">${testo}</button>`;
+            let html = '';
+            if (defaultApplicato && selectedCategories.includes(defaultApplicato)) {
+                const nome = escHtml(nomeCategoria(defaultApplicato));
+                const integro = firmaTemplate(leggiCampiTemplate()) === defaultFoto;
+                html = integro
+                    ? `<div style="margin-top:0.4rem;color:var(--success);">🧩 Rispetta il default di «${nome}»</div>`
+                    : `<div style="margin-top:0.4rem;color:var(--warning);">✏️ Modificato: non rispetta più il default di «${nome}»</div>`
+                      + (categoryTemplates[defaultApplicato] ? btn('↺ Riapplica il default', `applicaTemplateAlForm('${defaultApplicato}')`) : '');
+                if (integro && conTpl.length > 1) html += btn('🧩 Usa un altro default', 'scegliEApplicaDefault()');
+            } else if (conTpl.length > 0) {
+                html = btn(conTpl.length === 1
+                    ? `🧩 Applica il default di «${escHtml(nomeCategoria(conTpl[0]))}»`
+                    : '🧩 Applica un default…', 'scegliEApplicaDefault()');
+            }
+            el.innerHTML = html;
+        }
+
+        // ── Modalità template: lo stesso form, coi soli campi del preset ─────────
+        function entraModalitaTemplate(catId) {
+            tplModeCategoria = catId;
+            document.getElementById('taskForm').classList.add('tpl-mode');
+            document.getElementById('taskTitle').required = false;
+            document.getElementById('taskModalTitle').textContent = '🧩 Template di categoria';
+            const intest = document.getElementById('tplIntestazione');
+            intest.classList.remove('hidden');
+            intest.innerHTML = `<strong>${escHtml(nomeCategoria(catId))}</strong><br>`
+                + `Tipo, punti, promemoria e «Mostra in Panoramica» che un nuovo task di questa categoria riceve. `
+                + `Cambiarlo non tocca i task esistenti: per quelli c'è «⚡ Applica categoria (forza default)».`;
+            document.getElementById('taskSubmitBtn').textContent = categoryTemplates[catId] ? 'Salva il template' : 'Crea il template';
+            document.getElementById('tplEliminaBtn').classList.toggle('hidden', !categoryTemplates[catId]);
+        }
+
+        function esciModalitaTemplate() {
+            tplModeCategoria = null;
+            document.getElementById('taskForm').classList.remove('tpl-mode');
+            document.getElementById('taskTitle').required = true;
+            document.getElementById('tplIntestazione').classList.add('hidden');
+            document.getElementById('taskSubmitBtn').textContent = 'Salva Task';
+            document.getElementById('tplEliminaBtn').classList.add('hidden');
+        }
+
+        async function apriTemplateCategoria(btn) {
+            const cont = btn.closest('#managementContainer') || document;
+            let catId = cont.querySelector('#filterCategory')?.value || '';
+            if (!catId) {
+                const ordinate = [...categories].sort((a, b) =>
+                    (categoryTemplates[b.id] ? 1 : 0) - (categoryTemplates[a.id] ? 1 : 0) || a.name.localeCompare(b.name));
+                catId = await scegliCategoria('Template di quale categoria?',
+                    'Con il filtro «Categoria» impostato si apre direttamente quella. 🧩 = ha già un template.',
+                    ordinate.map(c => c.id));
+            }
+            if (!catId) return;
+            showCreateTaskModal();
+            entraModalitaTemplate(catId);
+            if (categoryTemplates[catId]) await applicaTemplateAlForm(catId);
+            else { updateTaskFields(); renderReminders(); }
+        }
+
+        async function salvaTemplateCategoria() {
+            const catId = tplModeCategoria;
+            if (!catId) return;
+            const template = leggiCampiTemplate();
+            const { error } = await sb.from('ts_category_templates')
+                .upsert({ category_id: catId, template, updated_at: new Date().toISOString() });
+            if (error) {
+                console.error('❌ Template categoria:', error);
+                alert('ERRORE SALVATAGGIO TEMPLATE:\n' + (error.message || JSON.stringify(error)));
+                return;
+            }
+            categoryTemplates[catId] = template;
+            showToast(`🧩 Template di «${nomeCategoria(catId)}» salvato`);
+            closeTaskModal();
+            esciModalitaTemplate();
+        }
+
+        async function eliminaTemplateCategoria() {
+            const catId = tplModeCategoria;
+            if (!catId || !categoryTemplates[catId]) return;
+            if (!await customConfirm(`Eliminare il template di «${nomeCategoria(catId)}»?\nI task che lo rispettavano restano come sono.`)) return;
+            const { error } = await sb.from('ts_category_templates').delete().eq('category_id', catId);
+            if (error) { alert('ERRORE ELIMINAZIONE TEMPLATE:\n' + error.message); return; }
+            delete categoryTemplates[catId];
+            showToast(`🗑️ Template di «${nomeCategoria(catId)}» eliminato`);
+            closeTaskModal();
+            esciModalitaTemplate();
+        }
+
+        // ── ⚡ Applica categoria (forza default) sui task filtrati ───────────────
+        // Aggiunge la categoria (prima dell'elenco), sovrascrive i campi del template,
+        // riscrive i promemoria e riaccende il flag. ⚠️ Il tipo NON si cambia: un task
+        // di tipo diverso dal template si salta e lo si dice — passare da ricorrente a
+        // singolo o a workflow lo lascerebbe senza date o passi coerenti.
+        async function forzaDefaultCategoria(btn) {
+            const cont = btn.closest('#managementContainer') || document;
+            const filtrati = filtraTasks(cont);
+            if (filtrati.length === 0) { showToast('⚠️ Nessun task nel filtro'); return; }
+
+            const filtroCat = cont.querySelector('#filterCategory')?.value || '';
+            const conTpl = categories.filter(c => categoryTemplates[c.id]).map(c => c.id)
+                .sort((a, b) => (b === filtroCat) - (a === filtroCat));
+            if (conTpl.length === 0) {
+                showToast('⚠️ Nessuna categoria ha un template: crealo con «🧩 Template della categoria»');
+                return;
+            }
+            const catId = await scegliCategoria('Quale categoria applicare?',
+                `Ai ${filtrati.length} task mostrati dai filtri: la categoria si aggiunge e il suo default sovrascrive punti, panoramica e promemoria. Solo i task dello stesso tipo del template.`,
+                conTpl);
+            if (!catId) return;
+
+            const t = categoryTemplates[catId];
+            const daFare  = filtrati.filter(x => x.type === t.type);
+            const saltati = filtrati.length - daFare.length;
+            if (daFare.length === 0) {
+                showToast(`⚠️ Nessun task di tipo «${TIPI_TASK_NOME[t.type] || t.type}»: niente da applicare`);
+                return;
+            }
+            const msg = `Applicare «${nomeCategoria(catId)}» a ${daFare.length} task?\n`
+                + `Sovrascrive punti, «Mostra in Panoramica» e promemoria.`
+                + (saltati ? `\n${saltati} task saltati: non sono di tipo «${TIPI_TASK_NOME[t.type] || t.type}».` : '');
+            if (!await customConfirm(msg)) return;
+
+            if (reminderPresets.length === 0) await loadReminderPresets();
+            const pr = t.promemoria || {};
+            const etichette = ids => (ids || [])
+                .map(id => reminderPresets.find(p => String(p.int_id) === String(id))?.label)
+                .filter(Boolean);
+            const canali = {
+                telegram: !!pr.telegram, android: !!pr.android, browser: !!pr.browser,
+                smartBlock: !!pr.smart_block, completeButton: pr.telegram_complete_button !== false,
+                silenzioso: true
+            };
+
+            showToast(`⏳ Applico il default a ${daFare.length} task…`);
+            let ok = 0;
+            const errori = [];
+            for (const task of daFare) {
+                const dati = {
+                    categories: [catId, ...(task.categories || []).filter(c => c !== catId)],
+                    show_in_panoramica: t.show_in_panoramica !== false,
+                    late_points: t.late_points ?? 0,
+                    default_category_id: catId
+                };
+                if (t.type === 'workflow') {
+                    dati.workflow_points = { ...(t.workflow_points || {}) };
+                    dati.success_points = 0; dati.failure_points = 0; dati.skip_points = 0;
+                } else {
+                    dati.success_points = t.success_points ?? 0;
+                    dati.failure_points = t.failure_points ?? 0;
+                    dati.skip_points    = t.skip_points ?? 0;
+                }
+                const { error } = await sb.from('ts_tasks').update(dati).eq('id', task.id);
+                if (error) { errori.push(`${task.title}: ${error.message}`); continue; }
+                const dueDate = task.next_occurrence_date || task.start_date || null;
+                const avvisi = await syncNotificationRules(task.id, task.type, etichette(pr.telegram_ids), dueDate,
+                    task.title, etichette(pr.android_ids), etichette(pr.browser_ids), canali);
+                if (avvisi?.length) errori.push(`${task.title} (promemoria): ${avvisi.join(', ')}`);
+                ok++;
+            }
+
+            loadNotificationRulesMap();
+            triggerFillQueue();
+            await loadTasks();
+            renderTasks();
+            renderDashboard();
+            renderManagement();
+            showToast(`🧩 Default di «${nomeCategoria(catId)}» applicato a ${ok} task`
+                + (saltati ? ` · ${saltati} saltati per tipo` : '')
+                + (errori.length ? ` · ⚠️ ${errori.length} problemi` : ''));
+            if (errori.length) alert('Problemi applicando il default:\n\n' + errori.join('\n'));
+        }
+
+        // ── Scelta di una categoria (popup) ───────────────────────────────────
+        let _sceltaCategoriaRisolvi = null;
+        function scegliCategoria(titolo, nota, ids) {
+            return new Promise(resolve => {
+                _sceltaCategoriaRisolvi = resolve;
+                document.getElementById('sceltaCategoriaTitolo').textContent = titolo;
+                document.getElementById('sceltaCategoriaNota').textContent = nota || '';
+                document.getElementById('sceltaCategoriaElenco').innerHTML = ids.map(id => {
+                    const c = categories.find(x => x.id === id);
+                    if (!c) return '';
+                    const t = categoryTemplates[id];
+                    const dettaglio = t ? ` <span style="opacity:0.7;font-size:0.85rem;">🧩 ${escHtml(TIPI_TASK_NOME[t.type] || t.type || '')}</span>` : '';
+                    return `<button type="button" class="btn btn-secondary" onclick="chiudiSceltaCategoria('${id}')"
+                        style="text-align:left;white-space:normal;border-left:4px solid ${escHtml(c.color || '#ccc')};">
+                        ${escHtml(c.icon || '')} ${escHtml(c.name)}${dettaglio}</button>`;
+                }).join('');
+                document.getElementById('sceltaCategoriaModal').classList.add('active');
+            });
+        }
+
+        function chiudiSceltaCategoria(id) {
+            document.getElementById('sceltaCategoriaModal').classList.remove('active');
+            const risolvi = _sceltaCategoriaRisolvi;
+            _sceltaCategoriaRisolvi = null;
+            if (risolvi) risolvi(id);
+        }
+
+        // Ogni campo toccato a mano può spegnere (o riaccendere) il «rispetta default».
+        document.getElementById('taskForm').addEventListener('input',  () => renderStatoDefault());
+        document.getElementById('taskForm').addEventListener('change', () => renderStatoDefault());
 
         function closeTaskModal() {
             document.getElementById('taskModal').classList.remove('active');
@@ -5778,6 +6215,7 @@
             if (!selectedCategories.includes(id)) {
                 selectedCategories.push(id);
                 renderCategoriesSelect();
+                dopoCambioCategorie(id);
             }
         }
         
@@ -5785,6 +6223,7 @@
             console.log('🔴 Unselecting category:', id);
             selectedCategories = selectedCategories.filter(c => c !== id);
             renderCategoriesSelect();
+            dopoCambioCategorie();
         }
 
         function toggleCategory(id) {
@@ -6515,6 +6954,7 @@
         function renderReminders() {
             const listEl = document.getElementById('remindersList');
             if (!listEl) return;
+            renderStatoDefault();   // i promemoria fanno parte del template
 
             const availableReminders = reminderPresets.map(p => p.label);
             const currentType = document.getElementById('taskType')?.value || '';
@@ -6708,6 +7148,7 @@
 
         async function saveTask(e) {
             e.preventDefault();
+            if (tplModeCategoria) { await salvaTemplateCategoria(); return; }
             
             const taskId = document.getElementById('editTaskId').value;
             const taskType = document.getElementById('taskType').value;
@@ -6730,7 +7171,8 @@
                 late_points: parseInt(document.getElementById('latePoints').value) || 0,
                 riservato: hiddenMode && document.getElementById('taskRiservato').checked,
                 show_in_panoramica: document.getElementById('taskShowInPanoramica').checked,
-                status: 'started'
+                status: 'started',
+                default_category_id: defaultRispettato()
             };
 
             if (taskType === 'single') {
