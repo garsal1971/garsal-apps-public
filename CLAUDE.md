@@ -3910,8 +3910,11 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   distanza massima fra le registrazioni dello stesso comando × `Prefs.sensibilitaComandi` (1,4) —
   e solo se non è un comando va ad Azure, tutta insieme. Il comando torna al giro come
   `Comando.frase(c)`. ⚠️ Le registrazioni stanno solo in `filesDir/comandi` (PCM 16 kHz): sono la
-  voce di una persona. 🧪 Prova dice distanza e soglia, per tarare. I comandi «command …» restano
-  come riserva. Si registra col microfono del telefono: con le cuffie BT il confronto può peggiorare.
+  voce di una persona. 🧪 Prova dice distanza e soglia, per tarare.
+  ⚠️ **Dalla v1.31.0 i comandi inglesi detti ad Azure non ci sono più** (v1.23-1.29: «spell»,
+  «command spell», con `tollerante`/`comandoNascosto`/`PhraseListGrammar`): si riconoscono solo in
+  locale, e `Comando.da` legge il segno `§comando:` che mette `Comando.frase`. Senza registrazioni,
+  niente comandi a voce (restano i tasti delle cuffie). Si registra col microfono del telefono: con le cuffie BT il confronto può peggiorare.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
