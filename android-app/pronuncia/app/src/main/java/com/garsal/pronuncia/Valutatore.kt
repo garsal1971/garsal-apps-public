@@ -68,7 +68,9 @@ class Valutatore(private val azure: AzureToken) {
         private set
 
     /** [ritmo] chiede ad Azure anche ritmo e intonazione (vedi `Giudizio`). */
-    suspend fun valuta(riferimento: String, accento: Accento, ritmo: Boolean): Esito = withContext(Dispatchers.IO) {
+    /** [comandi]: prima di Azure si confronta la voce coi comandi registrati
+     *  (`ComandiVoce`, v1.30.0). Solo a mani libere: nell'esercizio non ci sono comandi. */
+    suspend fun valuta(riferimento: String, accento: Accento, ritmo: Boolean, comandi: Boolean = false): Esito = withContext(Dispatchers.IO) {
         // Il token prima della voce: se va rinnovato, il ritardo cade qui
         // e non mentre si sta parlando.
         val t = azure.prendi()
@@ -81,6 +83,18 @@ class Valutatore(private val azure: AzureToken) {
             // punto di Ascolto, che i secondi di Azure li conta sull'audio inviato.
             ultimaVoce = null
             val inizio = mic.aspettaVoce() ?: throw NessunaVoce()
+            // ⚠️ v1.30.0: con dei comandi registrati la voce si tiene tutta sul
+            // telefono e si confronta con loro; solo se non è un comando va ad
+            // Azure, tutta insieme. Costa l'attesa della fine della voce prima
+            // di inviare, mezzo secondo circa in più sul voto.
+            val tenuta = if (comandi && Servizi.comandi.pronti()) {
+                val t = mic.tieniFinoAlSilenzio(inizio)
+                ultimaVoce = mic.registrazione()
+                Servizi.comandi.riconosci(ultimaVoce!!, Servizi.prefs.sensibilitaComandi)?.let { c ->
+                    return@withContext Esito(Comando.frase(c), 0.0, 0.0, 0.0, 0.0, emptyList())
+                }
+                t
+            } else null
             SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
                 cfg.speechRecognitionLanguage = accento.lingua
                 // L'audio arriva già dall'inizio della voce: tre secondi di
@@ -111,9 +125,12 @@ class Valutatore(private val azure: AzureToken) {
                                 val lista = PhraseListGrammar.fromRecognizer(rec)
                                 Comando.PAROLE.forEach(lista::addPhrase)
                                 val futuro = rec.recognizeOnceAsync()
-                                inizio.forEach { mic.invia(push, it) }
-                                mic.inviaFinoAlSilenzio(push) { futuro.isDone }
-                                ultimaVoce = mic.registrazione()
+                                if (tenuta != null) tenuta.forEach { push.write(it) }
+                                else {
+                                    inizio.forEach { mic.invia(push, it) }
+                                    mic.inviaFinoAlSilenzio(push) { futuro.isDone }
+                                    ultimaVoce = mic.registrazione()
+                                }
                                 // Fine dello stream = fine della frase per Azure.
                                 push.close(); chiuso = true
                                 // ⚠️ Interrompibile: una pausa (chiamata, tasto delle

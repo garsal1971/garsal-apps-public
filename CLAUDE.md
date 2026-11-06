@@ -3903,6 +3903,15 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   forzava sulla parola attesa («please»): due parole non si confondono con una da pronunciare.
   Senza prefisso non è un comando. `Comando.tollerante` accetta il prefisso storpiato («comment»,
   «commend») e il verbo storpiato come prima; la `PhraseListGrammar` riceve le frasi intere.
+- **Comandi in italiano con la tua voce** (v1.30.0, `ComandiVoce.kt`, `ui/MieiComandi.kt`): in
+  ⚙️ → 🎙 I miei comandi si registrano fino a 3 volte «Ripeti», «Avanti», «Lento», «Ferma»,
+  «Ortografia», «Traduci». A mani libere, se c'è almeno una registrazione, la voce si tiene tutta
+  sul telefono (`Ascolto.tieniFinoAlSilenzio`) e si confronta coi comandi — MFCC + DTW, soglia =
+  distanza massima fra le registrazioni dello stesso comando × `Prefs.sensibilitaComandi` (1,4) —
+  e solo se non è un comando va ad Azure, tutta insieme. Il comando torna al giro come
+  `Comando.frase(c)`. ⚠️ Le registrazioni stanno solo in `filesDir/comandi` (PCM 16 kHz): sono la
+  voce di una persona. 🧪 Prova dice distanza e soglia, per tarare. I comandi «command …» restano
+  come riserva. Si registra col microfono del telefono: con le cuffie BT il confronto può peggiorare.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

@@ -22,6 +22,7 @@ object Servizi {
     lateinit var valutatore: Valutatore
     lateinit var traduzioni: Traduzioni
     lateinit var audio: android.media.AudioManager
+    lateinit var comandi: ComandiVoce
 
     /** Cambia quando la sessione cambia (rientro dal login, uscita): la
      *  schermata la osserva invece di rileggere le preferenze a ogni frame. */
@@ -36,6 +37,7 @@ object Servizi {
         valutatore = Valutatore(azure)
         traduzioni = Traduzioni(ctx.applicationContext, auth)
         audio = ctx.applicationContext.getSystemService(android.media.AudioManager::class.java)
+        comandi = ComandiVoce(ctx.applicationContext)
         connesso.value = auth.connesso
     }
 }

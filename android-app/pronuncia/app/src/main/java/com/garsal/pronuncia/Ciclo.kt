@@ -197,7 +197,7 @@ object Ciclo {
             Servizi.tts.pronuncia(frase.testo, voce, accento, lenta)
             while (true) {
                 cosa("🎙 Tocca a te")
-                val esito = try { Servizi.valutatore.valuta(frase.testo, accento, p.soglia(Controllo.RITMO, frase.parola) != null) } catch (e: NessunaVoce) { null }
+                val esito = try { Servizi.valutatore.valuta(frase.testo, accento, p.soglia(Controllo.RITMO, frase.parola) != null, comandi = true) } catch (e: NessunaVoce) { null }
                 if (esito == null) {
                     if (++silenzi >= SILENZI) return Fine.Silenzio
                     di(Feedback.Cosa.SILENZIO)
