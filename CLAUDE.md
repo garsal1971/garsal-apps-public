@@ -3887,6 +3887,12 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   `Omission`, il comando si cerca nelle parole `Insertion`, nel `Lexical` e nel `Display` della
   risposta, e solo se lì non c'è con un secondo riconoscimento senza valutazione sulla stessa
   registrazione (qualche secondo di Azure in più, solo in quel caso).
+- **Comandi tolleranti e diagnosi** (v1.27.0): quando della parola attesa è tutto `Omission`,
+  il comando si accetta anche storpiato (`Comando.tollerante`: «spill», «spelt», «translated»…,
+  **solo** in quel caso, o «still» detto male diventerebbe uno spelling), e il secondo
+  riconoscimento manda l'audio a pezzi con mezzo secondo di silenzio in coda. Se il comando non
+  si trova, `riconosciuto` porta cosa ha risposto Azure (`. [2°: NoMatch]`, `. [2°: "spill"]`,
+  `. [2°: errore …]`): si legge da `pr_tentativi` per capire il prossimo intoppo.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
