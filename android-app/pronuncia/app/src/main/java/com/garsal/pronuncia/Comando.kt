@@ -49,9 +49,10 @@ enum class Comando { RIPETI, AVANTI, LENTO, FERMA,
          * a ogni tentativo, «still» pronunciato male diventerebbe uno spelling.
          * Torna la parola canonica, così `da` la riconosce dopo.
          */
-        fun tollerante(riconosciuto: String): String? {
+        fun tollerante(riconosciuto: String, riferimento: String = ""): String? {
             val p = parole(riconosciuto)
-            if (p.isEmpty() || p.size > 2) return null
+            // La parola attesa detta (anche male) non è un comando, anche se somiglia a uno.
+            if (p.isEmpty() || p.size > 2 || p == parole(riferimento)) return null
             if (da(riconosciuto, "") != null) return p.first()
             val w = p.first()
             return when {
