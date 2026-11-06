@@ -122,7 +122,7 @@ fun ManiLibere(parole: Boolean) {
                         "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
                             "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le frasi di «Quante» si scelgono all'avvio: metà mai fatte e metà già fatte, dal voto più basso. Finite quelle, ") +
                         "ti dà un voto da 1 a 10 e aggiorna l'obiettivo. Funziona anche a schermo spento; se premi Ferma prima, niente voto.\n\n" +
-                        "Quando tocca a te, al posto della frase puoi dire «repeat», «next», «slower» o «stop», e anche «spell» (lo spelling, sulle parole singole) o «translate» (la traduzione). " +
+                        "Quando tocca a te, al posto della frase puoi dire «command» seguito dal comando: «command repeat», «command next», «command slower», «command stop», «command spell» (lo spelling, sulle parole singole) o «command translate» (la traduzione). " +
                         "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +
                         "Una chiamata o il navigatore lo mettono in pausa, e riparte da sé.",
                     style = MaterialTheme.typography.bodyMedium,

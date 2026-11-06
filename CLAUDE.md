@@ -3898,6 +3898,11 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   Su elementi di una o due parole con accuratezza sotto `SOGLIA_COMANDO` (30) si fa anche lì la
   ricerca del comando; se non c'è, il tentativo resta com'è, senza nota. ⚠️ `Comando.tollerante`
   non accetta la parola attesa stessa: «spill» detto su «spill» è un tentativo.
+- **Comandi col prefisso «command»** (v1.29.0, `Comando.PREFISSO`): a mani libere ogni comando
+  si dice «command repeat / next / slower / stop / spell / translate». Da sola «spell» Azure la
+  forzava sulla parola attesa («please»): due parole non si confondono con una da pronunciare.
+  Senza prefisso non è un comando. `Comando.tollerante` accetta il prefisso storpiato («comment»,
+  «commend») e il verbo storpiato come prima; la `PhraseListGrammar` riceve le frasi intere.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
