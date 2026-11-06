@@ -128,7 +128,11 @@ class Valutatore(private val azure: AzureToken) {
                                             // testo «.» e la parola saltata: il comando non
                                             // arrivava mai a `Comando.da`. Quando non c'è niente
                                             // della parola attesa, il comando si cerca altrove.
-                                            if (nienteDetto(e)) e.copy(riconosciuto = comandoNascosto(json, t, accento) ?: e.riconosciuto) else e
+                                            // v1.27.0: se il comando non si trova, resta scritto
+                                            // cosa ha risposto il secondo riconoscimento.
+                                            if (nienteDetto(e)) comandoNascosto(json, t, accento).let { (cmd, nota) ->
+                                                e.copy(riconosciuto = cmd ?: "${e.riconosciuto} [2°: $nota]")
+                                            } else e
                                         }
                                         ResultReason.NoMatch -> throw NessunaVoce()
                                         ResultReason.Canceled -> {
@@ -159,9 +163,10 @@ class Valutatore(private val azure: AzureToken) {
      * valutazione l'ha scartato: prima nelle parole «in più» e nel testo grezzo
      * della risposta, poi — solo se lì non c'è — con un secondo riconoscimento
      * sulla stessa registrazione, senza valutazione. Torna la parola del comando
-     * (che `Comando.da` riconosce), o `null`: allora resta un tentativo a vuoto.
+     * (che `Comando.da` riconosce) con una nota vuota, o `null` con la nota che
+     * dice cosa ha risposto Azure: allora resta un tentativo a vuoto.
      */
-    private fun comandoNascosto(json: String, t: AzureToken.Token, accento: Accento): String? {
+    private fun comandoNascosto(json: String, t: AzureToken.Token, accento: Accento): Pair<String?, String> {
         runCatching {
             val best = JSONObject(json).getJSONArray("NBest").getJSONObject(0)
             val parole = best.optJSONArray("Words")
@@ -169,24 +174,41 @@ class Valutatore(private val azure: AzureToken) {
                 .filter { it.optJSONObject("PronunciationAssessment")?.optString("ErrorType") == "Insertion" }
                 .joinToString(" ") { it.optString("Word") }
             listOf(inPiu, best.optString("Lexical"), best.optString("Display"))
-                .firstOrNull { Comando.da(it, "") != null }?.let { return it }
+                .firstNotNullOfOrNull { Comando.tollerante(it) }?.let { return it to "" }
         }
-        val pcm = ultimaVoce ?: return null
+        val pcm = ultimaVoce ?: return null to "nessuna registrazione"
+        // ⚠️ Il motivo del fallimento si restituisce, non si ingoia: è finito
+        // nello storico (v1.27.0) perché la v1.25.0 falliva senza dire perché.
         return runCatching {
             SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
                 cfg.speechRecognitionLanguage = accento.lingua
+                cfg.setProperty(PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs, "3000")
                 val push = AudioInputStream.createPushStream(AudioStreamFormat.getWaveFormatPCM(Ascolto.HZ.toLong(), 16, 1))
                 AudioConfig.fromStreamInput(push).use { audio ->
                     SpeechRecognizer(cfg, audio).use { rec ->
                         val lista = PhraseListGrammar.fromRecognizer(rec)
                         Comando.PAROLE.forEach(lista::addPhrase)
                         val futuro = rec.recognizeOnceAsync()
-                        push.write(pcm); push.close()
-                        futuro.get().use { r -> r.text.takeIf { Comando.da(it, "") != null } }
+                        // A pezzi da 100 ms, come arriva dal microfono, più mezzo
+                        // secondo di silenzio: con un blocco solo e lo stream chiuso
+                        // subito, Azure può non trovare la fine della voce.
+                        val passo = Ascolto.HZ / 10 * 2
+                        var i = 0
+                        while (i < pcm.size) { val n = minOf(passo, pcm.size - i); push.write(pcm.copyOfRange(i, i + n)); i += n }
+                        push.write(ByteArray(Ascolto.HZ))
+                        push.close()
+                        futuro.get().use { r ->
+                            when (r.reason) {
+                                ResultReason.RecognizedSpeech ->
+                                    Comando.tollerante(r.text)?.let { it to "" } ?: (null to "\"${r.text.take(40)}\"")
+                                ResultReason.Canceled -> null to "annullato ${CancellationDetails.fromResult(r).errorDetails.take(60)}"
+                                else -> null to r.reason.toString()
+                            }
+                        }
                     }
                 }
             }
-        }.getOrNull()
+        }.getOrElse { null to "errore ${it.javaClass.simpleName}: ${it.message?.take(60)}" }
     }
 
     private fun leggi(json: String, testo: String): Esito {

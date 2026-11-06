@@ -42,6 +42,26 @@ enum class Comando { RIPETI, AVANTI, LENTO, FERMA,
             }
         }
 
+        /**
+         * v1.27.0: la parola del comando, anche sentita un po' storpiata
+         * («spill», «spelt», «translated»), o `null`. ⚠️ Solo per il caso in cui
+         * della parola attesa non è stato detto niente (`Valutatore`): applicata
+         * a ogni tentativo, «still» pronunciato male diventerebbe uno spelling.
+         * Torna la parola canonica, così `da` la riconosce dopo.
+         */
+        fun tollerante(riconosciuto: String): String? {
+            val p = parole(riconosciuto)
+            if (p.isEmpty() || p.size > 2) return null
+            if (da(riconosciuto, "") != null) return p.first()
+            val w = p.first()
+            return when {
+                Regex("^(sp[eiay]l|spe?ll)").containsMatchIn(w) -> "spell"
+                w.startsWith("trans") || w.startsWith("tradu") -> "translate"
+                w.startsWith("repea") || w.startsWith("repit") -> "repeat"
+                else -> null
+            }
+        }
+
         private fun parole(s: String) = s.lowercase()
             .split(Regex("[^a-z']+")).filter { it.isNotBlank() }
     }
