@@ -28,6 +28,13 @@ enum class Comando { RIPETI, AVANTI, LENTO, FERMA,
             "spell", "spelling", "translate", "translation",
         )
 
+        /** La forma canonica di un comando, quella che [da] riconosce: la usa il
+         *  riconoscimento locale (`ComandiVoce`) per passare il comando al giro. */
+        fun frase(c: Comando): String = "$PREFISSO " + when (c) {
+            RIPETI -> "repeat"; AVANTI -> "next"; LENTO -> "slower"; FERMA -> "stop"
+            SPELLING -> "spell"; TRADUCI -> "translate"
+        }
+
         /** Le frasi riconosciute come comando, per la `PhraseListGrammar`. */
         val PAROLE = VERBI.map { "$PREFISSO $it" }
 

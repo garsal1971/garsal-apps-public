@@ -160,6 +160,13 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("riascolto_ciclo", true)
         set(v) = p.edit().putBoolean("riascolto_ciclo", v).apply()
 
+    /** v1.30.0: quanto largo è il confronto dei comandi registrati
+     *  (`ComandiVoce`): la soglia × questo numero. Più alto = li prende più
+     *  facilmente, ma rischia di prendere per comando una parola. */
+    var sensibilitaComandi: Double
+        get() = p.getFloat("sensibilita_comandi", 1.4f).toDouble()
+        set(v) = p.edit().putFloat("sensibilita_comandi", v.toFloat()).apply()
+
     /** Un id per questa installazione: con l'id locale del tentativo fa il
      *  `client_id` di `pr_tentativi`, che rende un rinvio innocuo. */
     val installazione: String

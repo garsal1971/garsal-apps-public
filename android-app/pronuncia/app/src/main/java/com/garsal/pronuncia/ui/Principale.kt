@@ -195,7 +195,7 @@ private fun Area(titolo: String, contenuto: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Nota(t: String) = Text(t, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+internal fun Nota(t: String) = Text(t, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
 /**
  * Due aree: ⚙️ Generali (vale per tutto) e 🎧 A mani libere (il ciclo).
@@ -263,6 +263,7 @@ private fun Impostazioni(accento: Accento, onAccento: (Accento) -> Unit, paroleE
             Switch(checked = riascolto, onCheckedChange = { riascolto = it; prefs.riascoltoCiclo = it })
         }
         Nota("Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica. Le cuffie USB col filo valgono anche per l'Esercizio; se non sono collegate si ascolta dal telefono.")
+        MieiComandi()
     }
 
     Area("🎯 Obiettivo") {

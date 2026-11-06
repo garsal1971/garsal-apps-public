@@ -108,6 +108,26 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
         }
     }
 
+    /**
+     * v1.30.0: la voce intera tenuta sul telefono, senza mandarla da nessuna
+     * parte: i frame di [inizio] e quelli fino a [FINE_MS] di silenzio. Finisce
+     * anche nella registrazione. Serve a confrontarla coi comandi registrati
+     * PRIMA di decidere se mandarla ad Azure.
+     */
+    suspend fun tieniFinoAlSilenzio(inizio: List<ByteArray>): List<ByteArray> {
+        val tutto = inizio.toMutableList()
+        inizio.forEach { registrato.write(it) }
+        var zitto = 0
+        repeat(MAX_MS / FRAME_MS) {
+            currentCoroutineContext().ensureActive()
+            val f = leggi() ?: return tutto
+            tutto += f; registrato.write(f)
+            if (energia(f) > sogliaSilenzio()) zitto = 0
+            else if (++zitto >= FINE_MS / FRAME_MS) return tutto
+        }
+        return tutto
+    }
+
     private fun sogliaVoce() = max(rumore * 3.0, MIN_VOCE)
     private fun sogliaSilenzio() = max(rumore * 2.0, MIN_VOCE * 0.6)
 
