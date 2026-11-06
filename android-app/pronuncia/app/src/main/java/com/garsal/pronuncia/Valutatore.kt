@@ -1,7 +1,6 @@
 package com.garsal.pronuncia
 
 import com.microsoft.cognitiveservices.speech.CancellationDetails
-import com.microsoft.cognitiveservices.speech.PhraseListGrammar
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentConfig
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentGradingSystem
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentGranularity
@@ -60,8 +59,6 @@ class NessunaVoce : Exception("Non ho sentito niente: riprova parlando dopo il t
  */
 class Valutatore(private val azure: AzureToken) {
 
-    private companion object { const val SOGLIA_COMANDO = 30.0 }
-
     /** La voce dell'ultimo tentativo, per «Riascoltami». Solo in memoria:
      *  il tentativo dopo la sostituisce, e non si salva da nessuna parte. */
     @Volatile var ultimaVoce: ByteArray? = null
@@ -118,12 +115,6 @@ class Valutatore(private val azure: AzureToken) {
                                 pa.setPhonemeAlphabet("IPA")
                                 if (ritmo) pa.enableProsodyAssessment()
                                 pa.applyTo(rec)
-                                // I comandi a voce sono parole corte e fuori contesto:
-                                // la lista le rende più facili da riconoscere.
-                                // ⚠️ Non va in un `use`: chiusa prima del riconoscimento
-                                // le sue parole sparirebbero. Vive quanto il recognizer.
-                                val lista = PhraseListGrammar.fromRecognizer(rec)
-                                Comando.PAROLE.forEach(lista::addPhrase)
                                 val futuro = rec.recognizeOnceAsync()
                                 if (tenuta != null) tenuta.forEach { push.write(it) }
                                 else {
@@ -140,27 +131,7 @@ class Valutatore(private val azure: AzureToken) {
                                     when (r.reason) {
                                         ResultReason.RecognizedSpeech -> {
                                             val json = r.properties.getProperty(PropertyId.SpeechServiceResponse_JsonResult)
-                                            val e = leggi(json, r.text)
-                                            // ⚠️ v1.25.0: con la parola attesa come riferimento
-                                            // Azure scarta quel che non le somiglia, e un
-                                            // «spell» detto al posto di «airport» torna come
-                                            // testo «.» e la parola saltata: il comando non
-                                            // arrivava mai a `Comando.da`. Quando non c'è niente
-                                            // della parola attesa, il comando si cerca altrove.
-                                            // v1.27.0: se il comando non si trova, resta scritto
-                                            // cosa ha risposto il secondo riconoscimento.
-                                            // v1.28.0: anche quando Azure forza il comando sulla
-                                            // parola attesa con un voto bassissimo («spell» →
-                                            // «Please.» a 5); lì, se il comando non c'è, il
-                                            // tentativo resta com'è, senza nota.
-                                            when {
-                                                nienteDetto(e) -> comandoNascosto(json, t, accento, riferimento).let { (cmd, nota) ->
-                                                    e.copy(riconosciuto = cmd ?: "${e.riconosciuto} [2°: $nota]")
-                                                }
-                                                quasiNiente(e) -> comandoNascosto(json, t, accento, riferimento).first
-                                                    ?.let { e.copy(riconosciuto = it) } ?: e
-                                                else -> e
-                                            }
+                                            leggi(json, r.text)
                                         }
                                         ResultReason.NoMatch -> throw NessunaVoce()
                                         ResultReason.Canceled -> {
@@ -178,73 +149,6 @@ class Valutatore(private val azure: AzureToken) {
                 }
             }
         }
-    }
-
-    /** Della parola attesa non è stato detto niente: tutte saltate. */
-    private fun nienteDetto(e: Esito): Boolean {
-        val attese = e.parole.filter { it.errore != "Insertion" }
-        return attese.isNotEmpty() && attese.all { it.errore == "Omission" }
-    }
-
-    /**
-     * Il comando detto al posto della parola, quando il riconoscimento con la
-     * valutazione l'ha scartato: prima nelle parole «in più» e nel testo grezzo
-     * della risposta, poi — solo se lì non c'è — con un secondo riconoscimento
-     * sulla stessa registrazione, senza valutazione. Torna la parola del comando
-     * (che `Comando.da` riconosce) con una nota vuota, o `null` con la nota che
-     * dice cosa ha risposto Azure: allora resta un tentativo a vuoto.
-     */
-    /** v1.28.0: della parola attesa è stato sentito qualcosa, ma con un voto
-     *  bassissimo (sotto [SOGLIA_COMANDO]): può essere un comando che Azure ha
-     *  forzato sulla parola. Solo su elementi di una o due parole, come i comandi. */
-    private fun quasiNiente(e: Esito): Boolean {
-        val attese = e.parole.filter { it.errore != "Insertion" }
-        return attese.size in 1..2 && attese.all { it.errore == "Omission" || it.accuratezza < SOGLIA_COMANDO }
-    }
-
-    private fun comandoNascosto(json: String, t: AzureToken.Token, accento: Accento, riferimento: String): Pair<String?, String> {
-        runCatching {
-            val best = JSONObject(json).getJSONArray("NBest").getJSONObject(0)
-            val parole = best.optJSONArray("Words")
-            val inPiu = (0 until (parole?.length() ?: 0)).map { parole!!.getJSONObject(it) }
-                .filter { it.optJSONObject("PronunciationAssessment")?.optString("ErrorType") == "Insertion" }
-                .joinToString(" ") { it.optString("Word") }
-            listOf(inPiu, best.optString("Lexical"), best.optString("Display"))
-                .firstNotNullOfOrNull { Comando.tollerante(it, riferimento) }?.let { return it to "" }
-        }
-        val pcm = ultimaVoce ?: return null to "nessuna registrazione"
-        // ⚠️ Il motivo del fallimento si restituisce, non si ingoia: è finito
-        // nello storico (v1.27.0) perché la v1.25.0 falliva senza dire perché.
-        return runCatching {
-            SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
-                cfg.speechRecognitionLanguage = accento.lingua
-                cfg.setProperty(PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs, "3000")
-                val push = AudioInputStream.createPushStream(AudioStreamFormat.getWaveFormatPCM(Ascolto.HZ.toLong(), 16, 1))
-                AudioConfig.fromStreamInput(push).use { audio ->
-                    SpeechRecognizer(cfg, audio).use { rec ->
-                        val lista = PhraseListGrammar.fromRecognizer(rec)
-                        Comando.PAROLE.forEach(lista::addPhrase)
-                        val futuro = rec.recognizeOnceAsync()
-                        // A pezzi da 100 ms, come arriva dal microfono, più mezzo
-                        // secondo di silenzio: con un blocco solo e lo stream chiuso
-                        // subito, Azure può non trovare la fine della voce.
-                        val passo = Ascolto.HZ / 10 * 2
-                        var i = 0
-                        while (i < pcm.size) { val n = minOf(passo, pcm.size - i); push.write(pcm.copyOfRange(i, i + n)); i += n }
-                        push.write(ByteArray(Ascolto.HZ))
-                        push.close()
-                        futuro.get().use { r ->
-                            when (r.reason) {
-                                ResultReason.RecognizedSpeech ->
-                                    Comando.tollerante(r.text, riferimento)?.let { it to "" } ?: (null to "\"${r.text.take(40)}\"")
-                                ResultReason.Canceled -> null to "annullato ${CancellationDetails.fromResult(r).errorDetails.take(60)}"
-                                else -> null to r.reason.toString()
-                            }
-                        }
-                    }
-                }
-            }
-        }.getOrElse { null to "errore ${it.javaClass.simpleName}: ${it.message?.take(60)}" }
     }
 
     private fun leggi(json: String, testo: String): Esito {
