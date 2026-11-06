@@ -3893,6 +3893,11 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   riconoscimento manda l'audio a pezzi con mezzo secondo di silenzio in coda. Se il comando non
   si trova, `riconosciuto` porta cosa ha risposto Azure (`. [2°: NoMatch]`, `. [2°: "spill"]`,
   `. [2°: errore …]`): si legge da `pr_tentativi` per capire il prossimo intoppo.
+- **Comandi forzati sulla parola** (v1.28.0, `Valutatore.quasiNiente`): Azure a volte non salta la
+  parola attesa ma ci forza sopra il comando con un voto bassissimo («spell» → «Please.» a 5).
+  Su elementi di una o due parole con accuratezza sotto `SOGLIA_COMANDO` (30) si fa anche lì la
+  ricerca del comando; se non c'è, il tentativo resta com'è, senza nota. ⚠️ `Comando.tollerante`
+  non accetta la parola attesa stessa: «spill» detto su «spill» è un tentativo.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

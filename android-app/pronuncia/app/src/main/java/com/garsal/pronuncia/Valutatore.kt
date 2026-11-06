@@ -60,6 +60,8 @@ class NessunaVoce : Exception("Non ho sentito niente: riprova parlando dopo il t
  */
 class Valutatore(private val azure: AzureToken) {
 
+    private companion object { const val SOGLIA_COMANDO = 30.0 }
+
     /** La voce dell'ultimo tentativo, per «Riascoltami». Solo in memoria:
      *  il tentativo dopo la sostituisce, e non si salva da nessuna parte. */
     @Volatile var ultimaVoce: ByteArray? = null
@@ -130,9 +132,18 @@ class Valutatore(private val azure: AzureToken) {
                                             // della parola attesa, il comando si cerca altrove.
                                             // v1.27.0: se il comando non si trova, resta scritto
                                             // cosa ha risposto il secondo riconoscimento.
-                                            if (nienteDetto(e)) comandoNascosto(json, t, accento).let { (cmd, nota) ->
-                                                e.copy(riconosciuto = cmd ?: "${e.riconosciuto} [2°: $nota]")
-                                            } else e
+                                            // v1.28.0: anche quando Azure forza il comando sulla
+                                            // parola attesa con un voto bassissimo («spell» →
+                                            // «Please.» a 5); lì, se il comando non c'è, il
+                                            // tentativo resta com'è, senza nota.
+                                            when {
+                                                nienteDetto(e) -> comandoNascosto(json, t, accento, riferimento).let { (cmd, nota) ->
+                                                    e.copy(riconosciuto = cmd ?: "${e.riconosciuto} [2°: $nota]")
+                                                }
+                                                quasiNiente(e) -> comandoNascosto(json, t, accento, riferimento).first
+                                                    ?.let { e.copy(riconosciuto = it) } ?: e
+                                                else -> e
+                                            }
                                         }
                                         ResultReason.NoMatch -> throw NessunaVoce()
                                         ResultReason.Canceled -> {
@@ -166,7 +177,15 @@ class Valutatore(private val azure: AzureToken) {
      * (che `Comando.da` riconosce) con una nota vuota, o `null` con la nota che
      * dice cosa ha risposto Azure: allora resta un tentativo a vuoto.
      */
-    private fun comandoNascosto(json: String, t: AzureToken.Token, accento: Accento): Pair<String?, String> {
+    /** v1.28.0: della parola attesa è stato sentito qualcosa, ma con un voto
+     *  bassissimo (sotto [SOGLIA_COMANDO]): può essere un comando che Azure ha
+     *  forzato sulla parola. Solo su elementi di una o due parole, come i comandi. */
+    private fun quasiNiente(e: Esito): Boolean {
+        val attese = e.parole.filter { it.errore != "Insertion" }
+        return attese.size in 1..2 && attese.all { it.errore == "Omission" || it.accuratezza < SOGLIA_COMANDO }
+    }
+
+    private fun comandoNascosto(json: String, t: AzureToken.Token, accento: Accento, riferimento: String): Pair<String?, String> {
         runCatching {
             val best = JSONObject(json).getJSONArray("NBest").getJSONObject(0)
             val parole = best.optJSONArray("Words")
@@ -174,7 +193,7 @@ class Valutatore(private val azure: AzureToken) {
                 .filter { it.optJSONObject("PronunciationAssessment")?.optString("ErrorType") == "Insertion" }
                 .joinToString(" ") { it.optString("Word") }
             listOf(inPiu, best.optString("Lexical"), best.optString("Display"))
-                .firstNotNullOfOrNull { Comando.tollerante(it) }?.let { return it to "" }
+                .firstNotNullOfOrNull { Comando.tollerante(it, riferimento) }?.let { return it to "" }
         }
         val pcm = ultimaVoce ?: return null to "nessuna registrazione"
         // ⚠️ Il motivo del fallimento si restituisce, non si ingoia: è finito
@@ -200,7 +219,7 @@ class Valutatore(private val azure: AzureToken) {
                         futuro.get().use { r ->
                             when (r.reason) {
                                 ResultReason.RecognizedSpeech ->
-                                    Comando.tollerante(r.text)?.let { it to "" } ?: (null to "\"${r.text.take(40)}\"")
+                                    Comando.tollerante(r.text, riferimento)?.let { it to "" } ?: (null to "\"${r.text.take(40)}\"")
                                 ResultReason.Canceled -> null to "annullato ${CancellationDetails.fromResult(r).errorDetails.take(60)}"
                                 else -> null to r.reason.toString()
                             }
