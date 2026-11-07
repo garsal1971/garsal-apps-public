@@ -164,7 +164,7 @@ class Prefs(ctx: Context) {
      *  (`ComandiVoce`): la soglia × questo numero. Più alto = li prende più
      *  facilmente, ma rischia di prendere per comando una parola. */
     var sensibilitaComandi: Double
-        get() = p.getFloat("sensibilita_comandi", 1.4f).toDouble()
+        get() = p.getFloat("sensibilita_comandi", 1.25f).toDouble()
         set(v) = p.edit().putFloat("sensibilita_comandi", v.toFloat()).apply()
 
     /** Un id per questa installazione: con l'id locale del tentativo fa il

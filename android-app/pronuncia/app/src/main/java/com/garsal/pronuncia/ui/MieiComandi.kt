@@ -94,10 +94,11 @@ fun MieiComandi() {
                 val pcm = ascolta()
                 nota = if (pcm == null) "Non ho sentito niente: riprova." else {
                     val e = withContext(Dispatchers.Default) { cmd.confronta(pcm, sens) }
+                    val sec = e.secondo?.let { " · poi «${it.parola}» %.1f".format(e.distanzaSecondo) } ?: ""
                     when {
                         e.migliore == null -> "Nessun comando registrato, o voce troppo corta."
-                        e.voce != null -> "✅ «${e.voce.parola}» — distanza %.1f, soglia %.1f".format(e.distanza, e.soglia)
-                        else -> "❌ Non è un comando (più vicino «${e.migliore.parola}»: distanza %.1f, soglia %.1f)".format(e.distanza, e.soglia)
+                        e.voce != null -> "✅ «${e.voce.parola}» — distanza %.1f, soglia %.1f$sec".format(e.distanza, e.soglia)
+                        else -> "❌ Non è un comando (più vicino «${e.migliore.parola}»: distanza %.1f, soglia %.1f$sec)".format(e.distanza, e.soglia)
                     }
                 }
             } catch (e: Exception) { nota = "⚠️ ${e.message}" }
@@ -131,7 +132,7 @@ fun MieiComandi() {
         }
     }
     Tendina("Sensibilità", sens, listOf(1.1, 1.25, 1.4, 1.6, 1.8, 2.0), {
-        when (it) { 1.1 -> "1,1 · severa"; 1.4 -> "1,4 · normale"; 2.0 -> "2,0 · larga"; else -> "%.2f".format(it).replace('.', ',') }
+        when (it) { 1.1 -> "1,1 · severa"; 1.25 -> "1,25 · normale"; 2.0 -> "2,0 · larga"; else -> "%.2f".format(it).replace('.', ',') }
     }) { sens = it; Servizi.prefs.sensibilitaComandi = it }
     OutlinedButton(onClick = { prova() }, enabled = libero && cmd.pronti(), modifier = Modifier.heightIn(min = 48.dp)) {
         Text("🧪 Prova un comando")
