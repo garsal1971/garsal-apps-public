@@ -40,7 +40,11 @@ class ComandiVoce(ctx: Context) {
     }
 
     /** L'esito di un confronto, anche per la prova in Impostazioni. */
-    data class Esito(val voce: Voce?, val migliore: Voce?, val distanza: Double, val soglia: Double)
+    data class Esito(
+        val voce: Voce?, val migliore: Voce?, val distanza: Double, val soglia: Double,
+        /** v1.32.0: il secondo comando più vicino e la sua distanza (NaN se non c'è). */
+        val secondo: Voce? = null, val distanzaSecondo: Double = Double.NaN,
+    )
 
     private val cartella = File(ctx.filesDir, "comandi").apply { mkdirs() }
     private val cache = mutableMapOf<Voce, List<Array<DoubleArray>>>()
@@ -79,18 +83,24 @@ class ComandiVoce(ctx: Context) {
     fun confronta(pcm: ByteArray, sensibilita: Double): Esito {
         val x = runCatching { caratteristiche(pcm) }.getOrNull()
         if (x == null || x.size < MIN_FRAME) return Esito(null, null, Double.NaN, Double.NaN)
-        var meglio: Voce? = null
-        var dMeglio = Double.MAX_VALUE
-        var sMeglio = Double.NaN
-        for (v in Voce.entries) {
+        // Distanza da ogni comando registrato. ⚠️ Una durata troppo diversa non
+        // esclude più il comando dal confronto: conta solo per la vittoria.
+        val distanze = Voce.entries.mapNotNull { v ->
             val m = modelli(v)
-            if (m.isEmpty()) continue
-            // Una durata troppo diversa non è quel comando.
-            val d = m.filter { x.size.toDouble() / it.size in 0.5..2.0 }.minOfOrNull { dtw(x, it) } ?: continue
-            if (d < dMeglio) { dMeglio = d; meglio = v; sMeglio = soglia(m) * sensibilita }
-        }
-        if (meglio == null) return Esito(null, null, Double.NaN, Double.NaN)
-        return Esito(meglio.takeIf { dMeglio <= sMeglio }, meglio, dMeglio, sMeglio)
+            if (m.isEmpty()) null
+            else Triple(v, m.minOf { dtw(x, it) }, m)
+        }.sortedBy { it.second }
+        val primo = distanze.firstOrNull() ?: return Esito(null, null, Double.NaN, Double.NaN)
+        val secondo = distanze.getOrNull(1)
+        val (meglio, dMeglio, m) = primo
+        val sMeglio = soglia(m) * sensibilita
+        val durataOk = m.any { x.size.toDouble() / it.size in 0.5..2.0 }
+        // v1.32.0: vince solo se sta sotto la soglia E se è nettamente più vicino a
+        // quel comando che al secondo: una parola qualunque («fen») sta a metà
+        // strada fra tutti, un comando vero no.
+        val netto = secondo == null || dMeglio <= MARGINE * secondo.second
+        val vince = dMeglio <= sMeglio && durataOk && netto
+        return Esito(meglio.takeIf { vince }, meglio, dMeglio, sMeglio, secondo?.first, secondo?.second ?: Double.NaN)
     }
 
     /** La distanza più grande fra le registrazioni di un comando: quanto varia
@@ -104,6 +114,8 @@ class ComandiVoce(ctx: Context) {
 
     companion object {
         const val MAX = 3
+        /** Il primo comando deve stare almeno a questa frazione della distanza dal secondo. */
+        private const val MARGINE = 0.8
         private const val MIN_FRAME = 15
         private const val SOGLIA_UNA = 14.0
         private const val SOGLIA_MIN = 8.0

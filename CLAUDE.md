@@ -3915,6 +3915,11 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   «command spell», con `tollerante`/`comandoNascosto`/`PhraseListGrammar`): si riconoscono solo in
   locale, e `Comando.da` legge il segno `§comando:` che mette `Comando.frase`. Senza registrazioni,
   niente comandi a voce (restano i tasti delle cuffie). Si registra col microfono del telefono: con le cuffie BT il confronto può peggiorare.
+- **Comandi detti e confronto più severo** (v1.32.0): un comando riconosciuto si annuncia a voce
+  in italiano e a schermo («Comando: Ripeti»), o una parola presa per comando sembrava un
+  tentativo sparito senza voto. Vince solo se sta sotto la soglia, ha una durata compatibile **e**
+  la sua distanza è al più `ComandiVoce.MARGINE` (0,8) di quella del secondo comando più vicino;
+  sensibilità di partenza 1,25. La 🧪 Prova mostra anche il secondo comando.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

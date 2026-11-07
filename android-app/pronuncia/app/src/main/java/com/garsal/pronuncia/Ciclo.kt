@@ -204,7 +204,16 @@ object Ciclo {
                     continue
                 }
                 silenzi = 0
-                Comando.da(esito.riconosciuto, frase.testo)?.let { return Fine.Comandato(it) }
+                Comando.da(esito.riconosciuto, frase.testo)?.let { c ->
+                    // v1.32.0: il comando riconosciuto si dice, a voce e a schermo.
+                    // Senza, una parola presa per comando («fen» per «then») si
+                    // leggeva come un tentativo sparito senza voto.
+                    val nome = ComandiVoce.Voce.entries.firstOrNull { it.comando == c }?.parola ?: c.name
+                    cosa("🎙 Comando: $nome")
+                    val (vIt, lIt) = Feedback.voce(LinguaFeedback.ITALIANO, voce, accento)
+                    Servizi.tts.parla("Comando: $nome.", vIt, lIt)
+                    return Fine.Comandato(c)
+                }
                 Storico.registra(ctx, frase, esito, "mani_libere")
                 migliori[frase.id] = maxOf(migliori[frase.id] ?: 0.0, esito.pronuncia)
                 stato.update { it.copy(fatte = migliori.size) }
