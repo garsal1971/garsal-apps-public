@@ -3920,6 +3920,42 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   tentativo sparito senza voto. Vince solo se sta sotto la soglia, ha una durata compatibile **e**
   la sua distanza è al più `ComandiVoce.MARGINE` (0,8) di quella del secondo comando più vicino;
   sensibilità di partenza 1,25. La 🧪 Prova mostra anche il secondo comando.
+- **Suoni deboli, ripasso a intervalli, rete, frasi quotidiane e test** (v1.33.0):
+  - **Profilo dei suoni** (`ProfiloSuoni.kt`): i voti dei fonemi, che fino alla v1.32.0 servivano al
+    solo tentativo in corso, si salvano accanto alla parola — colonna `parole.fonemi` in Room
+    (schema **v3**, `DA_2_A_3`: `ALTER TABLE parole ADD COLUMN fonemi TEXT`, ⚠️ nullable e senza
+    default perché combaci con `String?`) e chiave **`f`** dentro ogni elemento del JSON `dettaglio`
+    di `pr_tentativi` (`[{"p","a","e","f":"θ=45 ɪ=80"}]`; la chiave c'è solo se ci sono fonemi, e
+    nessuna migration SQL: è `jsonb`). Parole `Omission`/`Insertion` non ne hanno. In 📈 Storico →
+    **🔊 I miei suoni**: per fonema (senza segni di lunghezza, `Grafema.base`) media, volte, volte
+    sotto 60 ed esempi; compare da 5 rilevazioni. I primi 3 sotto 75 di media (🎯) guidano la sessione.
+    ⚠️ I tentativi di prima non hanno fonemi: il profilo si riempie da qui in avanti.
+  - **Ripasso** (`Ripasso.kt`, tornato ma diverso da quello tolto nella v1.22.0; `Sessione.scegli`
+    legge e basta): le già fatte non si ordinano più dal voto più basso MAI preso — una frase
+    sbagliata una volta tornava in cima per sempre — ma dalla **media degli ultimi due voti**, e una
+    riuscita aspetta **1, 3, 7, 14 giorni** secondo le riuscite di fila (sei ore di tolleranza); un
+    voto sotto `SOGLIA_BUONA` azzera la fila. Metà sessione resta di mai fatte, e fino a metà di
+    quelle si pescano fra le parole/frasi che contengono un suono debole (già sentite con quel
+    suono, o con una grafia sicura: `ProfiloSuoni.SPIE`); portano «🎯 scelta per il tuo suono /θ/».
+    Se le scadute non bastano si completa con le nuove, poi con quelle in attesa. `Scelta.peggiore`
+    è diventato `recente`. ⚠️ «Riuscita» resta il solo voto complessivo, non il `Giudizio` severo.
+  - **Rete che cade a mani libere** (`Ciclo.esegui`): un errore nel giro non chiude più la sessione
+    con una nota solo a schermo. Dice «Problema di rete. Riprovo.», aspetta (5 s × numero
+    dell'errore, interrompibile) e rifà il giro sulla stessa frase coi tentativi che restano
+    (`Fine.Riprova`), fino a `Ciclo.GUASTI` (3) di fila; poi «La rete non risponde. Mi fermo qui.»,
+    senza voto. Gli avvisi si sintetizzano all'avvio (`Tts.prepara`) perché senza rete non si
+    potrebbe; non in cache = due bip (`Bip.errore`). `SessioneScaduta` non si riprova. Se la voce
+    del voto finale fallisce, Obiettivi si aggiorna lo stesso.
+  - **320 frasi quotidiane**: `phrases.json` passa da 240 a **560** — 🍽️ cibo (`k`), 🏠 casa e
+    famiglia (`h`), 💼 lavoro (`l`), 🩺 salute (`m`), A1–B2 × 20, id `<livello>-<lettera>-NN` con
+    le stesse lettere delle parole. `Frasi.TEMI_FRASI` ha ora sette temi (natura, città e parole
+    comuni restano delle sole parole). Traduzioni in
+    `20261109200000_pr_traduzioni_frasi_quotidiane.sql` (soli dati).
+  - **Test** (`app/src/test/`, JUnit 4, JVM): `RipassoTest`, `ProfiloSuoniTest`, `GiudizioTest`
+    (su `Giudizio.valuta`, la forma di `di` senza `Prefs`), `VarieTest`. `build-pronuncia.yml` li
+    esegue **prima** della build: test rotti = niente APK. ⚠️ `Ripasso.kt`, `ProfiloSuoni.kt`,
+    `Grafema.kt` e `Giudizio.kt` restano **senza import di Android** di proposito. Lo stesso
+    workflow ora committa su master lo schema di Room generato dalla build (`app/schemas/`).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

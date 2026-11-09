@@ -19,8 +19,8 @@ android {
         applicationId "com.garsal.pronuncia"
         minSdk 26
         targetSdk 36
-        versionCode 33
-        versionName "1.32.0"
+        versionCode 34
+        versionName "1.33.0"
 
         // ⚠️ Solo arm64: lo Speech SDK di Azure si porta dentro le librerie native
         // per quattro ABI, e tenerle tutte vorrebbe dire un APK tre volte più
@@ -88,4 +88,8 @@ dependencies {
     implementation 'androidx.room:room-runtime:2.7.1'
     implementation 'androidx.room:room-ktx:2.7.1'
     ksp 'androidx.room:room-compiler:2.7.1'
+
+    // v1.33.0: i test della logica che non tocca Android (ripasso, profilo dei
+    // suoni, giudizio). Girano sulla JVM, prima della build (`build-pronuncia.yml`).
+    testImplementation 'junit:junit:4.13.2'
 }

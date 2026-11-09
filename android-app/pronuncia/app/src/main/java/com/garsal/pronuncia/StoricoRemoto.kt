@@ -122,7 +122,13 @@ object StoricoRemoto {
         .put("completezza", t.completezza)
         .put("riconosciuto", t.riconosciuto)
         .put("dettaglio", JSONArray().apply {
-            parole.forEach { put(JSONObject().put("p", it.parola).put("a", it.accuratezza).put("e", it.errore)) }
+            // v1.33.0: «f», i voti dei fonemi. ⚠️ La chiave c'è solo se ci sono:
+            // un `null` scritto nel JSON si rileggerebbe come la parola «null».
+            parole.forEach { p ->
+                val o = JSONObject().put("p", p.parola).put("a", p.accuratezza).put("e", p.errore)
+                p.fonemi?.let { f -> o.put("f", f) }
+                put(o)
+            }
         })
 
     private fun daJson(o: JSONObject): Pair<Tentativo, List<ParolaTentativo>> {
@@ -139,7 +145,10 @@ object StoricoRemoto {
         val d = o.optJSONArray("dettaglio") ?: JSONArray()
         val parole = (0 until d.length()).map {
             val p = d.getJSONObject(it)
-            ParolaTentativo(tentativoId = 0, parola = p.getString("p"), accuratezza = p.getDouble("a"), errore = p.getString("e"))
+            ParolaTentativo(
+                tentativoId = 0, parola = p.getString("p"), accuratezza = p.getDouble("a"), errore = p.getString("e"),
+                fonemi = if (p.has("f") && !p.isNull("f")) p.getString("f").takeIf { it.isNotBlank() } else null,
+            )
         }
         return t to parole
     }

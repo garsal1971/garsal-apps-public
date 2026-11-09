@@ -65,7 +65,7 @@ object Grafema {
     )
 
     /** Il fonema senza segni di lunghezza e accento, come lo vuole [CANDIDATI]. */
-    private fun base(f: String) = f.filterNot { it == 'ː' || it == 'ˑ' || it == 'ˈ' || it == 'ˌ' || it == ':' }
+    fun base(f: String) = f.filterNot { it == 'ː' || it == 'ˑ' || it == 'ˈ' || it == 'ˌ' || it == ':' }
 
     /** Dove sta, in [parola], il fonema [fonema] che è il numero [indice] su [totale]. */
     fun trova(parola: String, fonema: String, indice: Int, totale: Int): IntRange? {

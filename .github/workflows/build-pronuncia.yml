@@ -57,6 +57,13 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android-app/pronuncia/gradlew
 
+      # v1.33.0: i test della logica senza Android (ripasso, profilo dei suoni,
+      # giudizio). ⚠️ PRIMA della build, di proposito: se la regola che sceglie
+      # le frasi è rotta, l'APK non si compila e non si pubblica.
+      - name: Test (JVM)
+        working-directory: android-app/pronuncia
+        run: ./gradlew :app:testReleaseUnitTest --no-daemon
+
       - name: Build Pronuncia release APK
         working-directory: android-app/pronuncia
         run: |
@@ -80,6 +87,16 @@ jobs:
       - name: Salva l'APK in /tmp
         run: |
           cp android-app/pronuncia/app/build/outputs/apk/release/app-release.apk /tmp/Pronuncia-latest.apk
+
+      # v1.33.0: lo schema di Room lo scrive la build (`room.schemaLocation`), e
+      # va committato: è il punto di partenza delle migration future. ⚠️ Lo
+      # committa il passo di pubblicazione qui sotto — chi cambia le tabelle
+      # dello storico da una sessione senza Android SDK non può generarlo, e
+      # scritto a mano avrebbe l'`identityHash` sbagliato.
+      - name: Salva lo schema di Room in /tmp
+        run: |
+          rm -rf /tmp/schemi-pronuncia
+          cp -r android-app/pronuncia/app/schemas /tmp/schemi-pronuncia || true
 
       # ⚠️ Prima su R2, poi il commit — è lo stesso ordine di «prima Drive,
       # poi la riga» del Forziere: il commit pubblica la scheda
@@ -146,6 +163,15 @@ jobs:
 
             cp /tmp/Pronuncia-latest.json releases/Pronuncia-latest.json
             git add releases/Pronuncia-latest.json
+
+            # Lo schema di Room della build (vedi sopra): di solito non cambia,
+            # e allora `git add` non aggiunge niente. ⚠️ Non deve mai far
+            # fallire la pubblicazione dell'APK.
+            if [ -d /tmp/schemi-pronuncia ]; then
+              mkdir -p android-app/pronuncia/app/schemas
+              cp -r /tmp/schemi-pronuncia/. android-app/pronuncia/app/schemas/ || true
+              git add android-app/pronuncia/app/schemas || true
+            fi
 
             git commit -m "chore: aggiorna APK Pronuncia v${VERSION} [skip actions]"
             if git push origin master; then

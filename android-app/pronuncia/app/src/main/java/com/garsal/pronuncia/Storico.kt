@@ -70,11 +70,15 @@ data class ParolaTentativo(
     val parola: String,
     val accuratezza: Double,
     val errore: String,
+    /** v1.33.0: i voti dei fonemi della parola, «θ=45 ɪ=80» (`ProfiloSuoni.codifica`).
+     *  `null` = non ci sono: tentativi di prima, parole saltate o in più. */
+    val fonemi: String? = null,
 )
 
-data class Giorno(val giorno: String, val tentativi: Int, val frasi: Int, val media: Double, val riuscite: Int)
+/** Una parola dello storico coi suoi fonemi, per il profilo dei suoni. */
+data class FonemiParola(val parola: String, val fonemi: String)
 
-data class Punteggio(val fraseId: String, val pronuncia: Double)
+data class Giorno(val giorno: String, val tentativi: Int, val frasi: Int, val media: Double, val riuscite: Int)
 
 /** Una parola del catalogo e com'è andata: quante volte, il migliore,
  *  l'ultimo e la media del voto complessivo (v1.20.0). */
@@ -115,9 +119,17 @@ interface StoricoDao {
     )
     fun paroleDifficili(soglia: Double, quanti: Int): Flow<List<ParolaDifficile>>
 
-    /** Per il ripasso (fase 6): letture una tantum, non Flow. */
-    @Query("SELECT frase_id AS fraseId, pronuncia FROM tentativi ORDER BY quando DESC")
-    suspend fun punteggi(): List<Punteggio>
+    /** Per il ripasso (`Ripasso.componi`): lettura una tantum, non Flow. */
+    @Query("SELECT frase_id AS fraseId, pronuncia, quando FROM tentativi ORDER BY quando DESC")
+    suspend fun storia(): List<Passato>
+
+    /** Per il profilo dei suoni (v1.33.0): le parole più recenti che hanno i
+     *  voti dei fonemi. Una volta sola per la sessione, e in Flow per lo storico. */
+    @Query("SELECT parola, fonemi FROM parole WHERE fonemi IS NOT NULL ORDER BY id DESC LIMIT :quanti")
+    suspend fun fonemiRecenti(quanti: Int): List<FonemiParola>
+
+    @Query("SELECT parola, fonemi FROM parole WHERE fonemi IS NOT NULL ORDER BY id DESC LIMIT :quanti")
+    fun fonemiRecentiFlow(quanti: Int): Flow<List<FonemiParola>>
 
     @Query(
         """SELECT parola, COUNT(*) AS volte,
@@ -159,7 +171,7 @@ interface StoricoDao {
     suspend fun svuota()
 }
 
-@Database(entities = [Tentativo::class, ParolaTentativo::class], version = 2)
+@Database(entities = [Tentativo::class, ParolaTentativo::class], version = 3)
 abstract class Archivio : RoomDatabase() {
     abstract fun storico(): StoricoDao
 }
@@ -171,12 +183,22 @@ private val DA_1_A_2 = object : androidx.room.migration.Migration(1, 2) {
     }
 }
 
+/** v1.33.0: i voti dei fonemi accanto alla parola. ⚠️ Colonna che ammette
+ *  `null` e senza valore di partenza, di proposito: è la forma che Room si
+ *  aspetta da `String?`, e una migration che non combacia con l'entità fa
+ *  morire l'app all'apertura, con tutto lo storico dentro. */
+private val DA_2_A_3 = object : androidx.room.migration.Migration(2, 3) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE parole ADD COLUMN fonemi TEXT")
+    }
+}
+
 object Storico {
     @Volatile private var db: Archivio? = null
 
     fun dao(ctx: Context): StoricoDao = (db ?: synchronized(this) {
         db ?: Room.databaseBuilder(ctx.applicationContext, Archivio::class.java, "storico.db")
-            .addMigrations(DA_1_A_2).build().also { db = it }
+            .addMigrations(DA_1_A_2, DA_2_A_3).build().also { db = it }
     }).storico()
 
     fun normalizza(p: String) = p.lowercase().trim { !it.isLetterOrDigit() && it != '\'' }
@@ -197,7 +219,11 @@ object Storico {
                 )
                 val parole = esito.parole.mapNotNull { p ->
                     normalizza(p.testo).takeIf { it.isNotEmpty() }
-                        ?.let { ParolaTentativo(tentativoId = 0, parola = it, accuratezza = p.accuratezza, errore = p.errore) }
+                        ?.let {
+                            // I fonemi di una parola saltata o in più non sono un suono detto male.
+                            val fonemi = if (p.errore == "Omission" || p.errore == "Insertion") null else ProfiloSuoni.codifica(p.fonemi)
+                            ParolaTentativo(tentativoId = 0, parola = it, accuratezza = p.accuratezza, errore = p.errore, fonemi = fonemi)
+                        }
                 }
                 dao(ctx).registra(t, parole)
             }

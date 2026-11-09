@@ -65,6 +65,13 @@ class Tts(ctx: Context, private val azure: AzureToken) {
         suona(audio(ssml(testo, voceId, lingua, lenta)))
     }
 
+    /** Sintetizza [testo] e lo mette in cache SENZA suonarlo (v1.33.0): il ciclo
+     *  ci prepara gli avvisi di rete finché la rete c'è, perché quando manca
+     *  non si potrebbero più sintetizzare. Già in cache = non fa niente. */
+    suspend fun prepara(testo: String, voceId: String, lingua: String) {
+        audio(ssml(testo, voceId, lingua, false))
+    }
+
     private suspend fun audio(ssml: String): File = withContext(Dispatchers.IO) {
         val f = File(cartella, sha(ssml) + ".mp3")
         if (f.length() > 0) return@withContext f

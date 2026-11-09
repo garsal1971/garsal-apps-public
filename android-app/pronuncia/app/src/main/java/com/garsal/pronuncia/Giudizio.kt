@@ -53,7 +53,14 @@ object Giudizio {
     val SOGLIE: List<Int?> = listOf(null, 50, 60, 70, 80, 90)
 
     /** [parola]: il tentativo è su una parola singola, e valgono le sue soglie. */
-    fun di(e: Esito, p: Prefs, parola: Boolean): Verdetto {
+    fun di(e: Esito, p: Prefs, parola: Boolean): Verdetto = valuta(
+        e, p.soglia(Controllo.PAROLA, parola), p.soglia(Controllo.SUONO, parola), p.soglia(Controllo.RITMO, parola),
+        p.accento == Accento.BRITANNICO,
+    )
+
+    /** Lo stesso giudizio con le soglie in mano (`null` = controllo spento),
+     *  senza le preferenze: è la forma che i test possono chiamare (v1.33.0). */
+    fun valuta(e: Esito, sogliaParola: Int?, sogliaSuono: Int?, sogliaRitmo: Int?, britannico: Boolean): Verdetto {
         val motivi = mutableListOf<String>()
         val difetti = mutableListOf<Difetto>()
         val note = mutableListOf<String>()
@@ -66,7 +73,7 @@ object Giudizio {
         // Le parole della frase: le inserite non ci sono, quindi non contano.
         val dette = e.parole.filter { it.errore != "Insertion" }
 
-        p.soglia(Controllo.PAROLA, parola)?.let { s ->
+        sogliaParola?.let { s ->
             dette.firstOrNull { it.errore == "Omission" }?.let {
                 motivi += "parola saltata: «${it.testo}»"; difetti += Difetto.Saltata(it); curare += it
             }
@@ -78,7 +85,7 @@ object Giudizio {
                 }
         }
 
-        p.soglia(Controllo.SUONO, parola)?.let { s ->
+        sogliaSuono?.let { s ->
             dette.filter { it.errore != "Omission" }
                 .flatMap { w -> w.fonemi.mapIndexed { i, f -> Triple(w, i, f) } }
                 .minByOrNull { it.third.second }
@@ -92,11 +99,11 @@ object Giudizio {
                 }
         }
 
-        p.soglia(Controllo.RITMO, parola)?.let { s ->
+        sogliaRitmo?.let { s ->
             val r = e.ritmo
             when {
                 r == null -> note += "Ritmo e intonazione: Azure non li ha valutati" +
-                    if (p.accento == Accento.BRITANNICO) " (per l'inglese britannico spesso non sono disponibili)." else "."
+                    if (britannico) " (per l'inglese britannico spesso non sono disponibili)." else "."
                 r < s -> { motivi += "ritmo e intonazione ${uno(r)}, sotto $s"; difetti += Difetto.Ritmo(r, s) }
             }
         }
