@@ -29,9 +29,10 @@ object Frasi {
         "cibo" to "🍽️ Cibo", "casa" to "🏠 Casa e famiglia", "lavoro" to "💼 Lavoro", "salute" to "🩺 Salute",
     )
 
-    /** ⚠️ Le frasi hanno i soli primi tre temi, le parole (v1.20.0) tutti e
-     *  dieci: un tema senza frasi lascerebbe l'esercizio senza niente da dire. */
-    val TEMI_FRASI = setOf("viaggio", "politica", "storia")
+    /** ⚠️ Le frasi hanno sette temi — i tre di partenza e, dalla v1.33.0, i
+     *  quattro quotidiani (cibo, casa, lavoro, salute) — le parole (v1.20.0)
+     *  tutti e dieci: un tema senza frasi lascerebbe l'esercizio senza niente da dire. */
+    val TEMI_FRASI = setOf("viaggio", "politica", "storia", "cibo", "casa", "lavoro", "salute")
 
     /** Un tema rimasto nelle preferenze ma tolto dal catalogo (v1.21.0:
      *  «famosi») vale «tutti»: filtrarci sopra non darebbe niente da dire. */

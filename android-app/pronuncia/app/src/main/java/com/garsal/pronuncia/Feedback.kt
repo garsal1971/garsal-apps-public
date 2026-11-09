@@ -5,7 +5,7 @@ package com.garsal.pronuncia
  * ascoltano a mani libere, e un commento lungo è tempo tolto alla frase dopo.
  */
 object Feedback {
-    enum class Cosa { INIZIO, BRAVO, RIPROVA, AVANTI, SILENZIO, PAUSA, SOLO_PAROLE }
+    enum class Cosa { INIZIO, BRAVO, RIPROVA, AVANTI, SILENZIO, PAUSA, SOLO_PAROLE, RETE, RETE_FERMA }
 
     fun testo(l: LinguaFeedback, c: Cosa): String = when (l) {
         LinguaFeedback.INGLESE -> when (c) {
@@ -16,6 +16,8 @@ object Feedback {
             Cosa.SILENZIO -> "I didn't hear you. Say it again."
             Cosa.PAUSA -> "I'll stop here. See you later."
             Cosa.SOLO_PAROLE -> "Spelling is only for single words."
+            Cosa.RETE -> "Connection problem. I'll try again."
+            Cosa.RETE_FERMA -> "I can't reach the network. I'll stop here."
         }
         LinguaFeedback.ITALIANO -> when (c) {
             Cosa.INIZIO -> "Cominciamo. Ripeti dopo di me."
@@ -25,6 +27,8 @@ object Feedback {
             Cosa.SILENZIO -> "Non ti ho sentito. Ripeti."
             Cosa.PAUSA -> "Mi fermo qui. A dopo."
             Cosa.SOLO_PAROLE -> "Lo spelling c'è solo per le parole singole."
+            Cosa.RETE -> "Problema di rete. Riprovo."
+            Cosa.RETE_FERMA -> "La rete non risponde. Mi fermo qui."
         }
     }
 

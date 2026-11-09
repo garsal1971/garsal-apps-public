@@ -230,8 +230,11 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
             } else if (f == null) {
                 Text(if (parole) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.")
             } else {
-                coda.firstOrNull()?.peggiore?.let { v -> Text(
-                    "🔁 già fatta · voto più basso ${Math.round(v)}",
+                coda.firstOrNull()?.let { s ->
+                    s.recente?.let { v -> "🔁 già fatta · ultimi voti ${Math.round(v)}" }
+                        ?: s.suono?.let { su -> "🎯 scelta per il tuo suono /$su/" }
+                }?.let { etichetta -> Text(
+                    etichetta,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) }

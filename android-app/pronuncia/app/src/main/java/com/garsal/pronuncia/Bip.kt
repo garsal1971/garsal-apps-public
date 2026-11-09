@@ -25,4 +25,21 @@ object Bip {
             tg.release()
         }
     }
+
+    /** Due bip bassi (v1.33.0): l'avviso che resta quando non si può nemmeno
+     *  parlare — la rete è caduta e la frase d'avviso non era in cache. Non
+     *  passa dalla rete, quindi suona sempre. */
+    suspend fun errore(comunicazione: Boolean) {
+        val tg = runCatching {
+            ToneGenerator(if (comunicazione) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC, 80)
+        }.getOrNull() ?: return
+        try {
+            repeat(2) {
+                tg.startTone(ToneGenerator.TONE_PROP_NACK, 250)
+                delay(400L)
+            }
+        } finally {
+            tg.release()
+        }
+    }
 }

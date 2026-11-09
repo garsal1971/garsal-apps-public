@@ -32,8 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.garsal.pronuncia.FonemiParola
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.ParolaTentativo
+import com.garsal.pronuncia.ProfiloSuoni
 import com.garsal.pronuncia.StatParola
 import com.garsal.pronuncia.Storico
 import com.garsal.pronuncia.StoricoRemoto
@@ -64,6 +66,7 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
     val ultimi by dao.ultimi(50).collectAsState(emptyList())
     val totale by dao.totale().collectAsState(0)
     val perParola by dao.perParola().collectAsState(emptyList())
+    val fonemi by dao.fonemiRecentiFlow(ProfiloSuoni.RIGHE).collectAsState(emptyList())
     var svuota by remember { mutableStateOf(false) }
     var erroreSvuota by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -104,6 +107,8 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
                     HorizontalDivider()
                 }
             }
+
+            Sezione("🔊 I miei suoni") { MieiSuoni(fonemi) }
 
             Sezione("📚 Le mie parole") {
                 // Solo le parole del catalogo: quelle di un tema tolto restano in archivio e non si elencano.
@@ -152,6 +157,51 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
             },
             dismissButton = { TextButton(onClick = { svuota = false }) { Text("Annulla") } },
         )
+    }
+}
+
+/**
+ * Il profilo dei suoni (v1.33.0, `ProfiloSuoni`): per ogni fonema valutato
+ * abbastanza volte la media, quante volte è finito sotto soglia e in quali
+ * parole. ⚠️ Solo dai tentativi che hanno i voti dei fonemi, cioè da questa
+ * versione in poi: quelli di prima hanno le sole parole.
+ */
+@Composable
+private fun MieiSuoni(righe: List<FonemiParola>) {
+    val profilo = remember(righe) { ProfiloSuoni.calcola(righe.map { it.parola to it.fonemi }) }
+    val valutati = profilo.filter { it.volte >= ProfiloSuoni.MIN_VOLTE }
+    if (valutati.isEmpty()) {
+        Text(
+            "Si riempie da sé coi tentativi fatti da questa versione in poi: un suono compare quando è stato valutato almeno ${ProfiloSuoni.MIN_VOLTE} volte.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        return
+    }
+    val deboli = remember(profilo) { ProfiloSuoni.deboli(profilo).map { it.fonema }.toSet() }
+    Text(
+        "Dal più debole. I suoni con 🎯 (i primi ${ProfiloSuoni.QUANTI} sotto ${ProfiloSuoni.SOGLIA_DEBOLE.toInt()} di media) guidano la scelta delle parole e delle frasi nuove.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    valutati.take(10).forEach { s ->
+        val grafie = ProfiloSuoni.grafie(s.fonema)
+        Column {
+            Text(
+                (if (s.fonema in deboli) "🎯 " else "") + "/${s.fonema}/" +
+                    (if (grafie.isEmpty()) "" else " · di solito «" + grafie.joinToString("», «") + "»"),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+            )
+            Text(
+                "media ${uno(s.media)}/100 · ${s.volte} volte, ${s.sbagliate} sotto ${ProfiloSuoni.SOGLIA_SBAGLIATO.toInt()}",
+                color = colore(s.media), fontWeight = FontWeight.Bold,
+            )
+            if (s.esempi.isNotEmpty()) Text(
+                "es. " + s.esempi.joinToString(", "),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        HorizontalDivider()
     }
 }
 

@@ -5,6 +5,7 @@ import com.garsal.pronuncia.ui.SOGLIA_BUONA
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -22,8 +23,11 @@ data class StatoCiclo(
     val buone: Int = 0,
     val nota: String? = null,
     val inPausa: Boolean = false,
-    /** La frase in corso è già stata fatta: il suo voto più basso (v1.22.0). */
-    val peggiore: Double? = null,
+    /** La frase in corso è già stata fatta: la media dei suoi ultimi due voti
+     *  (v1.33.0; fino alla v1.32.0 era il voto più basso mai preso). */
+    val recente: Double? = null,
+    /** La frase in corso è stata scelta per questo suono debole (`ProfiloSuoni`). */
+    val suono: String? = null,
     /** Un avviso che vale mentre il ciclo gira (es. cuffie non trovate). */
     val avviso: String? = null,
     /** Il giudizio dell'ultimo tentativo, per dire a schermo perché è da ripetere. */
@@ -66,8 +70,17 @@ data class StatoCiclo(
  * tentativi già fatti restano.
  *
  * Gli elementi si scelgono tutti all'avvio (`Sessione.scegli`, v1.22.0): metà
- * mai fatti e metà già fatti, dal voto più basso. «next» su uno mai provato lo
- * manda in fondo alla coda, così la sessione resta di N.
+ * mai fatti e metà già fatti, secondo `Ripasso` (v1.33.0: ultimi voti e
+ * intervalli). «next» su uno mai provato lo manda in fondo alla coda, così la
+ * sessione resta di N.
+ *
+ * ⚠️ v1.33.0, **la rete che cade**: un errore durante il giro (sintesi,
+ * token, valutazione) non chiude più la sessione in silenzio. Si dice a voce
+ * «Problema di rete, riprovo», si aspetta e si rifà il giro sulla stessa frase
+ * — i tentativi fatti restano — fino a [GUASTI] volte di fila; poi ci si ferma
+ * dicendolo. Gli avvisi si sintetizzano all'avvio, finché la rete c'è; se non
+ * sono in cache restano due bip (`Bip.errore`). Una sessione scaduta non si
+ * riprova: lì serve rientrare con Google.
  *
  * Una sessione è di `Prefs.quanteCiclo` elementi, letta all'avvio (v1.16.0):
  * conta un elemento con almeno un tentativo — un «next» su uno mai provato non
@@ -82,6 +95,10 @@ data class StatoCiclo(
 object Ciclo {
     const val TENTATIVI = 3
     const val SILENZI = 3
+    /** Errori di fila (rete, quasi sempre) prima di fermare la sessione. */
+    const val GUASTI = 3
+    /** L'attesa prima di riprovare: questa per il numero dell'errore. */
+    private const val ATTESA_GUASTO_MS = 5_000L
 
     val stato = MutableStateFlow(StatoCiclo())
     val pausa = MutableStateFlow(false)
@@ -94,6 +111,8 @@ object Ciclo {
         data object Avanti : Fine
         data object Pausa : Fine
         data object Silenzio : Fine
+        /** Dopo un errore: si rifà il giro sulla stessa frase. */
+        data object Riprova : Fine
         data class Comandato(val c: Comando) : Fine
     }
 
@@ -167,6 +186,20 @@ object Ciclo {
         val (voceFb, linguaFb) = Feedback.voce(lingua, voce, accento)
         suspend fun di(c: Feedback.Cosa) = Servizi.tts.parla(Feedback.testo(lingua, c), voceFb, linguaFb)
 
+        /** Un avviso che deve arrivare anche senza rete: la frase se è in
+         *  cache, altrimenti due bip. ⚠️ Non lancia (a parte l'annullamento):
+         *  sta dentro la gestione di un errore, e un secondo errore lì la
+         *  farebbe saltare. */
+        suspend fun avvisa(c: Feedback.Cosa) {
+            try {
+                di(c)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Bip.errore(Servizi.tts.comunicazione)
+            }
+        }
+
         val quante = p.quanteCiclo
         val migliori = mutableMapOf<String, Double>()
         stato.update { it.copy(quante = quante) }
@@ -176,7 +209,17 @@ object Ciclo {
             val v = votoSessione(migliori.values) ?: return
             val media = migliori.values.average()
             stato.update { it.copy(voto = v, media = media, cosa = "🏁 Sessione finita", nota = null) }
-            Servizi.tts.parla(Feedback.fine(lingua, v), voceFb, linguaFb)
+            // ⚠️ Se la voce non riesce (rete caduta proprio alla fine) il voto
+            // è già a schermo, e Obiettivi va aggiornato lo stesso.
+            try {
+                Servizi.tts.parla(Feedback.fine(lingua, v), voceFb, linguaFb)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: SessioneScaduta) {
+                throw e
+            } catch (e: Exception) {
+                Bip.errore(Servizi.tts.comunicazione)
+            }
             val esito = try {
                 Obiettivo.aggiorna(v, "Mani libere: ${migliori.size} ${if (p.paroleCiclo) "parole" else "frasi"}, media ${Math.round(media)}")
             } catch (e: Exception) {
@@ -190,6 +233,7 @@ object Ciclo {
         if (coda.isEmpty()) { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
         var silenzi = 0
         var tentativo = 0
+        var guasti = 0
 
         /** Una frase, dalla lettura fino a un esito. */
         suspend fun giro(frase: Frase, lenta: Boolean): Fine {
@@ -268,6 +312,16 @@ object Ciclo {
         // (gli errori di rete li assorbe già `aggiorna`).
         Servizi.traduzioni.aggiorna()
         di(Feedback.Cosa.INIZIO)
+        // Gli avvisi di rete in cache adesso che la rete c'è (vedi `avvisa`).
+        listOf(Feedback.Cosa.RETE, Feedback.Cosa.RETE_FERMA).forEach { c ->
+            try {
+                Servizi.tts.prepara(Feedback.testo(lingua, c), voceFb, linguaFb)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Pazienza: al bisogno suoneranno i due bip.
+            }
+        }
         var frase: Frase? = null
         var lenta = false
         while (true) {
@@ -278,11 +332,34 @@ object Ciclo {
                 frase = nuova
                 tentativo = 0
                 stato.update {
-                    it.copy(frase = nuova, tentativo = 0, ultimo = null, frasi = n, peggiore = scelta.peggiore, verdetto = null)
+                    it.copy(
+                        frase = nuova, tentativo = 0, ultimo = null, frasi = n,
+                        recente = scelta.recente, suono = scelta.suono, verdetto = null,
+                    )
                 }
             }
             val f = frase!!
-            val fine = interrompibile { giro(f, lenta) }
+            val fine: Fine = try {
+                val esito = interrompibile { giro(f, lenta) }
+                guasti = 0
+                esito
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: SessioneScaduta) {
+                throw e
+            } catch (e: Exception) {
+                val perche = e.message ?: e.javaClass.simpleName
+                if (++guasti > GUASTI) {
+                    stato.update { it.copy(nota = "Fermato: $GUASTI errori di fila, probabilmente la rete. L'ultimo: $perche") }
+                    avvisa(Feedback.Cosa.RETE_FERMA)
+                    return
+                }
+                cosa("📡 Problema di rete: riprovo ($guasti/$GUASTI)")
+                if (guasti == 1) avvisa(Feedback.Cosa.RETE)
+                val attesa = ATTESA_GUASTO_MS * guasti
+                // Interrompibile come il giro: pausa, tasti e Ferma valgono anche qui.
+                interrompibile { delay(attesa); Fine.Riprova }
+            }
             lenta = false
             // L'ultimo elemento della sessione, provato almeno una volta: basta.
             if ((fine == Fine.Avanti || (fine is Fine.Comandato && fine.c == Comando.AVANTI)) &&
@@ -302,6 +379,8 @@ object Ciclo {
                     cosa("⏸ In pausa")
                     pausa.first { !it }
                 }
+                // Il giro riparte sulla stessa frase: la si rilegge e si ascolta.
+                Fine.Riprova -> Unit
                 is Fine.Comandato -> when (fine.c) {
                     // Mai provata: in fondo alla coda, non fuori dalla sessione.
                     Comando.AVANTI -> {

@@ -86,8 +86,9 @@ fun ManiLibere(parole: Boolean) {
                     color = MaterialTheme.colorScheme.primary,
                 )
                 s.frase?.let { f ->
-                    s.peggiore?.let { v -> Text(
-                        "🔁 già fatta · voto più basso ${Math.round(v)}",
+                    (s.recente?.let { v -> "🔁 già fatta · ultimi voti ${Math.round(v)}" }
+                        ?: s.suono?.let { su -> "🎯 scelta per il tuo suono /$su/" })?.let { etichetta -> Text(
+                        etichetta,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     ) }
@@ -117,14 +118,14 @@ fun ManiLibere(parole: Boolean) {
                 Text(
                     (if (parole)
                         "Legge una parola, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA te la rilegge piano " +
-                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le parole di «Quante» si scelgono all'avvio: metà mai fatte e metà già fatte, dal voto più basso. Finite quelle, "
+                            "e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le parole di «Quante» si scelgono all'avvio: metà mai fatte (in parte scelte per i suoni che ti vengono peggio) e metà già fatte, da come vanno adesso; una riuscita torna dopo 1, 3, 7 e 14 giorni. Finite quelle, "
                     else
                         "Legge una frase, tu la ripeti, ti fa riascoltare la tua voce (se acceso in ⚙️ Impostazioni) e ti dice il voto. Sotto $SOGLIA_INTERA ripete le " +
-                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le frasi di «Quante» si scelgono all'avvio: metà mai fatte e metà già fatte, dal voto più basso. Finite quelle, ") +
+                            "parole da curare e te la fa ridire, fino a ${Ciclo.TENTATIVI} volte. Le frasi di «Quante» si scelgono all'avvio: metà mai fatte (in parte scelte per i suoni che ti vengono peggio) e metà già fatte, da come vanno adesso; una riuscita torna dopo 1, 3, 7 e 14 giorni. Finite quelle, ") +
                         "ti dà un voto da 1 a 10 e aggiorna l'obiettivo. Funziona anche a schermo spento; se premi Ferma prima, niente voto.\n\n" +
                         "Quando tocca a te, al posto della frase puoi dire un comando: «Ripeti», «Avanti», «Lento», «Ferma», «Ortografia» (lo spelling, sulle parole singole) o «Traduci» — prima registrali con la tua voce in ⚙️ Impostazioni → 🎙 I miei comandi. " +
                         "Tasti delle cuffie: play/pausa mette in pausa e riprende, avanti = next, indietro = repeat. " +
-                        "Una chiamata o il navigatore lo mettono in pausa, e riparte da sé.",
+                        "Una chiamata o il navigatore lo mettono in pausa, e riparte da sé. Se cade la rete lo dice a voce e riprova da solo, fino a ${Ciclo.GUASTI} volte.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Button(onClick = { premi() }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {

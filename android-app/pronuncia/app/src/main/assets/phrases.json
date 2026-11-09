@@ -1440,6 +1440,1926 @@
    "level": "B2",
    "theme": "storia",
    "text": "Our understanding of the past is constantly revised as new evidence comes to light."
+  },
+  {
+   "id": "a1-k-01",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "I would like a cup of tea, please."
+  },
+  {
+   "id": "a1-k-02",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "Can I have the menu, please?"
+  },
+  {
+   "id": "a1-k-03",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "I don't eat meat."
+  },
+  {
+   "id": "a1-k-04",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "The soup is very hot."
+  },
+  {
+   "id": "a1-k-05",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "We need bread and milk."
+  },
+  {
+   "id": "a1-k-06",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "What would you like to drink?"
+  },
+  {
+   "id": "a1-k-07",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "This cake is delicious."
+  },
+  {
+   "id": "a1-k-08",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "I have eggs for breakfast."
+  },
+  {
+   "id": "a1-k-09",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "Could I have some water?"
+  },
+  {
+   "id": "a1-k-10",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "The bill, please."
+  },
+  {
+   "id": "a1-k-11",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "Do you like fish and chips?"
+  },
+  {
+   "id": "a1-k-12",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "I am very hungry."
+  },
+  {
+   "id": "a1-k-13",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "She is cooking dinner."
+  },
+  {
+   "id": "a1-k-14",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "There is an apple on the table."
+  },
+  {
+   "id": "a1-k-15",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "I drink coffee every morning."
+  },
+  {
+   "id": "a1-k-16",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "Is there any cheese in the fridge?"
+  },
+  {
+   "id": "a1-k-17",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "Let's have lunch together."
+  },
+  {
+   "id": "a1-k-18",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "I would like a sandwich."
+  },
+  {
+   "id": "a1-k-19",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "The vegetables are fresh."
+  },
+  {
+   "id": "a1-k-20",
+   "level": "A1",
+   "theme": "cibo",
+   "text": "Can I pay by card?"
+  },
+  {
+   "id": "a1-h-01",
+   "level": "A1",
+   "theme": "casa",
+   "text": "This is my house."
+  },
+  {
+   "id": "a1-h-02",
+   "level": "A1",
+   "theme": "casa",
+   "text": "I have two brothers."
+  },
+  {
+   "id": "a1-h-03",
+   "level": "A1",
+   "theme": "casa",
+   "text": "My mother is in the kitchen."
+  },
+  {
+   "id": "a1-h-04",
+   "level": "A1",
+   "theme": "casa",
+   "text": "The bedroom is upstairs."
+  },
+  {
+   "id": "a1-h-05",
+   "level": "A1",
+   "theme": "casa",
+   "text": "Where are my keys?"
+  },
+  {
+   "id": "a1-h-06",
+   "level": "A1",
+   "theme": "casa",
+   "text": "Our garden is small."
+  },
+  {
+   "id": "a1-h-07",
+   "level": "A1",
+   "theme": "casa",
+   "text": "My sister lives in Manchester."
+  },
+  {
+   "id": "a1-h-08",
+   "level": "A1",
+   "theme": "casa",
+   "text": "Please close the door."
+  },
+  {
+   "id": "a1-h-09",
+   "level": "A1",
+   "theme": "casa",
+   "text": "The children are playing outside."
+  },
+  {
+   "id": "a1-h-10",
+   "level": "A1",
+   "theme": "casa",
+   "text": "I clean the house on Saturdays."
+  },
+  {
+   "id": "a1-h-11",
+   "level": "A1",
+   "theme": "casa",
+   "text": "My father is watching television."
+  },
+  {
+   "id": "a1-h-12",
+   "level": "A1",
+   "theme": "casa",
+   "text": "We have a dog and a cat."
+  },
+  {
+   "id": "a1-h-13",
+   "level": "A1",
+   "theme": "casa",
+   "text": "The bathroom is on the left."
+  },
+  {
+   "id": "a1-h-14",
+   "level": "A1",
+   "theme": "casa",
+   "text": "Dinner is ready."
+  },
+  {
+   "id": "a1-h-15",
+   "level": "A1",
+   "theme": "casa",
+   "text": "My grandmother is eighty years old."
+  },
+  {
+   "id": "a1-h-16",
+   "level": "A1",
+   "theme": "casa",
+   "text": "Can you open the window?"
+  },
+  {
+   "id": "a1-h-17",
+   "level": "A1",
+   "theme": "casa",
+   "text": "I live with my wife and daughter."
+  },
+  {
+   "id": "a1-h-18",
+   "level": "A1",
+   "theme": "casa",
+   "text": "The sofa is very comfortable."
+  },
+  {
+   "id": "a1-h-19",
+   "level": "A1",
+   "theme": "casa",
+   "text": "Turn off the light, please."
+  },
+  {
+   "id": "a1-h-20",
+   "level": "A1",
+   "theme": "casa",
+   "text": "We are at home this evening."
+  },
+  {
+   "id": "a1-l-01",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I work in an office."
+  },
+  {
+   "id": "a1-l-02",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "What do you do?"
+  },
+  {
+   "id": "a1-l-03",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I start work at nine."
+  },
+  {
+   "id": "a1-l-04",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "She is a teacher."
+  },
+  {
+   "id": "a1-l-05",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "The meeting is at three o'clock."
+  },
+  {
+   "id": "a1-l-06",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I have a lot of work today."
+  },
+  {
+   "id": "a1-l-07",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "My boss is very kind."
+  },
+  {
+   "id": "a1-l-08",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "Can you check this for me?"
+  },
+  {
+   "id": "a1-l-09",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I am busy at the moment."
+  },
+  {
+   "id": "a1-l-10",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "He works in a bank."
+  },
+  {
+   "id": "a1-l-11",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I need a new computer."
+  },
+  {
+   "id": "a1-l-12",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "We have lunch at one."
+  },
+  {
+   "id": "a1-l-13",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "Please send me an email."
+  },
+  {
+   "id": "a1-l-14",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I go to work by train."
+  },
+  {
+   "id": "a1-l-15",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "The office is closed on Sundays."
+  },
+  {
+   "id": "a1-l-16",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "This is my colleague, Anna."
+  },
+  {
+   "id": "a1-l-17",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I finish work at half past five."
+  },
+  {
+   "id": "a1-l-18",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "Where is the printer?"
+  },
+  {
+   "id": "a1-l-19",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "I am on holiday next week."
+  },
+  {
+   "id": "a1-l-20",
+   "level": "A1",
+   "theme": "lavoro",
+   "text": "Thank you for your help."
+  },
+  {
+   "id": "a1-m-01",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I don't feel well."
+  },
+  {
+   "id": "a1-m-02",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I have a headache."
+  },
+  {
+   "id": "a1-m-03",
+   "level": "A1",
+   "theme": "salute",
+   "text": "Where is the nearest chemist?"
+  },
+  {
+   "id": "a1-m-04",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I need to see a doctor."
+  },
+  {
+   "id": "a1-m-05",
+   "level": "A1",
+   "theme": "salute",
+   "text": "My throat hurts."
+  },
+  {
+   "id": "a1-m-06",
+   "level": "A1",
+   "theme": "salute",
+   "text": "Take this medicine twice a day."
+  },
+  {
+   "id": "a1-m-07",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I am very tired today."
+  },
+  {
+   "id": "a1-m-08",
+   "level": "A1",
+   "theme": "salute",
+   "text": "She has a bad cold."
+  },
+  {
+   "id": "a1-m-09",
+   "level": "A1",
+   "theme": "salute",
+   "text": "Drink a lot of water."
+  },
+  {
+   "id": "a1-m-10",
+   "level": "A1",
+   "theme": "salute",
+   "text": "My back hurts."
+  },
+  {
+   "id": "a1-m-11",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I go for a walk every day."
+  },
+  {
+   "id": "a1-m-12",
+   "level": "A1",
+   "theme": "salute",
+   "text": "Are you feeling better?"
+  },
+  {
+   "id": "a1-m-13",
+   "level": "A1",
+   "theme": "salute",
+   "text": "He has a high temperature."
+  },
+  {
+   "id": "a1-m-14",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I am allergic to nuts."
+  },
+  {
+   "id": "a1-m-15",
+   "level": "A1",
+   "theme": "salute",
+   "text": "Call an ambulance, please."
+  },
+  {
+   "id": "a1-m-16",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I sleep eight hours a night."
+  },
+  {
+   "id": "a1-m-17",
+   "level": "A1",
+   "theme": "salute",
+   "text": "The hospital is near the park."
+  },
+  {
+   "id": "a1-m-18",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I have a toothache."
+  },
+  {
+   "id": "a1-m-19",
+   "level": "A1",
+   "theme": "salute",
+   "text": "You should rest for a few days."
+  },
+  {
+   "id": "a1-m-20",
+   "level": "A1",
+   "theme": "salute",
+   "text": "I have an appointment at ten."
+  },
+  {
+   "id": "a2-k-01",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Could we have a table for two by the window?"
+  },
+  {
+   "id": "a2-k-02",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "I'd rather have the chicken than the fish."
+  },
+  {
+   "id": "a2-k-03",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Would you like some more potatoes?"
+  },
+  {
+   "id": "a2-k-04",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "We usually have a roast on Sundays."
+  },
+  {
+   "id": "a2-k-05",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "I'm trying to eat less sugar these days."
+  },
+  {
+   "id": "a2-k-06",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Shall I put the kettle on?"
+  },
+  {
+   "id": "a2-k-07",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "This restaurant is famous for its seafood."
+  },
+  {
+   "id": "a2-k-08",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Could you pass me the salt, please?"
+  },
+  {
+   "id": "a2-k-09",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "I burnt the toast again this morning."
+  },
+  {
+   "id": "a2-k-10",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "There's nothing in the fridge, so let's order a takeaway."
+  },
+  {
+   "id": "a2-k-11",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "How would you like your steak cooked?"
+  },
+  {
+   "id": "a2-k-12",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "My mother taught me how to make this pie."
+  },
+  {
+   "id": "a2-k-13",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "I'll have the same as her, please."
+  },
+  {
+   "id": "a2-k-14",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "We ran out of butter yesterday."
+  },
+  {
+   "id": "a2-k-15",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "The portions here are really generous."
+  },
+  {
+   "id": "a2-k-16",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Do you have any vegetarian dishes?"
+  },
+  {
+   "id": "a2-k-17",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "I can't stand the smell of garlic."
+  },
+  {
+   "id": "a2-k-18",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Let's go out for a curry tonight."
+  },
+  {
+   "id": "a2-k-19",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "She bakes her own bread every weekend."
+  },
+  {
+   "id": "a2-k-20",
+   "level": "A2",
+   "theme": "cibo",
+   "text": "Could I have the dressing on the side?"
+  },
+  {
+   "id": "a2-h-01",
+   "level": "A2",
+   "theme": "casa",
+   "text": "We moved into this flat three years ago."
+  },
+  {
+   "id": "a2-h-02",
+   "level": "A2",
+   "theme": "casa",
+   "text": "My parents are coming to stay for the weekend."
+  },
+  {
+   "id": "a2-h-03",
+   "level": "A2",
+   "theme": "casa",
+   "text": "Could you take the rubbish out, please?"
+  },
+  {
+   "id": "a2-h-04",
+   "level": "A2",
+   "theme": "casa",
+   "text": "The heating isn't working properly."
+  },
+  {
+   "id": "a2-h-05",
+   "level": "A2",
+   "theme": "casa",
+   "text": "I share a house with two friends."
+  },
+  {
+   "id": "a2-h-06",
+   "level": "A2",
+   "theme": "casa",
+   "text": "My daughter has just started secondary school."
+  },
+  {
+   "id": "a2-h-07",
+   "level": "A2",
+   "theme": "casa",
+   "text": "We're thinking of painting the living room."
+  },
+  {
+   "id": "a2-h-08",
+   "level": "A2",
+   "theme": "casa",
+   "text": "Whose turn is it to do the washing up?"
+  },
+  {
+   "id": "a2-h-09",
+   "level": "A2",
+   "theme": "casa",
+   "text": "My brother and I get on very well."
+  },
+  {
+   "id": "a2-h-10",
+   "level": "A2",
+   "theme": "casa",
+   "text": "The neighbours upstairs are rather noisy."
+  },
+  {
+   "id": "a2-h-11",
+   "level": "A2",
+   "theme": "casa",
+   "text": "I need to hang the washing out before it rains."
+  },
+  {
+   "id": "a2-h-12",
+   "level": "A2",
+   "theme": "casa",
+   "text": "We usually have dinner together as a family."
+  },
+  {
+   "id": "a2-h-13",
+   "level": "A2",
+   "theme": "casa",
+   "text": "There's a leak under the kitchen sink."
+  },
+  {
+   "id": "a2-h-14",
+   "level": "A2",
+   "theme": "casa",
+   "text": "My grandparents have been married for fifty years."
+  },
+  {
+   "id": "a2-h-15",
+   "level": "A2",
+   "theme": "casa",
+   "text": "Can you lay the table while I finish cooking?"
+  },
+  {
+   "id": "a2-h-16",
+   "level": "A2",
+   "theme": "casa",
+   "text": "The rent is due on the first of the month."
+  },
+  {
+   "id": "a2-h-17",
+   "level": "A2",
+   "theme": "casa",
+   "text": "I grew up in a small village near the coast."
+  },
+  {
+   "id": "a2-h-18",
+   "level": "A2",
+   "theme": "casa",
+   "text": "We need to buy a new washing machine."
+  },
+  {
+   "id": "a2-h-19",
+   "level": "A2",
+   "theme": "casa",
+   "text": "My cousin is getting married in June."
+  },
+  {
+   "id": "a2-h-20",
+   "level": "A2",
+   "theme": "casa",
+   "text": "Don't forget to lock the door when you leave."
+  },
+  {
+   "id": "a2-l-01",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I've been working here for five years."
+  },
+  {
+   "id": "a2-l-02",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "Could we move the meeting to Thursday?"
+  },
+  {
+   "id": "a2-l-03",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I'm afraid she's on another call at the moment."
+  },
+  {
+   "id": "a2-l-04",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I'll send you the report by the end of the day."
+  },
+  {
+   "id": "a2-l-05",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "He's looking for a job in marketing."
+  },
+  {
+   "id": "a2-l-06",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "We need to finish this project before Friday."
+  },
+  {
+   "id": "a2-l-07",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "Could you say that again more slowly, please?"
+  },
+  {
+   "id": "a2-l-08",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I usually work from home on Mondays."
+  },
+  {
+   "id": "a2-l-09",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "She was promoted to manager last month."
+  },
+  {
+   "id": "a2-l-10",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I have a job interview tomorrow morning."
+  },
+  {
+   "id": "a2-l-11",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "Let me check my diary and get back to you."
+  },
+  {
+   "id": "a2-l-12",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "The deadline has been moved forward a week."
+  },
+  {
+   "id": "a2-l-13",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I'm sorry, I didn't catch your name."
+  },
+  {
+   "id": "a2-l-14",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "We're short of staff this week."
+  },
+  {
+   "id": "a2-l-15",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "Can I take a message for him?"
+  },
+  {
+   "id": "a2-l-16",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I'd like to book a day off next week."
+  },
+  {
+   "id": "a2-l-17",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "The new software is easier to use."
+  },
+  {
+   "id": "a2-l-18",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "Who is in charge of this department?"
+  },
+  {
+   "id": "a2-l-19",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "I'll be out of the office until Wednesday."
+  },
+  {
+   "id": "a2-l-20",
+   "level": "A2",
+   "theme": "lavoro",
+   "text": "Thanks for getting back to me so quickly."
+  },
+  {
+   "id": "a2-m-01",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I've had this cough for over a week."
+  },
+  {
+   "id": "a2-m-02",
+   "level": "A2",
+   "theme": "salute",
+   "text": "You should make an appointment with your GP."
+  },
+  {
+   "id": "a2-m-03",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I twisted my ankle playing football."
+  },
+  {
+   "id": "a2-m-04",
+   "level": "A2",
+   "theme": "salute",
+   "text": "Are you taking any other medication?"
+  },
+  {
+   "id": "a2-m-05",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I'm trying to give up smoking."
+  },
+  {
+   "id": "a2-m-06",
+   "level": "A2",
+   "theme": "salute",
+   "text": "She goes swimming three times a week."
+  },
+  {
+   "id": "a2-m-07",
+   "level": "A2",
+   "theme": "salute",
+   "text": "The doctor gave me a prescription for antibiotics."
+  },
+  {
+   "id": "a2-m-08",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I haven't been sleeping well lately."
+  },
+  {
+   "id": "a2-m-09",
+   "level": "A2",
+   "theme": "salute",
+   "text": "How long have you had these symptoms?"
+  },
+  {
+   "id": "a2-m-10",
+   "level": "A2",
+   "theme": "salute",
+   "text": "You'll feel better after a good night's sleep."
+  },
+  {
+   "id": "a2-m-11",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I need to lose a bit of weight."
+  },
+  {
+   "id": "a2-m-12",
+   "level": "A2",
+   "theme": "salute",
+   "text": "He broke his arm when he fell off his bike."
+  },
+  {
+   "id": "a2-m-13",
+   "level": "A2",
+   "theme": "salute",
+   "text": "Take one tablet after each meal."
+  },
+  {
+   "id": "a2-m-14",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I feel dizzy when I stand up too quickly."
+  },
+  {
+   "id": "a2-m-15",
+   "level": "A2",
+   "theme": "salute",
+   "text": "My eyes get tired from looking at the screen."
+  },
+  {
+   "id": "a2-m-16",
+   "level": "A2",
+   "theme": "salute",
+   "text": "Have you ever had an operation?"
+  },
+  {
+   "id": "a2-m-17",
+   "level": "A2",
+   "theme": "salute",
+   "text": "It's important to eat plenty of fruit and vegetables."
+  },
+  {
+   "id": "a2-m-18",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I've got a rash on my arm."
+  },
+  {
+   "id": "a2-m-19",
+   "level": "A2",
+   "theme": "salute",
+   "text": "The nurse took my blood pressure."
+  },
+  {
+   "id": "a2-m-20",
+   "level": "A2",
+   "theme": "salute",
+   "text": "I think I'm coming down with the flu."
+  },
+  {
+   "id": "b1-k-01",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "If I'd known you were vegetarian, I would have cooked something else."
+  },
+  {
+   "id": "b1-k-02",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "The recipe says to leave the dough to rise for an hour."
+  },
+  {
+   "id": "b1-k-03",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "I've been meaning to try that new Thai place round the corner."
+  },
+  {
+   "id": "b1-k-04",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "Although the starter was lovely, the main course was rather disappointing."
+  },
+  {
+   "id": "b1-k-05",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "We'd better book in advance, as it gets very busy at weekends."
+  },
+  {
+   "id": "b1-k-06",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "I'm not keen on spicy food, to be honest."
+  },
+  {
+   "id": "b1-k-07",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "Could you tell me whether this dish contains any dairy?"
+  },
+  {
+   "id": "b1-k-08",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "She's cut down on red meat for the sake of her health."
+  },
+  {
+   "id": "b1-k-09",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "There's nothing quite like a proper cup of tea after a long day."
+  },
+  {
+   "id": "b1-k-10",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "The vegetables should be steamed rather than boiled."
+  },
+  {
+   "id": "b1-k-11",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "I used to hate olives, but I've grown to like them."
+  },
+  {
+   "id": "b1-k-12",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "Leftovers can be kept in the fridge for up to three days."
+  },
+  {
+   "id": "b1-k-13",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "He insisted on paying for the whole meal himself."
+  },
+  {
+   "id": "b1-k-14",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "The market stalls sell locally grown fruit throughout the summer."
+  },
+  {
+   "id": "b1-k-15",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "I can't decide between the lamb and the vegetable lasagne."
+  },
+  {
+   "id": "b1-k-16",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "Would you mind if we shared a dessert?"
+  },
+  {
+   "id": "b1-k-17",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "Food prices have gone up considerably over the past year."
+  },
+  {
+   "id": "b1-k-18",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "You're supposed to whisk the eggs before adding the flour."
+  },
+  {
+   "id": "b1-k-19",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "The waiter recommended a wine that went perfectly with the cheese."
+  },
+  {
+   "id": "b1-k-20",
+   "level": "B1",
+   "theme": "cibo",
+   "text": "I'd never tasted anything like it before."
+  },
+  {
+   "id": "b1-h-01",
+   "level": "B1",
+   "theme": "casa",
+   "text": "We've been saving up for a deposit on a house for years."
+  },
+  {
+   "id": "b1-h-02",
+   "level": "B1",
+   "theme": "casa",
+   "text": "My parents have always encouraged me to follow my own path."
+  },
+  {
+   "id": "b1-h-03",
+   "level": "B1",
+   "theme": "casa",
+   "text": "The landlord has agreed to replace the broken boiler."
+  },
+  {
+   "id": "b1-h-04",
+   "level": "B1",
+   "theme": "casa",
+   "text": "Since the baby was born, we've hardly had a full night's sleep."
+  },
+  {
+   "id": "b1-h-05",
+   "level": "B1",
+   "theme": "casa",
+   "text": "I wish we had a spare room for when guests come to stay."
+  },
+  {
+   "id": "b1-h-06",
+   "level": "B1",
+   "theme": "casa",
+   "text": "She takes after her father in both looks and temperament."
+  },
+  {
+   "id": "b1-h-07",
+   "level": "B1",
+   "theme": "casa",
+   "text": "We had the whole kitchen redone last autumn."
+  },
+  {
+   "id": "b1-h-08",
+   "level": "B1",
+   "theme": "casa",
+   "text": "Bringing up three children on one salary isn't easy."
+  },
+  {
+   "id": "b1-h-09",
+   "level": "B1",
+   "theme": "casa",
+   "text": "The house needs a lot of work, but it has real potential."
+  },
+  {
+   "id": "b1-h-10",
+   "level": "B1",
+   "theme": "casa",
+   "text": "My brother and I fell out years ago, though we've since made up."
+  },
+  {
+   "id": "b1-h-11",
+   "level": "B1",
+   "theme": "casa",
+   "text": "You ought to get the roof checked before winter sets in."
+  },
+  {
+   "id": "b1-h-12",
+   "level": "B1",
+   "theme": "casa",
+   "text": "We take it in turns to look after my elderly mother."
+  },
+  {
+   "id": "b1-h-13",
+   "level": "B1",
+   "theme": "casa",
+   "text": "The flat is within walking distance of the station."
+  },
+  {
+   "id": "b1-h-14",
+   "level": "B1",
+   "theme": "casa",
+   "text": "I was brought up to treat everyone with respect."
+  },
+  {
+   "id": "b1-h-15",
+   "level": "B1",
+   "theme": "casa",
+   "text": "They're having an extension built at the back of the house."
+  },
+  {
+   "id": "b1-h-16",
+   "level": "B1",
+   "theme": "casa",
+   "text": "Our teenage son spends far too much time in his room."
+  },
+  {
+   "id": "b1-h-17",
+   "level": "B1",
+   "theme": "casa",
+   "text": "If the rent goes up again, we'll have to look for somewhere cheaper."
+  },
+  {
+   "id": "b1-h-18",
+   "level": "B1",
+   "theme": "casa",
+   "text": "The whole family gets together at Christmas, whatever happens."
+  },
+  {
+   "id": "b1-h-19",
+   "level": "B1",
+   "theme": "casa",
+   "text": "I can't get used to living on my own."
+  },
+  {
+   "id": "b1-h-20",
+   "level": "B1",
+   "theme": "casa",
+   "text": "We inherited the furniture from my wife's grandmother."
+  },
+  {
+   "id": "b1-l-01",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "I've been asked to give a presentation at the conference next month."
+  },
+  {
+   "id": "b1-l-02",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "If we don't meet the deadline, we risk losing the contract."
+  },
+  {
+   "id": "b1-l-03",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "She handed in her notice after being offered a better position elsewhere."
+  },
+  {
+   "id": "b1-l-04",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "Could you bring me up to date on what was decided yesterday?"
+  },
+  {
+   "id": "b1-l-05",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "I'd appreciate it if you could let me know by Friday."
+  },
+  {
+   "id": "b1-l-06",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "The company is planning to take on twenty new employees."
+  },
+  {
+   "id": "b1-l-07",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "I'm responsible for dealing with customer complaints."
+  },
+  {
+   "id": "b1-l-08",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "We've fallen behind schedule because of technical problems."
+  },
+  {
+   "id": "b1-l-09",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "Working from home has both advantages and drawbacks."
+  },
+  {
+   "id": "b1-l-10",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "He was made redundant when the factory closed down."
+  },
+  {
+   "id": "b1-l-11",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "I look forward to hearing from you at your earliest convenience."
+  },
+  {
+   "id": "b1-l-12",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "Let's go through the figures once more before the meeting."
+  },
+  {
+   "id": "b1-l-13",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "The training course turned out to be more useful than I expected."
+  },
+  {
+   "id": "b1-l-14",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "I'm not sure I agree with you on that point."
+  },
+  {
+   "id": "b1-l-15",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "She has a great deal of experience in project management."
+  },
+  {
+   "id": "b1-l-16",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "We'll need to draw up a detailed plan before we go ahead."
+  },
+  {
+   "id": "b1-l-17",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "My workload has increased significantly since my colleague left."
+  },
+  {
+   "id": "b1-l-18",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "Would it be possible to postpone the call until tomorrow?"
+  },
+  {
+   "id": "b1-l-19",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "I've decided to apply for the vacancy in the Edinburgh office."
+  },
+  {
+   "id": "b1-l-20",
+   "level": "B1",
+   "theme": "lavoro",
+   "text": "To sum up, we need more time and a larger budget."
+  },
+  {
+   "id": "b1-m-01",
+   "level": "B1",
+   "theme": "salute",
+   "text": "The doctor advised me to cut down on salt and take more exercise."
+  },
+  {
+   "id": "b1-m-02",
+   "level": "B1",
+   "theme": "salute",
+   "text": "I've been suffering from back pain ever since I changed jobs."
+  },
+  {
+   "id": "b1-m-03",
+   "level": "B1",
+   "theme": "salute",
+   "text": "If the symptoms persist, you should seek medical advice."
+  },
+  {
+   "id": "b1-m-04",
+   "level": "B1",
+   "theme": "salute",
+   "text": "She was taken to hospital after fainting at work."
+  },
+  {
+   "id": "b1-m-05",
+   "level": "B1",
+   "theme": "salute",
+   "text": "Regular exercise is known to reduce the risk of heart disease."
+  },
+  {
+   "id": "b1-m-06",
+   "level": "B1",
+   "theme": "salute",
+   "text": "I had to wait three weeks to see a specialist."
+  },
+  {
+   "id": "b1-m-07",
+   "level": "B1",
+   "theme": "salute",
+   "text": "He's recovering well from the operation on his knee."
+  },
+  {
+   "id": "b1-m-08",
+   "level": "B1",
+   "theme": "salute",
+   "text": "Stress can have a serious effect on both body and mind."
+  },
+  {
+   "id": "b1-m-09",
+   "level": "B1",
+   "theme": "salute",
+   "text": "I'd rather not take painkillers unless it's absolutely necessary."
+  },
+  {
+   "id": "b1-m-10",
+   "level": "B1",
+   "theme": "salute",
+   "text": "The waiting list for this treatment is getting longer every year."
+  },
+  {
+   "id": "b1-m-11",
+   "level": "B1",
+   "theme": "salute",
+   "text": "You'll need to have a blood test before we can be sure."
+  },
+  {
+   "id": "b1-m-12",
+   "level": "B1",
+   "theme": "salute",
+   "text": "I've given up sugary drinks and I feel much better for it."
+  },
+  {
+   "id": "b1-m-13",
+   "level": "B1",
+   "theme": "salute",
+   "text": "Getting enough sleep is just as important as eating well."
+  },
+  {
+   "id": "b1-m-14",
+   "level": "B1",
+   "theme": "salute",
+   "text": "My grandfather was diagnosed with diabetes in his sixties."
+  },
+  {
+   "id": "b1-m-15",
+   "level": "B1",
+   "theme": "salute",
+   "text": "The pain gets worse whenever I climb the stairs."
+  },
+  {
+   "id": "b1-m-16",
+   "level": "B1",
+   "theme": "salute",
+   "text": "Many people find it difficult to talk about their mental health."
+  },
+  {
+   "id": "b1-m-17",
+   "level": "B1",
+   "theme": "salute",
+   "text": "The injection might hurt a little, but it won't last long."
+  },
+  {
+   "id": "b1-m-18",
+   "level": "B1",
+   "theme": "salute",
+   "text": "I was told to avoid heavy lifting for at least a month."
+  },
+  {
+   "id": "b1-m-19",
+   "level": "B1",
+   "theme": "salute",
+   "text": "She has been on a strict diet since the beginning of the year."
+  },
+  {
+   "id": "b1-m-20",
+   "level": "B1",
+   "theme": "salute",
+   "text": "The chemist suggested a cream to soothe the itching."
+  },
+  {
+   "id": "b2-k-01",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Had I realised how long the sauce takes to thicken, I'd have started cooking much earlier."
+  },
+  {
+   "id": "b2-k-02",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The growing popularity of plant-based diets has transformed supermarket shelves across the country."
+  },
+  {
+   "id": "b2-k-03",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Not only was the service appalling, but the food arrived lukewarm as well."
+  },
+  {
+   "id": "b2-k-04",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Traditional recipes are often handed down through generations without ever being written down."
+  },
+  {
+   "id": "b2-k-05",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The chef is renowned for combining unusual flavours with seasonal British produce."
+  },
+  {
+   "id": "b2-k-06",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "It's widely acknowledged that ultra-processed food contributes to a range of chronic illnesses."
+  },
+  {
+   "id": "b2-k-07",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "I'd sooner cook a simple meal from scratch than rely on ready-made dishes."
+  },
+  {
+   "id": "b2-k-08",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The restaurant prides itself on sourcing all its ingredients from within thirty miles."
+  },
+  {
+   "id": "b2-k-09",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Rising energy costs have forced many small bakeries to put up their prices."
+  },
+  {
+   "id": "b2-k-10",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The stew needs to simmer gently for at least two hours to bring out its full flavour."
+  },
+  {
+   "id": "b2-k-11",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Critics argue that food labelling remains deliberately confusing for the average shopper."
+  },
+  {
+   "id": "b2-k-12",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "She has a remarkable ability to throw together a delicious meal from whatever is in the cupboard."
+  },
+  {
+   "id": "b2-k-13",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Were it not for the excessive salt, the dish would have been close to perfect."
+  },
+  {
+   "id": "b2-k-14",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The pub has earned a reputation for serving hearty, unpretentious food at reasonable prices."
+  },
+  {
+   "id": "b2-k-15",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "An enormous amount of perfectly edible food is thrown away by households every year."
+  },
+  {
+   "id": "b2-k-16",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The subtle bitterness of the chocolate is offset by the sweetness of the caramel."
+  },
+  {
+   "id": "b2-k-17",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Having grown up on a farm, he has a deep appreciation of where food comes from."
+  },
+  {
+   "id": "b2-k-18",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Afternoon tea, once a daily ritual, is nowadays reserved mainly for special occasions."
+  },
+  {
+   "id": "b2-k-19",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "The more thoroughly you knead the dough, the lighter the loaf is likely to be."
+  },
+  {
+   "id": "b2-k-20",
+   "level": "B2",
+   "theme": "cibo",
+   "text": "Food allergies ought to be taken far more seriously by the catering industry."
+  },
+  {
+   "id": "b2-h-01",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Having spent a fortune on renovations, they were reluctant to sell the house at a loss."
+  },
+  {
+   "id": "b2-h-02",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Soaring property prices have put home ownership beyond the reach of many young families."
+  },
+  {
+   "id": "b2-h-03",
+   "level": "B2",
+   "theme": "casa",
+   "text": "No sooner had we moved in than the ceiling in the hallway began to leak."
+  },
+  {
+   "id": "b2-h-04",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Sibling rivalry, however intense in childhood, tends to fade as people grow older."
+  },
+  {
+   "id": "b2-h-05",
+   "level": "B2",
+   "theme": "casa",
+   "text": "The survey revealed serious structural problems that the seller had failed to mention."
+  },
+  {
+   "id": "b2-h-06",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Caring for an ageing relative can place an enormous strain on family relationships."
+  },
+  {
+   "id": "b2-h-07",
+   "level": "B2",
+   "theme": "casa",
+   "text": "They've converted the loft into a study, which has made working from home far more bearable."
+  },
+  {
+   "id": "b2-h-08",
+   "level": "B2",
+   "theme": "casa",
+   "text": "It was not until I became a parent myself that I understood my mother's anxieties."
+  },
+  {
+   "id": "b2-h-09",
+   "level": "B2",
+   "theme": "casa",
+   "text": "The terraced houses on this street date back to the height of the Victorian era."
+  },
+  {
+   "id": "b2-h-10",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Despite their differences, the two families have managed to remain on remarkably good terms."
+  },
+  {
+   "id": "b2-h-11",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Tenants are entitled to have essential repairs carried out within a reasonable period of time."
+  },
+  {
+   "id": "b2-h-12",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Her grandmother's stories gave her a profound sense of where the family had come from."
+  },
+  {
+   "id": "b2-h-13",
+   "level": "B2",
+   "theme": "casa",
+   "text": "The property would suit a couple looking to downsize after their children have left home."
+  },
+  {
+   "id": "b2-h-14",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Children who are read to regularly tend to develop a richer vocabulary."
+  },
+  {
+   "id": "b2-h-15",
+   "level": "B2",
+   "theme": "casa",
+   "text": "We were on the verge of exchanging contracts when the buyers suddenly pulled out."
+  },
+  {
+   "id": "b2-h-16",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Much as I love my relatives, a fortnight under the same roof is more than enough."
+  },
+  {
+   "id": "b2-h-17",
+   "level": "B2",
+   "theme": "casa",
+   "text": "Poor insulation means that a great deal of heat is lost through the walls and roof."
+  },
+  {
+   "id": "b2-h-18",
+   "level": "B2",
+   "theme": "casa",
+   "text": "He was determined that his children should enjoy the opportunities he had been denied."
+  },
+  {
+   "id": "b2-h-19",
+   "level": "B2",
+   "theme": "casa",
+   "text": "The dispute over the inheritance dragged on for years and divided the entire family."
+  },
+  {
+   "id": "b2-h-20",
+   "level": "B2",
+   "theme": "casa",
+   "text": "What makes a house feel like a home has little to do with its size or value."
+  },
+  {
+   "id": "b2-l-01",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Had the proposal been submitted on time, it would almost certainly have been approved."
+  },
+  {
+   "id": "b2-l-02",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "The restructuring is expected to result in substantial savings over the next three years."
+  },
+  {
+   "id": "b2-l-03",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "I'd like to draw your attention to a number of inconsistencies in the quarterly figures."
+  },
+  {
+   "id": "b2-l-04",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Flexible working arrangements have become a decisive factor in attracting skilled staff."
+  },
+  {
+   "id": "b2-l-05",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "She was headhunted by a rival firm and offered a considerably higher salary."
+  },
+  {
+   "id": "b2-l-06",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Unless we address these issues promptly, they are bound to undermine the whole project."
+  },
+  {
+   "id": "b2-l-07",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "The negotiations broke down after both sides refused to compromise on the key issue."
+  },
+  {
+   "id": "b2-l-08",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "With hindsight, we should have carried out a more thorough analysis of the risks."
+  },
+  {
+   "id": "b2-l-09",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Automation is likely to make certain roles obsolete while creating entirely new ones."
+  },
+  {
+   "id": "b2-l-10",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "I'm reluctant to commit to a deadline until the requirements have been clarified."
+  },
+  {
+   "id": "b2-l-11",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "The board unanimously rejected the takeover bid as significantly undervaluing the company."
+  },
+  {
+   "id": "b2-l-12",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Constructive feedback, when delivered tactfully, can greatly improve a team's performance."
+  },
+  {
+   "id": "b2-l-13",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "He has a tendency to take on more responsibility than he can realistically handle."
+  },
+  {
+   "id": "b2-l-14",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "The legacy system will be phased out gradually to minimise disruption to our customers."
+  },
+  {
+   "id": "b2-l-15",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "It is essential that every member of staff be made aware of the new security procedures."
+  },
+  {
+   "id": "b2-l-16",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Despite a challenging economic climate, the firm has continued to exceed its targets."
+  },
+  {
+   "id": "b2-l-17",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "I wonder whether we might revisit this decision in the light of the latest developments."
+  },
+  {
+   "id": "b2-l-18",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Burnout is increasingly recognised as a genuine occupational hazard rather than a personal failing."
+  },
+  {
+   "id": "b2-l-19",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "The apprenticeship scheme is designed to bridge the gap between education and employment."
+  },
+  {
+   "id": "b2-l-20",
+   "level": "B2",
+   "theme": "lavoro",
+   "text": "Rarely have I come across a candidate with such a thorough grasp of the subject."
+  },
+  {
+   "id": "b2-m-01",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Had the condition been diagnosed earlier, the treatment would have been far less invasive."
+  },
+  {
+   "id": "b2-m-02",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Researchers have established a clear link between prolonged sitting and cardiovascular disease."
+  },
+  {
+   "id": "b2-m-03",
+   "level": "B2",
+   "theme": "salute",
+   "text": "The health service is struggling to cope with an ageing population and limited resources."
+  },
+  {
+   "id": "b2-m-04",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Antibiotic resistance is regarded as one of the gravest threats to modern medicine."
+  },
+  {
+   "id": "b2-m-05",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Patients are increasingly encouraged to take an active role in managing their own conditions."
+  },
+  {
+   "id": "b2-m-06",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Not until the swelling has gone down will the surgeon be able to operate."
+  },
+  {
+   "id": "b2-m-07",
+   "level": "B2",
+   "theme": "salute",
+   "text": "The side effects, though unpleasant, are generally outweighed by the benefits of the drug."
+  },
+  {
+   "id": "b2-m-08",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Chronic sleep deprivation has been shown to impair memory, judgement and mood."
+  },
+  {
+   "id": "b2-m-09",
+   "level": "B2",
+   "theme": "salute",
+   "text": "She made a remarkable recovery, thanks largely to months of intensive physiotherapy."
+  },
+  {
+   "id": "b2-m-10",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Public health campaigns have succeeded in dramatically reducing the number of smokers."
+  },
+  {
+   "id": "b2-m-11",
+   "level": "B2",
+   "theme": "salute",
+   "text": "The consultant explained the procedure thoroughly and reassured us about the risks involved."
+  },
+  {
+   "id": "b2-m-12",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Loneliness among the elderly is now thought to be as harmful as obesity."
+  },
+  {
+   "id": "b2-m-13",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Were the vaccine to be made widely available, thousands of lives could be saved."
+  },
+  {
+   "id": "b2-m-14",
+   "level": "B2",
+   "theme": "salute",
+   "text": "A sedentary lifestyle, coupled with a poor diet, significantly raises the risk of diabetes."
+  },
+  {
+   "id": "b2-m-15",
+   "level": "B2",
+   "theme": "salute",
+   "text": "The breathlessness I had put down to age turned out to be something more serious."
+  },
+  {
+   "id": "b2-m-16",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Mental health services remain chronically underfunded despite growing public awareness."
+  },
+  {
+   "id": "b2-m-17",
+   "level": "B2",
+   "theme": "salute",
+   "text": "He was discharged from hospital on the understanding that he would rest for a fortnight."
+  },
+  {
+   "id": "b2-m-18",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Early screening can detect the disease long before any symptoms become apparent."
+  },
+  {
+   "id": "b2-m-19",
+   "level": "B2",
+   "theme": "salute",
+   "text": "The more we learn about the gut, the clearer its influence on overall wellbeing becomes."
+  },
+  {
+   "id": "b2-m-20",
+   "level": "B2",
+   "theme": "salute",
+   "text": "Preventing illness is invariably cheaper and more humane than treating it."
   }
  ]
 }
