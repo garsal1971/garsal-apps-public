@@ -3956,6 +3956,9 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
     esegue **prima** della build: test rotti = niente APK. ⚠️ `Ripasso.kt`, `ProfiloSuoni.kt`,
     `Grafema.kt` e `Giudizio.kt` restano **senza import di Android** di proposito. Lo stesso
     workflow ora committa su master lo schema di Room generato dalla build (`app/schemas/`).
+- **Bip più lungo e più forte** (v1.33.1, `Bip.suona`): **500 ms** (erano 300) e volume del tono
+  **100** (era 80, il massimo: è una frazione del volume del canale). Il microfono si apre sempre
+  a bip finito, quindi l'attesa prima di parlare cresce di 200 ms. `Bip.errore` resta a 80.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

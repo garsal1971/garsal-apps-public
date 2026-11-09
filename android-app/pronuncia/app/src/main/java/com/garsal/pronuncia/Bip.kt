@@ -5,18 +5,22 @@ import android.media.ToneGenerator
 import kotlinx.coroutines.delay
 
 /**
- * Il bip che dice «tocca a te» (v1.18.0; 300 ms dalla v1.22.0), prima di ogni ascolto,
+ * Il bip che dice «tocca a te» (v1.18.0; 300 ms dalla v1.22.0, 500 ms e a volume
+ * pieno dalla v1.33.1: a 300 ms e volume 80 si perdeva), prima di ogni ascolto,
  * nell'esercizio e a mani libere. Con le cuffie Bluetooth suona sul canale
  * della chiamata, come la voce dell'app, o nelle cuffie non arriverebbe.
  * ⚠️ Si aspetta che finisca prima di tornare: chi chiama apre il microfono
  * subito dopo, e il bip non deve finire nella registrazione.
  */
 object Bip {
-    private const val MS = 300
+    private const val MS = 500
+    /** Il volume del tono, da 0 a 100: è una frazione del volume del canale,
+     *  quindi 100 è il massimo che il bip può avere — oltre si alza il telefono. */
+    private const val VOLUME = 100
 
     suspend fun suona(comunicazione: Boolean) {
         val tg = runCatching {
-            ToneGenerator(if (comunicazione) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC, 80)
+            ToneGenerator(if (comunicazione) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC, VOLUME)
         }.getOrNull() ?: return
         try {
             tg.startTone(ToneGenerator.TONE_PROP_BEEP, MS)
