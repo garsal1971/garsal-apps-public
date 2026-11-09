@@ -1,9 +1,9 @@
 {
   "app": "Pronuncia",
-  "version": "1.33.0",
-  "versionCode": 34,
-  "builtAt": "2026-11-09T20:05:30Z",
-  "commit": "f56bff241904c3aa0a5a27a264b9cb3c8387f45c",
-  "bytes": 11547148,
-  "sha256": "c590dc8d7ffe7530db86c5ecbe0cf2c98d6ec5b0d7f5ce6e5bc6085bc9816ceb"
+  "version": "1.33.1",
+  "versionCode": 35,
+  "builtAt": "2026-11-09T20:20:35Z",
+  "commit": "6cd7aaeb4d687c4bde76f880385cd3cd9fbc603f",
+  "bytes": 11547072,
+  "sha256": "d2ce9cdf20029b2c092ad68cdd6eb9fb3edea7c6585117e1fd45a3ceeac047a6"
 }
