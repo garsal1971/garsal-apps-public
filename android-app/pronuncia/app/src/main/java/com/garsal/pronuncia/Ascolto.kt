@@ -111,8 +111,8 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
     /**
      * v1.30.0: la voce intera tenuta sul telefono, senza mandarla da nessuna
      * parte: i frame di [inizio] e quelli fino a [FINE_MS] di silenzio. Finisce
-     * anche nella registrazione. Serve a confrontarla coi comandi registrati
-     * PRIMA di decidere se mandarla ad Azure.
+     * anche nella registrazione. Dalla v1.34.0 la usa solo la registrazione dei
+     * comandi (`MieiComandi`): il giro manda la voce ad Azure mentre arriva.
      */
     suspend fun tieniFinoAlSilenzio(inizio: List<ByteArray>): List<ByteArray> {
         val tutto = inizio.toMutableList()
@@ -177,8 +177,10 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
         const val PRE_MS = 300
         /** Frame di fila sopra soglia per dire «voce» (60 ms): un colpo secco no. */
         const val FRAME_INIZIO = 3
-        /** Silenzio dopo la voce che chiude l'invio. */
-        const val FINE_MS = 600
+        /** Silenzio dopo la voce che chiude l'invio. ⚠️ 450 dalla v1.34.0 (era
+         *  600): si aspetta meno il voto, ma una pausa più lunga di così a
+         *  metà frase la chiude lì, e il resto conta come parole saltate. */
+        const val FINE_MS = 450
         /** Tetto di una frase: oltre, si chiude comunque. */
         const val MAX_MS = 20000
         /** Soglia minima assoluta (RMS su 16 bit, circa −40 dBFS). */

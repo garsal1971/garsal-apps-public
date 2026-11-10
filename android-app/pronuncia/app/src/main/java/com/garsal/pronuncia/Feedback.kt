@@ -32,14 +32,12 @@ object Feedback {
         }
     }
 
-    /** Il voto detto a voce, prima di «Good» o «Try again». */
-    fun voto(l: LinguaFeedback, v: Double): String {
-        val n = Math.round(v)
-        return when (l) {
-            LinguaFeedback.INGLESE -> "Your score: $n."
-            LinguaFeedback.ITALIANO -> "Voto: $n."
-        }
-    }
+    /** Voto e commento in una frase sola (v1.34.0): «85. Good!». Prima erano
+     *  due — «Your score: 85.» e poi «Good!» — cioè due avvii di riproduzione. */
+    fun votoE(l: LinguaFeedback, v: Double, c: Cosa): String = "${Math.round(v)}. ${testo(l, c)}"
+
+    /** Il solo numero, quando fra il voto e il commento va detto altro. */
+    fun votoBreve(v: Double): String = "${Math.round(v)}."
 
     /** La fine della sessione, col voto da 1 a 10. */
     fun fine(l: LinguaFeedback, voto: Int): String = when (l) {

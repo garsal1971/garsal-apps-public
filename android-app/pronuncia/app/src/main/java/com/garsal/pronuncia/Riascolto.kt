@@ -48,7 +48,7 @@ object Riascolto {
             // Si aspetta che la testina arrivi in fondo; il tetto evita di restare
             // appesi se il dispositivo smette di avanzare.
             val tetto = System.currentTimeMillis() + campioni * 1000L / Ascolto.HZ + 2000
-            while (traccia.playbackHeadPosition < campioni && System.currentTimeMillis() < tetto) delay(50)
+            while (traccia.playbackHeadPosition < campioni && System.currentTimeMillis() < tetto) delay(15)
         } finally {
             runCatching { traccia.stop() }
             traccia.release()

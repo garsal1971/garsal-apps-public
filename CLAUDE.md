@@ -3961,6 +3961,28 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   `ToneGenerator.TONE_PROP_BEEP`, che dura **40 ms qualunque durata gli si chieda** (la durata è
   solo un tetto): i «300 ms» della v1.22.0 e i «500» della v1.33.1 allungavano l'attesa, non il
   suono. Il microfono si apre sempre a bip finito. `Bip.errore` resta su `ToneGenerator`.
+- **Mani libere più veloce** (v1.34.0): sei modifiche, tutte nel giro (`Ciclo.kt`, `Valutatore.kt`,
+  `Tts.kt`, `Ascolto.kt`).
+  - **Audio preparato in sottofondo** (`sottofondo` / `anticipa` in `Ciclo.esegui`): mentre si fa una
+    frase si sintetizzano la successiva, la lettura lenta della parola e il token Azure; mentre si
+    riascolta la propria voce, il commento e le parole lente. A ogni frase anche 2 «N. Good!» che
+    mancano in cache (`BRAVI_PER_FRASE`: pochi, il livello gratuito limita le sintesi al minuto).
+    ⚠️ Gli errori in sottofondo si buttano: la stessa sintesi si rifà quando serve, e l'errore si
+    vede lì. ⚠️ `Tts.audio` ha un **lucchetto per file**: due richieste insieme della stessa frase
+    scriverebbero lo stesso `.tmp`.
+  - **Voto e commento in una frase** (`Feedback.votoE`): «85. Good!», «62. Try again. Listen.»,
+    «62. Let's move on.» — non più «Your score: 85.» e poi «Good!». Il difetto si dice **dopo**
+    «Try again»; all'ultimo tentativo col difetto restano «62.», difetto, «Let's move on.».
+  - **Riascolto solo sui tentativi da ripetere** (`Prefs.riascoltoCiclo`, l'interruttore ora dice
+    «quando è da ripetere»): riuscita, si va subito avanti.
+  - **Fine della voce**: `Ascolto.FINE_MS` 600 → **450**, segmentazione di Azure 1000 → **700**.
+    ⚠️ Vale anche per l'Esercizio; una pausa più lunga a metà frase la chiude lì.
+  - **Comandi in parallelo**: la voce va ad Azure mentre arriva anche coi comandi registrati, e il
+    confronto locale si fa a voce finita mentre Azure valuta (prima si teneva tutta e partiva dopo).
+    ⚠️ Anche un comando consuma secondi di Azure, e la sua risposta si aspetta e si butta.
+    `Ascolto.tieniFinoAlSilenzio` resta per la sola registrazione dei comandi.
+  - Le traduzioni si scaricano in sottofondo invece di far aspettare l'avvio; `Riascolto` controlla
+    la fine ogni 15 ms invece di 50. Il bip resta 500 ms.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

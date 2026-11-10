@@ -65,7 +65,7 @@ class Valutatore(private val azure: AzureToken) {
         private set
 
     /** [ritmo] chiede ad Azure anche ritmo e intonazione (vedi `Giudizio`). */
-    /** [comandi]: prima di Azure si confronta la voce coi comandi registrati
+    /** [comandi]: la voce si confronta anche coi comandi registrati
      *  (`ComandiVoce`, v1.30.0). Solo a mani libere: nell'esercizio non ci sono comandi. */
     suspend fun valuta(riferimento: String, accento: Accento, ritmo: Boolean, comandi: Boolean = false): Esito = withContext(Dispatchers.IO) {
         // Il token prima della voce: se va rinnovato, il ritardo cade qui
@@ -80,18 +80,12 @@ class Valutatore(private val azure: AzureToken) {
             // punto di Ascolto, che i secondi di Azure li conta sull'audio inviato.
             ultimaVoce = null
             val inizio = mic.aspettaVoce() ?: throw NessunaVoce()
-            // ⚠️ v1.30.0: con dei comandi registrati la voce si tiene tutta sul
-            // telefono e si confronta con loro; solo se non è un comando va ad
-            // Azure, tutta insieme. Costa l'attesa della fine della voce prima
-            // di inviare, mezzo secondo circa in più sul voto.
-            val tenuta = if (comandi && Servizi.comandi.pronti()) {
-                val t = mic.tieniFinoAlSilenzio(inizio)
-                ultimaVoce = mic.registrazione()
-                Servizi.comandi.riconosci(ultimaVoce!!, Servizi.prefs.sensibilitaComandi)?.let { c ->
-                    return@withContext Esito(Comando.frase(c), 0.0, 0.0, 0.0, 0.0, emptyList())
-                }
-                t
-            } else null
+            // ⚠️ v1.34.0: la voce va ad Azure MENTRE arriva, anche con dei
+            // comandi registrati, e il confronto coi comandi si fa a voce
+            // finita, mentre Azure sta già valutando. Dalla v1.30.0 alla
+            // v1.33.2 si teneva tutta sul telefono e partiva solo dopo il
+            // confronto: mezzo secondo in più su ogni voto. Il prezzo: anche
+            // un comando consuma i suoi secondi di Azure.
             SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
                 cfg.speechRecognitionLanguage = accento.lingua
                 // L'audio arriva già dall'inizio della voce: tre secondi di
@@ -100,7 +94,8 @@ class Valutatore(private val azure: AzureToken) {
                 // ⚠️ La fine la decide Ascolto chiudendo lo stream. Una
                 // segmentazione più corta taglierebbe la frase alla prima
                 // virgola, e il resto conterebbe come parole saltate.
-                cfg.setProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "1000")
+                // 700 dalla v1.34.0 (era 1000), sopra i 450 di Ascolto.FINE_MS.
+                cfg.setProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "700")
                 val push = AudioInputStream.createPushStream(AudioStreamFormat.getWaveFormatPCM(Ascolto.HZ.toLong(), 16, 1))
                 var chiuso = false
                 try {
@@ -116,14 +111,24 @@ class Valutatore(private val azure: AzureToken) {
                                 if (ritmo) pa.enableProsodyAssessment()
                                 pa.applyTo(rec)
                                 val futuro = rec.recognizeOnceAsync()
-                                if (tenuta != null) tenuta.forEach { push.write(it) }
-                                else {
-                                    inizio.forEach { mic.invia(push, it) }
-                                    mic.inviaFinoAlSilenzio(push) { futuro.isDone }
-                                    ultimaVoce = mic.registrazione()
-                                }
+                                inizio.forEach { mic.invia(push, it) }
+                                mic.inviaFinoAlSilenzio(push) { futuro.isDone }
+                                val voce = mic.registrazione()
+                                ultimaVoce = voce
                                 // Fine dello stream = fine della frase per Azure.
                                 push.close(); chiuso = true
+                                // Il comando si cerca adesso, in locale, mentre
+                                // Azure lavora. ⚠️ Se lo è, la risposta di Azure
+                                // si aspetta lo stesso e si butta: chiudere il
+                                // riconoscimento con una richiesta in volo non è
+                                // garantito che torni.
+                                if (comandi && Servizi.comandi.pronti()) {
+                                    Servizi.comandi.riconosci(voce, Servizi.prefs.sensibilitaComandi)?.let { c ->
+                                        runCatching { runInterruptible { futuro.get() }.close() }
+                                            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+                                        return@withContext Esito(Comando.frase(c), 0.0, 0.0, 0.0, 0.0, emptyList())
+                                    }
+                                }
                                 // ⚠️ Interrompibile: una pausa (chiamata, tasto delle
                                 // cuffie) annulla la coroutine — `get()` da solo non
                                 // si annulla.
