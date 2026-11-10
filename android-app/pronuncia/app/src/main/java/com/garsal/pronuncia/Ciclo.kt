@@ -2,7 +2,13 @@ package com.garsal.pronuncia
 
 import android.content.Context
 import com.garsal.pronuncia.ui.SOGLIA_BUONA
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -44,13 +50,13 @@ data class StatoCiclo(
 /**
  * Il ciclo a mani libere: legge una frase, ascolta, commenta, e avanti.
  *
- * - dopo il tentativo, se acceso (`Prefs.riascoltoCiclo`), si riascolta la
- *   propria registrazione; poi si dice il voto;
  * - se il [Giudizio] la promuove (voto ≥ [SOGLIA_BUONA] più i controlli
- *   accesi nelle impostazioni) si dice «Good» e si passa alla prossima;
- * - sotto, il difetto in breve (le lettere del suono su una parola, la parola
- *   peggiore su una frase), «Try again», le 1-2 parole peggiori lente e la
- *   frase di nuovo, fino a [TENTATIVI]; poi «Let's move on»;
+ *   accesi nelle impostazioni) si dice «85. Good!» e si passa alla prossima;
+ * - sotto, se acceso (`Prefs.riascoltoCiclo`), si riascolta la propria
+ *   registrazione; poi «62. Try again. Listen.», il difetto in breve (le
+ *   lettere del suono su una parola, la parola peggiore su una frase), le 1-2
+ *   parole peggiori lente e la frase di nuovo, fino a [TENTATIVI]; all'ultimo
+ *   «62. Let's move on.»;
  * - ⚠️ un silenzio NON è un tentativo (vedi `NessunaVoce`), ma [SILENZI] di fila
  *   fermano la sessione: un microfono aperto a vuoto consuma i minuti gratuiti
  *   di riconoscimento, e se nessuno risponde da tre frasi non c'è nessuno.
@@ -88,6 +94,13 @@ data class StatoCiclo(
  * completa l'azione di Obiettivi (`Obiettivo.aggiorna`). ⚠️ Fermato prima (a
  * voce, col tasto o dai silenzi) non c'è voto: una sessione a metà non è
  * quella che si era chiesta, e il voto finirebbe nello storico di Obiettivi.
+ *
+ * ⚠️ v1.34.0, **meno attese**: (1) l'audio si prepara in sottofondo
+ * ([sottofondo]) — la frase dopo mentre si fa quella in corso, il commento e
+ * le parole lente mentre si riascolta la propria voce — così quando serve è
+ * già in cache; (2) voto e commento sono una frase sola; (3) il riascolto c'è
+ * solo sui tentativi da ripetere. Un errore in sottofondo non conta: la
+ * stessa sintesi si rifà quando serve davvero, e lì l'errore si vede.
  *
  * Gira dentro `CicloService`, non nella schermata: deve continuare a schermo
  * spento.
@@ -178,7 +191,21 @@ object Ciclo {
             Fine.Avanti
         }
 
+    /** Quanti «N. Good!» non ancora in cache si preparano a ogni frase: pochi,
+     *  perché il livello gratuito di Azure limita le sintesi al minuto. */
+    private const val BRAVI_PER_FRASE = 2
+
     suspend fun esegui(ctx: Context) {
+        // Il lavoro in sottofondo vive quanto il ciclo, e muore con lui.
+        val sfondo = CoroutineScope(currentCoroutineContext() + SupervisorJob(currentCoroutineContext()[Job]))
+        try {
+            esegui(ctx, sfondo)
+        } finally {
+            sfondo.cancel()
+        }
+    }
+
+    private suspend fun esegui(ctx: Context, sfondo: CoroutineScope) {
         val p = Servizi.prefs
         val voce = p.voce
         val accento = p.accento
@@ -197,6 +224,40 @@ object Ciclo {
                 throw e
             } catch (e: Exception) {
                 Bip.errore(Servizi.tts.comunicazione)
+            }
+        }
+
+        /** Prepara qualcosa senza far aspettare il giro. ⚠️ Gli errori si
+         *  buttano: qui si anticipa soltanto, e chi ne ha bisogno rifà la
+         *  stessa richiesta e l'errore lo vede lì. */
+        fun sottofondo(blocco: suspend () -> Unit) {
+            sfondo.launch {
+                try {
+                    blocco()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // vedi sopra
+                }
+            }
+        }
+
+        /** Quel che servirà per [f], pronto prima che serva: il token, la sua
+         *  lettura normale e — per una parola — quella lenta del «riprova». */
+        fun anticipa(f: Frase) = sottofondo {
+            Servizi.azure.prendi()
+            Servizi.tts.preparaFrase(f.testo, voce, accento)
+            if (f.parola) Servizi.tts.preparaFrase(f.testo, voce, accento, lenta = true)
+        }
+
+        /** I «N. Good!» che mancano in cache, pochi per volta dal 100 in giù. */
+        fun anticipaBravi() = sottofondo {
+            var fatti = 0
+            for (n in 100 downTo SOGLIA_BUONA.toInt()) {
+                val t = Feedback.votoE(lingua, n.toDouble(), Feedback.Cosa.BRAVO)
+                if (Servizi.tts.inCache(t, voceFb, linguaFb)) continue
+                Servizi.tts.prepara(t, voceFb, linguaFb)
+                if (++fatti >= BRAVI_PER_FRASE) break
             }
         }
 
@@ -263,32 +324,53 @@ object Ciclo {
                 stato.update { it.copy(fatte = migliori.size) }
                 tentativo++
                 stato.update { it.copy(tentativo = tentativo, ultimo = esito.pronuncia) }
+                val verdetto = Giudizio.di(esito, p, frase.parola)
+                stato.update { it.copy(verdetto = verdetto) }
+                if (verdetto.buona) {
+                    stato.update { it.copy(buone = it.buone + 1) }
+                    cosa("📊 Il voto")
+                    Servizi.tts.parla(Feedback.votoE(lingua, esito.pronuncia, Feedback.Cosa.BRAVO), voceFb, linguaFb)
+                    return Fine.Avanti
+                }
+                val ultimo = tentativo >= TENTATIVI
+                // Perché è da ripetere, se non è il solo voto basso (quello si
+                // sente comunque): il primo controllo che ha bocciato. Su una
+                // frase bocciata dal solo voto si dice comunque la parola
+                // peggiore (diciDifetto ripiega su `daCurare`).
+                val difetto = verdetto.difetti.firstOrNull { it !is Difetto.Voto }
+                    ?: verdetto.difetti.firstOrNull().takeIf { !frase.parola }
+                // All'ultimo tentativo col difetto da dire restano tre pezzi
+                // («62.», il difetto, «Let's move on.»): detto dopo il saluto
+                // il difetto non si capirebbe più a cosa si riferisce.
+                val commento = when {
+                    !ultimo -> Feedback.votoE(lingua, esito.pronuncia, Feedback.Cosa.RIPROVA)
+                    difetto == null -> Feedback.votoE(lingua, esito.pronuncia, Feedback.Cosa.AVANTI)
+                    else -> Feedback.votoBreve(esito.pronuncia)
+                }
+                val daCurare = if (frase.parola) emptyList() else verdetto.daCurare
+                    .map { it.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' } }.filter { it.isNotEmpty() }
+                // Commento e parole lente si preparano mentre si riascolta la voce.
+                sottofondo {
+                    Servizi.tts.prepara(commento, voceFb, linguaFb)
+                    if (!ultimo) daCurare.forEach { Servizi.tts.preparaFrase(it, voce, accento, lenta = true) }
+                }
                 // Il riascolto: la propria voce prima del giudizio, così il
                 // voto si confronta con quel che si è appena sentito.
+                // ⚠️ v1.34.0: solo quando è da ripetere — riuscita, si va avanti.
                 if (p.riascoltoCiclo) Servizi.valutatore.ultimaVoce?.let { v ->
                     cosa("🔁 La tua voce")
                     Riascolto.suona(v, Servizi.tts.comunicazione)
                 }
-                val verdetto = Giudizio.di(esito, p, frase.parola)
-                stato.update { it.copy(verdetto = verdetto) }
                 cosa("📊 Il voto")
-                Servizi.tts.parla(Feedback.voto(lingua, esito.pronuncia), voceFb, linguaFb)
-                // Perché è da ripetere, se non è il solo voto basso (quello si è
-                // appena sentito): il primo controllo che ha bocciato.
-                // Su una frase bocciata dal solo voto si dice comunque la parola
-                // peggiore (diciDifetto ripiega su `daCurare`).
-                (verdetto.difetti.firstOrNull { it !is Difetto.Voto }
-                    ?: verdetto.difetti.firstOrNull().takeIf { !frase.parola })?.let { d ->
+                Servizi.tts.parla(commento, voceFb, linguaFb)
+                difetto?.let { d ->
                     cosa("🔎 Cosa curare")
                     diciDifetto(d, verdetto, frase.parola, voce, accento)
                 }
-                if (verdetto.buona) {
-                    stato.update { it.copy(buone = it.buone + 1) }
-                    di(Feedback.Cosa.BRAVO)
+                if (ultimo) {
+                    if (difetto != null) di(Feedback.Cosa.AVANTI)
                     return Fine.Avanti
                 }
-                if (tentativo >= TENTATIVI) { di(Feedback.Cosa.AVANTI); return Fine.Avanti }
-                di(Feedback.Cosa.RIPROVA)
                 if (frase.parola) {
                     // Una parola sola: le «parole da curare» sarebbero lei,
                     // quindi la si rilegge piano e basta.
@@ -296,10 +378,7 @@ object Ciclo {
                     Servizi.tts.pronuncia(frase.testo, voce, accento, lenta = true)
                 } else {
                     cosa("🐢 Le parole da curare")
-                    verdetto.daCurare.forEach {
-                        val parola = it.testo.trim { c -> !c.isLetterOrDigit() && c != '\'' }
-                        if (parola.isNotEmpty()) Servizi.tts.pronuncia(parola, voce, accento, lenta = true)
-                    }
+                    daCurare.forEach { Servizi.tts.pronuncia(it, voce, accento, lenta = true) }
                     cosa("🔊 Ascolta")
                     Servizi.tts.pronuncia(frase.testo, voce, accento)
                 }
@@ -309,8 +388,11 @@ object Ciclo {
         esterno.value = null
         // Le traduzioni per «translate»: la schermata le scarica già, ma il
         // ciclo può partire prima che lo abbia fatto. Senza rete resta la cache
-        // (gli errori di rete li assorbe già `aggiorna`).
-        Servizi.traduzioni.aggiorna()
+        // (gli errori di rete li assorbe già `aggiorna`). In sottofondo dalla
+        // v1.34.0: prima si aspettava lo scarico per cominciare.
+        sottofondo { Servizi.traduzioni.aggiorna() }
+        // La prima frase si prepara mentre si dice «Let's start».
+        anticipa(coda.first().frase)
         di(Feedback.Cosa.INIZIO)
         // Gli avvisi di rete in cache adesso che la rete c'è (vedi `avvisa`).
         listOf(Feedback.Cosa.RETE, Feedback.Cosa.RETE_FERMA).forEach { c ->
@@ -331,6 +413,10 @@ object Ciclo {
                 val nuova = scelta.frase
                 frase = nuova
                 tentativo = 0
+                // Mentre si fa questa si prepara la prossima (e i «N. Good!»).
+                anticipa(nuova)
+                coda.getOrNull(1)?.let { anticipa(it.frase) }
+                anticipaBravi()
                 stato.update {
                     it.copy(
                         frase = nuova, tentativo = 0, ultimo = null, frasi = n,

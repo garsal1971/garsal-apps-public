@@ -259,7 +259,7 @@ private fun Impostazioni(accento: Accento, onAccento: (Accento) -> Unit, paroleE
         }
         // Letta a ogni tentativo: vale anche a ciclo acceso.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("🔁 Fammi riascoltare la mia voce prima del voto", Modifier.weight(1f))
+            Text("🔁 Fammi riascoltare la mia voce quando è da ripetere", Modifier.weight(1f))
             Switch(checked = riascolto, onCheckedChange = { riascolto = it; prefs.riascoltoCiclo = it })
         }
         Nota("Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica. Le cuffie USB col filo valgono anche per l'Esercizio; se non sono collegate si ascolta dal telefono.")

@@ -154,8 +154,10 @@ class Prefs(ctx: Context) {
         get() = p.getString("azione_titolo", null)
         set(v) = p.edit().putString("azione_titolo", v).apply()
 
-    /** Mani libere: dopo il tentativo l'app fa riascoltare la registrazione,
-     *  poi dà il voto. Letta a ogni tentativo: cambiarla a ciclo acceso vale subito. */
+    /** Mani libere: dopo un tentativo DA RIPETERE l'app fa riascoltare la
+     *  registrazione, poi dà il voto (v1.34.0: prima lo faceva sempre, anche
+     *  quando era andata bene). Letta a ogni tentativo: cambiarla a ciclo
+     *  acceso vale subito. */
     var riascoltoCiclo: Boolean
         get() = p.getBoolean("riascolto_ciclo", true)
         set(v) = p.edit().putBoolean("riascolto_ciclo", v).apply()

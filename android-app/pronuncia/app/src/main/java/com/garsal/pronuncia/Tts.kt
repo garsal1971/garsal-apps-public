@@ -11,6 +11,8 @@ import com.microsoft.cognitiveservices.speech.SpeechSynthesizer
 import com.microsoft.cognitiveservices.speech.audio.AudioConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
@@ -68,13 +70,37 @@ class Tts(ctx: Context, private val azure: AzureToken) {
     /** Sintetizza [testo] e lo mette in cache SENZA suonarlo (v1.33.0): il ciclo
      *  ci prepara gli avvisi di rete finché la rete c'è, perché quando manca
      *  non si potrebbero più sintetizzare. Già in cache = non fa niente. */
-    suspend fun prepara(testo: String, voceId: String, lingua: String) {
-        audio(ssml(testo, voceId, lingua, false))
+    suspend fun prepara(testo: String, voceId: String, lingua: String, lenta: Boolean = false) {
+        audio(ssml(testo, voceId, lingua, lenta))
     }
 
+    /** Come [prepara], per una frase in inglese con la voce e l'accento scelti
+     *  (v1.34.0): il ciclo ci prepara la frase dopo mentre si fa quella in corso. */
+    suspend fun preparaFrase(testo: String, voce: Voce, accento: Accento, lenta: Boolean = false) =
+        prepara(testo, voce.id(accento), accento.lingua, lenta)
+
+    /** È già in cache? Non sintetizza niente. */
+    fun inCache(testo: String, voceId: String, lingua: String): Boolean =
+        File(cartella, sha(ssml(testo, voceId, lingua, false)) + ".mp3").length() > 0
+
+    /** ⚠️ Un lucchetto per file (v1.34.0): da quando il ciclo prepara l'audio in
+     *  sottofondo, la stessa frase può essere chiesta due volte insieme — e due
+     *  sintesi scriverebbero lo stesso `.tmp`. Chi arriva secondo aspetta la
+     *  prima e trova il file. Per file e non uno solo: la frase da dire adesso
+     *  non deve aspettare la sintesi di quella dopo. */
+    private val lucchetti = java.util.concurrent.ConcurrentHashMap<String, Mutex>()
+
     private suspend fun audio(ssml: String): File = withContext(Dispatchers.IO) {
-        val f = File(cartella, sha(ssml) + ".mp3")
+        val nome = sha(ssml)
+        val f = File(cartella, "$nome.mp3")
         if (f.length() > 0) return@withContext f
+        lucchetti.getOrPut(nome) { Mutex() }.withLock {
+            if (f.length() == 0L) sintetizza(ssml, f)
+        }
+        f
+    }
+
+    private suspend fun sintetizza(ssml: String, f: File) {
         val t = azure.prendi()
         SpeechConfig.fromAuthorizationToken(t.valore, t.regione).use { cfg ->
             cfg.setSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3)
@@ -93,7 +119,6 @@ class Tts(ctx: Context, private val azure: AzureToken) {
                 }
             }
         }
-        f
     }
 
     /** Suona il file e torna alla fine. Annullare la coroutine ferma l'audio. */
