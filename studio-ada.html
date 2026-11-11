@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.3.2</title>
+<title>Studio di oggi v1.3.3</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -97,8 +97,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.3.2';
-var BUILD_TIME  = '2026-11-11T22:15:00Z';
+var APP_VERSION = 'v1.3.3';
+var BUILD_TIME  = '2026-11-11T22:20:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -212,7 +212,7 @@ const ONDA = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://w
 document.documentElement.style.setProperty('--onda', ONDA);
 function colori(i) {
   const h = Math.round((i * 137.508 + 205) % 360);
-  return `--zl:hsl(${h} 80% 91%);--ql:hsl(${h} 65% 66%);--zd:hsl(${h} 30% 22%);--qd:hsl(${h} 50% 40%)`;
+  return `--zl:hsl(${h} 95% 85%);--ql:hsl(${h} 90% 58%);--zd:hsl(${h} 55% 24%);--qd:hsl(${h} 80% 46%)`;
 }
 
 // Mosaico (treemap «squarified»): ogni impegno prende un rettangolo con l'area
