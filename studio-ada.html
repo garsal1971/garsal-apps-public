@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.3.1</title>
+<title>Studio di oggi v1.3.2</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -97,8 +97,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.3.1';
-var BUILD_TIME  = '2026-11-11T22:10:00Z';
+var APP_VERSION = 'v1.3.2';
+var BUILD_TIME  = '2026-11-11T22:15:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -133,7 +133,9 @@ function pianoDiOggi({ materie, orario, fatti, ver, args, imp }) {
   if (domani >= 1 && domani <= 6) for (const o of orario) {
     const m = mat.get(o.materia_id);
     if (o.giorno !== domani || o.senza_compiti || !m || !(m.minuti > 0)) continue;
-    voci.push({ tipo: 'compito', rif: o.id, titolo: m.nome, sotto: 'Compiti per domani', min: m.minuti, fatto: fatto.has(o.id) });
+    // I compiti già spuntati non si mostrano (v1.3.2): il loro tempo resta nel totale «studiato».
+    if (fatto.has(o.id)) continue;
+    voci.push({ tipo: 'compito', rif: o.id, titolo: m.nome, sotto: 'Compiti per domani', min: m.minuti, fatto: false });
   }
   let libero = Math.max(0, cap - voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0));
   for (const v of ver) {
