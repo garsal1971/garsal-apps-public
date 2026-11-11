@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.17.0</title>
+<title>AppSphere v1.17.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -513,6 +513,8 @@
     font-size: 11px;
   }
   /* ── HAMBURGER BTN ── */
+  /* 🎒 Ada (sc_ospite): nel menu ☰ resta solo «Esci». */
+  body.sc-ospite #hamburger-menu .hm-item:not(.danger) { display: none !important; }
   #hamburger-btn {
     background: none;
     border: none;
@@ -2311,8 +2313,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.17.0';
-const BUILD_TIME  = '2026-11-11T14:30:00Z';
+const APP_VERSION = 'v1.17.1';
+const BUILD_TIME  = '2026-11-11T15:10:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -4151,7 +4153,9 @@ function scuolaOspite(headers) {
   if (!_scOspite || _scOspite.token !== tok) {
     _scOspite = { token: tok, promessa: fetch(`${SUPABASE_URL}/rest/v1/rpc/sc_ospite`, {
       method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}'
-    }).then(r => r.ok ? r.json() : false).then(v => v === true).catch(() => false) };
+    }).then(r => r.ok ? r.json() : false).then(v => v === true).catch(() => false)
+      // v1.17.1: per Ada il menu ☰ porta il solo «Esci» (CSS su body.sc-ospite).
+      .then(v => { document.body.classList.toggle('sc-ospite', v); return v; }) };
   }
   return _scOspite.promessa;
 }
