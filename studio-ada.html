@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.3.0</title>
+<title>Studio di oggi v1.3.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -97,8 +97,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.3.0';
-var BUILD_TIME  = '2026-11-11T22:05:00Z';
+var APP_VERSION = 'v1.3.1';
+var BUILD_TIME  = '2026-11-11T22:10:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -176,11 +176,8 @@ async function carica() {
         toast('Un cronometro era rimasto acceso: l\'ho fermato.');
       } else S.aperta = s;
     }
-    // Un impegno su cui oggi si è già lavorato resta a schermo anche se il piano non lo propone più.
-    for (const s of S.sessioni.concat(S.aperta ? [S.aperta] : [])) {
-      if (s.tipo === 'pausa' || S.voci.some(v => chiave(v.tipo, v.rif) === chiave(s.tipo, s.rif))) continue;
-      S.voci.push({ tipo: s.tipo, rif: s.rif, titolo: s.titolo, sotto: 'già lavorato oggi', min: 0, fatto: true });
-    }
+    // Un impegno che il piano non propone più non si mostra, anche se oggi ci si è lavorato:
+    // il suo tempo resta comunque nel totale «studiato» (vedi aggiorna()).
     disegna();
   } catch (e) { document.getElementById('zone').innerHTML = `<p class="vuoto">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
 }
@@ -249,10 +246,12 @@ new ResizeObserver(() => disponi()).observe(document.getElementById('zone'));
 
 // Ridisegna i soli numeri, una volta al secondo.
 function aggiorna() {
-  let tot = 0;
+  // Totale studiato: tutte le sessioni di oggi tranne la pausa, anche di impegni non più a schermo.
+  const ora = Date.now();
+  let tot = S.sessioni.filter(s => s.tipo !== 'pausa').reduce((a, s) => a + Date.parse(s.fine) - Date.parse(s.inizio), 0)
+    + (S.aperta && S.aperta.tipo !== 'pausa' ? ora - Date.parse(S.aperta.inizio) : 0);
   document.querySelectorAll('.z').forEach(el => {
     const v = S.voci[el.dataset.i], ms = speso(v.tipo, v.rif), run = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif);
-    tot += ms;
     const prev = v.min * 60e3, frac = prev ? ms / prev : (ms ? 1 : 0), oltre = prev && ms > prev;
     el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
     const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms);
