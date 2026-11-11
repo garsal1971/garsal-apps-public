@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Verifiche di Ada v2.2.1</title>
+<title>Verifiche di Ada v2.3.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — prossima verifica in evidenza, elenco per data, form per aggiungere */
@@ -36,6 +36,9 @@ section{display:grid;gap:12px}
 .list{display:grid;gap:8px}
 .row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .row.past{opacity:.55}
+.evid{outline:3px solid var(--accent);outline-offset:3px;border-radius:8px;animation:evid 1.2s ease-in-out 3}
+@keyframes evid{50%{outline-color:transparent}}
+
 .date{flex:none;min-width:58px;text-align:center;border-right:1px solid var(--line);padding-right:10px}
 .date b{display:block;font-family:var(--display);font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
 .date span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -152,8 +155,8 @@ textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.2.1';
-var BUILD_TIME  = '2026-11-11T16:40:00Z';
+var APP_VERSION = 'v2.3.0';
+var BUILD_TIME  = '2026-11-11T18:05:00Z';
 console.log('%c VERIFICHE ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#c4527a;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -179,8 +182,21 @@ async function carica() {
     ]);
     ver = v; args = a;
     document.getElementById('materie').innerHTML = m.map(x => `<option value="${esc(x.nome)}">`).join('');
-    render();
+    evidenzia();
   } catch (e) { toast('Non riesco a leggere le verifiche: ' + e.message); }
+}
+
+// Dal calendario si arriva con #ver-<id> o #arg-<id>: si evidenzia quella voce
+// (mostrando anche le passate, se serve). Una volta sola.
+function evidenzia() {
+  const h = location.hash.match(/^#(ver|arg)-(.+)$/);
+  const vid = h && (h[1] === 'ver' ? h[2] : (args.find(a => a.id === h[2]) || {}).verifica_id);
+  const v = vid && ver.find(x => x.id === vid);
+  if (v && diff(v.data) < 0) showPast = true;
+  render();
+  const el = h && document.getElementById(h[1] + '-' + h[2]); if (!el) return;
+  history.replaceState(null, '', location.pathname);
+  el.classList.add('evid'); el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 const argsDi = id => args.filter(a => a.verifica_id === id).sort((x, y) => x.posizione - y.posizione);
@@ -211,7 +227,7 @@ function render() {
   const rows = (showPast ? ver : future).map(v => {
     const d = parse(v.data), g = diff(v.data);
     const b = g >= 0 && g <= 3 ? `<span class="badge soon">${quando(g)}</span>` : g < 0 ? `<span class="badge muted">fatta</span>` : `<span class="badge muted">${quando(g)}</span>`;
-    return `<div class="row${g < 0 ? ' past' : ''}">
+    return `<div class="row${g < 0 ? ' past' : ''}" id="ver-${v.id}">
       <div class="date"><span>${GG[d.getDay()]}</span><b>${d.getDate()}</b><span>${MESI[d.getMonth()]}</span>
         <button type="button" class="fin${finalizzata(v) ? ' done' : ''}" data-fin="${v.id}" aria-label="Finalizza ${esc(v.materia)}">${finalizzata(v) ? `${v.voto != null ? num(v.voto) : '–'} ${FACCE[v.giudizio] || ''}` : '🏁 Finalizza'}</button></div>
       <div class="info"><div class="mat">${esc(v.materia)}</div>${v.note ? `<div class="note">${esc(v.note)}</div>` : ''}
@@ -231,7 +247,7 @@ function argomentiHtml(id) {
   const lista = argsDi(id); if (!lista.length) return '';
   return `<div class="args">${lista.map(a => {
     const det = [a.pagine != null ? `${a.pagine} pag.` : '', a.ore != null ? `${num(a.ore)} h` : ''].filter(Boolean).join(' · ');
-    return `<div class="arg"><div class="t">${esc(a.titolo)}${det ? ` <small>· ${det}</small>` : ''}</div>
+    return `<div class="arg" id="arg-${a.id}"><div class="t">${esc(a.titolo)}${det ? ` <small>· ${det}</small>` : ''}</div>
       <div class="checks">${SPUNTE.map(([k, l]) => `<button type="button" class="chk" data-arg="${a.id}" data-k="${k}" aria-pressed="${a[k] ? 'true' : 'false'}">${a[k] ? '☑' : '☐'} ${l}</button>`).join('')}</div></div>`;
   }).join('')}</div><div class="recap">${recapHtml(lista, true)}</div>`;
 }

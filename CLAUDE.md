@@ -2274,6 +2274,7 @@ compiti di una lezione si fanno **il pomeriggio prima**, domenica per il lunedì
   aggiungono le bolle Compiti (minuti che restano oggi) e Verifiche (quante nei 7 giorni), che
   **non stanno in `cm_apps`** e non fanno punti. Nel menu ☰ le resta il solo «↩ Esci» (v1.17.1, classe `sc-ospite` su `body`). ⚠️ La regola «compiti del pomeriggio prima» è
   copiata da `compiti-ada.html` in `recapScuola`: cambiandola, cambia tutt'e due.
+- 🔗 **Dal calendario alle voci** (`calendario-ada.html` v1.3.0): un compito apre `compiti-ada.html#c-<pomeriggio>-<id lezione>` (settimana giusta, voce evidenziata), un argomento `verifiche-ada.html#arg-<id>`, una verifica `#ver-<id>` (mostra le passate se serve). L'ancora si consuma all'arrivo.
 - 🔵 **Barra in alto** (`scuola-ada.js` v1.1.0, `barra()`): la stessa di AppSphere — logo + «Garsal Apps» (torna a `/`), il nome (prima parola del nome Google o dell'email) e il ☰ con le quattro pagine, 🏠 AppSphere e ↩ Esci. La disegna il file condiviso, non le pagine.
 - ⚠️ Dalla v1.0.1 di `scuola-ada.js` Ada entra nelle due pagine anche col `sb_token` di AppSphere
   (se autorizzata), senza il login separato.

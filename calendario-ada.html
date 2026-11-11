@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.2.0</title>
+<title>Calendario di studio v1.3.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -45,6 +45,8 @@ h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 li{display:flex;align-items:baseline;gap:8px}
 li .n{flex:1;min-width:0}
+li a.n,.ver a{color:inherit;text-decoration:none}
+li a.n:hover,.ver a:hover{text-decoration:underline}
 li .n small{color:var(--muted)}
 li .m{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;flex:none}
 li.fatto .n{text-decoration:line-through;color:var(--muted)}
@@ -91,8 +93,8 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.2.0';
-var BUILD_TIME  = '2026-11-11T16:40:00Z';
+var APP_VERSION = 'v1.3.0';
+var BUILD_TIME  = '2026-11-11T18:05:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -156,7 +158,7 @@ function piano({ materie, orario, fatti, ver, args, imp }, finoA) {
     const cap = Math.floor(lordo * 60 / (60 + pausa)); // gemella di utile() in impostazioni-ada.html
     const compiti = domani >= 1 && domani <= 6 ? orario
       .filter(o => o.giorno === domani && !o.senza_compiti && (mat.get(o.materia_id)?.minuti || 0) > 0)
-      .map(o => ({ nome: mat.get(o.materia_id).nome, min: mat.get(o.materia_id).minuti, ok: fatto.has(giornoIso + '|' + o.id) })) : [];
+      .map(o => ({ id: o.id, nome: mat.get(o.materia_id).nome, min: mat.get(o.materia_id).minuti, ok: fatto.has(giornoIso + '|' + o.id) })) : [];
     const minCompiti = compiti.filter(c => !c.ok).reduce((a, c) => a + c.min, 0);
     let libero = Math.max(0, cap - minCompiti);
     const studio = [];
@@ -221,15 +223,15 @@ function render(p, giorni) {
     const usatoStudio = g.studio.reduce((a, s) => a + s.min, 0);
     const base = Math.max(g.cap, g.minCompiti) || 1;
     const bar = g.cap || g.minCompiti ? `<div class="bar"><i style="width:${g.minCompiti / base * 100}%;background:var(--compiti)"></i><i style="width:${usatoStudio / base * 100}%;background:var(--studio)"></i></div>` : '';
-    const comp = g.compiti.map(c => `<li class="${c.ok ? 'fatto' : ''}"><span class="dot" style="background:var(--compiti)"></span><span class="n">${esc(c.nome)}</span><span class="m">${c.ok ? '✅' : fmt(c.min)}</span></li>`).join('');
-    const stud = g.studio.map(s => `<li><span class="dot" style="background:var(--studio)"></span><span class="n">${esc(s.v.materia)} · ${esc(s.a.titolo)} <small>· per ${dataBreve(s.v.data)}</small></span><span class="m">${fmt(s.min)}</span></li>`).join('');
+    const comp = g.compiti.map(c => `<li class="${c.ok ? 'fatto' : ''}"><span class="dot" style="background:var(--compiti)"></span><a class="n" href="compiti-ada.html#c-${g.giornoIso}-${c.id}">${esc(c.nome)}</a><span class="m">${c.ok ? '✅' : fmt(c.min)}</span></li>`).join('');
+    const stud = g.studio.map(s => `<li><span class="dot" style="background:var(--studio)"></span><a class="n" href="verifiche-ada.html#arg-${s.a.id}">${esc(s.v.materia)} · ${esc(s.a.titolo)} <small>· per ${dataBreve(s.v.data)}</small></a><span class="m">${fmt(s.min)}</span></li>`).join('');
     const coda = g.sopra ? `<div class="over">I compiti superano le fasce di ${fmt(g.sopra)}</div>`
       : g.cap ? `<div class="free">Libero: ${fmt(g.libero)}</div>` : (comp ? '' : `<div class="free">Nessuna fascia di studio</div>`);
     return `<div class="day${g.giornoIso === oggiIso ? ' today' : ''}">
       <div class="day-h"><b>${g.giornoIso === oggiIso ? 'Oggi · ' : ''}${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b>
         <span class="cap">${g.cap ? `disponibili <b>${fmt(g.cap)}</b>` : ''}</span></div>
       ${g.lf.length ? `<div class="fasce">${g.lf.map(f => `${f[0]}–${f[1]}`).join(' · ')}</div>` : ''}
-      ${g.verifiche.map(v => `<div class="ver">📝 ${v.tipo === 'interrogazione' ? 'Interrogazione' : 'Compito'} di ${esc(v.materia)}</div>`).join('')}
+      ${g.verifiche.map(v => `<div class="ver"><a href="verifiche-ada.html#ver-${v.id}">📝 ${v.tipo === 'interrogazione' ? 'Interrogazione' : 'Compito'} di ${esc(v.materia)}</a></div>`).join('')}
       ${bar}${comp || stud ? `<ul>${comp}${stud}</ul>` : ''}${coda}</div>`;
   }).join('');
 }
