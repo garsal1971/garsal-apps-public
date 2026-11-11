@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClasseViva v1.0.1</title>
+<title>ClasseViva v1.1.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — sincronizza, poi tre schede (Voti / Agenda / Lezioni) */
@@ -68,7 +68,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 <div class="wrap" id="app" hidden>
   <header>
     <h1>ClasseViva</h1>
-    <p class="sub" id="letto">Voti, agenda e lezioni dal registro elettronico.</p>
+    <p class="sub" id="letto">Voti, agenda, lezioni e insegnanti dal registro elettronico.</p>
   </header>
 
   <!-- Sincronizzazione: possibile solo dentro l'app AppSfera Web (il server è bloccato da Spaggiari, il browser da CORS) -->
@@ -95,6 +95,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
       <label>Indirizzo base<input id="o-base" placeholder="https://web.spaggiari.eu/rest/v1"></label>
       <label>User-Agent<input id="o-ua" placeholder="CVVS/std/4.1.7 Android/10"></label>
       <label>Z-Dev-Apikey<input id="o-apikey" placeholder="Tg1NWEwNGIgIC0K"></label>
+      <label>Pagina dei colloqui (sito)<input id="o-colloqui" placeholder="vuoto = provo fml, cvv e tic /app/default/colloqui.php"></label>
     </details>
   </div>
 
@@ -102,6 +103,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
     <button type="button" role="tab" data-tab="voti">📊 Voti</button>
     <button type="button" role="tab" data-tab="agenda">📅 Agenda</button>
     <button type="button" role="tab" data-tab="lezioni">📖 Lezioni</button>
+    <button type="button" role="tab" data-tab="insegnanti">👩‍🏫 Insegnanti</button>
   </div>
   <div id="vista"><p class="hint">Carico…</p></div>
 </div>
@@ -109,13 +111,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.0.1';
-var BUILD_TIME  = '2026-11-11T19:40:00Z';
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-11-11T20:10:00Z';
 console.log('%c CLASSEVIVA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#D4145A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
 
-const S = { voti: [], agenda: [], lezioni: [], letto: {}, verCv: new Set(), tab: 'voti', periodo: '' };
+const S = { voti: [], agenda: [], lezioni: [], insegnanti: [], ricevimenti: null, letto: {}, verCv: new Set(), tab: 'voti', periodo: '' };
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Una media letta come a scuola: al quarto più vicino, 6,25 → 6+, 6,5 → 6½, 6,75 → 7-.
 const votoScuola = x => { const q = Math.round(x * 4) / 4, i = Math.floor(q), f = q - i;
@@ -137,7 +139,7 @@ async function carica() {
       SC.db('sc_classeviva?select=tipo,dati,letto_il'),
       SC.db('sc_verifiche?select=cv_id&cv_id=not.is.null')
     ]);
-    righe.forEach(r => { S[r.tipo] = Array.isArray(r.dati) ? r.dati : []; S.letto[r.tipo] = r.letto_il; });
+    righe.forEach(r => { S[r.tipo] = r.tipo === 'ricevimenti' ? r.dati : Array.isArray(r.dati) ? r.dati : []; S.letto[r.tipo] = r.letto_il; });
     S.verCv = new Set(ver.map(v => v.cv_id));
   } catch (e) { toast('Non riesco a leggere i dati salvati: ' + e.message); }
   const t = Object.values(S.letto).sort().pop();
@@ -149,7 +151,7 @@ async function carica() {
 }
 
 /* ── Sincronizzazione (solo nell'app) ─────────────────────────────────── */
-const OPZ = ['base', 'ua', 'apikey'];
+const OPZ = ['base', 'ua', 'apikey', 'colloqui'];
 function preparaSync() {
   OPZ.forEach(k => { const el = document.getElementById('o-' + k); el.value = ls.get('cv_' + k) || ''; el.onchange = () => ls.set('cv_' + k, el.value.trim()); });
   const b = ponte();
@@ -194,7 +196,13 @@ window.classevivaCallback = async function () {
     const errori = r.errori || {};
     // ⚠️ Si salva solo quel che è stato letto: una lettura fallita non deve
     // sostituire con un elenco vuoto l'ultima copia buona.
-    const righe = ['voti', 'agenda', 'lezioni'].filter(t => !errori[t])
+    // I ricevimenti arrivano come pagina HTML del sito: qui si leggono le righe.
+    if (r.ricevimenti && r.ricevimenti.html) {
+      r.ricevimenti = leggiColloqui(r.ricevimenti.html, r.ricevimenti.url);
+      if (!r.ricevimenti.righe.length) errori.ricevimenti = 'pagina dei colloqui letta (' + r.ricevimenti.url + ') ma non riconosco nessun orario: il testo è in fondo alla scheda Insegnanti';
+    } else if (!errori.ricevimenti) errori.ricevimenti = 'nessuna pagina dei colloqui ricevuta';
+    const righe = ['voti', 'agenda', 'lezioni', 'insegnanti', 'ricevimenti']
+      .filter(t => !errori[t] || (t === 'ricevimenti' && r.ricevimenti && r.ricevimenti.testo))
       .map(t => ({ tipo: t, dati: r[t] || [], letto_il: new Date().toISOString() }));
     if (righe.length) await SC.db('sc_classeviva?on_conflict=user_id,tipo', { method: 'POST', body: righe, prefer: 'resolution=merge-duplicates,return=minimal' });
     const msg = Object.entries(errori).map(([k, v]) => `${k}: ${v}`).join('\n');
@@ -215,7 +223,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
 function render() {
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
   const el = document.getElementById('vista');
-  el.innerHTML = S.tab === 'agenda' ? vistaAgenda() : S.tab === 'lezioni' ? vistaLezioni() : vistaVoti();
+  el.innerHTML = S.tab === 'agenda' ? vistaAgenda() : S.tab === 'lezioni' ? vistaLezioni() : S.tab === 'insegnanti' ? vistaInsegnanti() : vistaVoti();
 }
 
 // Voti: per materia la media dei voti con un valore numerico (i «+», «-» e i
@@ -291,7 +299,52 @@ function vistaLezioni() {
       ${l.lessonArg ? `<div class="n">${esc(l.lessonArg)}</div>` : ''}<div class="m">${esc([l.lessonType, l.authorName].filter(Boolean).join(' · '))}</div></div>`).join('')}</div>`).join('')}</div>`;
 }
 
-S.tab = ['voti', 'agenda', 'lezioni'].includes(ls.get('cv_tab')) ? ls.get('cv_tab') : 'voti';
+/* ── Insegnanti e ricevimenti ─────────────────────────────────────────── */
+// ⚠️ La pagina dei colloqui è HTML del sito, non un'API: se ne prendono le righe
+// di tabella (o di elenco) che portano un orario o un giorno della settimana.
+// Il testo intero resta salvato, così se il riconoscimento sbaglia si vede cosa c'era.
+const RE_ORARIO = /\b\d{1,2}[:.]\d{2}\b|\b(luned|marted|mercoled|gioved|venerd|sabato)/i;
+function leggiColloqui(html, url) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script,style,noscript').forEach(n => n.remove());
+  doc.querySelectorAll('td,th,li,div,p,br,tr').forEach(n => n.after(' '));  // il testo non si incolla fra celle
+  const testoDi = n => n.textContent.replace(/\s+/g, ' ').trim();
+  const righe = [], visti = new Set();
+  doc.querySelectorAll('tr, li, .row, [class*="colloqu"]').forEach(n => {
+    if (n.querySelector('tr, li')) return;  // solo le righe più interne
+    const celle = n.matches('tr') ? [...n.children].map(testoDi).filter(Boolean) : [testoDi(n)];
+    const t = celle.join(' · ');
+    if (!t || t.length > 400 || !RE_ORARIO.test(t) || visti.has(t)) return;
+    visti.add(t); righe.push(celle);
+  });
+  return { url, righe, testo: testoDi(doc.body || doc.documentElement).slice(0, 6000) };
+}
+
+function vistaInsegnanti() {
+  const ric = S.ricevimenti && Array.isArray(S.ricevimenti.righe) ? S.ricevimenti.righe : [];
+  if (!S.insegnanti.length && !ric.length) return '<p class="hint">Nessun insegnante salvato: tocca 🔄 Sincronizza dall\'app.</p>';
+  // Un insegnante con le sue materie.
+  const doc = {};
+  S.insegnanti.forEach(m => (m.teachers || []).forEach(t => {
+    const k = t.teacherId || t.teacherName;
+    (doc[k] = doc[k] || { nome: t.teacherName || '—', materie: [] }).materie.push(m.description || '—');
+  }));
+  const usate = new Set();
+  const cognomi = n => String(n).toUpperCase().split(/\s+/).filter(p => p.length > 2);
+  const carte = Object.values(doc).sort((a, b) => a.nome.localeCompare(b.nome)).map(d => {
+    const mie = ric.filter((c, i) => { const t = c.join(' ').toUpperCase(); const ok = cognomi(d.nome).some(p => t.includes(p)); if (ok) usate.add(i); return ok; });
+    return `<div class="card giorno"><h3>${esc(d.nome)}</h3><div class="m">${esc(d.materie.join(' · '))}</div>
+      ${mie.length ? mie.map(c => `<div class="ev"><div class="n">🕒 ${esc(c.join(' · '))}</div></div>`).join('') : '<div class="m">Ricevimento: non trovato</div>'}</div>`;
+  }).join('');
+  const altre = ric.filter((_, i) => !usate.has(i));
+  const t = S.letto.ricevimenti;
+  return `<div style="display:grid;gap:12px">${carte}
+    ${altre.length ? `<div class="card giorno"><h3>Altri orari dalla pagina dei colloqui</h3>${altre.map(c => `<div class="ev"><div class="n">${esc(c.join(' · '))}</div></div>`).join('')}</div>` : ''}
+    ${S.ricevimenti && S.ricevimenti.testo ? `<details class="card"><summary>Pagina dei colloqui letta ${t ? 'il ' + esc(new Date(t).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })) : ''}</summary>
+      <p class="hint">${esc(S.ricevimenti.url || '')}</p><pre>${esc(S.ricevimenti.testo)}</pre></details>` : ''}</div>`;
+}
+
+S.tab = ['voti', 'agenda', 'lezioni', 'insegnanti'].includes(ls.get('cv_tab')) ? ls.get('cv_tab') : 'voti';
 SC.avvia('da-classeviva.html', carica);
 </script>
 </body>
