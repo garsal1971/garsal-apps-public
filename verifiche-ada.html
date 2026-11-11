@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verifiche di Ada</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: colonna unica — prossima verifica in evidenza, elenco per data, form per aggiungere */
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --accent-soft:#e3eafb;
+  --compito:#2f5bd3; --interr:#c4527a; --soon:#c47a12;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --accent-soft:#232f4d;
+  --compito:#7d9ff0; --interr:#e88aaa; --soon:#e5a84a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --accent-soft:#232f4d; --compito:#7d9ff0; --interr:#e88aaa; --soon:#e5a84a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:20px;font-weight:600}
+.eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.sub{color:var(--muted);margin:4px 0 0}
+.sub a{color:var(--accent)}
+section{display:grid;gap:12px}
+.next{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:6px;border-left:6px solid var(--accent)}
+.next .when{font-family:var(--display);font-size:clamp(24px,6vw,32px);font-weight:800}
+.next .what{font-size:17px;font-weight:600}
+.next .meta{color:var(--muted)}
+.list{display:grid;gap:8px}
+.row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.row.past{opacity:.5}
+.date{flex:none;width:58px;text-align:center;border-right:1px solid var(--line);padding-right:10px}
+.date b{display:block;font-family:var(--display);font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.date span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.info{flex:1;min-width:0}
+.info .mat{font-weight:600}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.badge{font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.badge.compito{color:var(--compito)}
+.badge.interrogazione{color:var(--interr)}
+.badge.soon{color:var(--soon)}
+.badge.muted{color:var(--muted)}
+.del{font:inherit;background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;width:34px;height:34px;cursor:pointer;flex:none}
+.del:hover{color:var(--interr);border-color:var(--interr)}
+form.add{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));align-items:end}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;min-width:0}
+button.primary{font:inherit;font-weight:600;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+:root[data-theme="dark"] button.primary{color:#12161f}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) button.primary{color:#12161f}}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.toggle{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;justify-self:start}
+.empty{color:var(--muted)}
+</style>
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Classe 3M · a.s. 2026/27</div>
+    <h1>Verifiche di Ada</h1>
+    <p class="sub">Compiti in classe e interrogazioni. <a href="compiti-ada.html">Piano dei compiti →</a></p>
+  </header>
+
+  <section id="next-wrap"></section>
+
+  <section>
+    <h2>Calendario</h2>
+    <div class="list" id="list"></div>
+    <button class="toggle" type="button" id="toggle-past"></button>
+  </section>
+
+  <section>
+    <h2>Aggiungi</h2>
+    <form class="add" id="add">
+      <label>Data<input type="date" id="f-data" required></label>
+      <label>Materia<input id="f-mat" placeholder="es. Matematica" required></label>
+      <label>Tipo<select id="f-tipo"><option value="compito">Compito</option><option value="interrogazione">Interrogazione</option></select></label>
+      <button class="primary" type="submit">Aggiungi</button>
+    </form>
+  </section>
+</div>
+
+<script>
+const BASE = [
+  {id:"v1",data:"2026-11-10",mat:"Inglese",tipo:"compito"},
+  {id:"v2",data:"2026-11-12",mat:"Educazione civica",tipo:"compito"},
+  {id:"v3",data:"2026-11-19",mat:"Filosofia",tipo:"compito"},
+  {id:"v4",data:"2026-11-23",mat:"Spagnolo",tipo:"interrogazione"},
+  {id:"v5",data:"2026-11-24",mat:"Educazione fisica",tipo:"compito"},
+  {id:"v6",data:"2026-11-26",mat:"Storia",tipo:"compito"},
+  {id:"v7",data:"2026-11-27",mat:"Spagnolo",tipo:"compito"}
+];
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let ver = load("ada-verifiche", BASE);
+let showPast = false;
+
+const GG=["Dom","Lun","Mar","Mer","Gio","Ven","Sab"], MESI=["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+const GIORNI=["domenica","lunedì","martedì","mercoledì","giovedì","venerdì","sabato"];
+const parse = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const oggi = () => { const t=new Date(); return new Date(t.getFullYear(),t.getMonth(),t.getDate()); };
+const diff = s => Math.round((parse(s)-oggi())/864e5);
+const quando = n => n===0?"Oggi":n===1?"Domani":n===2?"Dopodomani":n>0?`Fra ${n} giorni`:`${-n} giorni fa`;
+const tipoTxt = t => t==="interrogazione"?"Interrogazione":"Compito";
+const esc = s => s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(){
+  ver.sort((a,b)=>a.data.localeCompare(b.data));
+  const future = ver.filter(v=>diff(v.data)>=0), past = ver.filter(v=>diff(v.data)<0);
+  const n = future[0];
+  document.getElementById("next-wrap").innerHTML = n ? `
+    <div class="eyebrow">Prossima</div>
+    <div class="next" style="border-left-color:var(--${n.tipo==="interrogazione"?"interr":"compito"})">
+      <div class="when">${quando(diff(n.data))}</div>
+      <div class="what">${tipoTxt(n.tipo)} di ${esc(n.mat)}</div>
+      <div class="meta">${GIORNI[parse(n.data).getDay()]} ${parse(n.data).getDate()} ${MESI[parse(n.data).getMonth()]}</div>
+    </div>` : `<p class="empty">Nessuna verifica in programma.</p>`;
+  const rows = (showPast? ver : future).map(v=>{
+    const d=parse(v.data), g=diff(v.data);
+    const soon = g>=0 && g<=3 ? `<span class="badge soon">${quando(g)}</span>` : g<0 ? `<span class="badge muted">fatta</span>` : `<span class="badge muted">${quando(g)}</span>`;
+    return `<div class="row${g<0?" past":""}">
+      <div class="date"><span>${GG[d.getDay()]}</span><b>${d.getDate()}</b><span>${MESI[d.getMonth()]}</span></div>
+      <div class="info"><div class="mat">${esc(v.mat)}</div>
+        <div class="badges"><span class="badge ${v.tipo}">${tipoTxt(v.tipo)}</span>${soon}</div></div>
+      <button class="del" type="button" data-id="${v.id}" aria-label="Elimina ${esc(v.mat)}">✕</button></div>`;
+  }).join("");
+  document.getElementById("list").innerHTML = rows || `<p class="empty">Niente in calendario.</p>`;
+  const t=document.getElementById("toggle-past");
+  t.hidden = past.length===0;
+  t.textContent = showPast ? "Nascondi le passate" : `Mostra le passate (${past.length})`;
+}
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.id){ ver=ver.filter(v=>v.id!==b.dataset.id); save("ada-verifiche",ver); render(); }
+  if(b.id==="toggle-past"){ showPast=!showPast; render(); }
+});
+document.getElementById("add").addEventListener("submit",e=>{
+  e.preventDefault();
+  const data=document.getElementById("f-data").value, mat=document.getElementById("f-mat").value.trim();
+  if(!data||!mat) return;
+  ver.push({id:"v"+Date.now(),data,mat,tipo:document.getElementById("f-tipo").value});
+  save("ada-verifiche",ver); e.target.reset(); render();
+});
+render();
+</script>
+</body>
+</html>
