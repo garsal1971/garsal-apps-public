@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.0.0</title>
+<title>Calendario di studio v1.1.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -51,6 +51,19 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .free{font-size:13px;color:var(--muted)}
 .over{font-size:13px;color:var(--warn);font-weight:600}
 .loading,.empty{color:var(--muted)}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.switch{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--card)}
+.switch button{font:inherit;font-size:14px;border:0;background:none;color:var(--muted);border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);font-weight:600}
+.weeknav{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.weeknav b{font-family:var(--display);font-size:16px}
+.ghost{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;min-height:36px}
+.ghost:disabled{opacity:.4;cursor:default}
+.wrap.largo{max-width:1180px}
+.days.griglia{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.day.fuori{opacity:.55}
+.wtot{font-size:13px;color:var(--muted)}
+.wtot b{color:var(--fg);font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -63,14 +76,24 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
     <div class="sc-utente" id="sc-utente"></div>
   </header>
   <div class="avvisi" id="avvisi"></div>
+  <div class="ctrl">
+    <div class="switch" role="group" aria-label="Vista"><button type="button" data-vista="tutti" aria-pressed="true">Tutti i giorni</button><button type="button" data-vista="settimana" aria-pressed="false">Settimana</button></div>
+    <div class="weeknav" id="weeknav" hidden>
+      <button class="ghost" type="button" id="prev" aria-label="Settimana precedente">‹</button>
+      <b id="week-label"></b>
+      <button class="ghost" type="button" id="next" aria-label="Settimana successiva">›</button>
+      <button class="ghost" type="button" id="questa">Questa settimana</button>
+    </div>
+  </div>
+  <div class="wtot" id="wtot" hidden></div>
   <div class="legenda"><span><span class="dot" style="background:var(--compiti)"></span>Compiti</span><span><span class="dot" style="background:var(--studio)"></span>Studio per le verifiche</span></div>
   <div class="days" id="days"><p class="loading">Carico…</p></div>
 </div>
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-11-11T16:10:00Z';
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-11-11T16:15:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -88,6 +111,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const minuti = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? 0 : h * 60 + (m || 0); };
 const dataBreve = s => { const d = parse(s); return `${FULL[d.getDay()].slice(0, 3).toLowerCase()} ${d.getDate()} ${MESI[d.getMonth()]}`; };
 
+// Vista: tutti i giorni oppure una settimana (lunedì → domenica) alla volta.
+const V = { dati: null, vista: 'tutti', lunedi: null };
+try { if (localStorage.getItem('sc_cal_vista') === 'settimana') V.vista = 'settimana'; } catch (e) {}
+const lunediDi = d => piu(d, -((d.getDay() + 6) % 7));
+
 async function carica() {
   const t = oggi(), oggiIso = iso(t);
   try {
@@ -99,7 +127,8 @@ async function carica() {
       SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,posizione&order=posizione'),
       SC.db('sc_impostazioni?select=*&limit=1')
     ]);
-    render(piano({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 } }));
+    V.dati = { materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 } };
+    ridisegna();
   } catch (e) { document.getElementById('days').innerHTML = `<p class="empty">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
 }
 
@@ -108,11 +137,11 @@ async function carica() {
 // delle lezioni di domani, come in compiti-ada.html, meno quelli già spuntati);
 // nel tempo che avanza le ore degli argomenti non ancora «studiati», dalla
 // verifica più vicina, e solo nei giorni prima della verifica.
-function piano({ materie, orario, fatti, ver, args, imp }) {
+function piano({ materie, orario, fatti, ver, args, imp }, finoA) {
   const t = oggi(), mat = new Map(materie.map(m => [m.id, m]));
   const fatto = new Set(fatti.map(f => f.giorno + '|' + f.orario_id));
   const ultima = ver.length ? parse(ver[ver.length - 1].data) : t;
-  const fine = new Date(Math.max(piu(ultima, -1), piu(t, GIORNI_MIN - 1)));
+  const fine = new Date(Math.max(piu(ultima, -1), piu(t, GIORNI_MIN - 1), finoA || 0));
   const pausa = imp.pausa_minuti || 0, fasce = imp.fasce || {};
 
   // Gli argomenti da studiare, in ordine di scadenza.
@@ -148,7 +177,38 @@ function piano({ materie, orario, fatti, ver, args, imp }) {
   return { giorni, mancano: [...mancano.values()], senzaFasce: !Object.values(fasce).some(l => l && l.length), daFare };
 }
 
-function render(p) {
+// Il piano parte sempre da oggi (lo studio si distribuisce da qui): la vista
+// Settimana ne mostra un pezzo, e i giorni già passati restano sbiaditi.
+function ridisegna() {
+  if (!V.dati) return;
+  const sett = V.vista === 'settimana';
+  if (!V.lunedi) V.lunedi = lunediDi(oggi());
+  const domenica = piu(V.lunedi, 6);
+  const p = piano(V.dati, sett ? domenica : null);
+  document.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', b.dataset.vista === V.vista ? 'true' : 'false'));
+  document.getElementById('weeknav').hidden = !sett;
+  document.getElementById('app').classList.toggle('largo', sett);
+  document.getElementById('days').classList.toggle('griglia', sett);
+  if (sett) {
+    document.getElementById('week-label').textContent = `${V.lunedi.getDate()} ${MESI[V.lunedi.getMonth()]} – ${domenica.getDate()} ${MESI[domenica.getMonth()]}`;
+    document.getElementById('prev').disabled = V.lunedi <= lunediDi(oggi());
+    const daIso = iso(V.lunedi), aIso = iso(domenica), mappa = new Map(p.giorni.map(g => [g.giornoIso, g]));
+    const giorni = [];
+    for (let i = 0; i < 7; i++) { const d = piu(V.lunedi, i), k = iso(d); giorni.push(mappa.get(k) || { d, giornoIso: k, passato: true }); }
+    const tc = giorni.reduce((a, g) => a + (g.minCompiti || 0), 0), ts = giorni.reduce((a, g) => a + (g.studio || []).reduce((x, s) => x + s.min, 0), 0);
+    const w = document.getElementById('wtot'); w.hidden = false;
+    w.innerHTML = `Nella settimana: compiti <b>${fmt(tc)}</b> · studio <b>${fmt(ts)}</b> · disponibili <b>${fmt(giorni.reduce((a, g) => a + (g.cap || 0), 0))}</b>`;
+    render(p, giorni);
+  } else { document.getElementById('wtot').hidden = true; render(p, p.giorni); }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.vista) { V.vista = b.dataset.vista; try { localStorage.setItem('sc_cal_vista', V.vista); } catch (err) {} ridisegna(); }
+  else if (b.id === 'prev' || b.id === 'next') { V.lunedi = piu(V.lunedi, b.id === 'prev' ? -7 : 7); ridisegna(); }
+  else if (b.id === 'questa') { V.lunedi = lunediDi(oggi()); ridisegna(); }
+});
+
+function render(p, giorni) {
   const av = [];
   if (p.senzaFasce) av.push(`<div class="avviso">Non ci sono fasce orarie: senza, non c'è tempo in cui mettere lo studio. <a href="impostazioni-ada.html">Imposta le fasce →</a></div>`);
   for (const m of p.mancano)
@@ -157,7 +217,8 @@ function render(p) {
   document.getElementById('avvisi').innerHTML = av.join('');
 
   const oggiIso = iso(oggi());
-  document.getElementById('days').innerHTML = p.giorni.map(g => {
+  document.getElementById('days').innerHTML = giorni.map(g => {
+    if (g.passato) return `<div class="day fuori"><div class="day-h"><b>${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b></div><div class="free">Passato</div></div>`;
     const usatoStudio = g.studio.reduce((a, s) => a + s.min, 0);
     const base = Math.max(g.cap, g.minCompiti) || 1;
     const bar = g.cap || g.minCompiti ? `<div class="bar"><i style="width:${g.minCompiti / base * 100}%;background:var(--compiti)"></i><i style="width:${usatoStudio / base * 100}%;background:var(--studio)"></i></div>` : '';
