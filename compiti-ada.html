@@ -3,199 +3,251 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Compiti di Ada</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<title>Compiti di Ada v2.0.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
-/* Layout: colonna unica — piano settimanale in alto, poi orario 3M, poi tempi per materia */
+/* Layout: colonna unica — piano della settimana, orario, minuti per materia */
 :root{
-  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --accent-soft:#e3eafb; --done:#2e8b57;
-  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --body:"Inter", system-ui, -apple-system, sans-serif;
-  --mat:#3b6fe0; --fis:#7a4fd6; --sto:#b4762a; --fil:#c4527a; --ita:#2f9a6b; --ing:#d0533a; --fra:#2c8fa8; --spa:#c99a12; --sci:#5b8f2a; --none:#9aa3b2;
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --on-accent:#ffffff; --ok:#2e8b57; --danger:#c0392b;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --accent-soft:#232f4d; --done:#5cc48a; color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --accent-soft:#232f4d; --done:#5cc48a; color-scheme:dark}
-body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+  --bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --on-accent:#12161f; --ok:#5cc48a; --danger:#ef7a6b; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --on-accent:#12161f; --ok:#5cc48a; --danger:#ef7a6b; color-scheme:dark}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;overflow-wrap:anywhere}
 .wrap{max-width:980px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
 h1,h2{font-family:var(--display);text-wrap:balance;margin:0}
 h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em}
 h2{font-size:20px;font-weight:600}
 .sub{color:var(--muted);margin:4px 0 0}
-.eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.sub a{color:var(--accent)}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
 section{display:grid;gap:12px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
-/* piano */
-.week{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.weeknav{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.weeknav b{font-family:var(--display);font-size:17px}
+.weektot{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline}
+.weektot strong{font-family:var(--display);font-size:26px;font-variant-numeric:tabular-nums}
+button.ghost{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;min-height:36px}
+button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.week{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
 .day{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;align-content:start}
 .day.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.day-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.day-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
 .day-h b{font-family:var(--display);font-size:17px}
 .day-h .tot{font-variant-numeric:tabular-nums;font-weight:600}
 .for{font-size:12px;color:var(--muted)}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent)}
 .tasks{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-.tasks li label{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0}
-.tasks li .m{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
-.tasks input{accent-color:var(--done);width:16px;height:16px}
-.tasks li.ok span.n{text-decoration:line-through;color:var(--muted)}
+.tasks label{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0}
+.tasks .m{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.tasks input{accent-color:var(--ok);width:18px;height:18px;flex:none}
+.tasks li.ok .n{text-decoration:line-through;color:var(--muted)}
 .free{color:var(--muted);font-size:13px}
-.weektot{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline}
-.weektot strong{font-family:var(--display);font-size:26px;font-variant-numeric:tabular-nums}
-button.ghost{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer}
-button.ghost:hover{border-color:var(--accent);color:var(--accent)}
-button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-/* orario */
 .tbl-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;min-width:620px;font-size:13px}
 th,td{border-bottom:1px solid var(--line);padding:6px;text-align:center}
 th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 td.h{color:var(--muted);font-variant-numeric:tabular-nums;width:48px}
-.cell{font:inherit;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;border:1px solid transparent;background:none;color:var(--fg);cursor:pointer}
+.cell{font:inherit;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;border:1px solid transparent;background:none;color:var(--fg);cursor:pointer;min-height:32px}
 .cell:hover{border-color:var(--line)}
 .cell.nohw{color:var(--muted);text-decoration:line-through}
 .cell.zero{color:var(--muted);cursor:default}
 .hint{font-size:13px;color:var(--muted)}
-/* minuti */
-.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
 .sub-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .sub-row .nm{flex:1;min-width:0;font-weight:500}
 .step{display:flex;align-items:center;gap:4px}
-.step button{font:inherit;width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
-.step input{width:44px;text-align:center;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--card);color:var(--fg)}
-.step small{color:var(--muted);font-size:12px}
-.wk{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;width:54px;text-align:right}
-@media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s}}
+.step button{font:inherit;width:32px;height:32px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.step input{width:46px;text-align:center;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--card);color:var(--fg)}
+.wk{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:54px;text-align:right}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+.loading{color:var(--muted)}
 </style>
-<style>[hidden]{display:none!important}body{margin:0}</style>
 </head>
 <body>
-
-<div class="wrap">
-  <header>
-    <div class="eyebrow">Classe 3M · a.s. 2026/27</div>
-    <h1>Compiti di Ada</h1>
-    <p class="sub">I compiti di ogni lezione si fanno il pomeriggio prima. Cambia i minuti in fondo e il piano si aggiorna.</p>
+<div class="wrap" id="app" hidden>
+  <header class="head">
+    <div>
+      <h1>Compiti di Ada</h1>
+      <p class="sub">I compiti di ogni lezione si fanno il pomeriggio prima. <a href="verifiche-ada.html">Verifiche →</a></p>
+    </div>
+    <div class="sc-utente" id="sc-utente"></div>
   </header>
 
   <section>
-    <div class="weektot">
-      <h2>Piano della settimana</h2>
-      <span><strong id="wtot">0</strong> <span class="hint">totale settimana</span></span>
-      <button class="ghost" id="reset-check" type="button">Azzera spunte</button>
+    <div class="weeknav">
+      <button class="ghost" type="button" id="prev" aria-label="Settimana precedente">‹</button>
+      <b id="week-label"></b>
+      <button class="ghost" type="button" id="next" aria-label="Settimana successiva">›</button>
+      <button class="ghost" type="button" id="oggi">Questa settimana</button>
     </div>
-    <div class="week" id="week"></div>
+    <div class="weektot"><span><strong id="wtot">—</strong> <span class="hint">di compiti nella settimana</span></span><span class="hint" id="wfatti"></span></div>
+    <div class="week" id="week"><p class="loading">Carico…</p></div>
   </section>
 
   <section>
     <h2>Orario</h2>
-    <p class="hint">Tocca una lezione per segnarla "senza compiti" (barrata) o riattivarla.</p>
+    <p class="hint">Tocca una lezione per segnarla «senza compiti» (barrata) o riattivarla.</p>
     <div class="tbl-wrap"><table id="orario"></table></div>
   </section>
 
   <section>
     <h2>Minuti per lezione</h2>
     <div class="subs" id="subs"></div>
-    <p class="hint">A destra il totale settimanale per materia. I dati restano salvati in questo browser.</p>
+    <p class="hint">A destra il totale settimanale per materia.</p>
   </section>
 </div>
+<div class="toast" id="toast" hidden></div>
 
+<script src="scuola-ada.js"></script>
 <script>
-const SUBJ = {
-  Mat:{n:"Matematica",c:"--mat",m:30}, Fis:{n:"Fisica",c:"--fis",m:30}, Sto:{n:"Storia",c:"--sto",m:20},
-  Fil:{n:"Filosofia",c:"--fil",m:20}, Ita:{n:"Italiano",c:"--ita",m:20}, Ing:{n:"Inglese",c:"--ing",m:20},
-  Fra:{n:"Francese",c:"--fra",m:30}, Spa:{n:"Spagnolo",c:"--spa",m:15}, Sci:{n:"Scienze",c:"--sci",m:20},
-  Arte:{n:"Arte",c:"--none",m:0}, "Sci mot":{n:"Scienze motorie",c:"--none",m:0}, Rel:{n:"Religione",c:"--none",m:0}
-};
-const DAYS = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
-const FULL = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
-const HOURS = ["8","9","10","11","12","13"];
-// orario[giorno][ora] (null = vuota; "^" = continua dall'ora sopra)
-const ORARIO = [
-  ["Mat","Fis","Spa","Sto","Fra",null],
-  ["Sci mot","^","Ing","Ita","Arte","Sci"],
-  ["Spa","Fil","Ing","Mat","Fra",null],
-  ["Ita","Ing","Sto","Fil","Fis","Spa"],
-  ["Fra","Arte","Spa","Ing",null,null],
-  ["Fra","Ita","^","Sci","Rel",null]
-];
-const DEF_NOHW = {"0-2":true}; // Spagnolo lunedì: niente compiti
+var APP_VERSION = 'v2.0.0';
+var BUILD_TIME  = '2026-11-11T15:10:00Z';
+console.log('%c COMPITI ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+  'background:#2f5bd3;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+  'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
 
-function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-let mins = Object.assign(Object.fromEntries(Object.entries(SUBJ).map(([k,v])=>[k,v.m])), load("ada-mins",{}));
-let nohw = load("ada-nohw",DEF_NOHW);
-let checks = load("ada-checks",{});
+const FULL = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+const CORTI = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+const MESI = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+const S = { materie: [], orario: [], fatti: new Set(), lunedi: null };
 
-const fmt = m => m>=60 ? `${Math.floor(m/60)} h ${m%60?String(m%60).padStart(2,"0"):""}`.trim() : `${m} min`;
-const col = s => `var(${SUBJ[s].c})`;
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const piu = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const oggi = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+// La settimana di scuola che il pomeriggio di oggi prepara: di domenica è quella che comincia domani.
+function lunediCorrente() { const t = oggi(), g = t.getDay(); return g === 0 ? piu(t, 1) : piu(t, 1 - g); }
+const fmt = m => m >= 60 ? `${Math.floor(m/60)} h ${m%60 ? String(m%60).padStart(2,'0') : ''}`.trim() : `${m} min`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mat = id => S.materie.find(m => m.id === id);
+const col = m => m && m.colore ? m.colore : 'var(--muted)';
+const chiave = (giorno, oid) => giorno + '|' + oid;
 
-function lessons(d){ // lezioni con compiti del giorno d (0=Lun..5=Sab)
-  if(d<0||d>5) return [];
-  return ORARIO[d].map((s,h)=>({s,h})).filter(x=>x.s && x.s!=="^" && !nohw[`${d}-${x.h}`] && mins[x.s]>0);
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3500); }
+
+async function carica() {
+  try {
+    const [materie, orario] = await Promise.all([
+      SC.db('sc_materie?select=*&order=posizione,nome'),
+      SC.db('sc_orario?select=*&order=giorno,ora')
+    ]);
+    S.materie = materie; S.orario = orario;
+    await caricaFatti();
+  } catch (e) { toast('Non riesco a leggere i dati: ' + e.message); }
 }
-function plan(){ // pomeriggio p (0=Lun..6=Dom) prepara il giorno dopo
-  return DAYS.map((_,p)=>{const target=(p+1)%7; return {p,target,items:lessons(target===6?-1:target)}});
+async function caricaFatti() {
+  const da = iso(piu(S.lunedi, -1)), a = iso(piu(S.lunedi, 5));
+  const righe = await SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${da}&giorno=lte.${a}`);
+  S.fatti = new Set(righe.map(r => chiave(r.giorno, r.orario_id)));
+  render();
 }
 
-function render(){
-  const pl = plan();
-  const totals = pl.map(x=>x.items.reduce((a,i)=>a+mins[i.s],0));
-  const max = Math.max(60,...totals);
-  document.getElementById("wtot").textContent = fmt(totals.reduce((a,b)=>a+b,0));
-  const jsDay = new Date().getDay(); const todayIdx = (jsDay+6)%7;
-  const order = [6,0,1,2,3,4,5]; // da domenica (prepara lunedì)
-  document.getElementById("week").innerHTML = order.map(p=>{
-    const x = pl[p], t = totals[p];
-    const body = x.items.length ? `<ul class="tasks">${x.items.map(i=>{
-      const key=`${p}-${i.h}`, ok=!!checks[key];
-      return `<li class="${ok?"ok":""}"><label><input type="checkbox" id="c-${key}" data-k="${key}" ${ok?"checked":""}><span class="dot" style="background:${col(i.s)}"></span><span class="n">${SUBJ[i.s].n}</span><span class="m">${mins[i.s]}′</span></label></li>`}).join("")}</ul>`
-      : `<div class="free">Pomeriggio libero</div>`;
-    return `<div class="day${p===todayIdx?" today":""}">
-      <div class="day-h"><b>${FULL[p]}</b><span class="tot">${t?fmt(t):"—"}</span></div>
-      <div class="for">${x.target===6?"Nessuna lezione domani":"Per "+FULL[x.target].toLowerCase()}</div>
-      <div class="bar"><i style="width:${t/max*100}%"></i></div>${body}</div>`;
-  }).join("");
+// Le lezioni con compiti di un giorno della settimana (1 = lunedì).
+function lezioni(g) {
+  return S.orario.filter(o => o.giorno === g && !o.senza_compiti && (mat(o.materia_id)?.minuti || 0) > 0)
+                 .sort((a, b) => a.ora - b.ora);
+}
 
-  let html = `<thead><tr><th></th>${DAYS.slice(0,6).map(d=>`<th>${d}</th>`).join("")}</tr></thead><tbody>`;
-  HOURS.forEach((h,hi)=>{
-    html += `<tr><td class="h">${h}:00</td>`;
-    for(let d=0;d<6;d++){
-      const s = ORARIO[d][hi];
-      if(s==="^"){html+=`<td><span class="hint">↑</span></td>`;continue}
-      if(!s){html+=`<td></td>`;continue}
-      if(!(SUBJ[s].m>0||mins[s]>0)){html+=`<td><span class="cell zero">${s}</span></td>`;continue}
-      const k=`${d}-${hi}`;
-      html+=`<td><button type="button" class="cell${nohw[k]?" nohw":""}" data-l="${k}"><span class="dot" style="background:${col(s)}"></span>${s}</button></td>`;
+function render() {
+  // I pomeriggi della settimana: dalla domenica prima del lunedì al sabato.
+  const pomeriggi = [];
+  for (let i = -1; i <= 5; i++) {
+    const d = piu(S.lunedi, i), dopo = piu(d, 1).getDay();
+    pomeriggi.push({ d, giorno: iso(d), dopo, items: dopo >= 1 && dopo <= 6 ? lezioni(dopo) : [] });
+  }
+  const tot = p => p.items.reduce((a, o) => a + mat(o.materia_id).minuti, 0);
+  const max = Math.max(60, ...pomeriggi.map(tot));
+  const sabato = piu(S.lunedi, 5);
+  document.getElementById('week-label').textContent =
+    `Scuola ${S.lunedi.getDate()} ${MESI[S.lunedi.getMonth()]} – ${sabato.getDate()} ${MESI[sabato.getMonth()]}`;
+  const totale = pomeriggi.reduce((a, p) => a + tot(p), 0);
+  const fatto = pomeriggi.reduce((a, p) => a + p.items.filter(o => S.fatti.has(chiave(p.giorno, o.id))).reduce((x, o) => x + mat(o.materia_id).minuti, 0), 0);
+  document.getElementById('wtot').textContent = fmt(totale);
+  document.getElementById('wfatti').textContent = totale ? `fatti ${fmt(fatto)}` : '';
+  const oggiIso = iso(oggi());
+
+  document.getElementById('week').innerHTML = pomeriggi.map(p => {
+    const t = tot(p);
+    const body = p.items.length ? `<ul class="tasks">${p.items.map(o => {
+      const m = mat(o.materia_id), k = chiave(p.giorno, o.id), ok = S.fatti.has(k);
+      return `<li class="${ok ? 'ok' : ''}"><label><input type="checkbox" id="c-${p.giorno}-${o.id}" data-g="${p.giorno}" data-o="${o.id}" ${ok ? 'checked' : ''}>
+        <span class="dot" style="background:${col(m)}"></span><span class="n">${esc(m.nome)}</span><span class="m">${m.minuti}′</span></label></li>`;
+    }).join('')}</ul>` : `<div class="free">Pomeriggio libero</div>`;
+    return `<div class="day${p.giorno === oggiIso ? ' today' : ''}">
+      <div class="day-h"><b>${FULL[p.d.getDay()]} ${p.d.getDate()}</b><span class="tot">${t ? fmt(t) : '—'}</span></div>
+      <div class="for">${p.dopo >= 1 && p.dopo <= 6 ? 'Per ' + FULL[p.dopo].toLowerCase() : 'Nessuna lezione domani'}</div>
+      <div class="bar"><i style="width:${t / max * 100}%"></i></div>${body}</div>`;
+  }).join('');
+
+  // Orario
+  const ore = [...new Set(S.orario.flatMap(o => Array.from({ length: o.durata }, (_, i) => o.ora + i)))].sort((a, b) => a - b);
+  let h = `<thead><tr><th></th>${CORTI.map(g => `<th>${g}</th>`).join('')}</tr></thead><tbody>`;
+  ore.forEach(ora => {
+    h += `<tr><td class="h">${ora}:00</td>`;
+    for (let g = 1; g <= 6; g++) {
+      const o = S.orario.find(x => x.giorno === g && x.ora === ora);
+      if (!o) { const sopra = S.orario.find(x => x.giorno === g && x.ora < ora && x.ora + x.durata > ora); h += `<td>${sopra ? '<span class="hint">↑</span>' : ''}</td>`; continue; }
+      const m = mat(o.materia_id);
+      if (!m.minuti) { h += `<td><span class="cell zero">${esc(m.sigla)}</span></td>`; continue; }
+      h += `<td><button type="button" class="cell${o.senza_compiti ? ' nohw' : ''}" data-l="${o.id}" title="${esc(m.nome)}"><span class="dot" style="background:${col(m)}"></span>${esc(m.sigla)}</button></td>`;
     }
-    html+=`</tr>`;
+    h += '</tr>';
   });
-  document.getElementById("orario").innerHTML = html+"</tbody>";
+  document.getElementById('orario').innerHTML = h + '</tbody>';
 
-  const perWeek = s => ORARIO.reduce((a,row,d)=>a+row.filter((x,h)=>x===s&&!nohw[`${d}-${h}`]).length,0)*mins[s];
-  document.getElementById("subs").innerHTML = Object.keys(SUBJ).map(s=>`
-    <div class="sub-row"><span class="dot" style="background:${col(s)}"></span><span class="nm">${SUBJ[s].n}</span>
-      <div class="step"><button type="button" data-s="${s}" data-d="-5" aria-label="Meno 5 minuti">−</button>
-      <input id="m-${s.replace(" ","")}" inputmode="numeric" value="${mins[s]}" data-in="${s}" aria-label="Minuti ${SUBJ[s].n}">
-      <button type="button" data-s="${s}" data-d="5" aria-label="Più 5 minuti">+</button></div>
-      <span class="wk">${perWeek(s)?fmt(perWeek(s)):"—"}</span></div>`).join("");
+  // Minuti
+  const settimana = m => S.orario.filter(o => o.materia_id === m.id && !o.senza_compiti).length * m.minuti;
+  document.getElementById('subs').innerHTML = S.materie.map(m => `
+    <div class="sub-row"><span class="dot" style="background:${col(m)}"></span><span class="nm">${esc(m.nome)}</span>
+      <div class="step"><button type="button" data-m="${m.id}" data-d="-5" aria-label="Meno 5 minuti">−</button>
+      <input id="min-${m.id}" inputmode="numeric" value="${m.minuti}" data-in="${m.id}" aria-label="Minuti ${esc(m.nome)}">
+      <button type="button" data-m="${m.id}" data-d="5" aria-label="Più 5 minuti">+</button></div>
+      <span class="wk">${settimana(m) ? fmt(settimana(m)) : '—'}</span></div>`).join('');
 }
 
-document.addEventListener("click",e=>{
-  const b=e.target.closest("button"); if(!b) return;
-  if(b.dataset.l){ nohw[b.dataset.l]=!nohw[b.dataset.l]; save("ada-nohw",nohw); render(); }
-  else if(b.dataset.s){ const s=b.dataset.s; mins[s]=Math.max(0,mins[s]+ +b.dataset.d); save("ada-mins",mins); render(); }
-  else if(b.id==="reset-check"){ checks={}; save("ada-checks",checks); render(); }
+async function salvaMinuti(m, valore) {
+  const prima = m.minuti;
+  m.minuti = Math.max(0, Math.min(600, valore)); render();
+  try { await SC.db(`sc_materie?id=eq.${m.id}`, { method: 'PATCH', body: { minuti: m.minuti }, prefer: 'return=minimal' }); }
+  catch (e) { m.minuti = prima; render(); toast('Minuti non salvati: ' + e.message); }
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'prev' || b.id === 'next' || b.id === 'oggi') {
+    S.lunedi = b.id === 'oggi' ? lunediCorrente() : piu(S.lunedi, b.id === 'prev' ? -7 : 7);
+    try { await caricaFatti(); } catch (err) { toast(err.message); }
+  } else if (b.dataset.l) {
+    const o = S.orario.find(x => x.id === b.dataset.l); o.senza_compiti = !o.senza_compiti; render();
+    try { await SC.db(`sc_orario?id=eq.${o.id}`, { method: 'PATCH', body: { senza_compiti: o.senza_compiti }, prefer: 'return=minimal' }); }
+    catch (err) { o.senza_compiti = !o.senza_compiti; render(); toast('Non salvato: ' + err.message); }
+  } else if (b.dataset.m) {
+    const m = mat(b.dataset.m); salvaMinuti(m, m.minuti + Number(b.dataset.d));
+  }
 });
-document.addEventListener("change",e=>{
-  const t=e.target;
-  if(t.dataset.k){ checks[t.dataset.k]=t.checked; save("ada-checks",checks); render(); }
-  if(t.dataset.in){ const v=parseInt(t.value,10); mins[t.dataset.in]=isNaN(v)?0:Math.max(0,v); save("ada-mins",mins); render(); }
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (t.dataset.in) { const v = parseInt(t.value, 10); salvaMinuti(mat(t.dataset.in), isNaN(v) ? 0 : v); return; }
+  if (t.dataset.g) {
+    const k = chiave(t.dataset.g, t.dataset.o), fatto = t.checked;
+    fatto ? S.fatti.add(k) : S.fatti.delete(k); render();
+    try {
+      // Una spunta già messa da un altro telefono non è un errore.
+      if (fatto) await SC.db('sc_compiti_fatti', { method: 'POST', body: { giorno: t.dataset.g, orario_id: t.dataset.o }, prefer: 'return=minimal' })
+        .catch(err => { if (!/duplicate|unique/i.test(err.message)) throw err; });
+      else await SC.db(`sc_compiti_fatti?giorno=eq.${t.dataset.g}&orario_id=eq.${t.dataset.o}`, { method: 'DELETE', prefer: 'return=minimal' });
+    } catch (err) { fatto ? S.fatti.delete(k) : S.fatti.add(k); render(); toast('Spunta non salvata: ' + err.message); }
+  }
 });
-render();
+
+S.lunedi = lunediCorrente();
+SC.avvia('compiti-ada.html', carica);
 </script>
 </body>
 </html>
