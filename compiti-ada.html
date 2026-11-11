@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Compiti di Ada v2.0.0</title>
+<title>Compiti di Ada v2.0.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — piano della settimana, orario, minuti per materia */
@@ -60,8 +60,9 @@ td.h{color:var(--muted);font-variant-numeric:tabular-nums;width:48px}
 .cell.zero{color:var(--muted);cursor:default}
 .hint{font-size:13px;color:var(--muted)}
 .subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-.sub-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
-.sub-row .nm{flex:1;min-width:0;font-weight:500}
+.sub-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.sub-row .nm{flex:1 1 calc(100% - 24px);min-width:0;font-weight:500;overflow-wrap:normal;word-break:normal}
+.sub-row .wk{margin-left:auto}
 .step{display:flex;align-items:center;gap:4px}
 .step button{font:inherit;width:32px;height:32px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
 .step input{width:46px;text-align:center;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--card);color:var(--fg)}
@@ -107,8 +108,8 @@ td.h{color:var(--muted);font-variant-numeric:tabular-nums;width:48px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.0.0';
-var BUILD_TIME  = '2026-11-11T15:10:00Z';
+var APP_VERSION = 'v2.0.1';
+var BUILD_TIME  = '2026-11-11T15:15:00Z';
 console.log('%c COMPITI ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#2f5bd3;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -194,8 +195,8 @@ function render() {
       const o = S.orario.find(x => x.giorno === g && x.ora === ora);
       if (!o) { const sopra = S.orario.find(x => x.giorno === g && x.ora < ora && x.ora + x.durata > ora); h += `<td>${sopra ? '<span class="hint">↑</span>' : ''}</td>`; continue; }
       const m = mat(o.materia_id);
-      if (!m.minuti) { h += `<td><span class="cell zero">${esc(m.sigla)}</span></td>`; continue; }
-      h += `<td><button type="button" class="cell${o.senza_compiti ? ' nohw' : ''}" data-l="${o.id}" title="${esc(m.nome)}"><span class="dot" style="background:${col(m)}"></span>${esc(m.sigla)}</button></td>`;
+      if (!m.minuti) { h += `<td><span class="cell zero">${esc(m.nome)}</span></td>`; continue; }
+      h += `<td><button type="button" class="cell${o.senza_compiti ? ' nohw' : ''}" data-l="${o.id}" title="${esc(m.nome)}"><span class="dot" style="background:${col(m)}"></span>${esc(m.nome)}</button></td>`;
     }
     h += '</tr>';
   });
