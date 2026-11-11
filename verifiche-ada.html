@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Verifiche di Ada v2.3.0</title>
+<title>Verifiche di Ada v2.4.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — prossima verifica in evidenza, elenco per data, form per aggiungere */
@@ -63,7 +63,19 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .acts{display:flex;flex-direction:column;gap:6px;flex:none;align-self:flex-start}
 .edit{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;min-width:40px;min-height:40px;padding:0 8px;cursor:pointer}
 .row{align-items:flex-start}
-.args{display:grid;gap:8px;margin-top:10px}
+.argbox{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.argbox>summary{list-style:none;cursor:pointer;padding:8px 10px;display:grid;gap:6px}
+.argbox>summary::-webkit-details-marker{display:none}
+.argbox>summary .recap{margin-top:0}
+.argbox>summary .apri{font-size:12px;color:var(--accent);font-weight:600}
+.argbox[open]>summary .apri::before{content:'▾ Chiudi gli argomenti'}
+.argbox:not([open])>summary .apri::before{content:'▸ Apri gli argomenti'}
+.barre{display:grid;gap:4px}
+.barra{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:center;font-size:12px;color:var(--muted)}
+.barra .tr{grid-column:1/-1;grid-row:2;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.barra .tr i{display:block;height:100%;background:var(--ok);border-radius:999px}
+.barra b{color:var(--fg);font-variant-numeric:tabular-nums}
+.args{display:grid;gap:8px;padding:0 10px 10px}
 .arg{display:grid;gap:4px;border-top:1px dashed var(--line);padding-top:8px}
 .arg .t{font-weight:500}
 .arg .t small{color:var(--muted);font-weight:400}
@@ -155,8 +167,8 @@ textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.3.0';
-var BUILD_TIME  = '2026-11-11T18:05:00Z';
+var APP_VERSION = 'v2.4.0';
+var BUILD_TIME  = '2026-11-11T18:15:00Z';
 console.log('%c VERIFICHE ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#c4527a;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -193,6 +205,7 @@ function evidenzia() {
   const vid = h && (h[1] === 'ver' ? h[2] : (args.find(a => a.id === h[2]) || {}).verifica_id);
   const v = vid && ver.find(x => x.id === vid);
   if (v && diff(v.data) < 0) showPast = true;
+  if (h && h[1] === 'arg') aperti.add(vid);
   render();
   const el = h && document.getElementById(h[1] + '-' + h[2]); if (!el) return;
   history.replaceState(null, '', location.pathname);
@@ -243,13 +256,27 @@ function render() {
   t.textContent = showPast ? 'Nascondi le passate' : `Mostra le passate (${past.length})`;
 }
 
+// Gli argomenti stanno chiusi: si vede il riepilogo con una barra per spunta,
+// e toccandolo si aprono. Quali sono aperti lo ricorda `aperti` fra un disegno e l'altro.
+const aperti = new Set();
+document.addEventListener('toggle', e => {
+  const d = e.target; if (!d.classList || !d.classList.contains('argbox')) return;
+  d.open ? aperti.add(d.dataset.ver) : aperti.delete(d.dataset.ver);
+}, true);
+function barreHtml(lista) {
+  const n = lista.length;
+  return `<div class="barre">${SPUNTE.map(([k, l]) => { const f = lista.filter(a => a[k]).length;
+    return `<div class="barra"><span>${l}</span><b>${f}/${n}</b><span class="tr"><i style="width:${n ? f / n * 100 : 0}%"></i></span></div>`; }).join('')}</div>`;
+}
 function argomentiHtml(id) {
   const lista = argsDi(id); if (!lista.length) return '';
-  return `<div class="args">${lista.map(a => {
+  return `<details class="argbox" data-ver="${id}"${aperti.has(id) ? ' open' : ''}><summary>
+    <div class="recap">${recapHtml(lista, false)}</div>${barreHtml(lista)}<span class="apri"></span></summary>
+    <div class="args">${lista.map(a => {
     const det = [a.pagine != null ? `${a.pagine} pag.` : '', a.ore != null ? `${num(a.ore)} h` : ''].filter(Boolean).join(' · ');
     return `<div class="arg" id="arg-${a.id}"><div class="t">${esc(a.titolo)}${det ? ` <small>· ${det}</small>` : ''}</div>
       <div class="checks">${SPUNTE.map(([k, l]) => `<button type="button" class="chk" data-arg="${a.id}" data-k="${k}" aria-pressed="${a[k] ? 'true' : 'false'}">${a[k] ? '☑' : '☐'} ${l}</button>`).join('')}</div></div>`;
-  }).join('')}</div><div class="recap">${recapHtml(lista, true)}</div>`;
+  }).join('')}</div></details>`;
 }
 
 // ── Form: argomenti in modifica ────────────────────────────────────────────
