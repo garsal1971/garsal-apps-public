@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Impostazioni studio v1.0.0</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: colonna unica — pausa al giorno, poi un riquadro per giorno con le sue fasce */
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --on-accent:#ffffff; --ok:#2e8b57; --danger:#c0392b;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --on-accent:#12161f; --ok:#5cc48a; --danger:#ef7a6b; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --on-accent:#12161f; --ok:#5cc48a; --danger:#ef7a6b; color-scheme:dark}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.wrap{max-width:720px;margin:0 auto;padding-block:24px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:18px;font-weight:600}
+.sub{color:var(--muted);margin:4px 0 0}
+.sub a{color:var(--accent)}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
+.day-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.day-h .tot{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.day-h .tot b{color:var(--fg)}
+.fascia{display:flex;flex-wrap:wrap;align-items:end;gap:8px}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;min-width:0}
+input[type=time]{min-width:7.5rem}
+button{font:inherit;cursor:pointer}
+.ghost{background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 12px;min-height:40px}
+.del{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;min-width:40px;min-height:40px}
+.primary{font-weight:600;background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:10px 18px;min-height:44px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.err{color:var(--danger);font-size:13px}
+.tot-sett{font-family:var(--display);font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.bar-save{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" hidden>
+  <header class="head">
+    <div>
+      <h1>Impostazioni studio</h1>
+      <p class="sub">Le fasce orarie per studiare e la pausa. Le usa il <a href="calendario-ada.html">Calendario →</a></p>
+    </div>
+    <div class="sc-utente" id="sc-utente"></div>
+  </header>
+
+  <div class="card">
+    <label>Minuti di pausa al giorno<input id="pausa" type="number" inputmode="numeric" min="0" max="600" step="5" style="max-width:8rem"></label>
+    <p class="hint">Si tolgono dal tempo delle fasce, nei giorni in cui si studia.</p>
+  </div>
+
+  <div class="card"><div class="day-h"><h2>Tempo utile nella settimana</h2><span class="tot-sett" id="tot-sett">—</span></div></div>
+
+  <div id="giorni" style="display:grid;gap:12px"><p class="hint">Carico…</p></div>
+</div>
+<div class="bar-save" id="bar-save" hidden>
+  <span class="hint" id="stato">Nessuna modifica</span>
+  <button class="primary" type="button" id="salva">Salva</button>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="scuola-ada.js"></script>
+<script>
+var APP_VERSION = 'v1.0.0';
+var BUILD_TIME  = '2026-11-11T16:10:00Z';
+console.log('%c IMPOSTAZIONI ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+  'background:#475569;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+  'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+// Giorni in ordine di lettura (lunedì → domenica), chiave = getDay() di JS.
+const GIORNI = [[1,'Lunedì'],[2,'Martedì'],[3,'Mercoledì'],[4,'Giovedì'],[5,'Venerdì'],[6,'Sabato'],[0,'Domenica']];
+const S = { fasce: {}, pausa: 0, sporco: false };
+
+const minuti = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? null : h * 60 + (m || 0); };
+const durata = f => { const a = minuti(f[0]), b = minuti(f[1]); return a == null || b == null || b <= a ? 0 : b - a; };
+const fmt = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
+// Tempo utile di un giorno: le fasce meno la pausa (che vale solo se si studia).
+const utile = g => { const t = (S.fasce[g] || []).reduce((a, f) => a + durata(f), 0); return t ? Math.max(0, t - S.pausa) : 0; };
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3500); }
+
+async function carica() {
+  try {
+    const [r] = await SC.db('sc_impostazioni?select=*&limit=1');
+    if (r) { S.fasce = r.fasce || {}; S.pausa = r.pausa_minuti || 0; }
+    document.getElementById('pausa').value = S.pausa;
+    document.getElementById('bar-save').hidden = false;
+    render();
+  } catch (e) { toast('Non riesco a leggere le impostazioni: ' + e.message); }
+}
+
+function render() {
+  document.getElementById('giorni').innerHTML = GIORNI.map(([g, nome]) => {
+    const lista = S.fasce[g] || [], tot = lista.reduce((a, f) => a + durata(f), 0);
+    return `<div class="card">
+      <div class="day-h"><h2>${nome}</h2><span class="tot">${tot ? `fasce ${fmt(tot)}${S.pausa ? ` − pausa ${S.pausa}′` : ''} = <b>${fmt(utile(g))}</b>` : 'niente studio'}</span></div>
+      ${lista.map((f, i) => `<div class="fascia">
+        <label>Dalle<input type="time" value="${f[0] || ''}" data-g="${g}" data-i="${i}" data-k="0"></label>
+        <label>Alle<input type="time" value="${f[1] || ''}" data-g="${g}" data-i="${i}" data-k="1"></label>
+        <button type="button" class="del" data-del="${g}" data-i="${i}" aria-label="Togli fascia">🗑</button>
+        ${f[0] && f[1] && !durata(f) ? '<span class="err">L\'ora di fine viene prima dell\'inizio</span>' : ''}</div>`).join('')}
+      <div><button type="button" class="ghost" data-add="${g}">➕ Fascia</button></div></div>`;
+  }).join('');
+  document.getElementById('tot-sett').textContent = fmt(GIORNI.reduce((a, [g]) => a + utile(g), 0));
+  document.getElementById('stato').textContent = S.sporco ? 'Modifiche da salvare' : 'Nessuna modifica';
+}
+const modificato = () => { S.sporco = true; };
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.add != null) {
+    const g = b.dataset.add, l = S.fasce[g] = S.fasce[g] || [];
+    const ultima = l[l.length - 1];
+    l.push(ultima ? [ultima[1], ''] : ['15:00', '17:00']); modificato(); render();
+  } else if (b.dataset.del != null) {
+    S.fasce[b.dataset.del].splice(+b.dataset.i, 1); modificato(); render();
+  } else if (b.id === 'salva') {
+    // Le fasce incomplete o rovesciate non si salvano; ognuna in ordine d'inizio.
+    const pulite = {};
+    for (const [g] of GIORNI) {
+      const l = (S.fasce[g] || []).filter(f => durata(f) > 0).sort((a, c) => minuti(a[0]) - minuti(c[0]));
+      if (l.length) pulite[g] = l;
+    }
+    b.disabled = true;
+    try {
+      await SC.db('sc_impostazioni?on_conflict=user_id', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+        body: { fasce: pulite, pausa_minuti: S.pausa, updated_at: new Date().toISOString() } });
+      S.fasce = pulite; S.sporco = false; render(); toast('Impostazioni salvate.');
+    } catch (err) { toast('Non salvate: ' + err.message); }
+    finally { b.disabled = false; }
+  }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'pausa') { S.pausa = Math.max(0, Math.min(600, parseInt(t.value, 10) || 0)); t.value = S.pausa; modificato(); render(); return; }
+  if (t.dataset.g != null) { S.fasce[t.dataset.g][+t.dataset.i][+t.dataset.k] = t.value; modificato(); render(); }
+});
+window.addEventListener('beforeunload', e => { if (S.sporco) { e.preventDefault(); e.returnValue = ''; } });
+
+SC.avvia('impostazioni-ada.html', carica);
+</script>
+</body>
+</html>
