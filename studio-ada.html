@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.1.0</title>
+<title>Studio di oggi v1.2.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -44,14 +44,23 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .btn.pausa small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
 .btn.stop{border-color:var(--muted)}
 .zone{position:relative;flex:1;min-height:0}
-.z{position:absolute;box-sizing:border-box;border:2px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden;cursor:pointer;display:flex;user-select:none;-webkit-user-select:none}
-.z .fill{position:absolute;left:0;right:0;bottom:0;height:0;transition:height .6s linear}
-.z.compito .fill{background:var(--compiti-bg)} .z.argomento .fill{background:var(--studio-bg)}
-.z.compito{border-left:8px solid var(--compiti)} .z.argomento{border-left:8px solid var(--studio)}
-.z.run{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
-.z.compito.run{border-left-color:var(--compiti)} .z.argomento.run{border-left-color:var(--studio)}
-.z.oltre .fill{background:repeating-linear-gradient(135deg,var(--pausa-bg) 0 10px,transparent 10px 20px),var(--compiti-bg)}
-.z.argomento.oltre .fill{background:repeating-linear-gradient(135deg,var(--pausa-bg) 0 10px,transparent 10px 20px),var(--studio-bg)}
+.z{position:absolute;box-sizing:border-box;border:4px solid #000;border-radius:12px;background:var(--zc);overflow:hidden;cursor:pointer;display:flex;user-select:none;-webkit-user-select:none}
+/* Ogni impegno ha il suo colore (--zl/--ql chiaro, --zd/--qd scuro): fondo tenue, liquido più pieno. */
+.z{--zc:var(--zl);--qc:var(--ql)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .z{--zc:var(--zd);--qc:var(--qd)}}
+:root[data-theme="dark"] .z{--zc:var(--zd);--qc:var(--qd)}
+/* Il liquido: sale dal basso, e in cima due onde che scorrono mentre il cronometro gira. */
+.z .fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--qc);transition:height .6s linear}
+.z .fill::before,.z .fill::after{content:'';position:absolute;left:0;right:0;height:14px;background:var(--qc);
+  -webkit-mask:var(--onda) repeat-x 0 0/90px 14px;mask:var(--onda) repeat-x 0 0/90px 14px;
+  animation:onda 2.4s linear infinite;animation-play-state:paused}
+.z .fill::before{top:-13px}
+.z .fill::after{top:-9px;opacity:.5;animation-duration:3.6s;animation-direction:reverse}
+.z.run .fill::before,.z.run .fill::after{animation-play-state:running}
+.z .fill.secca::before,.z .fill.secca::after{display:none}
+@keyframes onda{to{-webkit-mask-position:90px 0;mask-position:90px 0}}
+.z.run{box-shadow:inset 0 0 0 3px #fff}
+.z.oltre .fill{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.35) 0 10px,transparent 10px 20px)}
 .z.fatto{opacity:.55}
 .z.fatto .t{text-decoration:line-through}
 .z .in{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:4px;padding:8px 10px}
@@ -60,16 +69,16 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .z.piccolo .ok{padding:3px 9px;min-height:30px}
 .z .r1{display:flex;align-items:flex-start;gap:8px}
 .z .t{flex:1;min-width:0;font-weight:600;line-height:1.25}
-.z .t small{display:block;font-weight:400;color:var(--muted);font-size:.85em}
+.z .t small{display:block;font-weight:400;color:var(--fg);opacity:.75;font-size:.85em}
 .z .play{flex:none;font-size:1.2em;line-height:1}
 .z .r2{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
-.z .tempo{font-variant-numeric:tabular-nums;font-size:.9em;color:var(--muted)}
+.z .tempo{font-variant-numeric:tabular-nums;font-size:.9em;color:var(--fg);opacity:.8}
 .z .tempo b{color:var(--fg);font-size:1.25em;font-family:var(--display)}
 .z.oltre .tempo .piu{color:var(--warn);font-weight:600}
 .ok{font:inherit;font-size:13px;font-weight:600;border:2px solid var(--ok);color:var(--ok);background:var(--card);border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer}
 .ok.pronto{background:var(--ok);color:var(--card);animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{50%{transform:scale(1.06)}}
-@media (prefers-reduced-motion:reduce){.ok.pronto{animation:none}.z .fill{transition:none}}
+@media (prefers-reduced-motion:reduce){.ok.pronto{animation:none}.z .fill{transition:none}.z .fill::before,.z .fill::after{animation:none}}
 .vuoto,.loading{color:var(--muted)}
 .vuoto a{color:var(--accent)}
 .nota{font-size:13px;color:var(--muted)}
@@ -92,8 +101,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.1.0';
-var BUILD_TIME  = '2026-11-11T21:40:00Z';
+var APP_VERSION = 'v1.2.0';
+var BUILD_TIME  = '2026-11-11T21:50:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -194,13 +203,21 @@ function disegna() {
   if (!S.voci.length) {
     z.innerHTML = `<p class="vuoto">Oggi non c'è niente in programma. Se ti aspettavi qualcosa, controlla le <a href="impostazioni-ada.html">fasce di studio</a> e il <a href="calendario-ada.html">calendario</a>.</p>`;
   } else {
-    z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0">
+    z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0" style="${colori(i)}">
       <div class="fill"></div>
       <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}</small></div><span class="play"></span></div>
       <div class="r2"><span class="tempo"></span><button type="button" class="ok" data-ok="${i}">✓<span class="lab"> ${v.tipo === 'compito' ? 'Fatto' : 'Studiato'}</span></button></div></div></div>`).join('');
   }
   disponi();
   aggiorna();
+}
+
+// Un colore diverso per ogni impegno: tinte distanziate dall'angolo aureo, così due vicine non si somigliano.
+const ONDA = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="14" viewBox="0 0 90 14"><path d="M0 7 Q22.5 0 45 7 T90 7 V14 H0Z"/></svg>')}")`;
+document.documentElement.style.setProperty('--onda', ONDA);
+function colori(i) {
+  const h = Math.round((i * 137.508 + 205) % 360);
+  return `--zl:hsl(${h} 80% 91%);--ql:hsl(${h} 65% 66%);--zd:hsl(${h} 30% 22%);--qd:hsl(${h} 50% 40%)`;
 }
 
 // Mosaico (treemap «squarified»): ogni impegno prende un rettangolo con l'area
@@ -243,7 +260,7 @@ function aggiorna() {
     tot += ms;
     const prev = v.min * 60e3, frac = prev ? ms / prev : (ms ? 1 : 0), oltre = prev && ms > prev;
     el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
-    el.querySelector('.fill').style.height = Math.min(100, frac * 100) + '%';
+    const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms);
     el.querySelector('.play').textContent = v.fatto ? '✅' : run ? '⏸' : '▶️';
     el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? '<span class="su"> / ' + fmtMin(v.min) + '</span>' : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
     const ok = el.querySelector('.ok'); ok.hidden = !!v.fatto; ok.classList.toggle('pronto', !!(prev && ms >= prev));
