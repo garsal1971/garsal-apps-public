@@ -1,6 +1,9 @@
 /* ============================================================================
-   scuola-ada.js v1.0.1 — accesso e database per compiti-ada.html e
-   verifiche-ada.html.
+   scuola-ada.js v1.1.0 — accesso, database e barra in alto per le pagine
+   della scuola di Ada (compiti, verifiche, calendario, impostazioni).
+
+   La barra blu è quella di AppSphere (logo + «Garsal Apps», nome, ☰): il
+   logo torna ad AppSphere, il ☰ porta alle quattro pagine e a «Esci».
 
    ⚠️ Deroga dichiarata alla regola «un'app = un file HTML»: le due pagine
    condividono login e chiamate a Supabase, e due copie divergerebbero.
@@ -93,8 +96,18 @@
 .sc-login .msg{font-size:14px;margin:0}
 .sc-login .err{color:var(--danger)}
 .sc-login .ok{color:var(--ok)}
-.sc-utente{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
-.sc-utente button{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:4px 10px;cursor:pointer}`;
+.sc-utente{display:none}
+body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
+#sc-barra{position:fixed;top:0;left:0;right:0;z-index:500;min-height:56px;box-sizing:border-box;display:flex;align-items:center;gap:10px;background:#0081C8;color:#fff;padding-top:env(safe-area-inset-top,0px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+#sc-barra a.sc-brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0;color:#fff;text-decoration:none;font-family:"DM Sans",system-ui,sans-serif;font-size:15px;font-weight:600}
+#sc-barra a.sc-brand svg{flex-shrink:0}
+#sc-barra .sc-nome{color:rgba(255,255,255,.85);font-size:13px}
+#sc-barra .sc-hb{background:none;border:0;cursor:pointer;padding:10px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;min-height:44px;justify-content:center}
+#sc-barra .sc-hb span{display:block;width:20px;height:2px;background:#fff;border-radius:2px}
+#sc-menu{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));right:0;min-width:200px;max-width:calc(100% - 32px);background:#fff;border-radius:0 0 0 14px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:600;overflow:hidden}
+#sc-menu a,#sc-menu button{display:block;width:100%;box-sizing:border-box;padding:15px 20px;text-align:left;background:none;border:0;border-bottom:1px solid #f0f0f0;font:inherit;font-size:15px;color:#222;text-decoration:none;cursor:pointer}
+#sc-menu .attiva{font-weight:700;background:#eef5fb}
+#sc-menu .esci{color:#c0392b;border-bottom:0}`;
     document.head.appendChild(s);
   }
 
@@ -187,18 +200,44 @@
     }
     box().hidden = true;
     const app = document.getElementById('app'); if (app) app.hidden = false;
-    const u = document.getElementById('sc-utente');
-    if (u) {
-      u.innerHTML = `<span>${sessione.user.email}</span><button type="button" id="sc-esci">Esci</button>`;
-      document.getElementById('sc-esci').addEventListener('click', () => esci());
-    }
+    barra();
     if (quandoPronto) quandoPronto();
+  }
+
+  /* ── Barra in alto, come in AppSphere ─────────────────────────────── */
+  const PAGINE = [['compiti-ada.html', '📚 Compiti'], ['verifiche-ada.html', '📝 Verifiche'],
+                  ['calendario-ada.html', '📅 Calendario'], ['impostazioni-ada.html', '⚙️ Impostazioni']];
+  const LOGO = '<svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>';
+  function barra() {
+    let b = document.getElementById('sc-barra');
+    if (!b) {
+      b = document.createElement('header'); b.id = 'sc-barra'; document.body.prepend(b);
+      const m = document.createElement('nav'); m.id = 'sc-menu'; m.hidden = true; document.body.prepend(m);
+      document.addEventListener('click', e => {
+        const menu = document.getElementById('sc-menu');
+        if (e.target.closest('#sc-hb')) { menu.hidden = !menu.hidden; return; }
+        if (!e.target.closest('#sc-menu')) menu.hidden = true;
+      });
+    }
+    // Il nome: come in AppSphere, la prima parola del nome Google o dell'email.
+    const u = sessione.user, nome = ((u.user_metadata && u.user_metadata.full_name) || u.email || '').split(/[ @.]/)[0];
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    b.innerHTML = `<a class="sc-brand" href="/">${LOGO}<span>Garsal Apps</span></a>
+      <span class="sc-nome">${esc(nome.charAt(0).toUpperCase() + nome.slice(1))}</span>
+      <button type="button" class="sc-hb" id="sc-hb" aria-label="Menu"><span></span><span></span><span></span></button>`;
+    const menu = document.getElementById('sc-menu');
+    menu.innerHTML = PAGINE.map(([f, t]) => `<a href="${f}"${f === pagina ? ' class="attiva" aria-current="page"' : ''}>${t}</a>`).join('')
+      + '<a href="/">🏠 AppSphere</a><button type="button" class="esci" id="sc-esci">↩ Esci</button>';
+    document.getElementById('sc-esci').addEventListener('click', () => { menu.hidden = true; esci(); });
+    b.hidden = false; document.body.classList.add('sc-con-barra');
   }
 
   function esci(messaggio) {
     // ⚠️ `sb_token` non si tocca: è il login di AppSphere, e toglierlo da qui
     // farebbe uscire Salvatore da tutte le altre app.
     sessione = null; scrivi(null);
+    const b = document.getElementById('sc-barra'); if (b) b.hidden = true;
+    document.body.classList.remove('sc-con-barra');
     mostraLogin(messaggio || '', !!messaggio);
   }
 
