@@ -2249,6 +2249,7 @@ Migration: `20261028100000_af_autoformazione.sql`. Pagina: `autoformazione.html`
 | `sc_orario` | Orario settimanale: `giorno` 1-6 (lun-sab), `ora` d'inizio, `durata` in ore, `materia_id`, `senza_compiti` |
 | `sc_compiti_fatti` | Le spunte del piano: `giorno` = il pomeriggio in cui si sono fatti i compiti di quella lezione |
 | `sc_verifiche` | Compiti in classe e interrogazioni: `data`, `materia` (testo), `tipo`, `note` |
+| `sc_argomenti` | Gli argomenti di una verifica (`verifica_id`, `ON DELETE CASCADE`): `titolo`, `pagine`, `ore` (previste, NULL = non dette), le tre spunte `studiato` / `ripetuto` / `tranquillo`, `posizione` |
 
 Migration `20261111150000_sc_scuola_ada.sql`. Pagine: `compiti-ada.html` (piano settimanale: i
 compiti di una lezione si fanno **il pomeriggio prima**, domenica per il lunedì) e
@@ -2261,6 +2262,7 @@ compiti di una lezione si fanno **il pomeriggio prima**, domenica per il lunedì
   prima password si imposta col link «Imposta la password», che torna sulla pagina — le due
   pagine vanno fra i **Redirect URLs** di Supabase. La sessione dell'ospite sta in
   `localStorage.sc_session`, non in `garsal_session` (è di situazione-teresa/rosa).
+- 📚 **Argomenti delle verifiche** (`20261111170000_sc_argomenti.sql`, `verifiche-ada.html` v2.1.0): la verifica si modifica (✏️) e nel form ha l'elenco degli argomenti con pagine e ore, col recap dei totali; nel calendario ogni argomento ha le tre spunte, scritte subito (ottimistiche con rollback), più il recap delle spunte. ⚠️ Salvando, gli argomenti rimasti si **aggiornano** (le spunte restano), i nuovi si aggiungono e i tolti si cancellano (`salvaArgs`).
 - ⚠️ **Nessun dato in repo**: orario, minuti, verifiche e la riga di `cm_guest_access` si
   scrivono a mano nel database.
 - 🎒 **In AppSphere Ada ha un recap e due bolle suoi** (`index.html` v1.17.0): se la RPC

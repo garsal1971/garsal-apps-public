@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Verifiche di Ada v2.0.0</title>
+<title>Verifiche di Ada v2.1.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — prossima verifica in evidenza, elenco per data, form per aggiungere */
@@ -57,6 +57,26 @@ button.primary{font:inherit;font-weight:600;background:var(--accent);color:var(-
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .toggle{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;justify-self:start;min-height:36px}
 .empty,.loading{color:var(--muted)}
+.acts{display:flex;flex-direction:column;gap:6px;flex:none;align-self:flex-start}
+.edit{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;min-width:40px;min-height:40px;padding:0 8px;cursor:pointer}
+.row{align-items:flex-start}
+.args{display:grid;gap:8px;margin-top:10px}
+.arg{display:grid;gap:4px;border-top:1px dashed var(--line);padding-top:8px}
+.arg .t{font-weight:500}
+.arg .t small{color:var(--muted);font-weight:400}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.chk{font:inherit;font-size:13px;background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:4px 10px;min-height:34px;cursor:pointer}
+.chk[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--on-accent)}
+.recap{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px}
+.recap b{color:var(--fg);font-variant-numeric:tabular-nums}
+.form-args{grid-column:1/-1;display:grid;gap:8px}
+.form-args .hd{font-size:13px;color:var(--muted);font-weight:600}
+.farg{display:grid;grid-template-columns:minmax(0,1fr) 5.5rem 5.5rem 40px;gap:6px;align-items:end}
+@media (max-width:520px){.farg{grid-template-columns:1fr 1fr 40px}.farg .ft{grid-column:1/-1}}
+.farg button{font:inherit;min-height:40px;border:1px solid var(--line);background:none;border-radius:8px;color:var(--muted);cursor:pointer}
+.form-btns{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ghost{font:inherit;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 12px;min-height:40px;cursor:pointer}
+.form-recap{grid-column:1/-1;margin:0}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
 </head>
@@ -79,13 +99,22 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   </section>
 
   <section>
-    <h2>Aggiungi</h2>
+    <h2 id="form-title">Aggiungi</h2>
     <form class="add" id="add">
       <label>Data<input type="date" id="f-data" required></label>
       <label>Materia<input id="f-mat" list="materie" placeholder="es. Matematica" required></label>
       <label>Tipo<select id="f-tipo"><option value="compito">Compito</option><option value="interrogazione">Interrogazione</option></select></label>
       <label>Note<input id="f-note" placeholder="facoltative"></label>
-      <button class="primary" type="submit">Aggiungi</button>
+      <div class="form-args">
+        <div class="hd">Argomenti da studiare</div>
+        <div id="f-args"></div>
+        <div><button class="ghost" type="button" id="f-add-arg">➕ Argomento</button></div>
+      </div>
+      <div class="recap form-recap" id="f-recap"></div>
+      <div class="form-btns">
+        <button class="primary" type="submit" id="f-submit">Aggiungi</button>
+        <button class="ghost" type="button" id="f-cancel" hidden>Annulla</button>
+      </div>
     </form>
     <datalist id="materie"></datalist>
   </section>
@@ -94,15 +123,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.0.0';
-var BUILD_TIME  = '2026-11-11T15:10:00Z';
+var APP_VERSION = 'v2.1.0';
+var BUILD_TIME  = '2026-11-11T15:40:00Z';
 console.log('%c VERIFICHE ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#c4527a;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
 
 const GG = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'], MESI = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
 const GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
-let ver = [], showPast = false;
+let ver = [], args = [], showPast = false, inModifica = null;
 
 const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const oggi = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
@@ -114,14 +143,27 @@ function toast(t) { const el = document.getElementById('toast'); el.textContent 
 
 async function carica() {
   try {
-    const [v, m] = await Promise.all([
+    const [v, m, a] = await Promise.all([
       SC.db('sc_verifiche?select=*&order=data,created_at'),
-      SC.db('sc_materie?select=nome&order=posizione,nome')
+      SC.db('sc_materie?select=nome&order=posizione,nome'),
+      SC.db('sc_argomenti?select=*&order=posizione,created_at')
     ]);
-    ver = v;
+    ver = v; args = a;
     document.getElementById('materie').innerHTML = m.map(x => `<option value="${esc(x.nome)}">`).join('');
     render();
   } catch (e) { toast('Non riesco a leggere le verifiche: ' + e.message); }
+}
+
+const argsDi = id => args.filter(a => a.verifica_id === id).sort((x, y) => x.posizione - y.posizione);
+const num = n => String(Math.round(n * 10) / 10).replace('.', ',');
+const SPUNTE = [['studiato', 'Studiato'], ['ripetuto', 'Ripetuto'], ['tranquillo', 'Mi sento tranquillo']];
+// Recap: argomenti, pagine, ore e quanti hanno ciascuna spunta.
+function recapHtml(lista, spunte) {
+  if (!lista.length) return '';
+  const pag = lista.reduce((t, a) => t + (Number(a.pagine) || 0), 0), ore = lista.reduce((t, a) => t + (Number(a.ore) || 0), 0);
+  let h = `<span><b>${lista.length}</b> argoment${lista.length === 1 ? 'o' : 'i'}</span><span><b>${pag}</b> pagine</span><span><b>${num(ore)}</b> ore</span>`;
+  if (spunte) h += SPUNTE.map(([k, l]) => `<span>${l}: <b>${lista.filter(a => a[k]).length}/${lista.length}</b></span>`).join('');
+  return h;
 }
 
 function render() {
@@ -141,8 +183,10 @@ function render() {
     return `<div class="row${g < 0 ? ' past' : ''}">
       <div class="date"><span>${GG[d.getDay()]}</span><b>${d.getDate()}</b><span>${MESI[d.getMonth()]}</span></div>
       <div class="info"><div class="mat">${esc(v.materia)}</div>${v.note ? `<div class="note">${esc(v.note)}</div>` : ''}
-        <div class="badges"><span class="badge ${v.tipo}">${tipoTxt(v.tipo)}</span>${b}</div></div>
-      <button class="del" type="button" data-id="${v.id}" aria-label="Elimina ${esc(v.materia)}">✕</button></div>`;
+        <div class="badges"><span class="badge ${v.tipo}">${tipoTxt(v.tipo)}</span>${b}</div>
+        ${argomentiHtml(v.id)}</div>
+      <div class="acts"><button class="edit" type="button" data-edit="${v.id}" aria-label="Modifica ${esc(v.materia)}">✏️</button>
+      <button class="del" type="button" data-id="${v.id}" aria-label="Elimina ${esc(v.materia)}">✕</button></div></div>`;
   }).join('');
   document.getElementById('list').innerHTML = rows || `<p class="empty">Niente in calendario.</p>`;
   const t = document.getElementById('toggle-past');
@@ -150,9 +194,78 @@ function render() {
   t.textContent = showPast ? 'Nascondi le passate' : `Mostra le passate (${past.length})`;
 }
 
+function argomentiHtml(id) {
+  const lista = argsDi(id); if (!lista.length) return '';
+  return `<div class="args">${lista.map(a => {
+    const det = [a.pagine != null ? `${a.pagine} pag.` : '', a.ore != null ? `${num(a.ore)} h` : ''].filter(Boolean).join(' · ');
+    return `<div class="arg"><div class="t">${esc(a.titolo)}${det ? ` <small>· ${det}</small>` : ''}</div>
+      <div class="checks">${SPUNTE.map(([k, l]) => `<button type="button" class="chk" data-arg="${a.id}" data-k="${k}" aria-pressed="${a[k] ? 'true' : 'false'}">${a[k] ? '☑' : '☐'} ${l}</button>`).join('')}</div></div>`;
+  }).join('')}</div><div class="recap">${recapHtml(lista, true)}</div>`;
+}
+
+// ── Form: argomenti in modifica ────────────────────────────────────────────
+function rigaArg(a = {}) {
+  const d = document.createElement('div'); d.className = 'farg'; if (a.id) d.dataset.id = a.id;
+  d.innerHTML = `<label class="ft">Argomento<input class="a-t" value="${esc(a.titolo || '')}" placeholder="es. Equazioni di 2° grado"></label>
+    <label>Pagine<input class="a-p" inputmode="numeric" value="${a.pagine ?? ''}"></label>
+    <label>Ore<input class="a-o" inputmode="decimal" value="${a.ore != null ? num(a.ore) : ''}"></label>
+    <button type="button" class="a-del" aria-label="Togli argomento">🗑</button>`;
+  document.getElementById('f-args').appendChild(d);
+  return d;
+}
+function leggiArgs() {
+  return [...document.querySelectorAll('#f-args .farg')].map((d, i) => {
+    const p = d.querySelector('.a-p').value.trim(), o = d.querySelector('.a-o').value.trim().replace(',', '.');
+    return { id: d.dataset.id || null, titolo: d.querySelector('.a-t').value.trim(),
+      pagine: p === '' ? null : Math.max(0, parseInt(p, 10) || 0), ore: o === '' ? null : Math.max(0, Number(o) || 0), posizione: i };
+  }).filter(a => a.titolo);
+}
+function aggiornaRecapForm() { document.getElementById('f-recap').innerHTML = recapHtml(leggiArgs(), false); }
+function apriForm(v) {
+  const f = document.getElementById('add'); f.reset();
+  document.getElementById('f-args').innerHTML = '';
+  inModifica = v ? v.id : null;
+  if (v) {
+    document.getElementById('f-data').value = v.data; document.getElementById('f-mat').value = v.materia;
+    document.getElementById('f-tipo').value = v.tipo; document.getElementById('f-note').value = v.note || '';
+    argsDi(v.id).forEach(rigaArg);
+  }
+  document.getElementById('form-title').textContent = v ? `Modifica: ${v.materia}` : 'Aggiungi';
+  document.getElementById('f-submit').textContent = v ? 'Salva' : 'Aggiungi';
+  document.getElementById('f-cancel').hidden = !v;
+  aggiornaRecapForm();
+}
+document.getElementById('f-add-arg').addEventListener('click', () => { rigaArg().querySelector('.a-t').focus(); });
+document.getElementById('f-cancel').addEventListener('click', () => apriForm(null));
+document.getElementById('f-args').addEventListener('input', aggiornaRecapForm);
+document.getElementById('f-args').addEventListener('click', e => {
+  const b = e.target.closest('.a-del'); if (b) { b.closest('.farg').remove(); aggiornaRecapForm(); }
+});
+
+// Argomenti salvati: si aggiornano quelli rimasti (le spunte restano), si aggiungono i nuovi, si tolgono i tolti.
+async function salvaArgs(verificaId, lista) {
+  const prima = argsDi(verificaId), tenuti = new Set(lista.filter(a => a.id).map(a => a.id));
+  const via = prima.filter(a => !tenuti.has(a.id)).map(a => a.id);
+  if (via.length) await SC.db(`sc_argomenti?id=in.(${via.join(',')})`, { method: 'DELETE', prefer: 'return=minimal' });
+  for (const a of lista.filter(a => a.id))
+    await SC.db(`sc_argomenti?id=eq.${a.id}`, { method: 'PATCH', body: { titolo: a.titolo, pagine: a.pagine, ore: a.ore, posizione: a.posizione }, prefer: 'return=minimal' });
+  const nuovi = lista.filter(a => !a.id).map(a => ({ verifica_id: verificaId, titolo: a.titolo, pagine: a.pagine, ore: a.ore, posizione: a.posizione }));
+  if (nuovi.length) await SC.db('sc_argomenti', { method: 'POST', body: nuovi, prefer: 'return=minimal' });
+  args = args.filter(a => a.verifica_id !== verificaId)
+    .concat(await SC.db(`sc_argomenti?select=*&verifica_id=eq.${verificaId}&order=posizione`));
+}
+
 document.addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'toggle-past') { showPast = !showPast; render(); return; }
+  if (b.dataset.edit) { apriForm(ver.find(v => v.id === b.dataset.edit)); document.getElementById('form-title').scrollIntoView({ behavior: 'smooth' }); return; }
+  if (b.dataset.arg) {
+    const a = args.find(x => x.id === b.dataset.arg), k = b.dataset.k; if (!a) return;
+    a[k] = !a[k]; render();
+    try { await SC.db(`sc_argomenti?id=eq.${a.id}`, { method: 'PATCH', body: { [k]: a[k] }, prefer: 'return=minimal' }); }
+    catch (err) { a[k] = !a[k]; render(); toast('Spunta non salvata: ' + err.message); }
+    return;
+  }
   if (!b.dataset.id) return;
   // Primo tocco: chiede conferma; secondo tocco entro 4 secondi: elimina.
   if (!b.classList.contains('arm')) {
@@ -162,6 +275,7 @@ document.addEventListener('click', async e => {
   }
   const prima = ver;
   ver = ver.filter(v => v.id !== b.dataset.id); render();
+  if (inModifica === b.dataset.id) apriForm(null);
   try { await SC.db(`sc_verifiche?id=eq.${b.dataset.id}`, { method: 'DELETE', prefer: 'return=minimal' }); }
   catch (err) { ver = prima; render(); toast('Non eliminata: ' + err.message); }
 });
@@ -171,11 +285,22 @@ document.getElementById('add').addEventListener('submit', async e => {
   const data = document.getElementById('f-data').value, materia = document.getElementById('f-mat').value.trim();
   if (!data || !materia) return;
   const note = document.getElementById('f-note').value.trim();
-  const btn = e.target.querySelector('button'); btn.disabled = true;
+  const btn = document.getElementById('f-submit'); btn.disabled = true;
+  const corpo = { data, materia, tipo: document.getElementById('f-tipo').value, note: note || null };
+  const lista = leggiArgs(), modifica = inModifica;
   try {
-    const [riga] = await SC.db('sc_verifiche', { method: 'POST', body: { data, materia, tipo: document.getElementById('f-tipo').value, note: note || null } });
-    ver.push(riga); e.target.reset(); render(); toast('Aggiunta.');
-  } catch (err) { toast('Non aggiunta: ' + err.message); }
+    let riga;
+    if (modifica) {
+      [riga] = await SC.db(`sc_verifiche?id=eq.${modifica}`, { method: 'PATCH', body: corpo });
+      ver = ver.map(v => v.id === modifica ? riga : v);
+    } else {
+      [riga] = await SC.db('sc_verifiche', { method: 'POST', body: corpo });
+      ver.push(riga);
+    }
+    try { await salvaArgs(riga.id, lista); }
+    catch (err) { render(); toast('Verifica salvata, argomenti no: ' + err.message); return; }
+    apriForm(null); render(); toast(modifica ? 'Salvata.' : 'Aggiunta.');
+  } catch (err) { toast((modifica ? 'Non salvata: ' : 'Non aggiunta: ') + err.message); }
   finally { btn.disabled = false; }
 });
 
