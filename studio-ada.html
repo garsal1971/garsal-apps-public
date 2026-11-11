@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.2.0</title>
+<title>Studio di oggi v1.3.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -66,7 +66,6 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .z .in{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:4px;padding:8px 10px}
 .z.piccolo .t small,.z.piccolo .tempo .su{display:none}
 .z.piccolo .in{padding:5px 7px}
-.z.piccolo .ok{padding:3px 9px;min-height:30px}
 .z .r1{display:flex;align-items:flex-start;gap:8px}
 .z .t{flex:1;min-width:0;font-weight:600;line-height:1.25}
 .z .t small{display:block;font-weight:400;color:var(--fg);opacity:.75;font-size:.85em}
@@ -75,10 +74,7 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .z .tempo{font-variant-numeric:tabular-nums;font-size:.9em;color:var(--fg);opacity:.8}
 .z .tempo b{color:var(--fg);font-size:1.25em;font-family:var(--display)}
 .z.oltre .tempo .piu{color:var(--warn);font-weight:600}
-.ok{font:inherit;font-size:13px;font-weight:600;border:2px solid var(--ok);color:var(--ok);background:var(--card);border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer}
-.ok.pronto{background:var(--ok);color:var(--card);animation:pulse 1.4s ease-in-out infinite}
-@keyframes pulse{50%{transform:scale(1.06)}}
-@media (prefers-reduced-motion:reduce){.ok.pronto{animation:none}.z .fill{transition:none}.z .fill::before,.z .fill::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.z .fill{transition:none}.z .fill::before,.z .fill::after{animation:none}}
 .vuoto,.loading{color:var(--muted)}
 .vuoto a{color:var(--accent)}
 .nota{font-size:13px;color:var(--muted)}
@@ -101,8 +97,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.2.0';
-var BUILD_TIME  = '2026-11-11T21:50:00Z';
+var APP_VERSION = 'v1.3.0';
+var BUILD_TIME  = '2026-11-11T22:05:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -206,7 +202,7 @@ function disegna() {
     z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0" style="${colori(i)}">
       <div class="fill"></div>
       <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}</small></div><span class="play"></span></div>
-      <div class="r2"><span class="tempo"></span><button type="button" class="ok" data-ok="${i}">✓<span class="lab"> ${v.tipo === 'compito' ? 'Fatto' : 'Studiato'}</span></button></div></div></div>`).join('');
+      <div class="r2"><span class="tempo"></span></div></div></div>`).join('');
   }
   disponi();
   aggiorna();
@@ -247,8 +243,7 @@ function disponi() {
   el.forEach(e => { const q = r[e.dataset.i], w = q.w - 2 * G, h = q.h - 2 * G;
     Object.assign(e.style, { left: q.x + G + 'px', top: q.y + G + 'px', width: w + 'px', height: h + 'px',
       fontSize: Math.max(12, Math.min(20, Math.sqrt(w * h) / 11)) + 'px' });
-    e.classList.toggle('piccolo', w < 130 || h < 100);
-    e.querySelector('.lab').hidden = w < 110; });
+    e.classList.toggle('piccolo', w < 130 || h < 100); });
 }
 new ResizeObserver(() => disponi()).observe(document.getElementById('zone'));
 
@@ -263,10 +258,10 @@ function aggiorna() {
     const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms);
     el.querySelector('.play').textContent = v.fatto ? '✅' : run ? '⏸' : '▶️';
     el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? '<span class="su"> / ' + fmtMin(v.min) + '</span>' : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
-    const ok = el.querySelector('.ok'); ok.hidden = !!v.fatto; ok.classList.toggle('pronto', !!(prev && ms >= prev));
-    // Tempo previsto raggiunto: un suono, una volta sola.
+    // Tempo previsto raggiunto: un suono, il cronometro si ferma e si passa alla
+    // pagina dei compiti o delle verifiche, dove la voce si spunta a mano.
     const k = chiave(v.tipo, v.rif);
-    if (run && prev && ms >= prev && !S.avvisati.has(k)) { S.avvisati.add(k); bip(); toast(`Tempo previsto finito per «${v.titolo}». Hai finito?`); }
+    if (run && prev && ms >= prev && !S.avvisati.has(k)) { S.avvisati.add(k); finito(v); }
   });
   const pms = speso('pausa', null), pausaOn = S.aperta && S.aperta.tipo === 'pausa';
   const pb = document.getElementById('pausa');
@@ -320,20 +315,15 @@ function tocca(tipo, rif, titolo) {
   aggiorna();
 }
 
-async function segnaFatto(v) {
-  try {
-    if (v.tipo === 'compito')
-      await SC.db('sc_compiti_fatti', { method: 'POST', body: { giorno: iso(oggi()), orario_id: v.rif }, prefer: 'return=minimal' });
-    else await SC.db(`sc_argomenti?id=eq.${v.rif}`, { method: 'PATCH', body: { studiato: true }, prefer: 'return=minimal' });
-    if (S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif)) await inFila(chiudi);
-    v.fatto = true; aggiorna();
-    toast(v.tipo === 'compito' ? 'Compito fatto 👏' : 'Argomento studiato 👏');
-  } catch (e) { toast('Non riesco a segnarlo: ' + e.message); }
+// Tempo finito: si salva il tempo e si va alla voce (stesse ancore del calendario).
+function finito(v) {
+  bip();
+  toast(`Tempo finito per «${v.titolo}»: ti porto ${v.tipo === 'compito' ? 'ai compiti' : 'alle verifiche'} per spuntarlo.`);
+  const dove = v.tipo === 'compito' ? `compiti-ada.html#c-${iso(oggi())}-${v.rif}` : `verifiche-ada.html#arg-${v.rif}`;
+  inFila(async () => { await chiudi(); aggiorna(); }).then(() => setTimeout(() => { location.href = dove; }, 2500));
 }
 
 document.addEventListener('click', e => {
-  const ok = e.target.closest('[data-ok]');
-  if (ok) { e.stopPropagation(); segnaFatto(S.voci[ok.dataset.ok]); return; }
   const z = e.target.closest('.z');
   if (z) { const v = S.voci[z.dataset.i]; tocca(v.tipo, v.rif, v.titolo); return; }
   if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
