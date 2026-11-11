@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Impostazioni studio v1.0.0</title>
+<title>Impostazioni studio v1.1.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — pausa al giorno, poi un riquadro per giorno con le sue fasce */
@@ -50,14 +50,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <header class="head">
     <div>
       <h1>Impostazioni studio</h1>
-      <p class="sub">Le fasce orarie per studiare e la pausa. Le usa il <a href="calendario-ada.html">Calendario →</a></p>
+      <p class="sub">Le fasce orarie per studiare e la pausa ogni ora. Le usa il <a href="calendario-ada.html">Calendario →</a></p>
     </div>
-    <div class="sc-utente" id="sc-utente"></div>
   </header>
 
   <div class="card">
-    <label>Minuti di pausa al giorno<input id="pausa" type="number" inputmode="numeric" min="0" max="600" step="5" style="max-width:8rem"></label>
-    <p class="hint">Si tolgono dal tempo delle fasce, nei giorni in cui si studia.</p>
+    <label>Minuti di pausa per ogni ora di studio<input id="pausa" type="number" inputmode="numeric" min="0" max="60" step="5" style="max-width:8rem"></label>
+    <p class="hint">Ogni ora di studio (compiti e verifiche) occupa 60 minuti più la pausa: con 10′, in una fascia di 3 ore si studiano 2 h 34.</p>
   </div>
 
   <div class="card"><div class="day-h"><h2>Tempo utile nella settimana</h2><span class="tot-sett" id="tot-sett">—</span></div></div>
@@ -72,8 +71,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-11-11T16:10:00Z';
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-11-11T16:40:00Z';
 console.log('%c IMPOSTAZIONI ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#475569;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -85,8 +84,9 @@ const S = { fasce: {}, pausa: 0, sporco: false };
 const minuti = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? null : h * 60 + (m || 0); };
 const durata = f => { const a = minuti(f[0]), b = minuti(f[1]); return a == null || b == null || b <= a ? 0 : b - a; };
 const fmt = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
-// Tempo utile di un giorno: le fasce meno la pausa (che vale solo se si studia).
-const utile = g => { const t = (S.fasce[g] || []).reduce((a, f) => a + durata(f), 0); return t ? Math.max(0, t - S.pausa) : 0; };
+// Tempo utile di un giorno: ogni ora di studio si porta dietro S.pausa minuti,
+// quindi delle fasce si studia la parte 60 / (60 + pausa). Gemella di piano() nel calendario.
+const utile = g => { const t = (S.fasce[g] || []).reduce((a, f) => a + durata(f), 0); return Math.floor(t * 60 / (60 + S.pausa)); };
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3500); }
 
 async function carica() {
@@ -103,7 +103,7 @@ function render() {
   document.getElementById('giorni').innerHTML = GIORNI.map(([g, nome]) => {
     const lista = S.fasce[g] || [], tot = lista.reduce((a, f) => a + durata(f), 0);
     return `<div class="card">
-      <div class="day-h"><h2>${nome}</h2><span class="tot">${tot ? `fasce ${fmt(tot)}${S.pausa ? ` − pausa ${S.pausa}′` : ''} = <b>${fmt(utile(g))}</b>` : 'niente studio'}</span></div>
+      <div class="day-h"><h2>${nome}</h2><span class="tot">${tot ? `fasce ${fmt(tot)}${S.pausa ? ` con ${S.pausa}′ di pausa ogni ora` : ''} = <b>${fmt(utile(g))}</b>` : 'niente studio'}</span></div>
       ${lista.map((f, i) => `<div class="fascia">
         <label>Dalle<input type="time" value="${f[0] || ''}" data-g="${g}" data-i="${i}" data-k="0"></label>
         <label>Alle<input type="time" value="${f[1] || ''}" data-g="${g}" data-i="${i}" data-k="1"></label>
@@ -142,7 +142,7 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.id === 'pausa') { S.pausa = Math.max(0, Math.min(600, parseInt(t.value, 10) || 0)); t.value = S.pausa; modificato(); render(); return; }
+  if (t.id === 'pausa') { S.pausa = Math.max(0, Math.min(60, parseInt(t.value, 10) || 0)); t.value = S.pausa; modificato(); render(); return; }
   if (t.dataset.g != null) { S.fasce[t.dataset.g][+t.dataset.i][+t.dataset.k] = t.value; modificato(); render(); }
 });
 window.addEventListener('beforeunload', e => { if (S.sporco) { e.preventDefault(); e.returnValue = ''; } });

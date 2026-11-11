@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.1.0</title>
+<title>Calendario di studio v1.2.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -73,7 +73,6 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
       <h1>Calendario di studio</h1>
       <p class="sub">Prima i compiti, poi le ore degli argomenti fino alla verifica. <a href="impostazioni-ada.html">Fasce e pausa →</a></p>
     </div>
-    <div class="sc-utente" id="sc-utente"></div>
   </header>
   <div class="avvisi" id="avvisi"></div>
   <div class="ctrl">
@@ -92,8 +91,8 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.1.0';
-var BUILD_TIME  = '2026-11-11T16:15:00Z';
+var APP_VERSION = 'v1.2.0';
+var BUILD_TIME  = '2026-11-11T16:40:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -133,7 +132,7 @@ async function carica() {
 }
 
 // ── Il piano ──────────────────────────────────────────────────────────────
-// Per ogni giorno da oggi: tempo utile = fasce − pausa; prima i compiti (quelli
+// Per ogni giorno da oggi: tempo utile = fasce × 60 / (60 + pausa ogni ora); prima i compiti (quelli
 // delle lezioni di domani, come in compiti-ada.html, meno quelli già spuntati);
 // nel tempo che avanza le ore degli argomenti non ancora «studiati», dalla
 // verifica più vicina, e solo nei giorni prima della verifica.
@@ -154,7 +153,7 @@ function piano({ materie, orario, fatti, ver, args, imp }, finoA) {
     const g = d.getDay(), giornoIso = iso(d), domani = piu(d, 1).getDay();
     const lf = fasce[g] || [];
     const lordo = lf.reduce((a, f) => a + Math.max(0, minuti(f[1]) - minuti(f[0])), 0);
-    const cap = lordo ? Math.max(0, lordo - pausa) : 0;
+    const cap = Math.floor(lordo * 60 / (60 + pausa)); // gemella di utile() in impostazioni-ada.html
     const compiti = domani >= 1 && domani <= 6 ? orario
       .filter(o => o.giorno === domani && !o.senza_compiti && (mat.get(o.materia_id)?.minuti || 0) > 0)
       .map(o => ({ nome: mat.get(o.materia_id).nome, min: mat.get(o.materia_id).minuti, ok: fatto.has(giornoIso + '|' + o.id) })) : [];
