@@ -2263,6 +2263,7 @@ compiti di una lezione si fanno **il pomeriggio prima**, domenica per il lunedì
   pagine vanno fra i **Redirect URLs** di Supabase. La sessione dell'ospite sta in
   `localStorage.sc_session`, non in `garsal_session` (è di situazione-teresa/rosa).
 - 📚 **Argomenti delle verifiche** (`20261111170000_sc_argomenti.sql`, `verifiche-ada.html` v2.1.0): la verifica si modifica (✏️) e nel form ha l'elenco degli argomenti con pagine e ore, col recap dei totali; nel calendario ogni argomento ha le tre spunte, scritte subito (ottimistiche con rollback), più il recap delle spunte. ⚠️ Salvando, gli argomenti rimasti si **aggiornano** (le spunte restano), i nuovi si aggiungono e i tolti si cancellano (`salvaArgs`).
+- 🏁 **Finalizza** (`20261111180000_sc_verifiche_finalizza.sql`, `verifiche-ada.html` v2.2.0): il bottone sotto la data apre un popup con il **voto** (1-10, decimali), una faccina 😞 😐 😊 su **come è andata la programmazione dello studio** (`giudizio`) e un **commento**, scritti su `sc_verifiche` con `finalizzata_il`. Finalizzata, il bottone mostra voto e faccina; «Togli finalizzazione» rimette tutto a NULL.
 - ⚠️ **Nessun dato in repo**: orario, minuti, verifiche e la riga di `cm_guest_access` si
   scrivono a mano nel database.
 - 🎒 **In AppSphere Ada ha un recap e due bolle suoi** (`index.html` v1.17.0): se la RPC

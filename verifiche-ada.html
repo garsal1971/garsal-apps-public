@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Verifiche di Ada v2.1.0</title>
+<title>Verifiche di Ada v2.2.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — prossima verifica in evidenza, elenco per data, form per aggiungere */
@@ -77,6 +77,18 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .form-btns{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .ghost{font:inherit;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 12px;min-height:40px;cursor:pointer}
 .form-recap{grid-column:1/-1;margin:0}
+.fin{font:inherit;font-size:12px;font-weight:600;margin-top:8px;background:none;border:1px solid var(--accent);color:var(--accent);border-radius:8px;min-height:36px;width:100%;padding:2px 4px;cursor:pointer;line-height:1.2}
+.fin.done{border-color:var(--line);color:var(--fg);font-size:14px}
+.fin-txt{font-size:13px;color:var(--muted);margin-top:4px}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:18px;width:min(420px,calc(100% - 32px));box-sizing:border-box}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{display:grid;gap:14px}
+dialog h2{font-size:18px}
+.facce{display:flex;gap:8px;flex-wrap:wrap}
+.faccia{font:inherit;font-size:30px;line-height:1;background:var(--bg);border:2px solid var(--line);border-radius:12px;min-width:64px;min-height:64px;cursor:pointer;display:grid;place-items:center;gap:2px;padding:6px}
+.faccia small{font-size:11px;color:var(--muted)}
+.faccia[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--bg))}
+textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:80px;resize:vertical}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
 </head>
@@ -120,11 +132,29 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   </section>
 </div>
 <div class="toast" id="toast" hidden></div>
+<dialog id="dlg-fin">
+  <form method="dialog" id="fin-form">
+    <h2 id="fin-titolo">Finalizza</h2>
+    <label>Voto<input id="fin-voto" inputmode="decimal" placeholder="es. 7,5" autocomplete="off"></label>
+    <div><div class="eyebrow" style="margin-bottom:6px">Com'è andata la programmazione dello studio?</div>
+      <div class="facce" id="fin-facce">
+        <button type="button" class="faccia" data-g="triste" aria-pressed="false">😞<small>Triste</small></button>
+        <button type="button" class="faccia" data-g="indifferente" aria-pressed="false">😐<small>Indifferente</small></button>
+        <button type="button" class="faccia" data-g="contenta" aria-pressed="false">😊<small>Contenta</small></button>
+      </div></div>
+    <label>Commento<textarea id="fin-comm" placeholder="Cosa ha funzionato, cosa cambiare la prossima volta"></textarea></label>
+    <div class="form-btns">
+      <button class="primary" type="button" id="fin-salva">Salva</button>
+      <button class="ghost" type="button" id="fin-annulla">Annulla</button>
+      <button class="ghost" type="button" id="fin-togli" hidden>Togli finalizzazione</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.1.0';
-var BUILD_TIME  = '2026-11-11T15:40:00Z';
+var APP_VERSION = 'v2.2.0';
+var BUILD_TIME  = '2026-11-11T15:55:00Z';
 console.log('%c VERIFICHE ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#c4527a;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -156,6 +186,8 @@ async function carica() {
 
 const argsDi = id => args.filter(a => a.verifica_id === id).sort((x, y) => x.posizione - y.posizione);
 const num = n => String(Math.round(n * 10) / 10).replace('.', ',');
+const FACCE = { triste: '😞', indifferente: '😐', contenta: '😊' };
+const finalizzata = v => v.voto != null || v.giudizio || v.commento;
 const SPUNTE = [['studiato', 'Studiato'], ['ripetuto', 'Ripetuto'], ['tranquillo', 'Mi sento tranquillo']];
 // Recap: argomenti, pagine, ore e quanti hanno ciascuna spunta.
 function recapHtml(lista, spunte) {
@@ -181,9 +213,11 @@ function render() {
     const d = parse(v.data), g = diff(v.data);
     const b = g >= 0 && g <= 3 ? `<span class="badge soon">${quando(g)}</span>` : g < 0 ? `<span class="badge muted">fatta</span>` : `<span class="badge muted">${quando(g)}</span>`;
     return `<div class="row${g < 0 ? ' past' : ''}">
-      <div class="date"><span>${GG[d.getDay()]}</span><b>${d.getDate()}</b><span>${MESI[d.getMonth()]}</span></div>
+      <div class="date"><span>${GG[d.getDay()]}</span><b>${d.getDate()}</b><span>${MESI[d.getMonth()]}</span>
+        <button type="button" class="fin${finalizzata(v) ? ' done' : ''}" data-fin="${v.id}" aria-label="Finalizza ${esc(v.materia)}">${finalizzata(v) ? `${v.voto != null ? num(v.voto) : '–'} ${FACCE[v.giudizio] || ''}` : '🏁 Finalizza'}</button></div>
       <div class="info"><div class="mat">${esc(v.materia)}</div>${v.note ? `<div class="note">${esc(v.note)}</div>` : ''}
         <div class="badges"><span class="badge ${v.tipo}">${tipoTxt(v.tipo)}</span>${b}</div>
+        ${v.commento ? `<div class="fin-txt">💬 ${esc(v.commento)}</div>` : ''}
         ${argomentiHtml(v.id)}</div>
       <div class="acts"><button class="edit" type="button" data-edit="${v.id}" aria-label="Modifica ${esc(v.materia)}">✏️</button>
       <button class="del" type="button" data-id="${v.id}" aria-label="Elimina ${esc(v.materia)}">✕</button></div></div>`;
@@ -255,8 +289,45 @@ async function salvaArgs(verificaId, lista) {
     .concat(await SC.db(`sc_argomenti?select=*&verifica_id=eq.${verificaId}&order=posizione`));
 }
 
+// ── Finalizza: voto, faccina sulla programmazione, commento ───────────────
+const dlg = document.getElementById('dlg-fin');
+let finId = null, finG = null;
+function segnaFaccia(g) { finG = g; document.querySelectorAll('#fin-facce .faccia').forEach(x => x.setAttribute('aria-pressed', x.dataset.g === g ? 'true' : 'false')); }
+function apriFin(v) {
+  finId = v.id;
+  document.getElementById('fin-titolo').textContent = `Finalizza: ${tipoTxt(v.tipo)} di ${v.materia}`;
+  document.getElementById('fin-voto').value = v.voto != null ? num(v.voto) : '';
+  document.getElementById('fin-comm').value = v.commento || '';
+  document.getElementById('fin-togli').hidden = !finalizzata(v);
+  segnaFaccia(v.giudizio || null);
+  dlg.showModal();
+}
+document.getElementById('fin-facce').addEventListener('click', e => { const f = e.target.closest('.faccia'); if (f) segnaFaccia(finG === f.dataset.g ? null : f.dataset.g); });
+document.getElementById('fin-annulla').addEventListener('click', () => dlg.close());
+async function scriviFin(corpo) {
+  const [riga] = await SC.db(`sc_verifiche?id=eq.${finId}`, { method: 'PATCH', body: corpo });
+  ver = ver.map(v => v.id === finId ? riga : v); render();
+}
+document.getElementById('fin-salva').addEventListener('click', async () => {
+  const t = document.getElementById('fin-voto').value.trim().replace(',', '.');
+  const voto = t === '' ? null : Number(t);
+  if (voto != null && !(voto >= 1 && voto <= 10)) { toast('Il voto va da 1 a 10.'); return; }
+  const commento = document.getElementById('fin-comm').value.trim() || null;
+  if (voto == null && !finG && !commento) { toast('Scrivi almeno il voto, una faccina o un commento.'); return; }
+  const btn = document.getElementById('fin-salva'); btn.disabled = true;
+  const t0 = new Date(), oggiIso = `${t0.getFullYear()}-${String(t0.getMonth() + 1).padStart(2, '0')}-${String(t0.getDate()).padStart(2, '0')}`;
+  try { await scriviFin({ voto, giudizio: finG, commento, finalizzata_il: oggiIso }); dlg.close(); toast('Verifica finalizzata.'); }
+  catch (err) { toast('Non salvata: ' + err.message); }
+  finally { btn.disabled = false; }
+});
+document.getElementById('fin-togli').addEventListener('click', async () => {
+  try { await scriviFin({ voto: null, giudizio: null, commento: null, finalizzata_il: null }); dlg.close(); toast('Finalizzazione tolta.'); }
+  catch (err) { toast('Non tolta: ' + err.message); }
+});
+
 document.addEventListener('click', async e => {
-  const b = e.target.closest('button'); if (!b) return;
+  const b = e.target.closest('button'); if (!b || b.closest('dialog')) return;
+  if (b.dataset.fin) { apriFin(ver.find(v => v.id === b.dataset.fin)); return; }
   if (b.id === 'toggle-past') { showPast = !showPast; render(); return; }
   if (b.dataset.edit) { apriForm(ver.find(v => v.id === b.dataset.edit)); document.getElementById('form-title').scrollIntoView({ behavior: 'smooth' }); return; }
   if (b.dataset.arg) {
