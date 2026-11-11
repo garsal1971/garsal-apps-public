@@ -2268,7 +2268,7 @@ compiti di una lezione si fanno **il pomeriggio prima**, domenica per il lunedì
   `caricaRecap` salta tutte le fonti di Salvatore e mostra 📚 compiti di oggi (lezioni di domani,
   meno le spunte di oggi) e 📝 verifiche dei prossimi 7 giorni (`SC_GIORNI_VERIFICHE`); in home si
   aggiungono le bolle Compiti (minuti che restano oggi) e Verifiche (quante nei 7 giorni), che
-  **non stanno in `cm_apps`** e non fanno punti. ⚠️ La regola «compiti del pomeriggio prima» è
+  **non stanno in `cm_apps`** e non fanno punti. Nel menu ☰ le resta il solo «↩ Esci» (v1.17.1, classe `sc-ospite` su `body`). ⚠️ La regola «compiti del pomeriggio prima» è
   copiata da `compiti-ada.html` in `recapScuola`: cambiandola, cambia tutt'e due.
 - ⚠️ Dalla v1.0.1 di `scuola-ada.js` Ada entra nelle due pagine anche col `sb_token` di AppSphere
   (se autorizzata), senza il login separato.
