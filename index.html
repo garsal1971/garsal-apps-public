@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.18.0</title>
+<title>AppSphere v1.19.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2313,8 +2313,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.18.0';
-const BUILD_TIME  = '2026-11-11T16:10:00Z';
+const APP_VERSION = 'v1.19.0';
+const BUILD_TIME  = '2026-11-11T19:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -3467,7 +3467,9 @@ async function loadApps(forceRender = false) {
         { id: 'scuola-verifiche', name: 'Verifiche', description: 'Compiti in classe e interrogazioni', score: sc.verifiche.length, color: '#0891B2', html_file: 'verifiche-ada.html', riservato: false, conta_punti: false },
         // v1.18.0: calendario di studio e impostazioni (fasce e pausa).
         { id: 'scuola-calendario', name: 'Calendario', description: 'Compiti e studio giorno per giorno', score: 0, color: '#0F766E', html_file: 'calendario-ada.html', riservato: false, conta_punti: false },
-        { id: 'scuola-impostazioni', name: 'Impostazioni', description: 'Fasce orarie e pausa', score: 0, color: '#64748B', html_file: 'impostazioni-ada.html', riservato: false, conta_punti: false }
+        { id: 'scuola-impostazioni', name: 'Impostazioni', description: 'Fasce orarie e pausa', score: 0, color: '#64748B', html_file: 'impostazioni-ada.html', riservato: false, conta_punti: false },
+        // v1.19.0: voti, agenda e lezioni da ClasseViva (Salvatore ha la riga in cm_apps).
+        { id: 'scuola-classeviva', name: 'ClasseViva', description: 'Voti, agenda e lezioni dal registro', score: 0, color: '#D4145A', html_file: 'da-classeviva.html', riservato: false, conta_punti: false }
       );
     }
   } catch (e) { console.warn('bolle scuola:', e); }
