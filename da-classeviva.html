@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClasseViva v1.0.0</title>
+<title>ClasseViva v1.0.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — sincronizza, poi tre schede (Voti / Agenda / Lezioni) */
@@ -109,14 +109,18 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-11-11T19:00:00Z';
+var APP_VERSION = 'v1.0.1';
+var BUILD_TIME  = '2026-11-11T19:40:00Z';
 console.log('%c CLASSEVIVA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#D4145A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
 
 const S = { voti: [], agenda: [], lezioni: [], letto: {}, verCv: new Set(), tab: 'voti', periodo: '' };
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// Una media letta come a scuola: al quarto più vicino, 6,25 → 6+, 6,5 → 6½, 6,75 → 7-.
+const votoScuola = x => { const q = Math.round(x * 4) / 4, i = Math.floor(q), f = q - i;
+  return f === 0 ? `${i}` : f === 0.25 ? `${i}+` : f === 0.5 ? `${i}½` : `${i + 1}-`; };
+const mediaHtml = x => `${votoScuola(x)} <small style="font-size:.5em;font-weight:500;color:var(--muted)">(${num(x)})</small>`;
 const num = n => (Math.round(n * 100) / 100).toLocaleString('it-IT', { maximumFractionDigits: 2 });
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3500); }
@@ -230,12 +234,12 @@ function vistaVoti() {
   const medie = mat.map(m => media(perMat[m])).filter(x => x != null);
   const mg = medie.length ? medie.reduce((a, b) => a + b, 0) / medie.length : null;
   const classe = v => v.canceled ? 'annullato' : typeof v.decimalValue !== 'number' ? 'blu' : v.decimalValue >= 6 ? 'suff' : 'insuff';
-  return `<div class="card"><div class="kpi"><span class="big">${mg != null ? num(mg) : '–'}</span><span class="hint">media delle medie · ${lista.filter(contano).length} voti</span></div>
+  return `<div class="card"><div class="kpi"><span class="big">${mg != null ? mediaHtml(mg) : '–'}</span><span class="hint">media delle medie · ${lista.filter(contano).length} voti</span></div>
     ${periodi.length > 1 ? `<label>Periodo<select id="periodo"><option value="">Tutto l'anno</option>${periodi.map(p => `<option${p === S.periodo ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></label>` : ''}</div>
     <div style="display:grid;gap:12px;margin-top:12px">${mat.map(m => {
       const vs = perMat[m].slice().sort((a, b) => (b.evtDate || '').localeCompare(a.evtDate || ''));
       const md = media(vs);
-      return `<div class="card"><div class="mat-h"><h2>${esc(m)}</h2><span class="media" style="color:${md == null ? 'var(--muted)' : md >= 6 ? 'var(--ok)' : 'var(--danger)'}">${md != null ? num(md) : '–'}</span></div>
+      return `<div class="card"><div class="mat-h"><h2>${esc(m)}</h2><span class="media" style="color:${md == null ? 'var(--muted)' : md >= 6 ? 'var(--ok)' : 'var(--danger)'}">${md != null ? mediaHtml(md) : '–'}</span></div>
         <div class="voti">${vs.map(v => `<div class="voto ${classe(v)}" title="${esc(v.notesForFamily || '')}"><b>${esc(v.displayValue || '–')}</b>
           <span>${esc((v.evtDate || '').slice(8, 10) + '/' + (v.evtDate || '').slice(5, 7))} ${esc(v.componentDesc || TIPO_VOTO[v.evtCode] || '')}</span></div>`).join('')}</div>
         ${vs.filter(v => v.notesForFamily).map(v => `<p class="hint">${esc((v.evtDate || '').slice(8, 10) + '/' + (v.evtDate || '').slice(5, 7))} ${esc(v.displayValue)}: ${esc(v.notesForFamily)}</p>`).join('')}</div>`;
