@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.16.2</title>
+<title>AppSphere v1.17.0</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2311,8 +2311,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.16.2';
-const BUILD_TIME  = '2026-10-26T22:45:00Z';
+const APP_VERSION = 'v1.17.0';
+const BUILD_TIME  = '2026-11-11T14:30:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -3454,6 +3454,19 @@ async function loadApps(forceRender = false) {
     };
   }));
 
+  // 🎒 Ada: due bolle in più, che non stanno in `cm_apps` (Salvatore non deve
+  // vederle). Il numero è un conteggio, non punti: minuti di compiti che
+  // restano oggi, verifiche dei prossimi 7 giorni.
+  try {
+    if (await scuolaOspite(hdrs)) {
+      const sc = await recapScuola(hdrs);
+      apps.push(
+        { id: 'scuola-compiti', name: 'Compiti', description: 'Piano dei compiti', score: sc.minutiRestanti, color: '#7C3AED', html_file: 'compiti-ada.html', riservato: false, conta_punti: false },
+        { id: 'scuola-verifiche', name: 'Verifiche', description: 'Compiti in classe e interrogazioni', score: sc.verifiche.length, color: '#0891B2', html_file: 'verifiche-ada.html', riservato: false, conta_punti: false }
+      );
+    }
+  } catch (e) { console.warn('bolle scuola:', e); }
+
   // Salva in cache per il prossimo avvio (bolle istantanee)
   try { localStorage.setItem(APPS_CACHE_KEY, JSON.stringify(apps)); } catch (e) {}
 
@@ -3463,7 +3476,10 @@ async function loadApps(forceRender = false) {
   // caricamento della home. Ridisegna subito solo se non c'era ancora nulla
   // da mostrare, oppure se richiesto esplicitamente da un'azione dell'utente
   // (pulsante "Ricarica", toggle modalità nascosta).
-  if (forceRender || !CURRENT_APPS.length) {
+  // Se l'elenco delle bolle è cambiato (la cache era di un altro utente, o le
+  // bolle della scuola sono arrivate adesso) si ridisegna comunque.
+  const elenco = l => l.map(a => a.id).join(',');
+  if (forceRender || !CURRENT_APPS.length || elenco(apps) !== elenco(CURRENT_APPS)) {
     render(apps);
   } else {
     // Aggiorna comunque il modello e il totale nel pannello punteggio
@@ -4122,6 +4138,56 @@ async function recapPromemoria(headers, riservati) {
   } catch (e) { console.warn('[recap] promemoria:', e); return []; }
 }
 
+// ── 🎒 Scuola di Ada (v1.17.0) ──
+// Chi ha in `cm_guest_access` una delle due pagine della scuola (Ada) vede un
+// recap tutto suo — i compiti di oggi e le verifiche dei prossimi 7 giorni — e
+// due bolle in più. Lo dice la RPC `sc_ospite()`, la stessa che apre le tabelle
+// `sc_*`: niente email scritta qui. Salvatore torna `false` e non vede niente
+// di diverso.
+const SC_GIORNI_VERIFICHE = 7;
+let _scOspite = null; // { token, promessa }
+function scuolaOspite(headers) {
+  const tok = headers.Authorization;
+  if (!_scOspite || _scOspite.token !== tok) {
+    _scOspite = { token: tok, promessa: fetch(`${SUPABASE_URL}/rest/v1/rpc/sc_ospite`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}'
+    }).then(r => r.ok ? r.json() : false).then(v => v === true).catch(() => false) };
+  }
+  return _scOspite.promessa;
+}
+
+// I compiti di oggi sono quelli delle lezioni di DOMANI (si fanno il pomeriggio
+// prima, come in compiti-ada.html), meno quelli già spuntati oggi.
+async function recapScuola(headers) {
+  const oggi = localDayStr();
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const g = d.getDay(); // 0 = domenica: domani niente lezioni
+  const fino = new Date(); fino.setDate(fino.getDate() + SC_GIORNI_VERIFICHE);
+  const finoIso = fino.getFullYear() + '-' + String(fino.getMonth() + 1).padStart(2, '0') + '-' + String(fino.getDate()).padStart(2, '0');
+  const leggi = async path => { const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers }); if (!r.ok) throw new Error(await r.text()); return r.json(); };
+  const out = { compiti: [], minutiRestanti: 0, verifiche: [] };
+  try {
+    const [mat, ora, fatti, ver] = await Promise.all([
+      leggi('sc_materie?select=id,sigla,nome,minuti'),
+      g ? leggi(`sc_orario?select=id,ora,materia_id,senza_compiti&giorno=eq.${g}&order=ora.asc`) : [],
+      leggi(`sc_compiti_fatti?select=orario_id&giorno=eq.${oggi}`),
+      leggi(`sc_verifiche?select=data,materia,tipo&data=gte.${oggi}&data=lte.${finoIso}&order=data.asc`)
+    ]);
+    const m = new Map(mat.map(x => [x.id, x]));
+    const fatte = new Set(fatti.map(f => f.orario_id));
+    for (const o of ora) {
+      const ma = m.get(o.materia_id);
+      if (!ma || o.senza_compiti || !(ma.minuti > 0)) continue;
+      const fatto = fatte.has(o.id);
+      if (!fatto) out.minutiRestanti += ma.minuti;
+      out.compiti.push({ title: (fatto ? '✅ ' : '⬜ ') + ma.nome + ' · ' + ma.minuti + '′' });
+    }
+    const giorno = s => new Date(s + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'numeric' });
+    out.verifiche = ver.map(v => ({ title: (v.data === oggi ? 'OGGI' : giorno(v.data)) + ' · ' + v.materia + (v.tipo === 'interrogazione' ? ' (interrogazione)' : '') }));
+  } catch (e) { console.warn('[recap] scuola:', e); }
+  return out;
+}
+
 let _recap = null;           // ultimi dati letti
 let _recapCaricamento = null; // la lettura in corso, per non farne due insieme
 
@@ -4130,6 +4196,10 @@ async function caricaRecap() {
   const uid = token && (decodeJwt(token) || {}).sub;
   if (!uid) return null;
   const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token };
+  // Ada: solo la sua scuola, niente delle fonti di Salvatore.
+  if (await scuolaOspite(headers)) {
+    return { ospite: true, scuola: await recapScuola(headers), scadenze: [], promemoria: [], letto: localDayStr() };
+  }
   // I task riservati servono anche per nascondere i loro promemoria.
   const [finanza, decisioni, tasks, obiettivi, piante, tafiri, spunt, abitudini, peso, amazon] = await Promise.all([
     loadHomeAlertPortfolioTotal(headers),
@@ -4342,6 +4412,23 @@ function disegnaRecap(caricamento) {
   const sub = (titolo, corpo) => corpo ? '<div class="recap-sub">' + titolo + '</div>' + corpo : '';
 
   let html = '';
+
+  // 🎒 Ada: il recap è solo la sua scuola.
+  if (_recap.ospite) {
+    const sc = _recap.scuola || {};
+    const comp = !tolti.has('scuola-compiti') && (sc.compiti || []).length ? sc.compiti : [];
+    const ver  = !tolti.has('scuola-verifiche') && (sc.verifiche || []).length ? sc.verifiche : [];
+    html += sezione('🎒 Scuola', [
+      sub('📚 Compiti di oggi' + (sc.minutiRestanti ? ' · mancano ' + sc.minutiRestanti + '′' : ' · fatti'),
+          comp.length ? boxRighe('scuola-compiti', 'compiti-ada.html', comp) : ''),
+      sub('📝 Verifiche dei prossimi ' + SC_GIORNI_VERIFICHE + ' giorni · ' + ver.length,
+          ver.length ? boxRighe('scuola-verifiche', 'verifiche-ada.html', ver) : ''),
+    ]);
+    if (!html) html = '<div class="recap-vuoto">Niente da mostrare oggi.</div>';
+    if (tolti.size) html += '<div class="recap-vuoto" style="margin-top:18px"><a href="#" onclick="event.preventDefault(); recapRimettiTutti()">↺ Rimetti i box tolti oggi (' + tolti.size + ')</a></div>';
+    box.innerHTML = html;
+    return;
+  }
 
   // ℹ️ Info: Finanza, Peso e Calorie, Scorte Amazon.
   const finanza = !tolti.has('finanza') && (_recap.finanza || []).length ? _recap.finanza : [];

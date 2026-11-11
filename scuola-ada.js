@@ -1,5 +1,5 @@
 /* ============================================================================
-   scuola-ada.js v1.0.0 — accesso e database per compiti-ada.html e
+   scuola-ada.js v1.0.1 — accesso e database per compiti-ada.html e
    verifiche-ada.html.
 
    ⚠️ Deroga dichiarata alla regola «un'app = un file HTML»: le due pagine
@@ -219,13 +219,15 @@
       }
     }
 
-    // Salvatore: il token di AppSphere.
+    // Il token di AppSphere: Salvatore, oppure Ada se è entrata da lì (v1.0.1)
+    // e ha la pagina in `cm_guest_access`. Senza, si passa al login suo.
     let sbt = null; try { sbt = localStorage.getItem('sb_token'); } catch (e) {}
     if (sbt) {
       const user = await utenteDi(sbt);
-      if (user && (user.email || '').toLowerCase() === OWNER) {
+      if (user) {
         sessione = { access_token: sbt, refresh_token: null, expires_at: null, user };
-        await entra(); return;
+        if ((user.email || '').toLowerCase() === OWNER || await autorizzato()) { await entra(); return; }
+        sessione = null;
       }
     }
 
