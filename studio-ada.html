@@ -7,11 +7,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.0.0</title>
+<title>Studio di oggi v1.1.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
-/* Layout: in cima il tempo di oggi e la pausa; sotto una zona per impegno,
-   alta in proporzione ai minuti previsti, che si riempie mentre il cronometro gira. */
+/* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
+   è divisa a mosaico in un rettangolo per impegno, con l'area proporzionale ai
+   minuti previsti; si riempie dal basso mentre il cronometro gira. In fondo la pausa. */
 :root{
   --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --on-accent:#fff;
   --ok:#2e8b57; --warn:#c2410c; --danger:#c0392b;
@@ -30,19 +31,20 @@
 [hidden]{display:none!important}
 *{-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;overflow-wrap:anywhere}
-.wrap{max-width:640px;margin:0 auto;padding-block:16px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:14px;min-height:calc(100dvh - 56px - env(safe-area-inset-top,0px));box-sizing:border-box;grid-template-rows:auto auto 1fr auto}
-h1{font-family:var(--display);font-weight:800;font-size:clamp(24px,6vw,32px);margin:0;letter-spacing:-.02em}
-.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:6px 12px}
+html,body{overflow:hidden;overscroll-behavior:none}
+.wrap{padding-block:8px calc(8px + env(safe-area-inset-bottom,0px));padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:8px;height:calc(100dvh - 56px - env(safe-area-inset-top,0px));box-sizing:border-box}
+h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spacing:-.02em}
+.top{flex:none;padding-inline:4px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:6px 12px}
 .top .tot{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .top .tot b{color:var(--fg)}
-.ctrl{display:flex;flex-wrap:wrap;gap:10px}
+.ctrl{flex:none;display:flex;gap:8px}
 .btn{font:inherit;font-weight:600;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--fg);padding:10px 14px;min-height:48px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
 .btn.pausa{flex:1;min-width:0;justify-content:space-between;border-color:var(--pausa)}
 .btn.pausa.on{background:var(--pausa);color:var(--card)}
 .btn.pausa small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
 .btn.stop{border-color:var(--muted)}
-.zone{display:flex;flex-direction:column;gap:8px;min-height:0}
-.z{position:relative;border:2px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden;cursor:pointer;min-height:min-content;display:flex;user-select:none;-webkit-user-select:none}
+.zone{position:relative;flex:1;min-height:0}
+.z{position:absolute;box-sizing:border-box;border:2px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden;cursor:pointer;display:flex;user-select:none;-webkit-user-select:none}
 .z .fill{position:absolute;left:0;right:0;bottom:0;height:0;transition:height .6s linear}
 .z.compito .fill{background:var(--compiti-bg)} .z.argomento .fill{background:var(--studio-bg)}
 .z.compito{border-left:8px solid var(--compiti)} .z.argomento{border-left:8px solid var(--studio)}
@@ -52,14 +54,17 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(24px,6vw,32px);mar
 .z.argomento.oltre .fill{background:repeating-linear-gradient(135deg,var(--pausa-bg) 0 10px,transparent 10px 20px),var(--studio-bg)}
 .z.fatto{opacity:.55}
 .z.fatto .t{text-decoration:line-through}
-.z .in{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:6px;padding:10px 12px}
+.z .in{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:4px;padding:8px 10px}
+.z.piccolo .t small,.z.piccolo .tempo .su{display:none}
+.z.piccolo .in{padding:5px 7px}
+.z.piccolo .ok{padding:3px 9px;min-height:30px}
 .z .r1{display:flex;align-items:flex-start;gap:8px}
-.z .t{flex:1;min-width:0;font-weight:600}
-.z .t small{display:block;font-weight:400;color:var(--muted);font-size:13px}
-.z .play{flex:none;font-size:20px;line-height:1}
+.z .t{flex:1;min-width:0;font-weight:600;line-height:1.25}
+.z .t small{display:block;font-weight:400;color:var(--muted);font-size:.85em}
+.z .play{flex:none;font-size:1.2em;line-height:1}
 .z .r2{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
-.z .tempo{font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted)}
-.z .tempo b{color:var(--fg);font-size:18px;font-family:var(--display)}
+.z .tempo{font-variant-numeric:tabular-nums;font-size:.9em;color:var(--muted)}
+.z .tempo b{color:var(--fg);font-size:1.25em;font-family:var(--display)}
 .z.oltre .tempo .piu{color:var(--warn);font-weight:600}
 .ok{font:inherit;font-size:13px;font-weight:600;border:2px solid var(--ok);color:var(--ok);background:var(--card);border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer}
 .ok.pronto{background:var(--ok);color:var(--card);animation:pulse 1.4s ease-in-out infinite}
@@ -77,19 +82,18 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(24px,6vw,32px);mar
     <h1 id="titolo">Studio di oggi</h1>
     <div class="tot" id="tot"></div>
   </div>
+  <div class="zone" id="zone" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per fermarti."><p class="loading">Carico…</p></div>
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
     <button type="button" class="btn stop" id="stop" hidden>⏹ Fermo</button>
   </div>
-  <div class="zone" id="zone"><p class="loading">Carico…</p></div>
-  <p class="nota">Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per fermarti.</p>
 </div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.0.0';
-var BUILD_TIME  = '2026-11-11T21:10:00Z';
+var APP_VERSION = 'v1.1.0';
+var BUILD_TIME  = '2026-11-11T21:40:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -190,13 +194,46 @@ function disegna() {
   if (!S.voci.length) {
     z.innerHTML = `<p class="vuoto">Oggi non c'è niente in programma. Se ti aspettavi qualcosa, controlla le <a href="impostazioni-ada.html">fasce di studio</a> e il <a href="calendario-ada.html">calendario</a>.</p>`;
   } else {
-    z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0" style="flex:${Math.max(v.min, 20)} 1 0">
+    z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0">
       <div class="fill"></div>
       <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}</small></div><span class="play"></span></div>
-      <div class="r2"><span class="tempo"></span><button type="button" class="ok" data-ok="${i}">✓ ${v.tipo === 'compito' ? 'Fatto' : 'Studiato'}</button></div></div></div>`).join('');
+      <div class="r2"><span class="tempo"></span><button type="button" class="ok" data-ok="${i}">✓<span class="lab"> ${v.tipo === 'compito' ? 'Fatto' : 'Studiato'}</span></button></div></div></div>`).join('');
   }
+  disponi();
   aggiorna();
 }
+
+// Mosaico (treemap «squarified»): ogni impegno prende un rettangolo con l'area
+// proporzionale ai suoi minuti, cercando forme il più possibile quadrate.
+// Un pavimento (6 % del totale) tiene leggibili gli impegni molto brevi.
+function mosaico(pesi, W, H) {
+  const tot = pesi.reduce((a, b) => a + b, 0) || 1;
+  let resto = pesi.map((p, i) => ({ i, a: p * W * H / tot })).sort((a, b) => b.a - a.a);
+  let x = 0, y = 0, w = W, h = H; const out = [];
+  const peggiore = (riga, lato) => { const s = riga.reduce((a, c) => a + c.a, 0), mx = riga[0].a, mn = riga[riga.length - 1].a;
+    return Math.max(lato * lato * mx / (s * s), s * s / (lato * lato * mn)); };
+  while (resto.length) {
+    const lato = Math.min(w, h); let riga = [resto.shift()];
+    while (resto.length && peggiore([...riga, resto[0]], lato) <= peggiore(riga, lato)) riga.push(resto.shift());
+    const s = riga.reduce((a, c) => a + c.a, 0);
+    if (w >= h) { const cw = s / h; let yy = y; for (const c of riga) { const ch = c.a / cw; out[c.i] = { x, y: yy, w: cw, h: ch }; yy += ch; } x += cw; w -= cw; }
+    else { const rh = s / w; let xx = x; for (const c of riga) { const cw = c.a / rh; out[c.i] = { x: xx, y, w: cw, h: rh }; xx += cw; } y += rh; h -= rh; }
+  }
+  return out;
+}
+function disponi() {
+  const z = document.getElementById('zone'), el = z.querySelectorAll('.z');
+  if (!el.length) return;
+  const W = z.clientWidth, H = z.clientHeight, G = 3;
+  const totMin = S.voci.reduce((a, v) => a + v.min, 0) || 1;
+  const r = mosaico(S.voci.map(v => Math.max(v.min, totMin * .06, 1)), W, H);
+  el.forEach(e => { const q = r[e.dataset.i], w = q.w - 2 * G, h = q.h - 2 * G;
+    Object.assign(e.style, { left: q.x + G + 'px', top: q.y + G + 'px', width: w + 'px', height: h + 'px',
+      fontSize: Math.max(12, Math.min(20, Math.sqrt(w * h) / 11)) + 'px' });
+    e.classList.toggle('piccolo', w < 130 || h < 100);
+    e.querySelector('.lab').hidden = w < 110; });
+}
+new ResizeObserver(() => disponi()).observe(document.getElementById('zone'));
 
 // Ridisegna i soli numeri, una volta al secondo.
 function aggiorna() {
@@ -208,7 +245,7 @@ function aggiorna() {
     el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
     el.querySelector('.fill').style.height = Math.min(100, frac * 100) + '%';
     el.querySelector('.play').textContent = v.fatto ? '✅' : run ? '⏸' : '▶️';
-    el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? ' / ' + fmtMin(v.min) : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
+    el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? '<span class="su"> / ' + fmtMin(v.min) + '</span>' : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
     const ok = el.querySelector('.ok'); ok.hidden = !!v.fatto; ok.classList.toggle('pronto', !!(prev && ms >= prev));
     // Tempo previsto raggiunto: un suono, una volta sola.
     const k = chiave(v.tipo, v.rif);
