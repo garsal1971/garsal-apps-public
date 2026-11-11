@@ -157,66 +157,20 @@ object ClasseViva {
             val agenda = leggi("agenda", "/students/$id/agenda/all/${giorno(-7)}/${giorno(giorniAgenda)}", "agenda")
             val lezioni = leggi("lezioni", "/students/$id/lessons/${giorno(-giorniLezioni)}/${giorno(0)}", "lessons")
             val insegnanti = leggi("insegnanti", "/students/$id/subjects", "subjects")
-            // I ricevimenti non stanno nelle API: si legge la pagina web dei colloqui.
-            var ricevimenti: JSONObject? = null
-            try { ricevimenti = paginaColloqui(uid, pass, ua, opz) }
-            catch (e: Exception) { errori.put("ricevimenti", e.message ?: e.toString()) }
 
             JSONObject().put("ok", true)
                 .put("studente", "${j.optString("firstName")} ${j.optString("lastName")}".trim())
                 .put("voti", voti).put("agenda", agenda).put("lezioni", lezioni)
-                .put("insegnanti", insegnanti).put("ricevimenti", ricevimenti ?: JSONObject.NULL)
+                .put("insegnanti", insegnanti)
                 .put("errori", errori).toString()
         } catch (e: Exception) {
             JSONObject().put("ok", false).put("errore", "Rete o risposta illeggibile: ${e.message ?: e}").toString()
         }
     }
 
-    /** L'indirizzo di accesso del sito e le pagine dei colloqui da provare, in ordine. */
-    const val WEB_LOGIN = "https://web.spaggiari.eu/auth-p7/app/default/AuthApi4.php?a=aLoginPwd"
-    val PAGINE_COLLOQUI = listOf(
-        "https://web.spaggiari.eu/fml/app/default/colloqui.php",
-        "https://web.spaggiari.eu/cvv/app/default/colloqui.php",
-        "https://web.spaggiari.eu/tic/app/default/colloqui.php")
-
-    /**
-     * ⚠️ NON È UN'API: è il sito di ClasseViva, letto come lo leggerebbe il browser.
-     * Login del sito (cookie PHPSESSID), poi la pagina dei colloqui. Torna l'HTML
-     * (tagliato) e l'indirizzo che ha risposto; a capire cosa c'è dentro è la pagina.
-     * L'indirizzo si può imporre dalla pagina (`opzioni.colloqui`).
-     */
-    private fun paginaColloqui(uid: String, pass: String, ua: String, opz: JSONObject): JSONObject {
-        val form = "cid=&uid=${java.net.URLEncoder.encode(uid, "UTF-8")}&pwd=${java.net.URLEncoder.encode(pass, "UTF-8")}&pin=&target="
-        val con = URL(WEB_LOGIN).openConnection() as HttpURLConnection
-        con.requestMethod = "POST"; con.connectTimeout = 15_000; con.readTimeout = 30_000
-        con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-        con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10)")
-        con.doOutput = true; con.outputStream.use { it.write(form.toByteArray(Charsets.UTF_8)) }
-        val stato = con.responseCode
-        val corpo = (if (stato in 200..299) con.inputStream else con.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
-        val cookie = (con.headerFields["Set-Cookie"] ?: con.headerFields["set-cookie"] ?: emptyList())
-            .map { it.substringBefore(';') }.filter { it.contains('=') }.joinToString("; ")
-        con.disconnect()
-        if (stato !in 200..299 || !corpo.contains("\"loggedIn\":true")) throw Exception("login del sito non riuscito (HTTP $stato): ${breve(corpo)}")
-        if (cookie.isBlank()) throw Exception("login del sito senza cookie di sessione")
-
-        val pagine = opz.optString("colloqui").takeIf { it.isNotBlank() }?.let { listOf(it) } ?: PAGINE_COLLOQUI
-        val tentativi = mutableListOf<String>()
-        for (url in pagine) {
-            val c = URL(url).openConnection() as HttpURLConnection
-            c.connectTimeout = 15_000; c.readTimeout = 30_000
-            c.setRequestProperty("Cookie", cookie)
-            c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10)")
-            val st = c.responseCode
-            val html = (if (st in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
-            val finale = c.url.toString(); c.disconnect()
-            // Rimandati al login = pagina che non esiste per questo profilo.
-            if (st in 200..299 && !finale.contains("/auth") && html.length > 500)
-                return JSONObject().put("url", finale).put("html", html.take(400_000))
-            tentativi.add("$url → HTTP $st")
-        }
-        throw Exception("nessuna pagina dei colloqui ha risposto: ${tentativi.joinToString("; ")}")
-    }
+    // ⚠️ I ricevimenti dei docenti NON si leggono: non stanno nelle API, e il login del
+    // sito web (AuthApi4.php) risponde 403 Akamai anche dal telefono — vuole un browser
+    // vero. Provato l'11 novembre 2026 e tolto.
 
     private fun errLogin(r: Risposta): String {
         val motivo = when {
