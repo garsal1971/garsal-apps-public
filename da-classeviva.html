@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClasseViva v1.1.1</title>
+<title>ClasseViva v1.1.2</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — sincronizza, poi tre schede (Voti / Agenda / Lezioni) */
@@ -110,8 +110,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.1.1';
-var BUILD_TIME  = '2026-11-11T20:15:00Z';
+var APP_VERSION = 'v1.1.2';
+var BUILD_TIME  = '2026-11-11T20:30:00Z';
 console.log('%c CLASSEVIVA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#D4145A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -294,6 +294,8 @@ function vistaLezioni() {
 
 /* ── Insegnanti ───────────────────────────────────────────────────────── */
 // ⚠️ I ricevimenti non ci sono: il sito ClasseViva (diverso dalle API) blocca anche il telefono.
+// Educazione civica la insegnano quasi tutti: si nasconde se il docente ha anche altre materie.
+const materieMostrate = m => { const altre = m.filter(x => !/educazione\s+civica/i.test(x)); return altre.length ? altre : m; };
 function vistaInsegnanti() {
   if (!S.insegnanti.length) return '<p class="hint">Nessun insegnante salvato: tocca 🔄 Sincronizza dall\'app.</p>';
   const doc = {};
@@ -302,7 +304,7 @@ function vistaInsegnanti() {
     (doc[k] = doc[k] || { nome: t.teacherName || '—', materie: [] }).materie.push(m.description || '—');
   }));
   return `<div style="display:grid;gap:12px">${Object.values(doc).sort((a, b) => a.nome.localeCompare(b.nome)).map(d =>
-    `<div class="card giorno"><h3>${esc(d.nome)}</h3><div class="m">${esc(d.materie.join(' · '))}</div></div>`).join('')}</div>`;
+    `<div class="card giorno"><h3>${esc(d.nome)}</h3><div class="m">${esc(materieMostrate(d.materie).join(' · '))}</div></div>`).join('')}</div>`;
 }
 
 S.tab = ['voti', 'agenda', 'lezioni', 'insegnanti'].includes(ls.get('cv_tab')) ? ls.get('cv_tab') : 'voti';
