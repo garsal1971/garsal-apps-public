@@ -457,7 +457,44 @@ class MainActivity : AppCompatActivity() {
             forziereParole = ""
             return p
         }
+
+        // ---- ClasseViva: la lettura la fa il telefono (vedi ClasseViva.kt) ----
+        // ⚠️ La pagina cerca il METODO, come col Forziere: negli APK vecchi il
+        // ponte c'è ma non lo conosce, e il bottone resta nascosto.
+        @android.webkit.JavascriptInterface
+        fun classevivaRegistrato(): Boolean = ClasseViva.registrato(this@MainActivity)
+
+        @android.webkit.JavascriptInterface
+        fun classevivaUtente(): String = ClasseViva.utente(this@MainActivity)
+
+        @android.webkit.JavascriptInterface
+        fun classevivaSalva(uid: String, pass: String): Boolean = try {
+            ClasseViva.salva(this@MainActivity, uid, pass); true
+        } catch (e: Exception) { Log.e("MainActivity", "classevivaSalva: $e"); false }
+
+        @android.webkit.JavascriptInterface
+        fun classevivaDimentica() { ClasseViva.dimentica(this@MainActivity) }
+
+        /** Legge in un thread e poi chiama `classevivaCallback(id)`; i dati si
+         *  prendono con `classevivaPrendi()`, che li restituisce e li cancella. */
+        @android.webkit.JavascriptInterface
+        fun classevivaSincronizza(opzioni: String, callbackId: String) {
+            Thread {
+                classevivaRisultato = ClasseViva.sincronizza(this@MainActivity, opzioni)
+                val id = org.json.JSONObject.quote(callbackId)
+                runOnUiThread { webView.evaluateJavascript("try{classevivaCallback($id);}catch(e){}", null) }
+            }.start()
+        }
+
+        @android.webkit.JavascriptInterface
+        fun classevivaPrendi(): String {
+            val r = classevivaRisultato
+            classevivaRisultato = ""
+            return r
+        }
     }
+
+    @Volatile private var classevivaRisultato: String = ""
 
     private fun rispondiForziere(callbackId: String, esito: String) {
         val id = org.json.JSONObject.quote(callbackId)

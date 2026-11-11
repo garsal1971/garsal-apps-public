@@ -1,5 +1,5 @@
 /* ============================================================================
-   scuola-ada.js v1.1.0 — accesso, database e barra in alto per le pagine
+   scuola-ada.js v1.2.0 — accesso, database e barra in alto per le pagine
    della scuola di Ada (compiti, verifiche, calendario, impostazioni).
 
    La barra blu è quella di AppSphere (logo + «Garsal Apps», nome, ☰): il
@@ -206,7 +206,8 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
 
   /* ── Barra in alto, come in AppSphere ─────────────────────────────── */
   const PAGINE = [['compiti-ada.html', '📚 Compiti'], ['verifiche-ada.html', '📝 Verifiche'],
-                  ['calendario-ada.html', '📅 Calendario'], ['impostazioni-ada.html', '⚙️ Impostazioni']];
+                  ['calendario-ada.html', '📅 Calendario'], ['impostazioni-ada.html', '⚙️ Impostazioni'],
+                  ['da-classeviva.html', '🏫 ClasseViva']];
   const LOGO = '<svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="20" cy="20" r="12" fill="#DE8026"/><circle cx="44" cy="20" r="12" fill="#CA372E"/><circle cx="20" cy="44" r="12" fill="#32974C"/><circle cx="44" cy="44" r="12" fill="#824FA5"/><circle cx="32" cy="32" r="12" fill="#067BC0"/></svg>';
   function barra() {
     let b = document.getElementById('sc-barra');
