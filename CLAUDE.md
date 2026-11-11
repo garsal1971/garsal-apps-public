@@ -2242,6 +2242,28 @@ Migration: `20261028100000_af_autoformazione.sql`. Pagina: `autoformazione.html`
 - I tipi stanno in `TIPI` dentro la pagina: aggiungerne uno è una riga, la riga di `af_exercise_types` nasce da sé al primo accesso. ⚠️ `key` non si cambia.
 - 📝 **Test inglese** (v1.2.0, tipo `test_inglese`, `test: true` in `TIPI`): grammatica (10 × 2,5), comprensione (5 × 5) e ascolto (5 × 5, sintesi vocale en-GB del browser, due ascolti) si correggono nella pagina; la **scrittura** (25) la corregge `af-ai` col prompt del tipo, che deve far scrivere `SCRITTURA: n/25` (o le quattro voci CONTENUTO/ORGANIZZAZIONE/GRAMMATICA/LESSICO, che `leggiScrittura` somma). I contenuti sono file JSON in `risorse/test-inglese/`, elencati in `indice.json` dal più vecchio al più nuovo: li scrive la skill `test-inglese`, uno nuovo per test. ⚠️ Lo storico sta in `af_exercises`, **nessuna colonna nuova**: `voto` = totale/10 arrotondato (1-10), e la **prima riga di `answer`** è `TOTALE: n/100 · G … · C … · A … · S … · test <id>`, che `RE_TOTALE` legge per lo storico, il grafico e i ✅ della tendina. Cambiandone la forma, va cambiata anche `RE_TOTALE` (e la skill, che la legge per il confronto). ✋ **Chiedo io** anche sul test (v1.2.1, `chiedoIoTest`): copia prompt + `CODA_SCRITTURA` + consegna + scrittura, la risposta si incolla e i punti della scrittura (0-25) vanno in una casella proposta da `leggiScrittura`; si salva con `provider = 'manuale'`.
 
+### Scuola di Ada (`sc_`)
+| Table | Purpose |
+|---|---|
+| `sc_materie` | Materie: sigla, nome, colore, `minuti` di compiti **per lezione** (0 = niente compiti) |
+| `sc_orario` | Orario settimanale: `giorno` 1-6 (lun-sab), `ora` d'inizio, `durata` in ore, `materia_id`, `senza_compiti` |
+| `sc_compiti_fatti` | Le spunte del piano: `giorno` = il pomeriggio in cui si sono fatti i compiti di quella lezione |
+| `sc_verifiche` | Compiti in classe e interrogazioni: `data`, `materia` (testo), `tipo`, `note` |
+
+Migration `20261111150000_sc_scuola_ada.sql`. Pagine: `compiti-ada.html` (piano settimanale: i
+compiti di una lezione si fanno **il pomeriggio prima**, domenica per il lunedì) e
+`verifiche-ada.html`. Nessuna bolla in AppSphere.
+- ⚠️ **I dati sono di Salvatore e Ada li modifica**: `user_id` ha DEFAULT `garsal_user_id()`, così
+  anche le righe scritte da Ada sono sue. L'accesso di Ada è `cm_guest_access` (pagina
+  `compiti-ada.html` o `verifiche-ada.html`) via `sc_ospite()`, come Teresa e Rosa.
+- ⚠️ **Login in `scuola-ada.js`**, deroga dichiarata alla regola del file unico (le due pagine
+  lo condividono): Salvatore entra col `sb_token` di AppSphere, Ada con email e password; la
+  prima password si imposta col link «Imposta la password», che torna sulla pagina — le due
+  pagine vanno fra i **Redirect URLs** di Supabase. La sessione dell'ospite sta in
+  `localStorage.sc_session`, non in `garsal_session` (è di situazione-teresa/rosa).
+- ⚠️ **Nessun dato in repo**: orario, minuti, verifiche e la riga di `cm_guest_access` si
+  scrivono a mano nel database.
+
 ### Scorte Amazon (`amz_`)
 | Table | Purpose |
 |---|---|
