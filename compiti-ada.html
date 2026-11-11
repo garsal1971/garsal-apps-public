@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compiti di Ada</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: colonna unica — piano settimanale in alto, poi orario 3M, poi tempi per materia */
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --accent-soft:#e3eafb; --done:#2e8b57;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Inter", system-ui, -apple-system, sans-serif;
+  --mat:#3b6fe0; --fis:#7a4fd6; --sto:#b4762a; --fil:#c4527a; --ita:#2f9a6b; --ing:#d0533a; --fra:#2c8fa8; --spa:#c99a12; --sci:#5b8f2a; --none:#9aa3b2;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --accent-soft:#232f4d; --done:#5cc48a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --accent-soft:#232f4d; --done:#5cc48a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:20px;font-weight:600}
+.sub{color:var(--muted);margin:4px 0 0}
+.eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+section{display:grid;gap:12px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
+/* piano */
+.week{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.day{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;align-content:start}
+.day.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.day-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.day-h b{font-family:var(--display);font-size:17px}
+.day-h .tot{font-variant-numeric:tabular-nums;font-weight:600}
+.for{font-size:12px;color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.tasks{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.tasks li label{display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0}
+.tasks li .m{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.tasks input{accent-color:var(--done);width:16px;height:16px}
+.tasks li.ok span.n{text-decoration:line-through;color:var(--muted)}
+.free{color:var(--muted);font-size:13px}
+.weektot{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline}
+.weektot strong{font-family:var(--display);font-size:26px;font-variant-numeric:tabular-nums}
+button.ghost{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer}
+button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* orario */
+.tbl-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:6px;text-align:center}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.h{color:var(--muted);font-variant-numeric:tabular-nums;width:48px}
+.cell{font:inherit;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;border:1px solid transparent;background:none;color:var(--fg);cursor:pointer}
+.cell:hover{border-color:var(--line)}
+.cell.nohw{color:var(--muted);text-decoration:line-through}
+.cell.zero{color:var(--muted);cursor:default}
+.hint{font-size:13px;color:var(--muted)}
+/* minuti */
+.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.sub-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.sub-row .nm{flex:1;min-width:0;font-weight:500}
+.step{display:flex;align-items:center;gap:4px}
+.step button{font:inherit;width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.step input{width:44px;text-align:center;font:inherit;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--card);color:var(--fg)}
+.step small{color:var(--muted);font-size:12px}
+.wk{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;width:54px;text-align:right}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s}}
+</style>
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Classe 3M · a.s. 2026/27</div>
+    <h1>Compiti di Ada</h1>
+    <p class="sub">I compiti di ogni lezione si fanno il pomeriggio prima. Cambia i minuti in fondo e il piano si aggiorna.</p>
+  </header>
+
+  <section>
+    <div class="weektot">
+      <h2>Piano della settimana</h2>
+      <span><strong id="wtot">0</strong> <span class="hint">totale settimana</span></span>
+      <button class="ghost" id="reset-check" type="button">Azzera spunte</button>
+    </div>
+    <div class="week" id="week"></div>
+  </section>
+
+  <section>
+    <h2>Orario</h2>
+    <p class="hint">Tocca una lezione per segnarla "senza compiti" (barrata) o riattivarla.</p>
+    <div class="tbl-wrap"><table id="orario"></table></div>
+  </section>
+
+  <section>
+    <h2>Minuti per lezione</h2>
+    <div class="subs" id="subs"></div>
+    <p class="hint">A destra il totale settimanale per materia. I dati restano salvati in questo browser.</p>
+  </section>
+</div>
+
+<script>
+const SUBJ = {
+  Mat:{n:"Matematica",c:"--mat",m:30}, Fis:{n:"Fisica",c:"--fis",m:30}, Sto:{n:"Storia",c:"--sto",m:20},
+  Fil:{n:"Filosofia",c:"--fil",m:20}, Ita:{n:"Italiano",c:"--ita",m:20}, Ing:{n:"Inglese",c:"--ing",m:20},
+  Fra:{n:"Francese",c:"--fra",m:30}, Spa:{n:"Spagnolo",c:"--spa",m:15}, Sci:{n:"Scienze",c:"--sci",m:20},
+  Arte:{n:"Arte",c:"--none",m:0}, "Sci mot":{n:"Scienze motorie",c:"--none",m:0}, Rel:{n:"Religione",c:"--none",m:0}
+};
+const DAYS = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
+const FULL = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
+const HOURS = ["8","9","10","11","12","13"];
+// orario[giorno][ora] (null = vuota; "^" = continua dall'ora sopra)
+const ORARIO = [
+  ["Mat","Fis","Spa","Sto","Fra",null],
+  ["Sci mot","^","Ing","Ita","Arte","Sci"],
+  ["Spa","Fil","Ing","Mat","Fra",null],
+  ["Ita","Ing","Sto","Fil","Fis","Spa"],
+  ["Fra","Arte","Spa","Ing",null,null],
+  ["Fra","Ita","^","Sci","Rel",null]
+];
+const DEF_NOHW = {"0-2":true}; // Spagnolo lunedì: niente compiti
+
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let mins = Object.assign(Object.fromEntries(Object.entries(SUBJ).map(([k,v])=>[k,v.m])), load("ada-mins",{}));
+let nohw = load("ada-nohw",DEF_NOHW);
+let checks = load("ada-checks",{});
+
+const fmt = m => m>=60 ? `${Math.floor(m/60)} h ${m%60?String(m%60).padStart(2,"0"):""}`.trim() : `${m} min`;
+const col = s => `var(${SUBJ[s].c})`;
+
+function lessons(d){ // lezioni con compiti del giorno d (0=Lun..5=Sab)
+  if(d<0||d>5) return [];
+  return ORARIO[d].map((s,h)=>({s,h})).filter(x=>x.s && x.s!=="^" && !nohw[`${d}-${x.h}`] && mins[x.s]>0);
+}
+function plan(){ // pomeriggio p (0=Lun..6=Dom) prepara il giorno dopo
+  return DAYS.map((_,p)=>{const target=(p+1)%7; return {p,target,items:lessons(target===6?-1:target)}});
+}
+
+function render(){
+  const pl = plan();
+  const totals = pl.map(x=>x.items.reduce((a,i)=>a+mins[i.s],0));
+  const max = Math.max(60,...totals);
+  document.getElementById("wtot").textContent = fmt(totals.reduce((a,b)=>a+b,0));
+  const jsDay = new Date().getDay(); const todayIdx = (jsDay+6)%7;
+  const order = [6,0,1,2,3,4,5]; // da domenica (prepara lunedì)
+  document.getElementById("week").innerHTML = order.map(p=>{
+    const x = pl[p], t = totals[p];
+    const body = x.items.length ? `<ul class="tasks">${x.items.map(i=>{
+      const key=`${p}-${i.h}`, ok=!!checks[key];
+      return `<li class="${ok?"ok":""}"><label><input type="checkbox" id="c-${key}" data-k="${key}" ${ok?"checked":""}><span class="dot" style="background:${col(i.s)}"></span><span class="n">${SUBJ[i.s].n}</span><span class="m">${mins[i.s]}′</span></label></li>`}).join("")}</ul>`
+      : `<div class="free">Pomeriggio libero</div>`;
+    return `<div class="day${p===todayIdx?" today":""}">
+      <div class="day-h"><b>${FULL[p]}</b><span class="tot">${t?fmt(t):"—"}</span></div>
+      <div class="for">${x.target===6?"Nessuna lezione domani":"Per "+FULL[x.target].toLowerCase()}</div>
+      <div class="bar"><i style="width:${t/max*100}%"></i></div>${body}</div>`;
+  }).join("");
+
+  let html = `<thead><tr><th></th>${DAYS.slice(0,6).map(d=>`<th>${d}</th>`).join("")}</tr></thead><tbody>`;
+  HOURS.forEach((h,hi)=>{
+    html += `<tr><td class="h">${h}:00</td>`;
+    for(let d=0;d<6;d++){
+      const s = ORARIO[d][hi];
+      if(s==="^"){html+=`<td><span class="hint">↑</span></td>`;continue}
+      if(!s){html+=`<td></td>`;continue}
+      if(!(SUBJ[s].m>0||mins[s]>0)){html+=`<td><span class="cell zero">${s}</span></td>`;continue}
+      const k=`${d}-${hi}`;
+      html+=`<td><button type="button" class="cell${nohw[k]?" nohw":""}" data-l="${k}"><span class="dot" style="background:${col(s)}"></span>${s}</button></td>`;
+    }
+    html+=`</tr>`;
+  });
+  document.getElementById("orario").innerHTML = html+"</tbody>";
+
+  const perWeek = s => ORARIO.reduce((a,row,d)=>a+row.filter((x,h)=>x===s&&!nohw[`${d}-${h}`]).length,0)*mins[s];
+  document.getElementById("subs").innerHTML = Object.keys(SUBJ).map(s=>`
+    <div class="sub-row"><span class="dot" style="background:${col(s)}"></span><span class="nm">${SUBJ[s].n}</span>
+      <div class="step"><button type="button" data-s="${s}" data-d="-5" aria-label="Meno 5 minuti">−</button>
+      <input id="m-${s.replace(" ","")}" inputmode="numeric" value="${mins[s]}" data-in="${s}" aria-label="Minuti ${SUBJ[s].n}">
+      <button type="button" data-s="${s}" data-d="5" aria-label="Più 5 minuti">+</button></div>
+      <span class="wk">${perWeek(s)?fmt(perWeek(s)):"—"}</span></div>`).join("");
+}
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.l){ nohw[b.dataset.l]=!nohw[b.dataset.l]; save("ada-nohw",nohw); render(); }
+  else if(b.dataset.s){ const s=b.dataset.s; mins[s]=Math.max(0,mins[s]+ +b.dataset.d); save("ada-mins",mins); render(); }
+  else if(b.id==="reset-check"){ checks={}; save("ada-checks",checks); render(); }
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.k){ checks[t.dataset.k]=t.checked; save("ada-checks",checks); render(); }
+  if(t.dataset.in){ const v=parseInt(t.value,10); mins[t.dataset.in]=isNaN(v)?0:Math.max(0,v); save("ada-mins",mins); render(); }
+});
+render();
+</script>
+</body>
+</html>
