@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Studio">
+<title>Studio di oggi v1.0.0</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: in cima il tempo di oggi e la pausa; sotto una zona per impegno,
+   alta in proporzione ai minuti previsti, che si riempie mentre il cronometro gira. */
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --on-accent:#fff;
+  --ok:#2e8b57; --warn:#c2410c; --danger:#c0392b;
+  --compiti:#7c3aed; --compiti-bg:#ede4fd; --studio:#0891b2; --studio-bg:#dcf2f7; --pausa:#b45309; --pausa-bg:#fdecd3;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --on-accent:#12161f;
+  --ok:#5cc48a; --warn:#f0904a; --danger:#ef7a6b;
+  --compiti:#b18cf5; --compiti-bg:#2a2140; --studio:#4cc3dc; --studio-bg:#13303a; --pausa:#e5a84a; --pausa-bg:#3a2a12; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161f; --card:#1a2030; --fg:#e7ebf3; --muted:#9aa4b8; --line:#2b3346; --accent:#7d9ff0; --on-accent:#12161f;
+  --ok:#5cc48a; --warn:#f0904a; --danger:#ef7a6b;
+  --compiti:#b18cf5; --compiti-bg:#2a2140; --studio:#4cc3dc; --studio-bg:#13303a; --pausa:#e5a84a; --pausa-bg:#3a2a12; color-scheme:dark}
+[hidden]{display:none!important}
+*{-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.wrap{max-width:640px;margin:0 auto;padding-block:16px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:14px;min-height:calc(100dvh - 56px - env(safe-area-inset-top,0px));box-sizing:border-box;grid-template-rows:auto auto 1fr auto}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(24px,6vw,32px);margin:0;letter-spacing:-.02em}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:6px 12px}
+.top .tot{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.top .tot b{color:var(--fg)}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px}
+.btn{font:inherit;font-weight:600;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--fg);padding:10px 14px;min-height:48px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn.pausa{flex:1;min-width:0;justify-content:space-between;border-color:var(--pausa)}
+.btn.pausa.on{background:var(--pausa);color:var(--card)}
+.btn.pausa small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
+.btn.stop{border-color:var(--muted)}
+.zone{display:flex;flex-direction:column;gap:8px;min-height:0}
+.z{position:relative;border:2px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden;cursor:pointer;min-height:min-content;display:flex;user-select:none;-webkit-user-select:none}
+.z .fill{position:absolute;left:0;right:0;bottom:0;height:0;transition:height .6s linear}
+.z.compito .fill{background:var(--compiti-bg)} .z.argomento .fill{background:var(--studio-bg)}
+.z.compito{border-left:8px solid var(--compiti)} .z.argomento{border-left:8px solid var(--studio)}
+.z.run{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.z.compito.run{border-left-color:var(--compiti)} .z.argomento.run{border-left-color:var(--studio)}
+.z.oltre .fill{background:repeating-linear-gradient(135deg,var(--pausa-bg) 0 10px,transparent 10px 20px),var(--compiti-bg)}
+.z.argomento.oltre .fill{background:repeating-linear-gradient(135deg,var(--pausa-bg) 0 10px,transparent 10px 20px),var(--studio-bg)}
+.z.fatto{opacity:.55}
+.z.fatto .t{text-decoration:line-through}
+.z .in{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:6px;padding:10px 12px}
+.z .r1{display:flex;align-items:flex-start;gap:8px}
+.z .t{flex:1;min-width:0;font-weight:600}
+.z .t small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.z .play{flex:none;font-size:20px;line-height:1}
+.z .r2{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.z .tempo{font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted)}
+.z .tempo b{color:var(--fg);font-size:18px;font-family:var(--display)}
+.z.oltre .tempo .piu{color:var(--warn);font-weight:600}
+.ok{font:inherit;font-size:13px;font-weight:600;border:2px solid var(--ok);color:var(--ok);background:var(--card);border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer}
+.ok.pronto{background:var(--ok);color:var(--card);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.ok.pronto{animation:none}.z .fill{transition:none}}
+.vuoto,.loading{color:var(--muted)}
+.vuoto a{color:var(--accent)}
+.nota{font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;max-width:calc(100% - 32px);box-sizing:border-box;z-index:600;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" hidden>
+  <div class="top">
+    <h1 id="titolo">Studio di oggi</h1>
+    <div class="tot" id="tot"></div>
+  </div>
+  <div class="ctrl">
+    <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
+    <button type="button" class="btn stop" id="stop" hidden>⏹ Fermo</button>
+  </div>
+  <div class="zone" id="zone"><p class="loading">Carico…</p></div>
+  <p class="nota">Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per fermarti.</p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="scuola-ada.js"></script>
+<script>
+var APP_VERSION = 'v1.0.0';
+var BUILD_TIME  = '2026-11-11T21:10:00Z';
+console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
+  'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
+  'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
+
+const MAX_APERTA_MS = 3 * 3600e3; // una sessione dimenticata aperta oltre 3 h si chiude lì
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const oggi = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+const piu = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const minuti = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? 0 : h * 60 + (m || 0); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtMin = m => { m = Math.round(m); return m >= 60 ? `${Math.floor(m/60)} h${m % 60 ? ' ' + String(m % 60).padStart(2,'0') : ''}` : `${m} min`; };
+const orologio = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2,'0') : m) + ':' + String(x).padStart(2,'0'); };
+const chiave = (tipo, rif) => tipo + ':' + (rif || '');
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => el.hidden = true, 3500); }
+
+// Stato: impegni di oggi, sessioni di oggi (chiuse) e quella in corso.
+const S = { voci: [], sessioni: [], aperta: null, pausaMax: 0, avvisati: new Set(), giorno: '' };
+
+// ── Il piano di oggi ─────────────────────────────────────────────────────
+// ⚠️ Gemello del primo giorno di piano() in calendario-ada.html: tempo utile =
+// fasce × 60 / (60 + pausa); prima i compiti delle lezioni di domani (non
+// spuntati), poi le ore degli argomenti non «studiati», dalla verifica più
+// vicina e solo prima del suo giorno. Cambiando una, cambia l'altra.
+function pianoDiOggi({ materie, orario, fatti, ver, args, imp }) {
+  const t = oggi(), giornoIso = iso(t), domani = piu(t, 1).getDay(), mat = new Map(materie.map(m => [m.id, m]));
+  const fatto = new Set(fatti.filter(f => f.giorno === giornoIso).map(f => f.orario_id));
+  const pausa = imp.pausa_minuti || 0, lf = (imp.fasce || {})[t.getDay()] || [];
+  const lordo = lf.reduce((a, f) => a + Math.max(0, minuti(f[1]) - minuti(f[0])), 0);
+  const cap = Math.floor(lordo * 60 / (60 + pausa));
+  const voci = [];
+  if (domani >= 1 && domani <= 6) for (const o of orario) {
+    const m = mat.get(o.materia_id);
+    if (o.giorno !== domani || o.senza_compiti || !m || !(m.minuti > 0)) continue;
+    voci.push({ tipo: 'compito', rif: o.id, titolo: m.nome, sotto: 'Compiti per domani', min: m.minuti, fatto: fatto.has(o.id) });
+  }
+  let libero = Math.max(0, cap - voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0));
+  for (const v of ver) {
+    if (v.data <= giornoIso) continue;
+    for (const a of args.filter(a => a.verifica_id === v.id).sort((x, y) => x.posizione - y.posizione)) {
+      if (libero <= 0) break;
+      if (a.studiato || !(Number(a.ore) > 0)) continue;
+      const q = Math.min(Number(a.ore) * 60, libero); libero -= q;
+      voci.push({ tipo: 'argomento', rif: a.id, titolo: `${v.materia} · ${a.titolo}`, sotto: `per il ${v.data.slice(8)}/${v.data.slice(5,7)}`, min: q, fatto: false });
+    }
+  }
+  // Pausa concessa: i minuti di pausa per ogni ora di lavoro previsto.
+  const lavoro = voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0);
+  return { voci, pausaMax: Math.round(lavoro * pausa / 60) };
+}
+
+async function carica() {
+  const t = oggi(), oggiIso = iso(t); S.giorno = oggiIso;
+  try {
+    const [materie, orario, fatti, ver, args, imp, sess] = await Promise.all([
+      SC.db('sc_materie?select=id,nome,minuti'),
+      SC.db('sc_orario?select=id,giorno,ora,materia_id,senza_compiti&order=giorno,ora'),
+      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=eq.${oggiIso}`),
+      SC.db(`sc_verifiche?select=id,data,materia&data=gt.${oggiIso}&order=data,created_at`),
+      SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,posizione&order=posizione'),
+      SC.db('sc_impostazioni?select=*&limit=1'),
+      SC.db(`sc_sessioni?select=*&or=(giorno.eq.${oggiIso},fine.is.null)&order=inizio`)
+    ]);
+    const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 } });
+    S.voci = p.voci; S.pausaMax = p.pausaMax;
+    // Sessioni aperte: una sola è buona; quelle di altri giorni o dimenticate si chiudono.
+    S.aperta = null; S.sessioni = [];
+    for (const s of sess) {
+      if (s.fine) { S.sessioni.push(s); continue; }
+      const vecchia = s.giorno !== oggiIso || Date.now() - Date.parse(s.inizio) > MAX_APERTA_MS || S.aperta;
+      if (vecchia) {
+        const fine = new Date(Math.min(Date.now(), Date.parse(s.inizio) + MAX_APERTA_MS)).toISOString();
+        await SC.db(`sc_sessioni?id=eq.${s.id}`, { method: 'PATCH', body: { fine }, prefer: 'return=minimal' }).catch(() => {});
+        if (s.giorno === oggiIso) S.sessioni.push({ ...s, fine });
+        toast('Un cronometro era rimasto acceso: l\'ho fermato.');
+      } else S.aperta = s;
+    }
+    // Un impegno su cui oggi si è già lavorato resta a schermo anche se il piano non lo propone più.
+    for (const s of S.sessioni.concat(S.aperta ? [S.aperta] : [])) {
+      if (s.tipo === 'pausa' || S.voci.some(v => chiave(v.tipo, v.rif) === chiave(s.tipo, s.rif))) continue;
+      S.voci.push({ tipo: s.tipo, rif: s.rif, titolo: s.titolo, sotto: 'già lavorato oggi', min: 0, fatto: true });
+    }
+    disegna();
+  } catch (e) { document.getElementById('zone').innerHTML = `<p class="vuoto">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
+}
+
+// Millisecondi passati oggi su un impegno (o sulla pausa), sessione in corso compresa.
+function speso(tipo, rif) {
+  const k = chiave(tipo, rif), ora = Date.now();
+  let ms = 0;
+  for (const s of S.sessioni) if (chiave(s.tipo, s.rif) === k) ms += Date.parse(s.fine) - Date.parse(s.inizio);
+  if (S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === k) ms += ora - Date.parse(S.aperta.inizio);
+  return ms;
+}
+
+function disegna() {
+  const z = document.getElementById('zone');
+  if (!S.voci.length) {
+    z.innerHTML = `<p class="vuoto">Oggi non c'è niente in programma. Se ti aspettavi qualcosa, controlla le <a href="impostazioni-ada.html">fasce di studio</a> e il <a href="calendario-ada.html">calendario</a>.</p>`;
+  } else {
+    z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0" style="flex:${Math.max(v.min, 20)} 1 0">
+      <div class="fill"></div>
+      <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}</small></div><span class="play"></span></div>
+      <div class="r2"><span class="tempo"></span><button type="button" class="ok" data-ok="${i}">✓ ${v.tipo === 'compito' ? 'Fatto' : 'Studiato'}</button></div></div></div>`).join('');
+  }
+  aggiorna();
+}
+
+// Ridisegna i soli numeri, una volta al secondo.
+function aggiorna() {
+  let tot = 0;
+  document.querySelectorAll('.z').forEach(el => {
+    const v = S.voci[el.dataset.i], ms = speso(v.tipo, v.rif), run = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif);
+    tot += ms;
+    const prev = v.min * 60e3, frac = prev ? ms / prev : (ms ? 1 : 0), oltre = prev && ms > prev;
+    el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
+    el.querySelector('.fill').style.height = Math.min(100, frac * 100) + '%';
+    el.querySelector('.play').textContent = v.fatto ? '✅' : run ? '⏸' : '▶️';
+    el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? ' / ' + fmtMin(v.min) : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
+    const ok = el.querySelector('.ok'); ok.hidden = !!v.fatto; ok.classList.toggle('pronto', !!(prev && ms >= prev));
+    // Tempo previsto raggiunto: un suono, una volta sola.
+    const k = chiave(v.tipo, v.rif);
+    if (run && prev && ms >= prev && !S.avvisati.has(k)) { S.avvisati.add(k); bip(); toast(`Tempo previsto finito per «${v.titolo}». Hai finito?`); }
+  });
+  const pms = speso('pausa', null), pausaOn = S.aperta && S.aperta.tipo === 'pausa';
+  const pb = document.getElementById('pausa');
+  pb.classList.toggle('on', !!pausaOn);
+  pb.firstChild.textContent = pausaOn ? '☕ In pausa ' : '☕ Pausa ';
+  document.getElementById('pausa-t').textContent = `${orologio(pms)} / ${fmtMin(S.pausaMax)}`;
+  if (pausaOn && S.pausaMax && pms >= S.pausaMax * 60e3 && !S.avvisati.has('pausa')) { S.avvisati.add('pausa'); bip(); toast('La pausa di oggi è finita: si riparte!'); }
+  document.getElementById('stop').hidden = !S.aperta;
+  const prev = S.voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0);
+  document.getElementById('tot').innerHTML = `studiato <b>${fmtMin(tot / 60e3)}</b>${prev ? ` su ${fmtMin(prev)} previsti` : ''}`;
+}
+setInterval(() => { if (document.visibilityState === 'visible' && S.voci) aggiorna(); }, 1000);
+document.addEventListener('visibilitychange', () => {
+  // Rientrando dopo mezzanotte il piano è un altro.
+  if (document.visibilityState === 'visible' && S.giorno && S.giorno !== iso(oggi())) carica();
+});
+
+let audio;
+function bip() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    [0, .25, .5].forEach(t => { const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = 880; g.gain.value = .15; o.connect(g); g.connect(audio.destination);
+      o.start(audio.currentTime + t); o.stop(audio.currentTime + t + .15); });
+  } catch (e) {}
+}
+
+// ── Cronometro: una sessione aperta alla volta ───────────────────────────
+let lavoro = Promise.resolve();
+const inFila = f => (lavoro = lavoro.then(f, f));
+
+async function chiudi() {
+  const s = S.aperta; if (!s) return;
+  S.aperta = null;
+  const fine = new Date().toISOString();
+  S.sessioni.push({ ...s, fine });
+  if (s.id) await SC.db(`sc_sessioni?id=eq.${s.id}`, { method: 'PATCH', body: { fine }, prefer: 'return=minimal' })
+    .catch(e => toast('Tempo non salvato: ' + e.message));
+}
+async function apri(tipo, rif, titolo) {
+  const s = { tipo, rif: rif || null, titolo, giorno: iso(oggi()), inizio: new Date().toISOString(), fine: null };
+  S.aperta = s;
+  try { const [r] = await SC.db('sc_sessioni', { method: 'POST', body: s }); if (S.aperta === s) s.id = r.id; else if (r) await SC.db(`sc_sessioni?id=eq.${r.id}`, { method: 'PATCH', body: { fine: new Date().toISOString() }, prefer: 'return=minimal' }); }
+  catch (e) { toast('Tempo non salvato: ' + e.message); }
+}
+function tocca(tipo, rif, titolo) {
+  if (audio && audio.state === 'suspended') audio.resume();
+  const stessa = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(tipo, rif);
+  inFila(async () => { await chiudi(); if (!stessa) await apri(tipo, rif, titolo); aggiorna(); });
+  // Risposta immediata a schermo, prima della rete.
+  aggiorna();
+}
+
+async function segnaFatto(v) {
+  try {
+    if (v.tipo === 'compito')
+      await SC.db('sc_compiti_fatti', { method: 'POST', body: { giorno: iso(oggi()), orario_id: v.rif }, prefer: 'return=minimal' });
+    else await SC.db(`sc_argomenti?id=eq.${v.rif}`, { method: 'PATCH', body: { studiato: true }, prefer: 'return=minimal' });
+    if (S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif)) await inFila(chiudi);
+    v.fatto = true; aggiorna();
+    toast(v.tipo === 'compito' ? 'Compito fatto 👏' : 'Argomento studiato 👏');
+  } catch (e) { toast('Non riesco a segnarlo: ' + e.message); }
+}
+
+document.addEventListener('click', e => {
+  const ok = e.target.closest('[data-ok]');
+  if (ok) { e.stopPropagation(); segnaFatto(S.voci[ok.dataset.ok]); return; }
+  const z = e.target.closest('.z');
+  if (z) { const v = S.voci[z.dataset.i]; tocca(v.tipo, v.rif, v.titolo); return; }
+  if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
+  if (e.target.closest('#stop')) { inFila(async () => { await chiudi(); aggiorna(); }); aggiorna(); }
+});
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('z')) { e.preventDefault(); e.target.click(); } });
+
+SC.avvia('studio-ada.html', carica);
+</script>
+</body>
+</html>
