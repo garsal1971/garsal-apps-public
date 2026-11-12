@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.3.3</title>
+<title>Studio di oggi v1.4.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -42,7 +42,9 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .btn.pausa{flex:1;min-width:0;justify-content:space-between;border-color:var(--pausa)}
 .btn.pausa.on{background:var(--pausa);color:var(--card)}
 .btn.pausa small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
-.btn.stop{border-color:var(--muted)}
+.btn.stop{border-color:#0284c7;max-width:55%;min-width:0}
+.btn.stop.gelo{background:#0284c7;color:#fff}
+.zone.gelo,.btn.pausa.gelo{opacity:.5;filter:grayscale(.6)}
 .zone{position:relative;flex:1;min-height:0}
 .z{position:absolute;box-sizing:border-box;border:4px solid #000;border-radius:12px;background:var(--zc);overflow:hidden;cursor:pointer;display:flex;user-select:none;-webkit-user-select:none}
 /* Ogni impegno ha il suo colore (--zl/--ql chiaro, --zd/--qd scuro): fondo tenue, liquido più pieno. */
@@ -90,15 +92,15 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
   <div class="zone" id="zone" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per fermarti."><p class="loading">Carico…</p></div>
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
-    <button type="button" class="btn stop" id="stop" hidden>⏹ Fermo</button>
+    <button type="button" class="btn stop" id="stop" hidden>❄️ Congela</button>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.3.3';
-var BUILD_TIME  = '2026-11-11T22:20:00Z';
+var APP_VERSION = 'v1.4.0';
+var BUILD_TIME  = '2026-11-12T10:20:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -116,7 +118,14 @@ const chiave = (tipo, rif) => tipo + ':' + (rif || '');
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => el.hidden = true, 3500); }
 
 // Stato: impegni di oggi, sessioni di oggi (chiuse) e quella in corso.
-const S = { voci: [], sessioni: [], aperta: null, pausaMax: 0, avvisati: new Set(), giorno: '' };
+const S = { voci: [], sessioni: [], aperta: null, congelato: null, pausaMax: 0, avvisati: new Set(), giorno: '' };
+
+// ❄️ Congela (v1.4.0): ferma il tempo e ricorda cosa era acceso (impegno o pausa);
+// finché non si tocca Riprendi niente parte. Sta in localStorage, solo su questo
+// dispositivo, e vale per il giorno in cui è stato congelato.
+const CHIAVE_GELO = 'sc_studio_congelato';
+function leggiGelo() { try { const g = JSON.parse(localStorage.getItem(CHIAVE_GELO)); return g && g.giorno === iso(oggi()) ? g : null; } catch (e) { return null; } }
+function scriviGelo(g) { try { g ? localStorage.setItem(CHIAVE_GELO, JSON.stringify(g)) : localStorage.removeItem(CHIAVE_GELO); } catch (e) {} }
 
 // ── Il piano di oggi ─────────────────────────────────────────────────────
 // ⚠️ Gemello del primo giorno di piano() in calendario-ada.html: tempo utile =
@@ -178,6 +187,7 @@ async function carica() {
         toast('Un cronometro era rimasto acceso: l\'ho fermato.');
       } else S.aperta = s;
     }
+    S.congelato = S.aperta ? null : leggiGelo(); if (!S.congelato) scriviGelo(null);
     // Un impegno che il piano non propone più non si mostra, anche se oggi ci si è lavorato:
     // il suo tempo resta comunque nel totale «studiato» (vedi aggiorna()).
     disegna();
@@ -270,7 +280,12 @@ function aggiorna() {
   pb.firstChild.textContent = pausaOn ? '☕ In pausa ' : '☕ Pausa ';
   document.getElementById('pausa-t').textContent = `${orologio(pms)} / ${fmtMin(S.pausaMax)}`;
   if (pausaOn && S.pausaMax && pms >= S.pausaMax * 60e3 && !S.avvisati.has('pausa')) { S.avvisati.add('pausa'); bip(); toast('La pausa di oggi è finita: si riparte!'); }
-  document.getElementById('stop').hidden = !S.aperta;
+  const sb = document.getElementById('stop'), g = S.congelato;
+  sb.hidden = !S.aperta && !g;
+  sb.classList.toggle('gelo', !!g);
+  sb.textContent = g ? '▶️ Riprendi ' + (g.tipo === 'pausa' ? 'la pausa' : g.titolo) : '❄️ Congela';
+  document.getElementById('zone').classList.toggle('gelo', !!g);
+  pb.classList.toggle('gelo', !!g);
   const prev = S.voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0);
   document.getElementById('tot').innerHTML = `studiato <b>${fmtMin(tot / 60e3)}</b>${prev ? ` su ${fmtMin(prev)} previsti` : ''}`;
 }
@@ -310,6 +325,7 @@ async function apri(tipo, rif, titolo) {
 }
 function tocca(tipo, rif, titolo) {
   if (audio && audio.state === 'suspended') audio.resume();
+  if (S.congelato) { toast('Congelato: tocca Riprendi per ripartire.'); return; }
   const stessa = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(tipo, rif);
   inFila(async () => { await chiudi(); if (!stessa) await apri(tipo, rif, titolo); aggiorna(); });
   // Risposta immediata a schermo, prima della rete.
@@ -328,7 +344,12 @@ document.addEventListener('click', e => {
   const z = e.target.closest('.z');
   if (z) { const v = S.voci[z.dataset.i]; tocca(v.tipo, v.rif, v.titolo); return; }
   if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
-  if (e.target.closest('#stop')) { inFila(async () => { await chiudi(); aggiorna(); }); aggiorna(); }
+  if (e.target.closest('#stop')) {
+    if (S.congelato) { const g = S.congelato; S.congelato = null; scriviGelo(null); tocca(g.tipo, g.rif, g.titolo); return; }
+    const a = S.aperta; if (!a) return;
+    S.congelato = { tipo: a.tipo, rif: a.rif || null, titolo: a.titolo, giorno: iso(oggi()) }; scriviGelo(S.congelato);
+    inFila(async () => { await chiudi(); aggiorna(); }); aggiorna();
+  }
 });
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('z')) { e.preventDefault(); e.target.click(); } });
 
