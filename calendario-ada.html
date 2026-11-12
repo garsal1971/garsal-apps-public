@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.4.0</title>
+<title>Calendario di studio v1.5.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -27,7 +27,7 @@ h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em}
 .sub a{color:var(--accent)}
 .head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
 .avvisi{display:grid;gap:6px}
-.avviso{background:var(--card);border:1px solid var(--warn);border-left:6px solid var(--warn);border-radius:10px;padding:10px 12px}
+.avviso{background:var(--card);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:8px;padding:6px 8px;font-size:13px}
 .avviso.ok{border-color:var(--ok)}
 .legenda{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
 .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
@@ -77,6 +77,16 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .cestino .vuoto{font-size:12px;color:var(--muted)}
 .cestino .distr{font:inherit;font-size:13px;font-weight:600;border:0;border-radius:8px;padding:6px 10px;min-height:36px;background:var(--warn);color:#fff;cursor:pointer}
 .cestino .distr:disabled{opacity:.4;cursor:default}
+.cestino.avv{border-color:var(--warn);border-style:solid;max-width:340px;flex-basis:200px}
+.cestino.avv .avvisi{max-height:30vh;overflow:auto}
+/* Testa del contenitore = bottone che lo rimpicciolisce (v1.5.0); chiuso resta «icona + numero» */
+.ctesta{font:inherit;font-size:13px;font-weight:600;color:var(--fg);background:none;border:0;padding:0;min-height:28px;width:100%;display:flex;align-items:center;gap:6px;cursor:pointer;text-align:left}
+.ctesta small{color:var(--muted);font-weight:500;margin-left:auto}
+.ctesta .fr{color:var(--muted);flex:none}
+.cestino.chiuso{min-width:0;flex:none;padding:4px 10px;border-style:solid}
+.cestino.chiuso > :not(.ctesta){display:none}
+.cestino.chiuso .et,.cestino.chiuso .fr{display:none}
+.cestino.chiuso .ctesta small{margin-left:0;color:var(--fg);font-weight:700}
 [data-drop].sopra{outline:3px solid var(--accent);outline-offset:2px;background:color-mix(in srgb,var(--accent) 10%,var(--card))}
 li[data-v]{cursor:grab;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}
 li[data-v].preso{opacity:.35}
@@ -95,12 +105,12 @@ li .spost{color:var(--warn)}
     </div>
   </header>
   <div class="cestini" id="cestini">
-    <section class="cestino canc" data-drop="cancella"><h2>🗑 Da cancellare <small id="n-canc"></small></h2><ul id="l-canc"></ul></section>
-    <section class="cestino rim" data-drop="rimanda"><h2>⏳ Da rimandare <small id="n-rim"></small></h2><ul id="l-rim"></ul>
+    <section class="cestino avv" data-c="avv" id="c-avv" hidden><button type="button" class="ctesta" data-chiudi="avv">⚠️ <span class="et">Avvisi</span> <small id="n-avv"></small><span class="fr">▾</span></button><div class="avvisi" id="avvisi"></div></section>
+    <section class="cestino canc" data-c="canc" data-drop="cancella"><button type="button" class="ctesta" data-chiudi="canc">🗑 <span class="et">Da cancellare</span> <small id="n-canc"></small><span class="fr">▾</span></button><ul id="l-canc"></ul></section>
+    <section class="cestino rim" data-c="rim" data-drop="rimanda"><button type="button" class="ctesta" data-chiudi="rim">⏳ <span class="et">Da rimandare</span> <small id="n-rim"></small><span class="fr">▾</span></button><ul id="l-rim"></ul>
       <button type="button" class="distr" id="distribuisci">⇢ Distribuisci da domani</button></section>
   </div>
-  <p class="tip">Trascina un'attività (col dito: tienila premuta un attimo) in un contenitore o su un altro giorno.</p>
-  <div class="avvisi" id="avvisi"></div>
+  <p class="tip">Trascina un'attività (col dito: tienila premuta un attimo) in un contenitore o su un altro giorno. Tocca il titolo di un contenitore per rimpicciolirlo.</p>
   <div class="ctrl">
     <div class="switch" role="group" aria-label="Vista"><button type="button" data-vista="tutti" aria-pressed="true">Tutti i giorni</button><button type="button" data-vista="settimana" aria-pressed="false">Settimana</button></div>
     <div class="weeknav" id="weeknav" hidden>
@@ -117,8 +127,8 @@ li .spost{color:var(--warn)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.4.0';
-var BUILD_TIME  = '2026-11-12T11:30:00Z';
+var APP_VERSION = 'v1.5.0';
+var BUILD_TIME  = '2026-11-12T11:50:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -140,6 +150,19 @@ const dataBreve = s => { const d = parse(s); return `${FULL[d.getDay()].slice(0,
 // V.voci: le attività a schermo, per il trascinamento (data-v = indice).
 const V = { dati: null, vista: 'tutti', lunedi: null, voci: [] };
 try { if (localStorage.getItem('sc_cal_vista') === 'settimana') V.vista = 'settimana'; } catch (e) {}
+// Contenitori rimpiccioliti (v1.5.0): ricordati su questo dispositivo.
+const CHIUSI = new Set();
+try { JSON.parse(localStorage.getItem('sc_cal_chiusi') || '[]').forEach(c => CHIUSI.add(c)); } catch (e) {}
+const salvaChiusi = () => { try { localStorage.setItem('sc_cal_chiusi', JSON.stringify([...CHIUSI])); } catch (e) {} };
+function applicaChiusi() {
+  document.querySelectorAll('.cestino[data-c]').forEach(el => {
+    const chiuso = CHIUSI.has(el.dataset.c);
+    el.classList.toggle('chiuso', chiuso);
+    const t = el.querySelector('.ctesta'); t.setAttribute('aria-expanded', String(!chiuso));
+    t.title = chiuso ? 'Apri' : 'Rimpicciolisci';
+  });
+}
+applicaChiusi();
 const lunediDi = d => piu(d, -((d.getDay() + 6) % 7));
 
 async function carica() {
@@ -201,6 +224,7 @@ document.addEventListener('click', e => {
   else if (b.id === 'prev' || b.id === 'next') { V.lunedi = piu(V.lunedi, b.id === 'prev' ? -7 : 7); ridisegna(); }
   else if (b.id === 'questa') { V.lunedi = lunediDi(oggi()); ridisegna(); }
   else if (b.id === 'distribuisci') distribuisci();
+  else if (b.dataset.chiudi) { const c = b.dataset.chiudi; CHIUSI.has(c) ? CHIUSI.delete(c) : CHIUSI.add(c); salvaChiusi(); applicaChiusi(); }
   else if (b.dataset.torna) scrivi(() => SC.db(`sc_spostamenti?id=eq.${b.dataset.torna}`, { method: 'DELETE', prefer: 'return=minimal' }));
 }, true);
 
@@ -216,8 +240,11 @@ function render(p, giorni) {
   if (p.senzaFasce) av.push(`<div class="avviso">Non ci sono fasce orarie: senza, non c'è tempo in cui mettere lo studio. <a href="impostazioni-ada.html">Imposta le fasce →</a></div>`);
   for (const m of p.mancano)
     av.push(`<div class="avviso">⚠️ ${esc(m.v.materia)} (${dataBreve(m.v.data)}): <b>mancano ${fmt(m.min)}</b> di studio che non entrano nelle fasce.</div>`);
+  const nAvv = av.length;
   if (!p.senzaFasce && !p.mancano.length && p.daFare.length) av.push(`<div class="avviso ok">✅ Tutte le ore di studio entrano prima delle verifiche.</div>`);
   document.getElementById('avvisi').innerHTML = av.join('');
+  document.getElementById('c-avv').hidden = !av.length;
+  document.getElementById('n-avv').textContent = nAvv ? String(nAvv) : (av.length ? '✅' : '');
 
   const oggiIso = iso(oggi());
   document.getElementById('days').innerHTML = giorni.map(g => {
