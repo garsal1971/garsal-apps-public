@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.4.0</title>
+<title>Studio di oggi v1.5.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -89,7 +89,7 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
     <h1 id="titolo">Studio di oggi</h1>
     <div class="tot" id="tot"></div>
   </div>
-  <div class="zone" id="zone" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per fermarti."><p class="loading">Carico…</p></div>
+  <div class="zone" id="zone" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per passare alla pausa."><p class="loading">Carico…</p></div>
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
     <button type="button" class="btn stop" id="stop" hidden>❄️ Congela</button>
@@ -99,8 +99,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.4.0';
-var BUILD_TIME  = '2026-11-12T10:20:00Z';
+var APP_VERSION = 'v1.5.0';
+var BUILD_TIME  = '2026-11-12T10:35:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -327,7 +327,9 @@ function tocca(tipo, rif, titolo) {
   if (audio && audio.state === 'suspended') audio.resume();
   if (S.congelato) { toast('Congelato: tocca Riprendi per ripartire.'); return; }
   const stessa = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(tipo, rif);
-  inFila(async () => { await chiudi(); if (!stessa) await apri(tipo, rif, titolo); aggiorna(); });
+  // Spegnere un impegno fa partire la pausa (v1.5.0), anche oltre i minuti concessi.
+  const poi = !stessa ? [tipo, rif, titolo] : (tipo !== 'pausa' ? ['pausa', null, 'Pausa'] : null);
+  inFila(async () => { await chiudi(); if (poi) await apri(...poi); aggiorna(); });
   // Risposta immediata a schermo, prima della rete.
   aggiorna();
 }
@@ -337,7 +339,7 @@ function finito(v) {
   bip();
   toast(`Tempo finito per «${v.titolo}»: ti porto ${v.tipo === 'compito' ? 'ai compiti' : 'alle verifiche'} per spuntarlo.`);
   const dove = v.tipo === 'compito' ? `compiti-ada.html#c-${iso(oggi())}-${v.rif}` : `verifiche-ada.html#arg-${v.rif}`;
-  inFila(async () => { await chiudi(); aggiorna(); }).then(() => setTimeout(() => { location.href = dove; }, 2500));
+  inFila(async () => { await chiudi(); await apri('pausa', null, 'Pausa'); aggiorna(); }).then(() => setTimeout(() => { location.href = dove; }, 2500));
 }
 
 document.addEventListener('click', e => {
