@@ -1,5 +1,5 @@
 /* ============================================================================
-   scuola-ada.js v1.5.0 — accesso, database e barra in alto per le pagine
+   scuola-ada.js v1.6.0 — accesso, database e barra in alto per le pagine
    della scuola di Ada (compiti, verifiche, calendario, impostazioni), e il
    piano di studio (SC.piano) che calendario e studio leggono uguale.
 
@@ -16,6 +16,12 @@
    • chiunque col pulsante «Accedi con Google» (v1.4.0): OAuth di Supabase,
      che torna sulla stessa pagina col token nell'ancora (letto in avvia()).
      ⚠️ La pagina deve stare fra i Redirect URLs di Supabase.
+
+   🔔 Notifiche (v1.6.0): ☰ → 🔔 Notifiche abbona QUESTO browser al Web Push
+   (riga di cm_push_devices, platform 'web', come ☰ → 💻 Browser in AppSphere).
+   Le manda la Edge Function sc-promemoria a inizio e fine delle fasce di studio.
+   ⚠️ VAPID è la stessa chiave pubblica di index.html e del secret VAPID_PUBLIC_KEY.
+   ⚠️ Su iPhone il Web Push c'è solo per la pagina aggiunta alla schermata Home.
 
    ⚠️ La sessione dell'ospite sta in `localStorage.sc_session`, non in
    `garsal_session`: quella è di situazione-teresa / situazione-rosa, e sullo
@@ -113,7 +119,18 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
 #sc-menu{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));right:0;min-width:200px;max-width:calc(100% - 32px);background:#fff;border-radius:0 0 0 14px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:600;overflow:hidden}
 #sc-menu a,#sc-menu button{display:block;width:100%;box-sizing:border-box;padding:15px 20px;text-align:left;background:none;border:0;border-bottom:1px solid #f0f0f0;font:inherit;font-size:15px;color:#222;text-decoration:none;cursor:pointer}
 #sc-menu .attiva{font-weight:700;background:#eef5fb}
-#sc-menu .esci{color:#c0392b;border-bottom:0}`;
+#sc-menu .esci{color:#c0392b;border-bottom:0}
+#sc-nf{position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(70px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+#sc-nf .card{background:var(--card,#fff);color:var(--fg,#222);border:1px solid var(--line,#ddd);border-radius:14px;padding:18px;width:100%;max-width:420px;display:grid;gap:12px}
+#sc-nf .testa{display:flex;align-items:center;gap:8px}
+#sc-nf h2{font-size:18px;margin:0;flex:1;min-width:0}
+#sc-nf .x{font:inherit;font-size:18px;background:none;border:0;cursor:pointer;color:var(--muted,#666);min-width:44px;min-height:44px}
+#sc-nf p{margin:0;font-size:14px;line-height:1.45}
+#sc-nf .err{color:var(--danger,#c0392b)}
+#sc-nf .ok{color:var(--ok,#1e8e3e)}
+#sc-nf input{font:inherit;color:var(--fg,#222);background:var(--bg,#fff);border:1px solid var(--line,#ddd);border-radius:8px;padding:10px;min-width:0}
+#sc-nf .btn{font:inherit;font-weight:600;background:var(--accent,#0081C8);color:var(--on-accent,#fff);border:0;border-radius:8px;padding:11px 14px;cursor:pointer;min-height:44px}
+#sc-nf .btn.sec{background:none;color:var(--danger,#c0392b);border:1px solid var(--line,#ddd)}`;
     document.head.appendChild(s);
   }
 
@@ -240,9 +257,87 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
       <button type="button" class="sc-hb" id="sc-hb" aria-label="Menu"><span></span><span></span><span></span></button>`;
     const menu = document.getElementById('sc-menu');
     menu.innerHTML = PAGINE.map(([f, t]) => `<a href="${f}"${f === pagina ? ' class="attiva" aria-current="page"' : ''}>${t}</a>`).join('')
+      + '<button type="button" id="sc-notifiche">🔔 Notifiche</button>'
       + '<a href="/">🏠 AppSphere</a><button type="button" class="esci" id="sc-esci">↩ Esci</button>';
     document.getElementById('sc-esci').addEventListener('click', () => { menu.hidden = true; esci(); });
+    document.getElementById('sc-notifiche').addEventListener('click', () => { menu.hidden = true; notifiche(); });
     b.hidden = false; document.body.classList.add('sc-con-barra');
+  }
+
+  /* ── 🔔 Notifiche: questo browser e il Web Push ─────────────────────── */
+  const VAPID = 'BEYSdajFGQIvzUtFrpn3HbzMVIFTyUWM-fOPnOYDXlqdq6qOjAjcfk5yCb1emwn1DMGPeaXTrIawYRLBwIr8Opo';
+  const nfSupportato = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const nfIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const nfHome = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const nfChiave = b64 => { const s = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); };
+  async function nfAbbonamento() {
+    const reg = await navigator.serviceWorker.register('/sw-notifiche.js');
+    return { reg, sub: await reg.pushManager.getSubscription() };
+  }
+  const nfEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  async function notifiche(msg, errore) {
+    let el = document.getElementById('sc-nf');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'sc-nf'; document.body.appendChild(el);
+      el.addEventListener('click', e => {
+        if (e.target.closest('.x')) el.remove();
+        else if (e.target.closest('#nf-attiva')) nfAttiva();
+        else if (e.target.closest('#nf-togli')) nfTogli();
+      });
+    }
+    const testa = '<div class="testa"><h2>🔔 Notifiche</h2><button type="button" class="x" aria-label="Chiudi">✕</button></div>'
+      + '<p>All\'inizio di ogni fascia di studio, e alla fine se qualcosa di oggi è rimasto da fare.</p>';
+    const riga = msg ? `<p class="${errore ? 'err' : 'ok'}">${nfEsc(msg)}</p>` : '';
+    let corpo;
+    if (!nfSupportato()) {
+      corpo = nfIos() && !nfHome()
+        ? '<p>Su iPhone le notifiche arrivano solo all\'app sulla schermata Home: tocca <b>Condividi</b> → <b>Aggiungi alla schermata Home</b>, apri lo Studio da lì e torna qui.</p>'
+        : '<p class="err">Questo browser non sa ricevere notifiche push.</p>';
+    } else if (Notification.permission === 'denied') {
+      corpo = '<p class="err">Le notifiche per questo sito sono <b>bloccate</b>: riattivale dalle impostazioni del browser (o, su iPhone, da Impostazioni → Notifiche), poi riapri questa finestra.</p>';
+    } else {
+      el.innerHTML = `<div class="card">${testa}<p>Controllo…</p></div>`;
+      let attivo = false;
+      try {
+        const { sub } = await nfAbbonamento();
+        if (sub) {
+          const r = await db(`cm_push_devices?select=id&token=eq.${encodeURIComponent(sub.endpoint)}&enabled=eq.true`);
+          attivo = r.length > 0;
+        }
+      } catch (e) { console.warn('🔔', e); }
+      corpo = attivo
+        ? '<p class="ok">✅ Questo dispositivo riceve le notifiche.</p><button type="button" class="btn sec" id="nf-togli">Spegni su questo dispositivo</button>'
+        : '<input type="text" id="nf-nome" placeholder="Nome del dispositivo (es. iPhone)" aria-label="Nome del dispositivo">'
+          + '<button type="button" class="btn" id="nf-attiva">🔔 Attiva su questo dispositivo</button>';
+    }
+    el.innerHTML = `<div class="card">${testa}${riga}${corpo}</div>`;
+  }
+
+  async function nfAttiva() {
+    const nome = (document.getElementById('nf-nome')?.value || '').trim() || (nfIos() ? 'iPhone' : 'Browser');
+    try {
+      if (await Notification.requestPermission() !== 'granted') return notifiche('Permesso per le notifiche non concesso.', true);
+      const { reg, sub: gia } = await nfAbbonamento();
+      const sub = gia || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: nfChiave(VAPID) });
+      const json = sub.toJSON();
+      // Upsert sul token (= endpoint): riabbonando lo stesso browser si aggiorna la sua riga.
+      await db('cm_push_devices?on_conflict=token', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: {
+        user_id: sessione.user.id, token: json.endpoint, platform: 'web', device_name: nome, enabled: true,
+        web_push: json, app_version: 'scuola-ada.js v1.6.0', last_seen_at: new Date().toISOString() } });
+      notifiche('Fatto: le notifiche arriveranno qui.');
+    } catch (e) { console.error('🔔', e); notifiche('Non sono riuscito ad attivarle: ' + e.message, true); }
+  }
+
+  async function nfTogli() {
+    try {
+      const { sub } = await nfAbbonamento();
+      if (sub) {
+        await db(`cm_push_devices?token=eq.${encodeURIComponent(sub.endpoint)}`, { method: 'DELETE', prefer: 'return=minimal' });
+        await sub.unsubscribe().catch(() => {});
+      }
+      notifiche('Spente su questo dispositivo.');
+    } catch (e) { notifiche('Non sono riuscito a spegnerle: ' + e.message, true); }
   }
 
   function esci(messaggio) {
