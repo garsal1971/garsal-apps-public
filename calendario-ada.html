@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.5.0</title>
+<title>Calendario di studio v1.5.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -67,7 +67,7 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .wtot{font-size:13px;color:var(--muted)}
 .wtot b{color:var(--fg);font-variant-numeric:tabular-nums}
 /* Contenitori «da cancellare» / «da rimandare» (v1.4.0): restano in vista scorrendo, così ci si arriva trascinando */
-.cestini{position:sticky;top:calc(62px + env(safe-area-inset-top,0px));z-index:20;justify-self:end;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;max-width:100%}
+.cestini{position:sticky;top:calc(62px + env(safe-area-inset-top,0px));z-index:20;justify-self:end;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;gap:8px;max-width:100%}
 .cestino{background:var(--card);border:2px dashed var(--line);border-radius:12px;padding:8px 10px;min-width:150px;max-width:260px;flex:1 1 150px;box-shadow:0 4px 14px rgba(0,0,0,.08);display:grid;gap:6px;align-content:start}
 .cestino h2{font-family:var(--body);font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:8px}
 .cestino h2 small{color:var(--muted);font-weight:500}
@@ -83,7 +83,8 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .ctesta{font:inherit;font-size:13px;font-weight:600;color:var(--fg);background:none;border:0;padding:0;min-height:28px;width:100%;display:flex;align-items:center;gap:6px;cursor:pointer;text-align:left}
 .ctesta small{color:var(--muted);font-weight:500;margin-left:auto}
 .ctesta .fr{color:var(--muted);flex:none}
-.cestino.chiuso{min-width:0;flex:none;padding:4px 10px;border-style:solid}
+.cestino.chiuso{min-width:0;flex:none;align-self:flex-start;padding:6px 14px;border-style:solid;border-radius:999px;cursor:pointer}
+.cestino.chiuso .ctesta{width:auto;font-size:15px}
 .cestino.chiuso > :not(.ctesta){display:none}
 .cestino.chiuso .et,.cestino.chiuso .fr{display:none}
 .cestino.chiuso .ctesta small{margin-left:0;color:var(--fg);font-weight:700}
@@ -127,8 +128,8 @@ li .spost{color:var(--warn)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.5.0';
-var BUILD_TIME  = '2026-11-12T11:50:00Z';
+var APP_VERSION = 'v1.5.1';
+var BUILD_TIME  = '2026-11-12T12:10:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -150,10 +151,10 @@ const dataBreve = s => { const d = parse(s); return `${FULL[d.getDay()].slice(0,
 // V.voci: le attività a schermo, per il trascinamento (data-v = indice).
 const V = { dati: null, vista: 'tutti', lunedi: null, voci: [] };
 try { if (localStorage.getItem('sc_cal_vista') === 'settimana') V.vista = 'settimana'; } catch (e) {}
-// Contenitori rimpiccioliti (v1.5.0): ricordati su questo dispositivo.
-const CHIUSI = new Set();
-try { JSON.parse(localStorage.getItem('sc_cal_chiusi') || '[]').forEach(c => CHIUSI.add(c)); } catch (e) {}
-const salvaChiusi = () => { try { localStorage.setItem('sc_cal_chiusi', JSON.stringify([...CHIUSI])); } catch (e) {} };
+// Contenitori rimpiccioliti (v1.5.0).
+// Aprendo la pagina partono tutti chiusi (v1.5.1).
+const CHIUSI = new Set(['avv', 'canc', 'rim']);
+const salvaChiusi = () => {};
 function applicaChiusi() {
   document.querySelectorAll('.cestino[data-c]').forEach(el => {
     const chiuso = CHIUSI.has(el.dataset.c);
