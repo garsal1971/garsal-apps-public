@@ -4,6 +4,12 @@
 // Questo elimina definitivamente il problema delle versioni vecchie/rotte
 // servite dalla cache.
 
+// ⚠️ index.html registra QUESTO file sullo scope «/», lo stesso di sw-notifiche.js:
+// la registrazione è una sola, e l'ultima che arriva vince. Senza l'import, aprire
+// AppSphere toglieva il gestore 'push' e le notifiche del canale 'browser' non si
+// vedevano più (Safari, per giunta, disdice l'abbonamento a chi non le mostra).
+importScripts('/sw-notifiche.js');
+
 self.addEventListener('install', function() {
   self.skipWaiting();
 });

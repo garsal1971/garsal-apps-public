@@ -38,7 +38,7 @@ const VAPID_SUBJECT     = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@garsal.
 const PAGINA_APP: Record<string, string> = {
   tasks: '/tasks.html', habits: '/habit-tracker.html', objectives: '/obiettivi.html',
   plants: '/piante.html', weight: '/weight-quest.html', ta_firi: '/ta-firi.html',
-  events: '/events-log.html', quick: '/',
+  events: '/events-log.html', quick: '/', scuola: '/studio-ada.html',
 }
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
