@@ -198,5 +198,7 @@ jobs:
               EXTRA="--no-verify-jwt"
               echo "   ↳ verify_jwt=false → aggiunto --no-verify-jwt"
             fi
-            supabase functions deploy "$FN" --project-ref "$SUPABASE_PROJECT_REF" $EXTRA
+            # --yes: dal 12 novembre 2026 la CLI chiede conferma anche qui, e senza
+            # terminale si ferma con «Nothing was changed» (exit 1).
+            supabase functions deploy "$FN" --project-ref "$SUPABASE_PROJECT_REF" --yes $EXTRA
           done
