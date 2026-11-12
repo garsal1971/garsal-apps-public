@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.3.0</title>
+<title>Calendario di studio v1.4.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -66,6 +66,24 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .day.fuori{opacity:.55}
 .wtot{font-size:13px;color:var(--muted)}
 .wtot b{color:var(--fg);font-variant-numeric:tabular-nums}
+/* Contenitori «da cancellare» / «da rimandare» (v1.4.0): restano in vista scorrendo, così ci si arriva trascinando */
+.cestini{position:sticky;top:calc(62px + env(safe-area-inset-top,0px));z-index:20;justify-self:end;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;max-width:100%}
+.cestino{background:var(--card);border:2px dashed var(--line);border-radius:12px;padding:8px 10px;min-width:150px;max-width:260px;flex:1 1 150px;box-shadow:0 4px 14px rgba(0,0,0,.08);display:grid;gap:6px;align-content:start}
+.cestino h2{font-family:var(--body);font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.cestino h2 small{color:var(--muted);font-weight:500}
+.cestino.canc{border-color:var(--danger)}
+.cestino.rim{border-color:var(--warn)}
+.cestino ul{max-height:30vh;overflow:auto;font-size:13px}
+.cestino .vuoto{font-size:12px;color:var(--muted)}
+.cestino .distr{font:inherit;font-size:13px;font-weight:600;border:0;border-radius:8px;padding:6px 10px;min-height:36px;background:var(--warn);color:#fff;cursor:pointer}
+.cestino .distr:disabled{opacity:.4;cursor:default}
+[data-drop].sopra{outline:3px solid var(--accent);outline-offset:2px;background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+li[data-v]{cursor:grab;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}
+li[data-v].preso{opacity:.35}
+.fantasma{position:fixed;z-index:1000;pointer-events:none;background:var(--card);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:70vw;transform:translate(-50%,-120%)}
+.torna{font:inherit;font-size:12px;border:1px solid var(--line);background:none;color:var(--muted);border-radius:6px;padding:0 6px;min-height:28px;cursor:pointer;flex:none}
+li .spost{color:var(--warn)}
+.tip{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -76,6 +94,12 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
       <p class="sub">Prima i compiti, poi le ore degli argomenti fino alla verifica. <a href="impostazioni-ada.html">Fasce e pausa →</a></p>
     </div>
   </header>
+  <div class="cestini" id="cestini">
+    <section class="cestino canc" data-drop="cancella"><h2>🗑 Da cancellare <small id="n-canc"></small></h2><ul id="l-canc"></ul></section>
+    <section class="cestino rim" data-drop="rimanda"><h2>⏳ Da rimandare <small id="n-rim"></small></h2><ul id="l-rim"></ul>
+      <button type="button" class="distr" id="distribuisci">⇢ Distribuisci da domani</button></section>
+  </div>
+  <p class="tip">Trascina un'attività (col dito: tienila premuta un attimo) in un contenitore o su un altro giorno.</p>
   <div class="avvisi" id="avvisi"></div>
   <div class="ctrl">
     <div class="switch" role="group" aria-label="Vista"><button type="button" data-vista="tutti" aria-pressed="true">Tutti i giorni</button><button type="button" data-vista="settimana" aria-pressed="false">Settimana</button></div>
@@ -93,8 +117,8 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.3.0';
-var BUILD_TIME  = '2026-11-11T18:05:00Z';
+var APP_VERSION = 'v1.4.0';
+var BUILD_TIME  = '2026-11-12T11:30:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -102,6 +126,7 @@ console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
 const FULL = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 const MESI = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
 const GIORNI_MIN = 7; // il calendario guarda almeno una settimana anche senza verifiche
+const GIORNI_DISTRIBUISCI = 60; // fin dove «Distribuisci» cerca posto
 
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const piu = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -109,74 +134,39 @@ const oggi = () => { const t = new Date(); return new Date(t.getFullYear(), t.ge
 const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const fmt = m => { m = Math.round(m); return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const minuti = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? 0 : h * 60 + (m || 0); };
 const dataBreve = s => { const d = parse(s); return `${FULL[d.getDay()].slice(0, 3).toLowerCase()} ${d.getDate()} ${MESI[d.getMonth()]}`; };
 
 // Vista: tutti i giorni oppure una settimana (lunedì → domenica) alla volta.
-const V = { dati: null, vista: 'tutti', lunedi: null };
+// V.voci: le attività a schermo, per il trascinamento (data-v = indice).
+const V = { dati: null, vista: 'tutti', lunedi: null, voci: [] };
 try { if (localStorage.getItem('sc_cal_vista') === 'settimana') V.vista = 'settimana'; } catch (e) {}
 const lunediDi = d => piu(d, -((d.getDay() + 6) % 7));
 
 async function carica() {
   const t = oggi(), oggiIso = iso(t);
   try {
-    const [materie, orario, fatti, ver, args, imp] = await Promise.all([
+    // Le spunte da due mesi indietro: un compito rimandato si spunta sul suo giorno d'origine.
+    const [materie, orario, fatti, ver, args, imp, sposta] = await Promise.all([
       SC.db('sc_materie?select=id,nome,minuti'),
       SC.db('sc_orario?select=id,giorno,ora,materia_id,senza_compiti&order=giorno,ora'),
-      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${oggiIso}`),
+      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${iso(piu(t, -60))}`),
       SC.db(`sc_verifiche?select=id,data,materia,tipo&data=gte.${oggiIso}&order=data,created_at`),
       SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,posizione&order=posizione'),
-      SC.db('sc_impostazioni?select=*&limit=1')
+      SC.db('sc_impostazioni?select=*&limit=1'),
+      SC.db('sc_spostamenti?select=*&order=created_at')
     ]);
-    V.dati = { materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 } };
+    V.dati = { materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 }, sposta };
     ridisegna();
   } catch (e) { document.getElementById('days').innerHTML = `<p class="empty">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
 }
+async function ricaricaSpostamenti() {
+  V.dati.sposta = await SC.db('sc_spostamenti?select=*&order=created_at');
+  ridisegna();
+}
 
 // ── Il piano ──────────────────────────────────────────────────────────────
-// Per ogni giorno da oggi: tempo utile = fasce × 60 / (60 + pausa ogni ora); prima i compiti (quelli
-// delle lezioni di domani, come in compiti-ada.html, meno quelli già spuntati);
-// nel tempo che avanza le ore degli argomenti non ancora «studiati», dalla
-// verifica più vicina, e solo nei giorni prima della verifica.
-function piano({ materie, orario, fatti, ver, args, imp }, finoA) {
-  const t = oggi(), mat = new Map(materie.map(m => [m.id, m]));
-  const fatto = new Set(fatti.map(f => f.giorno + '|' + f.orario_id));
-  const ultima = ver.length ? parse(ver[ver.length - 1].data) : t;
-  const fine = new Date(Math.max(piu(ultima, -1), piu(t, GIORNI_MIN - 1), finoA || 0));
-  const pausa = imp.pausa_minuti || 0, fasce = imp.fasce || {};
-
-  // Gli argomenti da studiare, in ordine di scadenza.
-  const daFare = [];
-  for (const v of ver) for (const a of args.filter(a => a.verifica_id === v.id).sort((x, y) => x.posizione - y.posizione))
-    if (!a.studiato && Number(a.ore) > 0) daFare.push({ v, a, resto: Number(a.ore) * 60 });
-
-  const giorni = [];
-  for (let d = new Date(t); d <= fine; d = piu(d, 1)) {
-    const g = d.getDay(), giornoIso = iso(d), domani = piu(d, 1).getDay();
-    const lf = fasce[g] || [];
-    const lordo = lf.reduce((a, f) => a + Math.max(0, minuti(f[1]) - minuti(f[0])), 0);
-    const cap = Math.floor(lordo * 60 / (60 + pausa)); // gemella di utile() in impostazioni-ada.html
-    const compiti = domani >= 1 && domani <= 6 ? orario
-      .filter(o => o.giorno === domani && !o.senza_compiti && (mat.get(o.materia_id)?.minuti || 0) > 0)
-      .map(o => ({ id: o.id, nome: mat.get(o.materia_id).nome, min: mat.get(o.materia_id).minuti, ok: fatto.has(giornoIso + '|' + o.id) })) : [];
-    const minCompiti = compiti.filter(c => !c.ok).reduce((a, c) => a + c.min, 0);
-    let libero = Math.max(0, cap - minCompiti);
-    const studio = [];
-    for (const x of daFare) {
-      if (libero <= 0) break;
-      if (x.resto <= 0 || x.v.data <= giornoIso) continue; // si studia prima del giorno della verifica
-      const q = Math.min(x.resto, libero);
-      x.resto -= q; libero -= q;
-      studio.push({ v: x.v, a: x.a, min: q });
-    }
-    giorni.push({ d, giornoIso, lf, cap, compiti, minCompiti, studio, libero, sopra: Math.max(0, minCompiti - cap),
-      verifiche: ver.filter(v => v.data === giornoIso) });
-  }
-  // Quello che non ci sta, per verifica.
-  const mancano = new Map();
-  for (const x of daFare) if (x.resto > 0) mancano.set(x.v.id, { v: x.v, min: (mancano.get(x.v.id)?.min || 0) + x.resto });
-  return { giorni, mancano: [...mancano.values()], senzaFasce: !Object.values(fasce).some(l => l && l.length), daFare };
-}
+// La regola sta in scuola-ada.js (SC.piano), la stessa di studio-ada.html.
+const piano = (dati, finoA) => SC.piano(dati, finoA, GIORNI_MIN);
 
 // Il piano parte sempre da oggi (lo studio si distribuisce da qui): la vista
 // Settimana ne mostra un pezzo, e i giorni già passati restano sbiaditi.
@@ -186,6 +176,7 @@ function ridisegna() {
   if (!V.lunedi) V.lunedi = lunediDi(oggi());
   const domenica = piu(V.lunedi, 6);
   const p = piano(V.dati, sett ? domenica : null);
+  V.voci = [];
   document.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', b.dataset.vista === V.vista ? 'true' : 'false'));
   document.getElementById('weeknav').hidden = !sett;
   document.getElementById('app').classList.toggle('largo', sett);
@@ -193,7 +184,7 @@ function ridisegna() {
   if (sett) {
     document.getElementById('week-label').textContent = `${V.lunedi.getDate()} ${MESI[V.lunedi.getMonth()]} – ${domenica.getDate()} ${MESI[domenica.getMonth()]}`;
     document.getElementById('prev').disabled = V.lunedi <= lunediDi(oggi());
-    const daIso = iso(V.lunedi), aIso = iso(domenica), mappa = new Map(p.giorni.map(g => [g.giornoIso, g]));
+    const mappa = new Map(p.giorni.map(g => [g.giornoIso, g]));
     const giorni = [];
     for (let i = 0; i < 7; i++) { const d = piu(V.lunedi, i), k = iso(d); giorni.push(mappa.get(k) || { d, giornoIso: k, passato: true }); }
     const tc = giorni.reduce((a, g) => a + (g.minCompiti || 0), 0), ts = giorni.reduce((a, g) => a + (g.studio || []).reduce((x, s) => x + s.min, 0), 0);
@@ -201,13 +192,24 @@ function ridisegna() {
     w.innerHTML = `Nella settimana: compiti <b>${fmt(tc)}</b> · studio <b>${fmt(ts)}</b> · disponibili <b>${fmt(giorni.reduce((a, g) => a + (g.cap || 0), 0))}</b>`;
     render(p, giorni);
   } else { document.getElementById('wtot').hidden = true; render(p, p.giorni); }
+  renderCestini(p);
 }
 document.addEventListener('click', e => {
+  if (DnD.appenaTrascinato) { e.preventDefault(); e.stopPropagation(); DnD.appenaTrascinato = false; return; }
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.vista) { V.vista = b.dataset.vista; try { localStorage.setItem('sc_cal_vista', V.vista); } catch (err) {} ridisegna(); }
   else if (b.id === 'prev' || b.id === 'next') { V.lunedi = piu(V.lunedi, b.id === 'prev' ? -7 : 7); ridisegna(); }
   else if (b.id === 'questa') { V.lunedi = lunediDi(oggi()); ridisegna(); }
-});
+  else if (b.id === 'distribuisci') distribuisci();
+  else if (b.dataset.torna) scrivi(() => SC.db(`sc_spostamenti?id=eq.${b.dataset.torna}`, { method: 'DELETE', prefer: 'return=minimal' }));
+}, true);
+
+// Una riga trascinabile. `voce`: { tipo, rif, da, min, sp? } — sp = la riga di sc_spostamenti, se c'è.
+function riga(voce, colore, html, m, extra) {
+  const i = V.voci.push(voce) - 1;
+  return `<li data-v="${i}" class="${extra || ''}"><span class="dot" style="background:var(${colore})"></span>${html}<span class="m">${m}</span>${voce.sp ? `<button type="button" class="torna" data-torna="${voce.sp.id}" title="Rimetti nel piano normale">↩</button>` : ''}</li>`;
+}
+const nomeArg = (v, a) => `${esc(v.materia)} · ${esc(a.titolo)} <small>· per ${dataBreve(v.data)}</small>`;
 
 function render(p, giorni) {
   const av = [];
@@ -221,13 +223,16 @@ function render(p, giorni) {
   document.getElementById('days').innerHTML = giorni.map(g => {
     if (g.passato) return `<div class="day fuori"><div class="day-h"><b>${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b></div><div class="free">Passato</div></div>`;
     const usatoStudio = g.studio.reduce((a, s) => a + s.min, 0);
-    const base = Math.max(g.cap, g.minCompiti) || 1;
+    const base = Math.max(g.cap, g.minCompiti + usatoStudio) || 1;
     const bar = g.cap || g.minCompiti ? `<div class="bar"><i style="width:${g.minCompiti / base * 100}%;background:var(--compiti)"></i><i style="width:${usatoStudio / base * 100}%;background:var(--studio)"></i></div>` : '';
-    const comp = g.compiti.map(c => `<li class="${c.ok ? 'fatto' : ''}"><span class="dot" style="background:var(--compiti)"></span><a class="n" href="compiti-ada.html#c-${g.giornoIso}-${c.id}">${esc(c.nome)}</a><span class="m">${c.ok ? '✅' : fmt(c.min)}</span></li>`).join('');
-    const stud = g.studio.map(s => `<li><span class="dot" style="background:var(--studio)"></span><a class="n" href="verifiche-ada.html#arg-${s.a.id}">${esc(s.v.materia)} · ${esc(s.a.titolo)} <small>· per ${dataBreve(s.v.data)}</small></a><span class="m">${fmt(s.min)}</span></li>`).join('');
-    const coda = g.sopra ? `<div class="over">I compiti superano le fasce di ${fmt(g.sopra)}</div>`
+    const comp = g.compiti.map(c => riga({ tipo: 'compito', rif: c.id, da: c.da, min: c.min, sp: c.sp }, '--compiti',
+      `<a class="n" draggable="false" href="compiti-ada.html#c-${c.da}-${c.id}">${esc(c.nome)}${c.sp ? ` <small class="spost">↪ dal ${dataBreve(c.da)}</small>` : ''}</a>`,
+      c.ok ? '✅' : fmt(c.min), c.ok ? 'fatto' : '')).join('');
+    const stud = g.studio.map(s => riga({ tipo: 'argomento', rif: s.a.id, da: s.sp ? s.sp.da : g.giornoIso, min: s.min, sp: s.sp }, '--studio',
+      `<a class="n" draggable="false" href="verifiche-ada.html#arg-${s.a.id}">${nomeArg(s.v, s.a)}${s.sp ? ` <small class="spost">↪ dal ${dataBreve(s.sp.da)}</small>` : ''}</a>`, fmt(s.min))).join('');
+    const coda = g.sopra ? `<div class="over">Le attività superano le fasce di ${fmt(g.sopra)}</div>`
       : g.cap ? `<div class="free">Libero: ${fmt(g.libero)}</div>` : (comp ? '' : `<div class="free">Nessuna fascia di studio</div>`);
-    return `<div class="day${g.giornoIso === oggiIso ? ' today' : ''}">
+    return `<div class="day${g.giornoIso === oggiIso ? ' today' : ''}" data-drop="giorno" data-g="${g.giornoIso}">
       <div class="day-h"><b>${g.giornoIso === oggiIso ? 'Oggi · ' : ''}${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b>
         <span class="cap">${g.cap ? `disponibili <b>${fmt(g.cap)}</b>` : ''}</span></div>
       ${g.lf.length ? `<div class="fasce">${g.lf.map(f => `${f[0]}–${f[1]}`).join(' · ')}</div>` : ''}
@@ -235,6 +240,142 @@ function render(p, giorni) {
       ${bar}${comp || stud ? `<ul>${comp}${stud}</ul>` : ''}${coda}</div>`;
   }).join('');
 }
+
+// I due contenitori. Un'attività lì dentro conserva il giorno da cui viene (`da`).
+function renderCestini(p) {
+  const voce = x => x.tipo === 'compito'
+    ? riga({ tipo: 'compito', rif: x.rif, da: x.sp.da, min: x.min, sp: x.sp }, '--compiti', `<span class="n">${esc(x.nome)} <small>· dal ${dataBreve(x.sp.da)}</small></span>`, fmt(x.min))
+    : riga({ tipo: 'argomento', rif: x.rif, da: x.sp.da, min: x.min, sp: x.sp }, '--studio', `<span class="n">${nomeArg(x.v, x.a)}</span>`, fmt(x.min));
+  const tot = l => l.length ? `${l.length} · ${fmt(l.reduce((a, x) => a + x.min, 0))}` : '';
+  document.getElementById('l-canc').innerHTML = p.cancellati.map(voce).join('') || '<li class="vuoto">Trascina qui</li>';
+  document.getElementById('l-rim').innerHTML = p.daRimandare.map(voce).join('') || '<li class="vuoto">Trascina qui</li>';
+  document.getElementById('n-canc').textContent = tot(p.cancellati);
+  document.getElementById('n-rim').textContent = tot(p.daRimandare);
+  document.getElementById('distribuisci').disabled = !p.daRimandare.length;
+}
+
+// ── Scritture: una alla volta, poi si rilegge ──────────────────────────────
+let inCorso = false;
+async function scrivi(f) {
+  if (inCorso) return;
+  inCorso = true;
+  try { await f(); } catch (e) { alert('Non riesco a salvare: ' + e.message); }
+  finally { inCorso = false; }
+  try { await ricaricaSpostamenti(); } catch (e) {}
+}
+const nuova = (v, stato, a) => SC.db('sc_spostamenti', { method: 'POST', prefer: 'return=minimal',
+  body: { tipo: v.tipo, rif: v.rif, da: v.da, min: Math.round(v.min), stato, a: a || null } });
+const cambia = (sp, body) => SC.db(`sc_spostamenti?id=eq.${sp.id}`, { method: 'PATCH', body, prefer: 'return=minimal' });
+
+function lascia(v, dove, giorno) {
+  if (dove === 'giorno') {
+    if (!v.sp && giorno === v.da) return;            // rilasciata sul suo stesso giorno: niente
+    if (v.sp && v.sp.stato === 'rimandato' && v.sp.a === giorno) return;
+  }
+  const stato = dove === 'cancella' ? 'cancellato' : 'rimandato', a = dove === 'giorno' ? giorno : null;
+  scrivi(() => v.sp ? cambia(v.sp, { stato, a }) : nuova(v, stato, a));
+}
+
+// «Distribuisci da domani»: ogni attività in «da rimandare» va nel primo tempo
+// libero da domani in poi, senza scalzare quello che il piano ha già messo.
+// Lo studio di un argomento si spezza sui giorni e si ferma prima della verifica;
+// un compito va intero nel primo giorno dove entra.
+async function distribuisci() {
+  const t = oggi(), domIso = iso(piu(t, 1));
+  const p = piano(V.dati, piu(t, GIORNI_DISTRIBUISCI));
+  const liberi = p.giorni.filter(g => g.giornoIso >= domIso).map(g => ({ iso: g.giornoIso, libero: g.libero }));
+  const piani = [];
+  let restati = 0;
+  for (const x of p.daRimandare) {
+    const pezzi = [];
+    let resto = x.min;
+    for (const g of liberi) {
+      if (resto <= 0) break;
+      if (x.tipo === 'argomento' && g.iso >= x.v.data) break;
+      if (x.tipo === 'compito') { if (g.libero >= resto) { pezzi.push({ a: g.iso, min: resto }); g.libero -= resto; resto = 0; } continue; }
+      if (g.libero <= 0) continue;
+      const q = Math.min(resto, g.libero); g.libero -= q; resto -= q; pezzi.push({ a: g.iso, min: q });
+    }
+    if (resto > 0) restati++;
+    if (pezzi.length) piani.push({ x, pezzi, resto });
+  }
+  if (!piani.length) { alert('Da domani non c\'è tempo libero dove mettere queste attività (lo studio deve stare prima della sua verifica).'); return; }
+  await scrivi(async () => {
+    for (const { x, pezzi, resto } of piani) {
+      const v = { tipo: x.tipo, rif: x.rif, da: x.sp.da };
+      if (resto > 0) {
+        await cambia(x.sp, { min: Math.round(resto) });
+        for (const z of pezzi) await nuova({ ...v, min: z.min }, 'rimandato', z.a);
+      } else {
+        await cambia(x.sp, { a: pezzi[0].a, min: Math.round(pezzi[0].min) });
+        for (const z of pezzi.slice(1)) await nuova({ ...v, min: z.min }, 'rimandato', z.a);
+      }
+    }
+  });
+  if (restati) alert(`${restati === 1 ? 'Un\'attività non è entrata' : restati + ' attività non sono entrate'} del tutto: quel che avanza resta in «Da rimandare».`);
+}
+
+// ── Trascinamento ───────────────────────────────────────────────────────────
+// Col mouse parte muovendo; col dito dopo una pressione di 350 ms, così lo
+// scorrimento normale della pagina resta com'è.
+const DnD = { li: null, voce: null, x0: 0, y0: 0, timer: null, attivo: false, fantasma: null, sopra: null, appenaTrascinato: false, scroll: 0 };
+function annullaDnD() {
+  clearTimeout(DnD.timer); cancelAnimationFrame(DnD.scroll);
+  if (DnD.fantasma) DnD.fantasma.remove();
+  if (DnD.li) DnD.li.classList.remove('preso');
+  if (DnD.sopra) DnD.sopra.classList.remove('sopra');
+  Object.assign(DnD, { li: null, voce: null, timer: null, attivo: false, fantasma: null, sopra: null });
+}
+function iniziaDnD(x, y) {
+  if (!DnD.li) return;
+  DnD.attivo = true;
+  DnD.li.classList.add('preso');
+  const f = document.createElement('div'); f.className = 'fantasma';
+  f.textContent = DnD.li.querySelector('.n').textContent.trim() + ' · ' + DnD.li.querySelector('.m').textContent;
+  document.body.appendChild(f); DnD.fantasma = f;
+  if (navigator.vibrate) try { navigator.vibrate(20); } catch (e) {}
+  muoviDnD(x, y);
+}
+function muoviDnD(x, y) {
+  DnD.fantasma.style.left = x + 'px'; DnD.fantasma.style.top = y + 'px';
+  const el = document.elementFromPoint(x, y), t = el && el.closest('[data-drop]');
+  if (t !== DnD.sopra) { if (DnD.sopra) DnD.sopra.classList.remove('sopra'); DnD.sopra = t; if (t) t.classList.add('sopra'); }
+  // Vicino ai bordi la pagina scorre da sé.
+  cancelAnimationFrame(DnD.scroll);
+  const h = window.innerHeight, v = y < 110 ? -12 : y > h - 60 ? 12 : 0;
+  if (v) { const passo = () => { window.scrollBy(0, v); DnD.scroll = requestAnimationFrame(passo); }; DnD.scroll = requestAnimationFrame(passo); }
+}
+document.addEventListener('pointerdown', e => {
+  const li = e.target.closest('li[data-v]');
+  if (!li || e.button > 0 || e.target.closest('button')) return;
+  DnD.li = li; DnD.voce = V.voci[li.dataset.v]; DnD.x0 = e.clientX; DnD.y0 = e.clientY; DnD.mouse = e.pointerType === 'mouse';
+  if (!DnD.mouse) DnD.timer = setTimeout(() => iniziaDnD(DnD.x0, DnD.y0), 350);
+});
+document.addEventListener('pointermove', e => {
+  if (!DnD.li) return;
+  if (DnD.attivo) { e.preventDefault(); muoviDnD(e.clientX, e.clientY); return; }
+  const d = Math.hypot(e.clientX - DnD.x0, e.clientY - DnD.y0);
+  if (DnD.mouse && d > 6) iniziaDnD(e.clientX, e.clientY);
+  else if (!DnD.mouse && d > 10) annullaDnD();          // il dito sta scorrendo la pagina
+});
+function fineDnD() {
+  if (!DnD.attivo) { annullaDnD(); return; }
+  const t = DnD.sopra, v = DnD.voce;
+  DnD.appenaTrascinato = true; setTimeout(() => { DnD.appenaTrascinato = false; }, 400);
+  annullaDnD();
+  if (t && v) lascia(v, t.dataset.drop, t.dataset.g);
+}
+document.addEventListener('pointerup', fineDnD);
+document.addEventListener('pointercancel', () => { if (!DnD.attivo) annullaDnD(); });
+// Col dito il browser può prendersi il gesto: i touch* tengono vivo il trascinamento comunque.
+document.addEventListener('touchmove', e => {
+  if (!DnD.attivo) return;
+  e.preventDefault();
+  const tc = e.touches[0]; if (tc) muoviDnD(tc.clientX, tc.clientY);
+}, { passive: false });
+document.addEventListener('touchend', () => { if (DnD.attivo) fineDnD(); });
+document.addEventListener('contextmenu', e => { if (DnD.li) e.preventDefault(); });
+document.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('li[data-v]')) e.preventDefault(); });
 
 SC.avvia('calendario-ada.html', carica);
 </script>

@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.5.0</title>
+<title>Studio di oggi v1.6.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -99,8 +99,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.5.0';
-var BUILD_TIME  = '2026-11-12T10:35:00Z';
+var APP_VERSION = 'v1.6.0';
+var BUILD_TIME  = '2026-11-12T11:30:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -132,48 +132,35 @@ function scriviGelo(g) { try { g ? localStorage.setItem(CHIAVE_GELO, JSON.string
 // fasce × 60 / (60 + pausa); prima i compiti delle lezioni di domani (non
 // spuntati), poi le ore degli argomenti non «studiati», dalla verifica più
 // vicina e solo prima del suo giorno. Cambiando una, cambia l'altra.
-function pianoDiOggi({ materie, orario, fatti, ver, args, imp }) {
-  const t = oggi(), giornoIso = iso(t), domani = piu(t, 1).getDay(), mat = new Map(materie.map(m => [m.id, m]));
-  const fatto = new Set(fatti.filter(f => f.giorno === giornoIso).map(f => f.orario_id));
-  const pausa = imp.pausa_minuti || 0, lf = (imp.fasce || {})[t.getDay()] || [];
-  const lordo = lf.reduce((a, f) => a + Math.max(0, minuti(f[1]) - minuti(f[0])), 0);
-  const cap = Math.floor(lordo * 60 / (60 + pausa));
-  const voci = [];
-  if (domani >= 1 && domani <= 6) for (const o of orario) {
-    const m = mat.get(o.materia_id);
-    if (o.giorno !== domani || o.senza_compiti || !m || !(m.minuti > 0)) continue;
-    // I compiti già spuntati non si mostrano (v1.3.2): il loro tempo resta nel totale «studiato».
-    if (fatto.has(o.id)) continue;
-    voci.push({ tipo: 'compito', rif: o.id, titolo: m.nome, sotto: 'Compiti per domani', min: m.minuti, fatto: false });
-  }
-  let libero = Math.max(0, cap - voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0));
-  for (const v of ver) {
-    if (v.data <= giornoIso) continue;
-    for (const a of args.filter(a => a.verifica_id === v.id).sort((x, y) => x.posizione - y.posizione)) {
-      if (libero <= 0) break;
-      if (a.studiato || !(Number(a.ore) > 0)) continue;
-      const q = Math.min(Number(a.ore) * 60, libero); libero -= q;
-      voci.push({ tipo: 'argomento', rif: a.id, titolo: `${v.materia} · ${a.titolo}`, sotto: `per il ${v.data.slice(8)}/${v.data.slice(5,7)}`, min: q, fatto: false });
-    }
-  }
+// Il piano di oggi è il primo giorno di SC.piano (scuola-ada.js), la stessa regola
+// del calendario: rimandati e cancellati compresi. Un impegno che compare due volte
+// (rimandato più la sua quota normale) diventa un rettangolo solo.
+function pianoDiOggi(dati) {
+  const g = SC.piano(dati, null, 1).giorni[0], pausa = dati.imp.pausa_minuti || 0;
+  const voci = [], per = new Map();
+  const metti = v => { const k = chiave(v.tipo, v.rif), c = per.get(k); if (c) c.min += v.min; else { per.set(k, v); voci.push(v); } };
+  // I compiti già spuntati non si mostrano (v1.3.2): il loro tempo resta nel totale «studiato».
+  for (const c of g.compiti) if (!c.ok) metti({ tipo: 'compito', rif: c.id, da: c.da, titolo: c.nome, sotto: c.sp ? 'Compiti rimandati' : 'Compiti per domani', min: c.min, fatto: false });
+  for (const s of g.studio) metti({ tipo: 'argomento', rif: s.a.id, titolo: `${s.v.materia} · ${s.a.titolo}`, sotto: `per il ${s.v.data.slice(8)}/${s.v.data.slice(5,7)}`, min: s.min, fatto: false });
   // Pausa concessa: i minuti di pausa per ogni ora di lavoro previsto.
-  const lavoro = voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0);
+  const lavoro = voci.reduce((a, v) => a + v.min, 0);
   return { voci, pausaMax: Math.round(lavoro * pausa / 60) };
 }
 
 async function carica() {
   const t = oggi(), oggiIso = iso(t); S.giorno = oggiIso;
   try {
-    const [materie, orario, fatti, ver, args, imp, sess] = await Promise.all([
+    const [materie, orario, fatti, ver, args, imp, sess, sposta] = await Promise.all([
       SC.db('sc_materie?select=id,nome,minuti'),
       SC.db('sc_orario?select=id,giorno,ora,materia_id,senza_compiti&order=giorno,ora'),
-      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=eq.${oggiIso}`),
+      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${iso(piu(t, -60))}`),
       SC.db(`sc_verifiche?select=id,data,materia&data=gt.${oggiIso}&order=data,created_at`),
       SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,posizione&order=posizione'),
       SC.db('sc_impostazioni?select=*&limit=1'),
-      SC.db(`sc_sessioni?select=*&or=(giorno.eq.${oggiIso},fine.is.null)&order=inizio`)
+      SC.db(`sc_sessioni?select=*&or=(giorno.eq.${oggiIso},fine.is.null)&order=inizio`),
+      SC.db('sc_spostamenti?select=*').catch(() => [])
     ]);
-    const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 } });
+    const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 }, sposta });
     S.voci = p.voci; S.pausaMax = p.pausaMax;
     // Sessioni aperte: una sola è buona; quelle di altri giorni o dimenticate si chiudono.
     S.aperta = null; S.sessioni = [];
@@ -338,7 +325,7 @@ function tocca(tipo, rif, titolo) {
 function finito(v) {
   bip();
   toast(`Tempo finito per «${v.titolo}»: ti porto ${v.tipo === 'compito' ? 'ai compiti' : 'alle verifiche'} per spuntarlo.`);
-  const dove = v.tipo === 'compito' ? `compiti-ada.html#c-${iso(oggi())}-${v.rif}` : `verifiche-ada.html#arg-${v.rif}`;
+  const dove = v.tipo === 'compito' ? `compiti-ada.html#c-${v.da || iso(oggi())}-${v.rif}` : `verifiche-ada.html#arg-${v.rif}`;
   inFila(async () => { await chiudi(); await apri('pausa', null, 'Pausa'); aggiorna(); }).then(() => setTimeout(() => { location.href = dove; }, 2500));
 }
 

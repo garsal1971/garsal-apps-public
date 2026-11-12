@@ -1,6 +1,7 @@
 /* ============================================================================
-   scuola-ada.js v1.4.0 — accesso, database e barra in alto per le pagine
-   della scuola di Ada (compiti, verifiche, calendario, impostazioni).
+   scuola-ada.js v1.5.0 — accesso, database e barra in alto per le pagine
+   della scuola di Ada (compiti, verifiche, calendario, impostazioni), e il
+   piano di studio (SC.piano) che calendario e studio leggono uguale.
 
    La barra blu è quella di AppSphere (logo + «Garsal Apps», nome, ☰): il
    logo torna ad AppSphere, il ☰ porta alle quattro pagine e a «Esci».
@@ -289,5 +290,86 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
     mostraLogin(sbt ? 'Il login di AppSphere è scaduto: accedi con Google qui sotto.' : '', !!sbt);
   }
 
-  window.SC = { avvia, db, esci, utente: () => sessione && sessione.user };
+  // ── Il piano di studio (v1.5.0) ───────────────────────────────────────────
+  // Una regola sola per calendario-ada.html e studio-ada.html (prima erano due
+  // copie). Per ogni giorno da oggi: tempo utile = fasce × 60 / (60 + pausa ogni
+  // ora); prima i compiti (lezioni di domani, il pomeriggio prima), poi quel che
+  // è stato rimandato a quel giorno (sc_spostamenti), poi nel tempo che avanza le
+  // ore degli argomenti non «studiati», dalla verifica più vicina e solo nei
+  // giorni prima di lei.
+  // sc_spostamenti: un compito o un pezzo di argomento tolto da un giorno non ci
+  // torna da solo; «cancellato» esce dal piano, «rimandato» va sul giorno `a`
+  // (NULL = nel contenitore «da rimandare»). Un rimandato a un giorno ormai
+  // passato si ignora: quel tempo torna nel piano normale.
+  const pIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const pPiu = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const pParse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const pMin = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? 0 : h * 60 + (m || 0); };
+
+  function piano(dati, finoA, giorniMin) {
+    const { materie, orario, fatti, ver, args, imp } = dati, sposta = dati.sposta || [];
+    const n = new Date(), t = new Date(n.getFullYear(), n.getMonth(), n.getDate()), tIso = pIso(t);
+    const mat = new Map(materie.map(m => [m.id, m])), ora = new Map(orario.map(o => [o.id, o]));
+    const argo = new Map(args.map(a => [a.id, a])), verOf = new Map(ver.map(v => [v.id, v]));
+    const fatto = new Set(fatti.map(f => f.giorno + '|' + f.orario_id));
+    const ultima = ver.length ? pParse(ver[ver.length - 1].data) : t;
+    const fine = new Date(Math.max(pPiu(ultima, -1), pPiu(t, (giorniMin || 7) - 1), finoA || 0));
+    const pausa = imp.pausa_minuti || 0, fasce = imp.fasce || {};
+
+    // Gli spostamenti ancora validi, già risolti in nome e minuti.
+    const validi = [];
+    for (const s of sposta) {
+      if (s.stato === 'rimandato' && s.a && s.a < tIso) continue;
+      if (s.tipo === 'compito') {
+        const o = ora.get(s.rif), m = o && mat.get(o.materia_id);
+        if (!m) continue;
+        if (s.stato === 'cancellato' && s.da < tIso) continue;
+        validi.push({ sp: s, tipo: 'compito', rif: s.rif, nome: m.nome, min: s.min, ok: fatto.has(s.da + '|' + s.rif) });
+      } else {
+        const a = argo.get(s.rif), v = a && verOf.get(a.verifica_id);
+        if (!a || !v || a.studiato) continue;
+        validi.push({ sp: s, tipo: 'argomento', rif: s.rif, a, v, min: s.min });
+      }
+    }
+    const tolti = new Set(validi.map(x => x.rif + '|' + x.sp.da));   // non tornano da soli su quel giorno
+    const usati = new Map();                                          // minuti di argomento già spostati
+    for (const x of validi) if (x.tipo === 'argomento') usati.set(x.rif, (usati.get(x.rif) || 0) + x.min);
+
+    const daFare = [];
+    for (const v of ver) for (const a of args.filter(a => a.verifica_id === v.id).sort((x, y) => x.posizione - y.posizione))
+      if (!a.studiato && Number(a.ore) > 0) daFare.push({ v, a, resto: Math.max(0, Number(a.ore) * 60 - (usati.get(a.id) || 0)) });
+
+    const giorni = [];
+    for (let d = new Date(t); d <= fine; d = pPiu(d, 1)) {
+      const g = d.getDay(), giornoIso = pIso(d), domani = pPiu(d, 1).getDay();
+      const lf = fasce[g] || [];
+      const lordo = lf.reduce((a, f) => a + Math.max(0, pMin(f[1]) - pMin(f[0])), 0);
+      const cap = Math.floor(lordo * 60 / (60 + pausa)); // gemella di utile() in impostazioni-ada.html
+      const qui = validi.filter(x => x.sp.stato === 'rimandato' && x.sp.a === giornoIso);
+      const compiti = (domani >= 1 && domani <= 6 ? orario
+        .filter(o => o.giorno === domani && !o.senza_compiti && (mat.get(o.materia_id)?.minuti || 0) > 0 && !tolti.has(o.id + '|' + giornoIso))
+        .map(o => ({ id: o.id, da: giornoIso, nome: mat.get(o.materia_id).nome, min: mat.get(o.materia_id).minuti, ok: fatto.has(giornoIso + '|' + o.id) })) : [])
+        .concat(qui.filter(x => x.tipo === 'compito').map(x => ({ id: x.rif, da: x.sp.da, nome: x.nome, min: x.min, ok: x.ok, sp: x.sp })));
+      const minCompiti = compiti.filter(c => !c.ok).reduce((a, c) => a + c.min, 0);
+      const studio = qui.filter(x => x.tipo === 'argomento').map(x => ({ v: x.v, a: x.a, min: x.min, sp: x.sp }));
+      const fisso = minCompiti + studio.reduce((a, s) => a + s.min, 0);
+      let libero = Math.max(0, cap - fisso);
+      for (const x of daFare) {
+        if (libero <= 0) break;
+        if (x.resto <= 0 || x.v.data <= giornoIso || tolti.has(x.a.id + '|' + giornoIso)) continue;
+        const q = Math.min(x.resto, libero);
+        x.resto -= q; libero -= q;
+        studio.push({ v: x.v, a: x.a, min: q });
+      }
+      giorni.push({ d, giornoIso, lf, cap, compiti, minCompiti, studio, libero, sopra: Math.max(0, fisso - cap),
+        verifiche: ver.filter(v => v.data === giornoIso) });
+    }
+    const mancano = new Map();
+    for (const x of daFare) if (x.resto > 0) mancano.set(x.v.id, { v: x.v, min: (mancano.get(x.v.id)?.min || 0) + x.resto });
+    return { giorni, mancano: [...mancano.values()], senzaFasce: !Object.values(fasce).some(l => l && l.length), daFare,
+      cancellati: validi.filter(x => x.sp.stato === 'cancellato'),
+      daRimandare: validi.filter(x => x.sp.stato === 'rimandato' && !x.sp.a) };
+  }
+
+  window.SC = { avvia, db, esci, piano, utente: () => sessione && sessione.user };
 })();
