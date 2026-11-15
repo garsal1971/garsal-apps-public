@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 object Sessione {
     suspend fun scegli(ctx: Context, livello: String?, tema: String?, soloParole: Boolean, n: Int): List<Scelta> =
         withContext(Dispatchers.IO) {
-            val tema = Frasi.temaValido(tema)
+            val tema = Frasi.temaValido(tema, soloParole)
             val dao = Storico.dao(ctx)
             val scelte = Frasi.catalogo(ctx, soloParole).filter {
                 (livello == null || it.livello == livello) && (tema == null || it.tema == tema)

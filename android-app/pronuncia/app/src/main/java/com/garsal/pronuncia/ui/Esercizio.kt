@@ -94,10 +94,14 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
     val coda = remember { mutableStateListOf<Scelta>() }
     var pronta by remember { mutableStateOf(false) }
     var giro by remember { mutableStateOf(0) }
+    var erroreScelta by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(giro) {
         pronta = false
         coda.clear()
-        coda.addAll(runCatching { Sessione.scegli(ctx, livello, tema, parole, quante) }.getOrDefault(emptyList()))
+        // v1.35.0: un errore si dice, invece di passare per «Nessuna frase».
+        runCatching { Sessione.scegli(ctx, livello, tema, parole, quante) }
+            .onSuccess { coda.addAll(it); erroreScelta = null }
+            .onFailure { erroreScelta = it.message ?: it.javaClass.simpleName }
         pronta = true
     }
     val frase = coda.firstOrNull()?.frase
@@ -227,6 +231,8 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
             )
             if (!pronta) {
                 Text("Scelgo ${if (parole) "le parole" else "le frasi"}…")
+            } else if (f == null && erroreScelta != null) {
+                Text("⚠️ Non riesco a scegliere ${if (parole) "le parole" else "le frasi"}: $erroreScelta")
             } else if (f == null) {
                 Text(if (parole) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.")
             } else {

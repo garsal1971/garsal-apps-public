@@ -4036,6 +4036,12 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
     `Ascolto.tieniFinoAlSilenzio` resta per la sola registrazione dei comandi.
   - Le traduzioni si scaricano in sottofondo invece di far aspettare l'avvio; `Riascolto` controlla
     la fine ogni 15 ms invece di 50. Il bip resta 500 ms.
+- **Riascolto sempre e «Tutti» che resta «Tutti»** (v1.35.0): a mani libere la propria voce si
+  riascolta anche sui tentativi riusciti, prima del voto (stesso interruttore). ⚠️ Livello e tema
+  del ciclo «Tutti» si salvano come stringa vuota: con `putString(null)` la chiave spariva e
+  `Prefs.temaCiclo` ripiegava sul tema dell'Esercizio — anche uno delle sole parole, cioè «Nessuna
+  frase per questo filtro.». E `Frasi.temaValido(tema, soloParole)` fa valere «tutti» un tema che
+  il catalogo scelto non ha. L'Esercizio, se la scelta della sessione fallisce, scrive l'errore.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

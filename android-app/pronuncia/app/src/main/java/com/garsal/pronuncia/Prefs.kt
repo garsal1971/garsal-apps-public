@@ -127,12 +127,15 @@ class Prefs(ctx: Context) {
         set(v) = p.edit().putBoolean("parole_ciclo", v).apply()
 
     var livelloCiclo: String?
-        get() = if (p.contains("livello_ciclo")) p.getString("livello_ciclo", null) else livello
-        set(v) = p.edit().putString("livello_ciclo", v).apply()
+        get() = if (p.contains("livello_ciclo")) p.getString("livello_ciclo", null)?.ifEmpty { null } else livello
+        set(v) = p.edit().putString("livello_ciclo", v ?: "").apply()
 
     var temaCiclo: String?
-        get() = if (p.contains("tema_ciclo")) p.getString("tema_ciclo", null) else tema
-        set(v) = p.edit().putString("tema_ciclo", v).apply()
+        get() = if (p.contains("tema_ciclo")) p.getString("tema_ciclo", null)?.ifEmpty { null } else tema
+        // v1.35.0: «Tutti» si scrive come stringa vuota. Con putString(null) la
+        // chiave spariva e il ciclo ripiegava sul tema dell'Esercizio — anche
+        // uno delle sole parole, cioè nessuna frase da dire.
+        set(v) = p.edit().putString("tema_ciclo", v ?: "").apply()
 
     /** Quanti elementi in una sessione (v1.16.0), uno dei [QUANTE], per
      *  scheda: l'esercizio e il ciclo hanno ciascuno il suo. */
