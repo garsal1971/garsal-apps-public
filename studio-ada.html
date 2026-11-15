@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.7.0</title>
+<title>Studio di oggi v1.8.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -99,8 +99,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.7.0';
-var BUILD_TIME  = '2026-11-15T10:05:00Z';
+var APP_VERSION = 'v1.8.0';
+var BUILD_TIME  = '2026-11-15T10:10:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -121,11 +121,16 @@ function toast(t) { const el = document.getElementById('toast'); el.textContent 
 const S = { voci: [], sessioni: [], aperta: null, congelato: null, pausaMax: 0, avvisati: new Set(), giorno: '' };
 
 // ❄️ Congela (v1.4.0): ferma il tempo e ricorda cosa era acceso (impegno o pausa);
-// finché non si tocca Riprendi niente parte. Sta in localStorage, solo su questo
-// dispositivo, e vale per il giorno in cui è stato congelato.
-const CHIAVE_GELO = 'sc_studio_congelato';
-function leggiGelo() { try { const g = JSON.parse(localStorage.getItem(CHIAVE_GELO)); return g && g.giorno === iso(oggi()) ? g : null; } catch (e) { return null; } }
-function scriviGelo(g) { try { g ? localStorage.setItem(CHIAVE_GELO, JSON.stringify(g)) : localStorage.removeItem(CHIAVE_GELO); } catch (e) {} }
+// finché non si tocca Riprendi niente parte. Vale per il giorno in cui è stato
+// congelato. Dalla v1.8.0 sta in sc_impostazioni.congelato, quindi vale su tutti
+// i dispositivi; prima era in localStorage (la chiave vecchia si toglie).
+try { localStorage.removeItem('sc_studio_congelato'); } catch (e) {}
+const leggiGelo = g => g && g.giorno === iso(oggi()) ? g : null;
+// In fila: una rilettura non deve vedere lo stato di prima della scrittura.
+function scriviGelo(g) {
+  inFila(() => SC.db('sc_impostazioni?user_id=not.is.null', { method: 'PATCH', body: { congelato: g || null }, prefer: 'return=minimal' })
+    .catch(e => toast('Congela non salvato: ' + e.message)));
+}
 
 // ── Il piano di oggi ─────────────────────────────────────────────────────
 // ⚠️ Gemello del primo giorno di piano() in calendario-ada.html: tempo utile =
@@ -174,7 +179,8 @@ async function carica() {
         toast('Un cronometro era rimasto acceso: l\'ho fermato.');
       } else S.aperta = s;
     }
-    S.congelato = S.aperta ? null : leggiGelo(); if (!S.congelato) scriviGelo(null);
+    const gelo = (imp[0] || {}).congelato;
+    S.congelato = S.aperta ? null : leggiGelo(gelo); if (!S.congelato && gelo) scriviGelo(null);
     // Un impegno che il piano non propone più non si mostra, anche se oggi ci si è lavorato:
     // il suo tempo resta comunque nel totale «studiato» (vedi aggiorna()).
     disegna();
@@ -287,13 +293,15 @@ function sincronizza() {
   if (document.visibilityState !== 'visible' || !S.giorno) return;
   if (S.giorno !== iso(oggi())) { inFila(carica); return; } // dopo mezzanotte il piano è un altro
   inFila(async () => {
-    let sess;
-    try { sess = await SC.db(`sc_sessioni?select=*&giorno=eq.${S.giorno}&order=inizio`); } catch (e) { return; }
+    let sess, imp;
+    try { [sess, imp] = await Promise.all([SC.db(`sc_sessioni?select=*&giorno=eq.${S.giorno}&order=inizio`), SC.db('sc_impostazioni?select=congelato&limit=1')]); } catch (e) { return; }
     const aperte = sess.filter(s => !s.fine);
     S.sessioni = sess.filter(s => s.fine);
     S.aperta = aperte.length ? aperte[aperte.length - 1] : null;
-    // Un cronometro partito da un altro dispositivo scongela questo.
-    if (S.aperta && S.congelato) { S.congelato = null; scriviGelo(null); }
+    // Congela e Riprendi da un altro dispositivo; un cronometro acceso vince sul gelo.
+    const gelo = leggiGelo((imp[0] || {}).congelato);
+    S.congelato = S.aperta ? null : gelo;
+    if (S.aperta && gelo) scriviGelo(null);
     aggiorna();
   });
 }
