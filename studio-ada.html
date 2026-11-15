@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.9.0</title>
+<title>Studio di oggi v1.9.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -117,8 +117,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.9.0';
-var BUILD_TIME  = '2026-11-15T17:00:00Z';
+var APP_VERSION = 'v1.9.1';
+var BUILD_TIME  = '2026-11-15T16:45:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -171,12 +171,30 @@ function pianoDiOggi(dati) {
       const k = chiave(v.tipo, v.rif); v.prima = tot.get(k) || 0; tot.set(k, v.prima + v.min);
       const c = per.get(k); if (c) c.min += v.min; else { per.set(k, v); lista.push(v); }
     };
-    // I compiti già spuntati non si mostrano (v1.3.2): il loro tempo resta nel totale «studiato».
-    for (const c of b.compiti) if (!c.ok) metti({ tipo: 'compito', rif: c.id, da: c.da, titolo: c.nome, sotto: c.sp ? 'Compiti rimandati' : 'Compiti per domani', min: c.min, fatto: false });
+    // I compiti già spuntati restano a schermo come completati (v1.9.1), con la loro area.
+    for (const c of b.compiti) metti({ tipo: 'compito', rif: c.id, da: c.da, titolo: c.nome, sotto: c.sp ? 'Compiti rimandati' : 'Compiti per domani', min: c.min, fatto: !!c.ok });
     for (const s of b.studio) metti({ tipo: 'argomento', rif: s.a.id, titolo: `${s.v.materia} · ${s.a.titolo}`, sotto: `per il ${s.v.data.slice(8)}/${s.v.data.slice(5,7)}`, min: s.min, fatto: false });
-    lista.forEach((v, j) => { v.p = p; v.j = j; v.i = voci.length; voci.push(v); });
     pagine.push({ inizio: b.inizio, fine: b.fine, cap: b.cap, voci: lista });
   });
+  // Gli argomenti «Studiati» escono dal piano: si ritrovano dalle sessioni di oggi e
+  // restano come completati (v1.9.1), sulla pagina della fascia in cui ci si è lavorato,
+  // con l'area dei minuti cronometrati.
+  const msDi = new Map(), quando = new Map();
+  for (const s of dati.sess || []) if (s.tipo === 'argomento' && s.rif && s.giorno === iso(oggi())) {
+    const fine = s.fine ? Date.parse(s.fine) : Date.now();
+    msDi.set(s.rif, (msDi.get(s.rif) || 0) + fine - Date.parse(s.inizio)); quando.set(s.rif, new Date(s.inizio));
+  }
+  const verDi = new Map((dati.ver || []).map(v => [v.id, v]));
+  for (const a of dati.args || []) {
+    if (!a.studiato || a.annullato || !msDi.has(a.id) || tot.has(chiave('argomento', a.id))) continue;
+    const d = quando.get(a.id), m = d.getHours() * 60 + d.getMinutes(), v = verDi.get(a.verifica_id);
+    let p = pagine.findIndex(pg => pg.fine && minuti(pg.inizio) <= m && m < minuti(pg.fine));
+    if (p < 0) p = Math.max(0, pagine.findIndex(pg => pg.fine && minuti(pg.fine) > m)); if (p < 0) p = 0;
+    const min = Math.max(1, Math.round(msDi.get(a.id) / 60e3));
+    tot.set(chiave('argomento', a.id), min);
+    pagine[p].voci.push({ tipo: 'argomento', rif: a.id, titolo: v ? `${v.materia} · ${a.titolo}` : a.titolo, sotto: v ? `per il ${v.data.slice(8)}/${v.data.slice(5,7)}` : 'Studiato', min, prima: 0, fatto: true });
+  }
+  pagine.forEach((pg, p) => pg.voci.forEach((v, j) => { v.p = p; v.j = j; v.i = voci.length; voci.push(v); }));
   for (const v of voci) v.totale = tot.get(chiave(v.tipo, v.rif));
   // Pausa concessa: i minuti di pausa per ogni ora di lavoro previsto.
   const lavoro = [...tot.values()].reduce((a, m) => a + m, 0);
@@ -205,7 +223,7 @@ async function carica() {
       SC.db(`sc_sessioni?select=*&or=(giorno.eq.${oggiIso},fine.is.null)&order=inizio`),
       SC.db('sc_spostamenti?select=*').catch(() => [])
     ]);
-    const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 }, sposta });
+    const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 }, sposta, sess });
     S.voci = p.voci; S.pagine = p.pagine; S.pausaMax = p.pausaMax;
     S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero);
     if (S.pagina === null || S.giorno !== oggiIso) S.pagina = paginaDiAdesso();
@@ -223,8 +241,8 @@ async function carica() {
     }
     const gelo = (imp[0] || {}).congelato;
     S.congelato = S.aperta ? null : leggiGelo(gelo); if (!S.congelato && gelo) scriviGelo(null);
-    // Un impegno che il piano non propone più non si mostra, anche se oggi ci si è lavorato:
-    // il suo tempo resta comunque nel totale «studiato» (vedi aggiorna()).
+    // Compiti spuntati e argomenti «Studiati» oggi restano a schermo come completati (v1.9.1);
+    // il resto che il piano non propone più non si mostra, ma il suo tempo resta nel totale.
     disegna();
   } catch (e) { document.getElementById('pagine').innerHTML = `<p class="vuoto">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
 }
@@ -329,16 +347,16 @@ function aggiorna() {
     // Il pezzo di questa fascia: il tempo di oggi meno quello delle fasce prima.
     const v = S.voci[el.dataset.i], msTot = speso(v.tipo, v.rif), ms = Math.max(0, msTot - v.prima * 60e3);
     const run = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif);
-    const prev = v.min * 60e3, frac = prev ? ms / prev : (ms ? 1 : 0), oltre = prev && ms > prev;
+    const prev = v.min * 60e3, frac = v.fatto ? 1 : prev ? ms / prev : (ms ? 1 : 0), oltre = !v.fatto && prev && ms > prev;
     el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
-    const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms);
+    const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms && !v.fatto);
     el.querySelector('.play').textContent = v.fatto ? '✅' : run ? '⏸' : '▶️';
     el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? '<span class="su"> / ' + fmtMin(v.min) + '</span>' : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
     // Tempo previsto raggiunto: un suono, il cronometro si ferma e si passa alla
     // pagina dei compiti o delle verifiche, dove la voce si spunta a mano.
     // Un pezzo che non è l'ultimo: finita la sua parte si passa alla pausa e basta.
     const k = chiave(v.tipo, v.rif) + '@' + v.p;
-    if (run && prev && ms >= prev && !S.avvisati.has(k)) {
+    if (run && !v.fatto && prev && ms >= prev && !S.avvisati.has(k)) {
       S.avvisati.add(k);
       if (msTot >= v.totale * 60e3) finito(v);
       else { bip(); toast(`Finita la parte di questa fascia per «${v.titolo}»: il resto è nella fascia dopo.`); inFila(async () => { await chiudi(); await apri('pausa', null, 'Pausa'); aggiorna(); }); }
@@ -480,7 +498,7 @@ function finitoPrima() {
 
 document.addEventListener('click', e => {
   const z = e.target.closest('.z');
-  if (z) { const v = S.voci[z.dataset.i]; tocca(v.tipo, v.rif, v.titolo); return; }
+  if (z) { const v = S.voci[z.dataset.i]; if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; } tocca(v.tipo, v.rif, v.titolo); return; }
   if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
   if (e.target.closest('#libero')) {
     if (!(S.aperta && S.aperta.tipo === 'libero') && speso('libero', null) >= S.liberoMin * 60e3) { toast('Il tempo libero di oggi è già finito.'); return; }
