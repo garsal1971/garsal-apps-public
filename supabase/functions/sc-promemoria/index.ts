@@ -1,5 +1,5 @@
 // ============================================================
-// sc-promemoria v1.0.0 — le notifiche delle fasce di studio di Ada
+// sc-promemoria v1.0.1 — le notifiche delle fasce di studio di Ada
 // Frequenza: ogni 5 minuti (pg_cron 'sc-promemoria', vedi 20261112130000_sc_promemoria.sql)
 //
 // Le fasce sono quelle di impostazioni-ada.html (sc_impostazioni.fasce, ora di Roma).
@@ -37,6 +37,8 @@ const PAGINE_SCUOLA    = ['compiti-ada.html', 'verifiche-ada.html', 'calendario-
 // Quanto dopo l'orario si manda ancora: il cron gira ogni 5 minuti, e un giro saltato
 // non deve far perdere la notifica.
 const FINESTRA_MIN = 12
+// entity_id è uuid in produzione: un id fisso per «lo studio di Ada» (5c = scuola).
+const ENTITA_STUDIO = '5c000000-0000-4000-8000-000000000001'
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -176,22 +178,28 @@ Deno.serve(async (req) => {
 
       const fireAt = new Date().toISOString()
       const righe = []
-      for (const c of canali) {
-        const { data: regola, error: er } = await sb.from('cm_notification_rules').upsert({
-          user_id: c.user_id, app: 'scuola', entity_id: 'studio', entity_type: 'task', channel: c.channel,
-          entity_title: 'Studio', enabled: false, reminder_presets: { kind: 'scuola' }, notification_spec: {},
-        }, { onConflict: 'user_id,app,entity_id,channel' }).select('id').single()
-        if (er) throw er
-        righe.push({
-          rule_id: regola.id, user_id: c.user_id, app: 'scuola', entity_id: 'studio',
-          title: titolo, body: corpo, channel: c.channel, fire_at: fireAt, status: 'pending',
-          occurrence_id: `${regola.id}:${oggi}:${ev.orario}`,
-          metadata: { telegram_cancel_button: false, scuola: ev.tipo },
-        })
-      }
-      if (righe.length) {
-        const { error: eq } = await sb.from('cm_notification_queue').insert(righe)
-        if (eq) throw eq
+      try {
+        for (const c of canali) {
+          const { data: regola, error: er } = await sb.from('cm_notification_rules').upsert({
+            user_id: c.user_id, app: 'scuola', entity_id: ENTITA_STUDIO, entity_type: 'task', channel: c.channel,
+            entity_title: 'Studio', enabled: false, reminder_presets: { kind: 'scuola' }, notification_spec: {},
+          }, { onConflict: 'user_id,app,entity_id,channel' }).select('id').single()
+          if (er) throw er
+          righe.push({
+            rule_id: regola.id, user_id: c.user_id, app: 'scuola', entity_id: ENTITA_STUDIO,
+            title: titolo, body: corpo, channel: c.channel, fire_at: fireAt, status: 'pending',
+            occurrence_id: `${regola.id}:${oggi}:${ev.orario}`,
+            metadata: { telegram_cancel_button: false, scuola: ev.tipo },
+          })
+        }
+        if (righe.length) {
+          const { error: eq } = await sb.from('cm_notification_queue').insert(righe)
+          if (eq) throw eq
+        }
+      } catch (e) {
+        // Non è partita: si toglie la prenotazione, e il giro dopo riprova.
+        await sb.from('sc_promemoria_inviati').delete().match({ giorno: oggi, fascia: ev.fascia, tipo: ev.tipo })
+        throw e
       }
       esiti.push({ ...ev, righe: righe.length, voci: ev.tipo === 'fine' ? aperte.length : voci.length })
     }
