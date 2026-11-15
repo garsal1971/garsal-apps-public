@@ -1,5 +1,5 @@
 /* ============================================================================
-   scuola-ada.js v1.7.0 — accesso, database e barra in alto per le pagine
+   scuola-ada.js v1.8.0 — accesso, database e barra in alto per le pagine
    della scuola di Ada (compiti, verifiche, calendario, impostazioni), e il
    piano di studio (SC.piano) che calendario e studio leggono uguale.
 
@@ -324,7 +324,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
       // Upsert sul token (= endpoint): riabbonando lo stesso browser si aggiorna la sua riga.
       await db('cm_push_devices?on_conflict=token', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: {
         user_id: sessione.user.id, token: json.endpoint, platform: 'web', device_name: nome, enabled: true,
-        web_push: json, app_version: 'scuola-ada.js v1.7.0', last_seen_at: new Date().toISOString() } });
+        web_push: json, app_version: 'scuola-ada.js v1.8.0', last_seen_at: new Date().toISOString() } });
       notifiche('Fatto: le notifiche arriveranno qui.');
     } catch (e) { console.error('🔔', e); notifiche('Non sono riuscito ad attivarle: ' + e.message, true); }
   }
@@ -401,6 +401,38 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
   const pParse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
   const pMin = t => { const [h, m] = String(t || '').split(':').map(Number); return isNaN(h) ? 0 : h * 60 + (m || 0); };
 
+  // Un blocco per fascia (v1.8.0): le attività del giorno si mettono in ordine —
+  // prima i compiti, poi lo studio — riempiendo la prima fascia e poi la
+  // seconda; un'attività può spezzarsi fra due fasce (min = il pezzo, intero =
+  // tutta l'attività). Quel che non entra va nell'ultima, che allora sfora.
+  // I compiti già fatti stanno nella prima, a zero minuti.
+  function blocchiDi(lf, cap, pausa, compiti, studio) {
+    const fs = lf.map(f => ({ inizio: f[0], fine: f[1], lordo: Math.max(0, pMin(f[1]) - pMin(f[0])) }))
+      .sort((x, y) => pMin(x.inizio) - pMin(y.inizio));
+    if (!fs.length) return [];
+    let resto = cap;
+    const bl = fs.map((f, i) => {
+      const c = i === fs.length - 1 ? resto : Math.min(resto, Math.floor(f.lordo * 60 / (60 + pausa)));
+      resto -= c;
+      return { i, inizio: f.inizio, fine: f.fine, cap: c, compiti: [], studio: [], usato: 0, libero: 0, sopra: 0 };
+    });
+    let k = 0;
+    const metti = (lista, x) => {
+      let min = x.min;
+      while (min > 0) {
+        const b = bl[k], ultimo = k === bl.length - 1;
+        if (!ultimo && b.cap - b.usato <= 0) { k++; continue; }
+        const q = ultimo ? min : Math.min(min, b.cap - b.usato);
+        b[lista].push(Object.assign({}, x, { min: q, intero: x.min, parte: q < x.min }));
+        b.usato += q; min -= q;
+      }
+    };
+    for (const c of compiti) c.ok ? bl[0].compiti.push(Object.assign({}, c, { intero: c.min })) : metti('compiti', c);
+    for (const s of studio) metti('studio', s);
+    for (const b of bl) { b.libero = Math.max(0, b.cap - b.usato); b.sopra = Math.max(0, b.usato - b.cap); }
+    return bl;
+  }
+
   function piano(dati, finoA, giorniMin) {
     const { materie, orario, fatti, ver, args, imp } = dati, sposta = dati.sposta || [];
     const n = new Date(), t = new Date(n.getFullYear(), n.getMonth(), n.getDate()), tIso = pIso(t);
@@ -462,7 +494,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
         studio.push({ v: x.v, a: x.a, min: q });
       }
       giorni.push({ d, giornoIso, lf, cap, compiti, minCompiti, studio, libero, sopra: Math.max(0, fisso - cap),
-        verifiche: ver.filter(v => v.data === giornoIso) });
+        verifiche: ver.filter(v => v.data === giornoIso), blocchi: blocchiDi(lf, cap, pausa, compiti, studio) });
     }
     const mancano = new Map();
     for (const x of daFare) if (x.resto > 0) mancano.set(x.v.id, { v: x.v, min: (mancano.get(x.v.id)?.min || 0) + x.resto });

@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.8.1</title>
+<title>Studio di oggi v1.9.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -37,7 +37,22 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .top{flex:none;padding-inline:4px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:6px 12px}
 .top .tot{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .top .tot b{color:var(--fg)}
-.ctrl{flex:none;display:flex;gap:8px}
+.ctrl{flex:none;display:flex;flex-wrap:wrap;gap:8px}
+.btn.libero{flex:1;min-width:0;justify-content:space-between;border-color:var(--ok)}
+.btn.libero.on{background:var(--ok);color:var(--card)}
+.btn.libero small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
+.btn.prima{border-color:var(--ok);color:var(--ok)}
+/* Una pagina per fascia di studio (v1.9.0): si passa dall'una all'altra strisciando */
+.pagine{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+.pagine::-webkit-scrollbar{display:none}
+.pagina{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;gap:4px}
+.pagina .ph{flex:none;padding-inline:4px;font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px}
+.pagina .ph b{color:var(--fg);font-variant-numeric:tabular-nums}
+.pagina .vuoto{padding:12px 4px}
+.punti{flex:none;display:flex;justify-content:center;gap:8px}
+.punti button{width:12px;height:12px;min-height:0;padding:0;border-radius:50%;border:2px solid var(--muted);background:none;cursor:pointer}
+.punti button.on{background:var(--fg);border-color:var(--fg)}
+.pagine.gelo{opacity:.5;filter:grayscale(.6)}
 .btn{font:inherit;font-weight:600;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--fg);padding:10px 14px;min-height:48px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
 .btn.pausa{flex:1;min-width:0;justify-content:space-between;border-color:var(--pausa)}
 .btn.pausa.on{background:var(--pausa);color:var(--card)}
@@ -89,9 +104,12 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
     <h1 id="titolo">Studio di oggi</h1>
     <div class="tot" id="tot"></div>
   </div>
-  <div class="zone" id="zone" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per passare alla pausa."><p class="loading">Carico…</p></div>
+  <div class="pagine" id="pagine" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per passare alla pausa."><p class="loading">Carico…</p></div>
+  <div class="punti" id="punti" hidden></div>
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
+    <button type="button" class="btn libero" id="libero" hidden>⏳ Tempo libero <small id="libero-t"></small></button>
+    <button type="button" class="btn prima" id="prima" hidden>✅ Finito prima</button>
     <button type="button" class="btn stop" id="stop" hidden>❄️ Congela</button>
   </div>
 </div>
@@ -99,8 +117,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.8.1';
-var BUILD_TIME  = '2026-11-15T16:10:00Z';
+var APP_VERSION = 'v1.9.0';
+var BUILD_TIME  = '2026-11-15T17:00:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -118,7 +136,7 @@ const chiave = (tipo, rif) => tipo + ':' + (rif || '');
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => el.hidden = true, 3500); }
 
 // Stato: impegni di oggi, sessioni di oggi (chiuse) e quella in corso.
-const S = { voci: [], sessioni: [], aperta: null, congelato: null, pausaMax: 0, avvisati: new Set(), giorno: '' };
+const S = { voci: [], pagine: [], pagina: null, sessioni: [], aperta: null, congelato: null, pausaMax: 0, liberoMin: 0, avvisati: new Set(), giorno: '' };
 
 // ❄️ Congela (v1.4.0): ferma il tempo e ricorda cosa era acceso (impegno o pausa);
 // finché non si tocca Riprendi niente parte. Vale per il giorno in cui è stato
@@ -140,17 +158,39 @@ function scriviGelo(g) {
 // Il piano di oggi è il primo giorno di SC.piano (scuola-ada.js), la stessa regola
 // del calendario: rimandati e cancellati compresi. Un impegno che compare due volte
 // (rimandato più la sua quota normale) diventa un rettangolo solo.
+// Una pagina per fascia (v1.9.0): i blocchi del piano (SC.piano ≥ v1.8.0). Un impegno
+// spezzato fra due fasce ha un rettangolo per pagina: `min` è il pezzo di quella
+// fascia, `prima` i minuti che gli danno le fasce precedenti, `totale` quelli di oggi.
 function pianoDiOggi(dati) {
   const g = SC.piano(dati, null, 1).giorni[0], pausa = dati.imp.pausa_minuti || 0;
-  const voci = [], per = new Map();
-  const metti = v => { const k = chiave(v.tipo, v.rif), c = per.get(k); if (c) c.min += v.min; else { per.set(k, v); voci.push(v); } };
-  // I compiti già spuntati non si mostrano (v1.3.2): il loro tempo resta nel totale «studiato».
-  for (const c of g.compiti) if (!c.ok) metti({ tipo: 'compito', rif: c.id, da: c.da, titolo: c.nome, sotto: c.sp ? 'Compiti rimandati' : 'Compiti per domani', min: c.min, fatto: false });
-  for (const s of g.studio) metti({ tipo: 'argomento', rif: s.a.id, titolo: `${s.v.materia} · ${s.a.titolo}`, sotto: `per il ${s.v.data.slice(8)}/${s.v.data.slice(5,7)}`, min: s.min, fatto: false });
+  const bl = g.blocchi && g.blocchi.length ? g.blocchi : [{ inizio: '', fine: '', cap: g.cap, compiti: g.compiti, studio: g.studio }];
+  const tot = new Map(), voci = [], pagine = [];
+  bl.forEach((b, p) => {
+    const per = new Map(), lista = [];
+    const metti = v => {
+      const k = chiave(v.tipo, v.rif); v.prima = tot.get(k) || 0; tot.set(k, v.prima + v.min);
+      const c = per.get(k); if (c) c.min += v.min; else { per.set(k, v); lista.push(v); }
+    };
+    // I compiti già spuntati non si mostrano (v1.3.2): il loro tempo resta nel totale «studiato».
+    for (const c of b.compiti) if (!c.ok) metti({ tipo: 'compito', rif: c.id, da: c.da, titolo: c.nome, sotto: c.sp ? 'Compiti rimandati' : 'Compiti per domani', min: c.min, fatto: false });
+    for (const s of b.studio) metti({ tipo: 'argomento', rif: s.a.id, titolo: `${s.v.materia} · ${s.a.titolo}`, sotto: `per il ${s.v.data.slice(8)}/${s.v.data.slice(5,7)}`, min: s.min, fatto: false });
+    lista.forEach((v, j) => { v.p = p; v.j = j; v.i = voci.length; voci.push(v); });
+    pagine.push({ inizio: b.inizio, fine: b.fine, cap: b.cap, voci: lista });
+  });
+  for (const v of voci) v.totale = tot.get(chiave(v.tipo, v.rif));
   // Pausa concessa: i minuti di pausa per ogni ora di lavoro previsto.
-  const lavoro = voci.reduce((a, v) => a + v.min, 0);
-  return { voci, pausaMax: Math.round(lavoro * pausa / 60) };
+  const lavoro = [...tot.values()].reduce((a, m) => a + m, 0);
+  return { voci, pagine, pausaMax: Math.round(lavoro * pausa / 60) };
 }
+// La pagina da cui si parte: la fascia in corso, o la prossima; finite tutte, l'ultima.
+function paginaDiAdesso() {
+  const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+  const k = S.pagine.findIndex(p => p.fine && minuti(p.fine) > m);
+  return k >= 0 ? k : Math.max(0, S.pagine.length - 1);
+}
+// ⏳ Tempo libero (v1.9.0): i minuti guadagnati oggi con «Finito prima»,
+// in sc_impostazioni.tempo_libero {giorno, minuti}; un altro giorno vale zero.
+const leggiLibero = t => t && t.giorno === iso(oggi()) ? Number(t.minuti) || 0 : 0;
 
 async function carica() {
   const t = oggi(), oggiIso = iso(t); S.giorno = oggiIso;
@@ -166,7 +206,9 @@ async function carica() {
       SC.db('sc_spostamenti?select=*').catch(() => [])
     ]);
     const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 }, sposta });
-    S.voci = p.voci; S.pausaMax = p.pausaMax;
+    S.voci = p.voci; S.pagine = p.pagine; S.pausaMax = p.pausaMax;
+    S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero);
+    if (S.pagina === null || S.giorno !== oggiIso) S.pagina = paginaDiAdesso();
     // Sessioni aperte: una sola è buona; quelle di altri giorni o dimenticate si chiudono.
     S.aperta = null; S.sessioni = [];
     for (const s of sess) {
@@ -184,7 +226,7 @@ async function carica() {
     // Un impegno che il piano non propone più non si mostra, anche se oggi ci si è lavorato:
     // il suo tempo resta comunque nel totale «studiato» (vedi aggiorna()).
     disegna();
-  } catch (e) { document.getElementById('zone').innerHTML = `<p class="vuoto">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
+  } catch (e) { document.getElementById('pagine').innerHTML = `<p class="vuoto">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
 }
 
 // Millisecondi passati oggi su un impegno (o sulla pausa), sessione in corso compresa.
@@ -196,19 +238,44 @@ function speso(tipo, rif) {
   return ms;
 }
 
+// Il colore di un impegno è lo stesso su tutte le pagine (numerato per chiave).
+function coloreDi(v) {
+  const ks = [...new Set(S.voci.map(x => chiave(x.tipo, x.rif)))];
+  return colori(ks.indexOf(chiave(v.tipo, v.rif)));
+}
 function disegna() {
-  const z = document.getElementById('zone');
+  const pg = document.getElementById('pagine'), dots = document.getElementById('punti');
   if (!S.voci.length) {
-    z.innerHTML = `<p class="vuoto">Oggi non c'è niente in programma. Se ti aspettavi qualcosa, controlla le <a href="impostazioni-ada.html">fasce di studio</a> e il <a href="calendario-ada.html">calendario</a>.</p>`;
+    pg.innerHTML = `<p class="vuoto">Oggi non c'è niente in programma. Se ti aspettavi qualcosa, controlla le <a href="impostazioni-ada.html">fasce di studio</a> e il <a href="calendario-ada.html">calendario</a>.</p>`;
+    dots.hidden = true;
   } else {
-    z.innerHTML = S.voci.map((v, i) => `<div class="z ${v.tipo}" data-i="${i}" role="button" tabindex="0" style="${colori(i)}">
+    const piu = S.pagine.length > 1;
+    pg.innerHTML = S.pagine.map((p, k) => `<section class="pagina" data-p="${k}">
+      ${piu ? `<div class="ph"><b>${esc(p.inizio)}–${esc(p.fine)}</b><span>${k + 1} di ${S.pagine.length} · ${fmtMin(p.voci.reduce((a, v) => a + v.min, 0))} di attività</span></div>` : ''}
+      <div class="zone">${p.voci.length ? p.voci.map(v => `<div class="z ${v.tipo}" data-i="${v.i}" role="button" tabindex="0" style="${coloreDi(v)}">
       <div class="fill"></div>
-      <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}</small></div><span class="play"></span></div>
-      <div class="r2"><span class="tempo"></span></div></div></div>`).join('');
+      <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}${v.min < v.totale ? ' (parte)' : ''}</small></div><span class="play"></span></div>
+      <div class="r2"><span class="tempo"></span></div></div></div>`).join('') : `<p class="vuoto">In questa fascia non c'è niente in programma.</p>`}</div></section>`).join('');
+    dots.hidden = !piu;
+    dots.innerHTML = piu ? S.pagine.map((p, k) => `<button type="button" data-vai="${k}" aria-label="Fascia ${esc(p.inizio)}–${esc(p.fine)}"></button>`).join('') : '';
   }
   disponi();
+  vaiPagina(S.pagina || 0, false);
   aggiorna();
 }
+function vaiPagina(k, liscio) {
+  const pg = document.getElementById('pagine');
+  k = Math.max(0, Math.min(k, S.pagine.length - 1)); S.pagina = k;
+  pg.scrollTo({ left: k * pg.clientWidth, behavior: liscio ? 'smooth' : 'auto' });
+  segnaPunti();
+}
+function segnaPunti() { document.querySelectorAll('#punti button').forEach(b => b.classList.toggle('on', Number(b.dataset.vai) === S.pagina)); }
+document.getElementById('pagine').addEventListener('scroll', () => {
+  const pg = document.getElementById('pagine');
+  if (!pg.clientWidth) return;
+  const k = Math.round(pg.scrollLeft / pg.clientWidth);
+  if (k !== S.pagina) { S.pagina = k; segnaPunti(); }
+}, { passive: true });
 
 // Un colore diverso per ogni impegno: tinte distanziate dall'angolo aureo, così due vicine non si somigliano.
 const ONDA = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="14" viewBox="0 0 90 14"><path d="M0 7 Q22.5 0 45 7 T90 7 V14 H0Z"/></svg>')}")`;
@@ -237,26 +304,31 @@ function mosaico(pesi, W, H) {
   return out;
 }
 function disponi() {
-  const z = document.getElementById('zone'), el = z.querySelectorAll('.z');
-  if (!el.length) return;
-  const W = z.clientWidth, H = z.clientHeight, G = 3;
-  const totMin = S.voci.reduce((a, v) => a + v.min, 0) || 1;
-  const r = mosaico(S.voci.map(v => Math.max(v.min, totMin * .06, 1)), W, H);
-  el.forEach(e => { const q = r[e.dataset.i], w = q.w - 2 * G, h = q.h - 2 * G;
-    Object.assign(e.style, { left: q.x + G + 'px', top: q.y + G + 'px', width: w + 'px', height: h + 'px',
-      fontSize: Math.max(12, Math.min(20, Math.sqrt(w * h) / 11)) + 'px' });
-    e.classList.toggle('piccolo', w < 130 || h < 100); });
+  document.querySelectorAll('.pagina').forEach(pag => {
+    const z = pag.querySelector('.zone'), el = z.querySelectorAll('.z'), voci = S.pagine[pag.dataset.p].voci;
+    if (!el.length) return;
+    const W = z.clientWidth, H = z.clientHeight, G = 3;
+    const totMin = voci.reduce((a, v) => a + v.min, 0) || 1;
+    const r = mosaico(voci.map(v => Math.max(v.min, totMin * .06, 1)), W, H);
+    el.forEach(e => { const q = r[S.voci[e.dataset.i].j], w = q.w - 2 * G, h = q.h - 2 * G;
+      Object.assign(e.style, { left: q.x + G + 'px', top: q.y + G + 'px', width: w + 'px', height: h + 'px',
+        fontSize: Math.max(12, Math.min(20, Math.sqrt(w * h) / 11)) + 'px' });
+      e.classList.toggle('piccolo', w < 130 || h < 100); });
+  });
 }
-new ResizeObserver(() => disponi()).observe(document.getElementById('zone'));
+new ResizeObserver(() => { disponi(); if (S.pagine.length) vaiPagina(S.pagina || 0, false); }).observe(document.getElementById('pagine'));
 
 // Ridisegna i soli numeri, una volta al secondo.
 function aggiorna() {
   // Totale studiato: tutte le sessioni di oggi tranne la pausa, anche di impegni non più a schermo.
   const ora = Date.now();
-  let tot = S.sessioni.filter(s => s.tipo !== 'pausa').reduce((a, s) => a + Date.parse(s.fine) - Date.parse(s.inizio), 0)
-    + (S.aperta && S.aperta.tipo !== 'pausa' ? ora - Date.parse(S.aperta.inizio) : 0);
+  const studio = t => t === 'compito' || t === 'argomento';
+  let tot = S.sessioni.filter(s => studio(s.tipo)).reduce((a, s) => a + Date.parse(s.fine) - Date.parse(s.inizio), 0)
+    + (S.aperta && studio(S.aperta.tipo) ? ora - Date.parse(S.aperta.inizio) : 0);
   document.querySelectorAll('.z').forEach(el => {
-    const v = S.voci[el.dataset.i], ms = speso(v.tipo, v.rif), run = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif);
+    // Il pezzo di questa fascia: il tempo di oggi meno quello delle fasce prima.
+    const v = S.voci[el.dataset.i], msTot = speso(v.tipo, v.rif), ms = Math.max(0, msTot - v.prima * 60e3);
+    const run = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(v.tipo, v.rif);
     const prev = v.min * 60e3, frac = prev ? ms / prev : (ms ? 1 : 0), oltre = prev && ms > prev;
     el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
     const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms);
@@ -264,9 +336,27 @@ function aggiorna() {
     el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? '<span class="su"> / ' + fmtMin(v.min) + '</span>' : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
     // Tempo previsto raggiunto: un suono, il cronometro si ferma e si passa alla
     // pagina dei compiti o delle verifiche, dove la voce si spunta a mano.
-    const k = chiave(v.tipo, v.rif);
-    if (run && prev && ms >= prev && !S.avvisati.has(k)) { S.avvisati.add(k); finito(v); }
+    // Un pezzo che non è l'ultimo: finita la sua parte si passa alla pausa e basta.
+    const k = chiave(v.tipo, v.rif) + '@' + v.p;
+    if (run && prev && ms >= prev && !S.avvisati.has(k)) {
+      S.avvisati.add(k);
+      if (msTot >= v.totale * 60e3) finito(v);
+      else { bip(); toast(`Finita la parte di questa fascia per «${v.titolo}»: il resto è nella fascia dopo.`); inFila(async () => { await chiudi(); await apri('pausa', null, 'Pausa'); aggiorna(); }); }
+    }
   });
+  // ⏳ Tempo libero: si vede quando c'è, e quando finisce il cronometro si ferma.
+  const lms = speso('libero', null), liberoOn = S.aperta && S.aperta.tipo === 'libero';
+  const lb = document.getElementById('libero');
+  lb.hidden = !S.liberoMin && !lms;
+  lb.classList.toggle('on', !!liberoOn);
+  lb.firstChild.textContent = liberoOn ? '⏳ Tempo libero in corso ' : '⏳ Tempo libero ';
+  document.getElementById('libero-t').textContent = `${orologio(lms)} / ${fmtMin(S.liberoMin)}`;
+  if (liberoOn && lms >= S.liberoMin * 60e3 && !S.avvisati.has('libero')) {
+    S.avvisati.add('libero'); bip(); toast('Il tempo libero di oggi è finito.');
+    inFila(async () => { await chiudi(); aggiorna(); });
+  }
+  if (!liberoOn || lms < S.liberoMin * 60e3) S.avvisati.delete('libero');
+  document.getElementById('prima').hidden = !(S.aperta && studio(S.aperta.tipo)) || !!S.congelato;
   const pms = speso('pausa', null), pausaOn = S.aperta && S.aperta.tipo === 'pausa';
   const pb = document.getElementById('pausa');
   pb.classList.toggle('on', !!pausaOn);
@@ -277,8 +367,8 @@ function aggiorna() {
   sb.hidden = !S.aperta && !g;
   sb.classList.toggle('gelo', !!g);
   sb.textContent = g ? '▶️ Riprendi ' + (g.tipo === 'pausa' ? 'la pausa' : g.titolo) : '❄️ Congela';
-  document.getElementById('zone').classList.toggle('gelo', !!g);
-  pb.classList.toggle('gelo', !!g);
+  document.getElementById('pagine').classList.toggle('gelo', !!g);
+  pb.classList.toggle('gelo', !!g); lb.classList.toggle('gelo', !!g);
   const prev = S.voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0);
   document.getElementById('tot').innerHTML = `studiato <b>${fmtMin(tot / 60e3)}</b>${prev ? ` su ${fmtMin(prev)} previsti` : ''}`;
 }
@@ -291,10 +381,11 @@ setInterval(() => { if (document.visibilityState === 'visible' && S.voci) aggior
 const OGNI_MS_SYNC = 15e3;
 function sincronizza() {
   if (document.visibilityState !== 'visible' || !S.giorno) return;
-  if (S.giorno !== iso(oggi())) { inFila(carica); return; } // dopo mezzanotte il piano è un altro
+  if (S.giorno !== iso(oggi())) { S.pagina = null; inFila(carica); return; } // dopo mezzanotte il piano è un altro
   inFila(async () => {
     let sess, imp;
-    try { [sess, imp] = await Promise.all([SC.db(`sc_sessioni?select=*&giorno=eq.${S.giorno}&order=inizio`), SC.db('sc_impostazioni?select=congelato&limit=1')]); } catch (e) { return; }
+    try { [sess, imp] = await Promise.all([SC.db(`sc_sessioni?select=*&giorno=eq.${S.giorno}&order=inizio`), SC.db('sc_impostazioni?select=congelato,tempo_libero&limit=1')]); } catch (e) { return; }
+    S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero);
     const aperte = sess.filter(s => !s.fine);
     S.sessioni = sess.filter(s => s.fine);
     S.aperta = aperte.length ? aperte[aperte.length - 1] : null;
@@ -343,7 +434,8 @@ function tocca(tipo, rif, titolo) {
   if (S.congelato) { toast('Congelato: tocca Riprendi per ripartire.'); return; }
   const stessa = S.aperta && chiave(S.aperta.tipo, S.aperta.rif) === chiave(tipo, rif);
   // Spegnere un impegno fa partire la pausa (v1.5.0), anche oltre i minuti concessi.
-  const poi = !stessa ? [tipo, rif, titolo] : (tipo !== 'pausa' ? ['pausa', null, 'Pausa'] : null);
+  // Il tempo libero spento non porta a niente.
+  const poi = !stessa ? [tipo, rif, titolo] : (tipo === 'compito' || tipo === 'argomento' ? ['pausa', null, 'Pausa'] : null);
   inFila(async () => { await chiudi(); if (poi) await apri(...poi); aggiorna(); });
   // Risposta immediata a schermo, prima della rete.
   aggiorna();
@@ -357,10 +449,45 @@ function finito(v) {
   inFila(async () => { await chiudi(); await apri('pausa', null, 'Pausa'); aggiorna(); }).then(() => setTimeout(() => { location.href = dove; }, 2500));
 }
 
+// ✅ Finito prima (v1.9.0): l'impegno acceso si segna fatto — il compito spuntato,
+// l'argomento «Studiato» — e i minuti che il piano gli dava oggi e non sono stati
+// usati vanno nel ⏳ tempo libero di oggi.
+function finitoPrima() {
+  const a = S.aperta; if (!a) return;
+  const v = S.voci.find(x => chiave(x.tipo, x.rif) === chiave(a.tipo, a.rif)); if (!v) return;
+  const resto = Math.max(0, Math.floor(v.totale - speso(v.tipo, v.rif) / 60e3));
+  const cosa = v.tipo === 'compito' ? 'spunto il compito' : 'segno l\'argomento «Studiato»';
+  if (!confirm(`Hai finito «${v.titolo}»? Ne ${cosa}${resto ? ` e metto ${fmtMin(resto)} nel tempo libero` : ''}.`)) return;
+  S.voci.filter(x => chiave(x.tipo, x.rif) === chiave(v.tipo, v.rif)).forEach(x => S.avvisati.add(chiave(x.tipo, x.rif) + '@' + x.p));
+  inFila(async () => {
+    await chiudi();
+    try {
+      if (v.tipo === 'compito')
+        await SC.db('sc_compiti_fatti?on_conflict=user_id,giorno,orario_id', { method: 'POST', body: { giorno: v.da || iso(oggi()), orario_id: v.rif, stato: 'fatto' }, prefer: 'resolution=merge-duplicates,return=minimal' });
+      else await SC.db(`sc_argomenti?id=eq.${v.rif}`, { method: 'PATCH', body: { studiato: true }, prefer: 'return=minimal' });
+      if (resto) {
+        // Si rilegge prima di sommare: un altro dispositivo può averne aggiunto.
+        const [r] = await SC.db('sc_impostazioni?select=tempo_libero&limit=1');
+        const nuovo = { giorno: iso(oggi()), minuti: leggiLibero(r && r.tempo_libero) + resto };
+        await SC.db('sc_impostazioni?user_id=not.is.null', { method: 'PATCH', body: { tempo_libero: nuovo }, prefer: 'return=minimal' });
+      }
+      toast(resto ? `Fatto! +${fmtMin(resto)} di tempo libero.` : 'Fatto!');
+    } catch (err) { toast('Non salvato: ' + err.message); }
+    await carica();
+  });
+  aggiorna();
+}
+
 document.addEventListener('click', e => {
   const z = e.target.closest('.z');
   if (z) { const v = S.voci[z.dataset.i]; tocca(v.tipo, v.rif, v.titolo); return; }
   if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
+  if (e.target.closest('#libero')) {
+    if (!(S.aperta && S.aperta.tipo === 'libero') && speso('libero', null) >= S.liberoMin * 60e3) { toast('Il tempo libero di oggi è già finito.'); return; }
+    tocca('libero', null, 'Tempo libero'); return;
+  }
+  if (e.target.closest('#prima')) { finitoPrima(); return; }
+  const d = e.target.closest('[data-vai]'); if (d) { vaiPagina(Number(d.dataset.vai), true); return; }
   if (e.target.closest('#stop')) {
     if (S.congelato) { const g = S.congelato; S.congelato = null; scriviGelo(null); tocca(g.tipo, g.rif, g.titolo); return; }
     const a = S.aperta; if (!a) return;
