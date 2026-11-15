@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.6.0</title>
+<title>Studio di oggi v1.7.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -99,8 +99,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.6.0';
-var BUILD_TIME  = '2026-11-12T11:30:00Z';
+var APP_VERSION = 'v1.7.0';
+var BUILD_TIME  = '2026-11-15T10:05:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -277,9 +277,29 @@ function aggiorna() {
   document.getElementById('tot').innerHTML = `studiato <b>${fmtMin(tot / 60e3)}</b>${prev ? ` su ${fmtMin(prev)} previsti` : ''}`;
 }
 setInterval(() => { if (document.visibilityState === 'visible' && S.voci) aggiorna(); }, 1000);
+
+// 🔄 Sincronizzazione fra dispositivi (v1.7.0): le sessioni di oggi si rileggono
+// ogni 15 secondi a pagina visibile, e tornando sulla pagina si ricarica tutto
+// (anche il piano: un compito spuntato altrove sparisce). Passa da inFila, così
+// non si incrocia con un tocco che sta ancora scrivendo.
+const OGNI_MS_SYNC = 15e3;
+function sincronizza() {
+  if (document.visibilityState !== 'visible' || !S.giorno) return;
+  if (S.giorno !== iso(oggi())) { inFila(carica); return; } // dopo mezzanotte il piano è un altro
+  inFila(async () => {
+    let sess;
+    try { sess = await SC.db(`sc_sessioni?select=*&giorno=eq.${S.giorno}&order=inizio`); } catch (e) { return; }
+    const aperte = sess.filter(s => !s.fine);
+    S.sessioni = sess.filter(s => s.fine);
+    S.aperta = aperte.length ? aperte[aperte.length - 1] : null;
+    // Un cronometro partito da un altro dispositivo scongela questo.
+    if (S.aperta && S.congelato) { S.congelato = null; scriviGelo(null); }
+    aggiorna();
+  });
+}
+setInterval(sincronizza, OGNI_MS_SYNC);
 document.addEventListener('visibilitychange', () => {
-  // Rientrando dopo mezzanotte il piano è un altro.
-  if (document.visibilityState === 'visible' && S.giorno && S.giorno !== iso(oggi())) carica();
+  if (document.visibilityState === 'visible' && S.giorno) inFila(carica);
 });
 
 let audio;
