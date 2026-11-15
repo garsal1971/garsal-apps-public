@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.6.0</title>
+<title>Calendario di studio v1.7.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -77,6 +77,7 @@ li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .cestino .vuoto{font-size:12px;color:var(--muted)}
 .cestino .distr{font:inherit;font-size:13px;font-weight:600;border:0;border-radius:8px;padding:6px 10px;min-height:36px;background:var(--warn);color:#fff;cursor:pointer}
 .cestino .distr:disabled{opacity:.4;cursor:default}
+.cestino.canc .distr{background:var(--danger)}
 .cestino.avv{border-color:var(--warn);border-style:solid;max-width:340px;flex-basis:200px}
 .cestino.avv .avvisi{max-height:30vh;overflow:auto}
 /* Testa del contenitore = bottone che lo rimpicciolisce (v1.5.0); chiuso resta «icona + numero» */
@@ -107,7 +108,8 @@ li .spost{color:var(--warn)}
   </header>
   <div class="cestini" id="cestini">
     <section class="cestino avv" data-c="avv" id="c-avv" hidden><button type="button" class="ctesta" data-chiudi="avv">⚠️ <span class="et">Avvisi</span> <small id="n-avv"></small><span class="fr">▾</span></button><div class="avvisi" id="avvisi"></div></section>
-    <section class="cestino canc" data-c="canc" data-drop="cancella"><button type="button" class="ctesta" data-chiudi="canc">🗑 <span class="et">Da cancellare</span> <small id="n-canc"></small><span class="fr">▾</span></button><ul id="l-canc"></ul></section>
+    <section class="cestino canc" data-c="canc" data-drop="cancella"><button type="button" class="ctesta" data-chiudi="canc">🗑 <span class="et">Da cancellare</span> <small id="n-canc"></small><span class="fr">▾</span></button><ul id="l-canc"></ul>
+      <button type="button" class="distr" id="cancella-def">🗑 Cancella definitivamente</button></section>
     <section class="cestino rim" data-c="rim" data-drop="rimanda"><button type="button" class="ctesta" data-chiudi="rim">⏳ <span class="et">Da rimandare</span> <small id="n-rim"></small><span class="fr">▾</span></button><ul id="l-rim"></ul>
       <button type="button" class="distr" id="distribuisci">⇢ Distribuisci da domani</button></section>
   </div>
@@ -128,8 +130,8 @@ li .spost{color:var(--warn)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.6.0';
-var BUILD_TIME  = '2026-11-15T15:55:00Z';
+var APP_VERSION = 'v1.7.0';
+var BUILD_TIME  = '2026-11-15T16:10:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -174,9 +176,9 @@ async function carica() {
     const [materie, orario, fatti, ver, args, imp, sposta] = await Promise.all([
       SC.db('sc_materie?select=id,nome,minuti'),
       SC.db('sc_orario?select=id,giorno,ora,materia_id,senza_compiti&order=giorno,ora'),
-      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${iso(piu(t, -60))}`),
+      SC.db(`sc_compiti_fatti?select=giorno,orario_id,stato&giorno=gte.${iso(piu(t, -60))}`),
       SC.db(`sc_verifiche?select=id,data,materia,tipo&data=gte.${oggiIso}&order=data,created_at`),
-      SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,posizione&order=posizione'),
+      SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,annullato,posizione&order=posizione'),
       SC.db('sc_impostazioni?select=*&limit=1'),
       SC.db('sc_spostamenti?select=*&order=created_at')
     ]);
@@ -235,6 +237,7 @@ document.addEventListener('click', e => {
   }
   else if (b.id === 'questa') { if (V.vista === 'sette') V.inizio = oggi(); else V.lunedi = lunediDi(oggi()); ridisegna(); }
   else if (b.id === 'distribuisci') distribuisci();
+  else if (b.id === 'cancella-def') cancellaDefinitivo();
   else if (b.dataset.chiudi) { const c = b.dataset.chiudi; CHIUSI.has(c) ? CHIUSI.delete(c) : CHIUSI.add(c); salvaChiusi(); applicaChiusi(); }
   else if (b.dataset.torna) scrivi(() => SC.db(`sc_spostamenti?id=eq.${b.dataset.torna}`, { method: 'DELETE', prefer: 'return=minimal' }));
 }, true);
@@ -290,6 +293,28 @@ function renderCestini(p) {
   document.getElementById('n-canc').textContent = tot(p.cancellati);
   document.getElementById('n-rim').textContent = tot(p.daRimandare);
   document.getElementById('distribuisci').disabled = !p.daRimandare.length;
+  document.getElementById('cancella-def').disabled = !p.cancellati.length;
+  V.cancellati = p.cancellati;
+}
+
+// «Cancella definitivamente» (v1.7.0): svuota «Da cancellare». Un compito diventa
+// «annullato» sul suo giorno (sc_compiti_fatti.stato), un argomento «annullato»
+// (sc_argomenti.annullato): il piano non li rimette più. Gli spostamenti se ne vanno.
+function cancellaDefinitivo() {
+  const l = V.cancellati || []; if (!l.length) return;
+  const nc = l.filter(x => x.tipo === 'compito').length, na = l.length - nc;
+  const cosa = [nc ? `${nc} compit${nc === 1 ? 'o' : 'i'}` : '', na ? `${na} argoment${na === 1 ? 'o' : 'i'}` : ''].filter(Boolean).join(' e ');
+  if (!confirm(`Annullare definitivamente ${cosa}?\n\nI compiti risulteranno «annullati» in Compiti, gli argomenti «annullati» in Verifiche. Si possono rimettere da lì.`)) return;
+  scrivi(async () => {
+    for (const x of l) {
+      if (x.tipo === 'compito')
+        await SC.db('sc_compiti_fatti?on_conflict=user_id,giorno,orario_id', { method: 'POST',
+          body: { giorno: x.sp.da, orario_id: x.rif, stato: 'annullato' }, prefer: 'resolution=merge-duplicates,return=minimal' });
+      else await SC.db(`sc_argomenti?id=eq.${x.rif}`, { method: 'PATCH', body: { annullato: true }, prefer: 'return=minimal' });
+      await SC.db(`sc_spostamenti?id=eq.${x.sp.id}`, { method: 'DELETE', prefer: 'return=minimal' });
+    }
+    await carica();
+  });
 }
 
 // ── Scritture: una alla volta, poi si rilegge ──────────────────────────────

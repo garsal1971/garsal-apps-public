@@ -1,5 +1,5 @@
 // ============================================================
-// sc-promemoria v1.0.1 — le notifiche delle fasce di studio di Ada
+// sc-promemoria v1.0.2 —le notifiche delle fasce di studio di Ada
 // Frequenza: ogni 5 minuti (pg_cron 'sc-promemoria', vedi 20261112130000_sc_promemoria.sql)
 //
 // Le fasce sono quelle di impostazioni-ada.html (sc_impostazioni.fasce, ora di Roma).
@@ -109,9 +109,9 @@ Deno.serve(async (req) => {
     const [materie, orario, fatti, ver, args, sposta, sess] = await Promise.all([
       leggi(sb.from('sc_materie').select('id,nome,minuti')),
       leggi(sb.from('sc_orario').select('id,giorno,ora,materia_id,senza_compiti').order('giorno').order('ora')),
-      leggi(sb.from('sc_compiti_fatti').select('giorno,orario_id').gte('giorno', d0.toISOString().slice(0, 10))),
+      leggi(sb.from('sc_compiti_fatti').select('giorno,orario_id,stato').gte('giorno', d0.toISOString().slice(0, 10))),
       leggi(sb.from('sc_verifiche').select('id,data,materia').gt('data', oggi).order('data').order('created_at')),
-      leggi(sb.from('sc_argomenti').select('id,verifica_id,titolo,ore,studiato,posizione').order('posizione')),
+      leggi(sb.from('sc_argomenti').select('id,verifica_id,titolo,ore,studiato,annullato,posizione').order('posizione')),
       leggi(sb.from('sc_spostamenti').select('*')).catch(() => []),
       leggi(sb.from('sc_sessioni').select('tipo,rif,inizio,fine').eq('giorno', oggi)),
     ])

@@ -1,5 +1,5 @@
 /* ============================================================================
-   scuola-ada.js v1.6.0 — accesso, database e barra in alto per le pagine
+   scuola-ada.js v1.7.0 — accesso, database e barra in alto per le pagine
    della scuola di Ada (compiti, verifiche, calendario, impostazioni), e il
    piano di studio (SC.piano) che calendario e studio leggono uguale.
 
@@ -324,7 +324,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
       // Upsert sul token (= endpoint): riabbonando lo stesso browser si aggiorna la sua riga.
       await db('cm_push_devices?on_conflict=token', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: {
         user_id: sessione.user.id, token: json.endpoint, platform: 'web', device_name: nome, enabled: true,
-        web_push: json, app_version: 'scuola-ada.js v1.6.0', last_seen_at: new Date().toISOString() } });
+        web_push: json, app_version: 'scuola-ada.js v1.7.0', last_seen_at: new Date().toISOString() } });
       notifiche('Fatto: le notifiche arriveranno qui.');
     } catch (e) { console.error('🔔', e); notifiche('Non sono riuscito ad attivarle: ' + e.message, true); }
   }
@@ -406,7 +406,11 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
     const n = new Date(), t = new Date(n.getFullYear(), n.getMonth(), n.getDate()), tIso = pIso(t);
     const mat = new Map(materie.map(m => [m.id, m])), ora = new Map(orario.map(o => [o.id, o]));
     const argo = new Map(args.map(a => [a.id, a])), verOf = new Map(ver.map(v => [v.id, v]));
-    const fatto = new Set(fatti.map(f => f.giorno + '|' + f.orario_id));
+    const fatto = new Set(fatti.filter(f => f.stato !== 'annullato').map(f => f.giorno + '|' + f.orario_id));
+    // Compiti e argomenti annullati (v1.7.0): escono dal piano come se non ci fossero.
+    // Le righe lette senza `stato` valgono «fatto».
+    const annul = new Set(fatti.filter(f => f.stato === 'annullato').map(f => f.giorno + '|' + f.orario_id));
+    const vivo = a => !a.studiato && !a.annullato;
     const ultima = ver.length ? pParse(ver[ver.length - 1].data) : t;
     const fine = new Date(Math.max(pPiu(ultima, -1), pPiu(t, (giorniMin || 7) - 1), finoA || 0));
     const pausa = imp.pausa_minuti || 0, fasce = imp.fasce || {};
@@ -419,10 +423,11 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
         const o = ora.get(s.rif), m = o && mat.get(o.materia_id);
         if (!m) continue;
         if (s.stato === 'cancellato' && s.da < tIso) continue;
+        if (annul.has(s.da + '|' + s.rif)) continue;
         validi.push({ sp: s, tipo: 'compito', rif: s.rif, nome: m.nome, min: s.min, ok: fatto.has(s.da + '|' + s.rif) });
       } else {
         const a = argo.get(s.rif), v = a && verOf.get(a.verifica_id);
-        if (!a || !v || a.studiato) continue;
+        if (!a || !v || !vivo(a)) continue;
         validi.push({ sp: s, tipo: 'argomento', rif: s.rif, a, v, min: s.min });
       }
     }
@@ -432,7 +437,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
 
     const daFare = [];
     for (const v of ver) for (const a of args.filter(a => a.verifica_id === v.id).sort((x, y) => x.posizione - y.posizione))
-      if (!a.studiato && Number(a.ore) > 0) daFare.push({ v, a, resto: Math.max(0, Number(a.ore) * 60 - (usati.get(a.id) || 0)) });
+      if (vivo(a) && Number(a.ore) > 0) daFare.push({ v, a, resto: Math.max(0, Number(a.ore) * 60 - (usati.get(a.id) || 0)) });
 
     const giorni = [];
     for (let d = new Date(t); d <= fine; d = pPiu(d, 1)) {
@@ -442,7 +447,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
       const cap = Math.floor(lordo * 60 / (60 + pausa)); // gemella di utile() in impostazioni-ada.html
       const qui = validi.filter(x => x.sp.stato === 'rimandato' && x.sp.a === giornoIso);
       const compiti = (domani >= 1 && domani <= 6 ? orario
-        .filter(o => o.giorno === domani && !o.senza_compiti && (mat.get(o.materia_id)?.minuti || 0) > 0 && !tolti.has(o.id + '|' + giornoIso))
+        .filter(o => o.giorno === domani && !o.senza_compiti && (mat.get(o.materia_id)?.minuti || 0) > 0 && !tolti.has(o.id + '|' + giornoIso) && !annul.has(giornoIso + '|' + o.id))
         .map(o => ({ id: o.id, da: giornoIso, nome: mat.get(o.materia_id).nome, min: mat.get(o.materia_id).minuti, ok: fatto.has(giornoIso + '|' + o.id) })) : [])
         .concat(qui.filter(x => x.tipo === 'compito').map(x => ({ id: x.rif, da: x.sp.da, nome: x.nome, min: x.min, ok: x.ok, sp: x.sp })));
       const minCompiti = compiti.filter(c => !c.ok).reduce((a, c) => a + c.min, 0);
