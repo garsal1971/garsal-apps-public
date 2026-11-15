@@ -1,5 +1,5 @@
 // ============================================================
-// sc-promemoria v1.0.2 —le notifiche delle fasce di studio di Ada
+// sc-promemoria v1.1.0 — le notifiche delle fasce di studio di Ada
 // Frequenza: ogni 5 minuti (pg_cron 'sc-promemoria', vedi 20261112130000_sc_promemoria.sql)
 //
 // Le fasce sono quelle di impostazioni-ada.html (sc_impostazioni.fasce, ora di Roma).
@@ -119,22 +119,38 @@ Deno.serve(async (req) => {
     const g = piano({ materie, orario, fatti, ver, args, sposta, imp: imp || { fasce: {}, pausa_minuti: 0 } }, null, 1).giorni[0]
     if (!g || g.giornoIso !== oggi) throw new Error(`il piano parte dal ${g?.giornoIso}, non da oggi ${oggi}`)
 
-    // Le voci di oggi: compiti e argomenti (un argomento su più righe diventa una voce sola).
+    // Le voci di una fascia (v1.1.0): ogni fascia ha il suo blocco nel piano
+    // (g.blocchi, scuola-ada.js ≥ v1.8.0). Un argomento è aperto a fine fascia se i
+    // minuti cronometrati oggi sono meno di quelli che il piano gli dà fino a quella
+    // fascia compresa. Senza blocchi (scuola-ada.js vecchio) vale il giorno intero.
     type Voce = { nome: string; min: number; aperta: boolean }
-    const voci: Voce[] = []
-    for (const c of g.compiti) if (!c.ok) voci.push({ nome: `${c.nome} (compiti)`, min: c.min, aperta: true })
-    const perArg = new Map<string, { nome: string; min: number }>()
-    for (const s of g.studio) {
-      const x = perArg.get(s.a.id)
-      if (x) x.min += s.min; else perArg.set(s.a.id, { nome: `${s.v.materia} · ${s.a.titolo}`, min: s.min })
-    }
     const adesso = Date.now()
-    for (const [id, x] of perArg) {
+    const cronometrati = (id: string) => {
       let ms = 0
       for (const s of sess) if (s.tipo === 'argomento' && s.rif === id)
         ms += (s.fine ? Date.parse(String(s.fine)) : adesso) - Date.parse(String(s.inizio))
-      const fatti = Math.floor(ms / 60000)
-      voci.push({ nome: x.nome, min: x.min, aperta: fatti < x.min })
+      return Math.floor(ms / 60000)
+    }
+    // deno-lint-ignore no-explicit-any
+    const blocchi: any[] = g.blocchi && g.blocchi.length ? g.blocchi : [{ inizio: '', fine: '', compiti: g.compiti, studio: g.studio }]
+    const vociDi = (k: number): Voce[] => {
+      const b = blocchi[k], voci: Voce[] = []
+      for (const c of b.compiti) if (!c.ok) voci.push({ nome: `${c.nome} (compiti)`, min: c.min, aperta: true })
+      const perArg = new Map<string, { nome: string; min: number }>()
+      for (const s of b.studio) {
+        const x = perArg.get(s.a.id)
+        if (x) x.min += s.min; else perArg.set(s.a.id, { nome: `${s.v.materia} · ${s.a.titolo}`, min: s.min })
+      }
+      for (const [id, x] of perArg) {
+        let finoQui = 0
+        for (let j = 0; j <= k; j++) for (const s of blocchi[j].studio) if (s.a.id === id) finoQui += s.min
+        voci.push({ nome: x.nome, min: x.min, aperta: cronometrati(id) < finoQui })
+      }
+      return voci
+    }
+    const bloccoDi = (fascia: string) => {
+      const k = blocchi.findIndex(b => `${b.inizio}-${b.fine}` === fascia)
+      return k >= 0 ? k : 0
     }
     const elenco = (vv: Voce[]) => {
       const testa = vv.slice(0, 4).map(v => `• ${v.nome} (${fmtMin(v.min)})`)
@@ -157,16 +173,16 @@ Deno.serve(async (req) => {
 
     const esiti: unknown[] = []
     for (const ev of eventi) {
-      const aperte = voci.filter(v => v.aperta)
+      const voci = vociDi(bloccoDi(ev.fascia)), aperte = voci.filter(v => v.aperta)
       let titolo = '', corpo = ''
       if (ev.tipo === 'inizio') {
         if (!voci.length) { esiti.push({ ...ev, saltata: 'niente in programma' }); continue }
         titolo = `📚 Inizio studio · ${ev.fascia.replace('-', '–')}`
-        corpo = `Oggi in programma:\n${elenco(voci)}`
+        corpo = `In questa fascia:\n${elenco(voci)}`
       } else {
         if (!aperte.length) { esiti.push({ ...ev, saltata: 'tutto fatto' }); continue }
         titolo = `⏰ Fine fascia ${ev.fascia.replace('-', '–')}`
-        corpo = `Ancora da finire oggi:\n${elenco(aperte)}`
+        corpo = `Ancora da finire di questa fascia:\n${elenco(aperte)}`
       }
 
       // Si prenota l'evento: chi arriva secondo trova la riga e non manda niente.

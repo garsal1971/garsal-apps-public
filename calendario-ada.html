@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.7.0</title>
+<title>Calendario di studio v1.8.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -51,6 +51,12 @@ li .n small{color:var(--muted)}
 li .m{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;flex:none}
 li.fatto .n{text-decoration:line-through;color:var(--muted)}
 .free{font-size:13px;color:var(--muted)}
+/* Una fascia di studio dentro il giorno (v1.8.0): quando le fasce sono due o più */
+.blocco{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px;background:color-mix(in srgb,var(--bg) 45%,var(--card))}
+.blocco-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 10px}
+.blocco-h b{font-size:14px;font-variant-numeric:tabular-nums}
+.blocco-h .cap{font-size:12px;color:var(--muted)}
+.blocco-h .cap b{font-size:12px;color:var(--fg)}
 .over{font-size:13px;color:var(--warn);font-weight:600}
 .loading,.empty{color:var(--muted)}
 .ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -130,8 +136,8 @@ li .spost{color:var(--warn)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.7.0';
-var BUILD_TIME  = '2026-11-15T16:10:00Z';
+var APP_VERSION = 'v1.8.0';
+var BUILD_TIME  = '2026-11-15T17:00:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -263,22 +269,33 @@ function render(p, giorni) {
   const oggiIso = iso(oggi());
   document.getElementById('days').innerHTML = giorni.map(g => {
     if (g.passato) return `<div class="day fuori"><div class="day-h"><b>${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b></div><div class="free">Passato</div></div>`;
-    const usatoStudio = g.studio.reduce((a, s) => a + s.min, 0);
-    const base = Math.max(g.cap, g.minCompiti + usatoStudio) || 1;
-    const bar = g.cap || g.minCompiti ? `<div class="bar"><i style="width:${g.minCompiti / base * 100}%;background:var(--compiti)"></i><i style="width:${usatoStudio / base * 100}%;background:var(--studio)"></i></div>` : '';
-    const comp = g.compiti.map(c => riga({ tipo: 'compito', rif: c.id, da: c.da, min: c.min, sp: c.sp }, '--compiti',
-      `<a class="n" draggable="false" href="compiti-ada.html#c-${c.da}-${c.id}">${esc(c.nome)}${c.sp ? ` <small class="spost">↪ dal ${dataBreve(c.da)}</small>` : ''}</a>`,
-      c.ok ? '✅' : fmt(c.min), c.ok ? 'fatto' : '')).join('');
-    const stud = g.studio.map(s => riga({ tipo: 'argomento', rif: s.a.id, da: s.sp ? s.sp.da : g.giornoIso, min: s.min, sp: s.sp }, '--studio',
-      `<a class="n" draggable="false" href="verifiche-ada.html#arg-${s.a.id}">${nomeArg(s.v, s.a)}${s.sp ? ` <small class="spost">↪ dal ${dataBreve(s.sp.da)}</small>` : ''}</a>`, fmt(s.min))).join('');
-    const coda = g.sopra ? `<div class="over">Le attività superano le fasce di ${fmt(g.sopra)}</div>`
-      : g.cap ? `<div class="free">Libero: ${fmt(g.libero)}</div>` : (comp ? '' : `<div class="free">Nessuna fascia di studio</div>`);
+    // Il contenuto di una fascia (o del giorno intero, se la fascia è una sola).
+    // Un pezzo di attività spezzata fra due fasce si trascina come attività intera
+    // per i compiti, come il solo pezzo per lo studio.
+    const corpo = (cap, minC, compiti, studio, sopra, libero) => {
+      const usatoStudio = studio.reduce((a, s) => a + s.min, 0);
+      const base = Math.max(cap, minC + usatoStudio) || 1;
+      const bar = cap || minC ? `<div class="bar"><i style="width:${minC / base * 100}%;background:var(--compiti)"></i><i style="width:${usatoStudio / base * 100}%;background:var(--studio)"></i></div>` : '';
+      const parte = x => x.parte ? ` <small>· parte (${fmt(x.intero)} in tutto)</small>` : '';
+      const comp = compiti.map(c => riga({ tipo: 'compito', rif: c.id, da: c.da, min: c.intero || c.min, sp: c.sp }, '--compiti',
+        `<a class="n" draggable="false" href="compiti-ada.html#c-${c.da}-${c.id}">${esc(c.nome)}${parte(c)}${c.sp ? ` <small class="spost">↪ dal ${dataBreve(c.da)}</small>` : ''}</a>`,
+        c.ok ? '✅' : fmt(c.min), c.ok ? 'fatto' : '')).join('');
+      const stud = studio.map(s => riga({ tipo: 'argomento', rif: s.a.id, da: s.sp ? s.sp.da : g.giornoIso, min: s.min, sp: s.sp }, '--studio',
+        `<a class="n" draggable="false" href="verifiche-ada.html#arg-${s.a.id}">${nomeArg(s.v, s.a)}${s.sp ? ` <small class="spost">↪ dal ${dataBreve(s.sp.da)}</small>` : ''}</a>`, fmt(s.min))).join('');
+      const coda = sopra ? `<div class="over">Le attività superano la fascia di ${fmt(sopra)}</div>`
+        : cap ? `<div class="free">Libero: ${fmt(libero)}</div>` : (comp ? '' : `<div class="free">Nessuna fascia di studio</div>`);
+      return `${bar}${comp || stud ? `<ul>${comp}${stud}</ul>` : ''}${coda}`;
+    };
+    const minC = l => l.filter(c => !c.ok).reduce((a, c) => a + c.min, 0);
+    const bl = g.blocchi || [];
+    const dentro = bl.length > 1
+      ? bl.map(b => `<div class="blocco"><div class="blocco-h"><b>${b.inizio}–${b.fine}</b><span class="cap">disponibili <b>${fmt(b.cap)}</b></span></div>${corpo(b.cap, minC(b.compiti), b.compiti, b.studio, b.sopra, b.libero)}</div>`).join('')
+      : `${g.lf.length ? `<div class="fasce">${g.lf.map(f => `${f[0]}–${f[1]}`).join(' · ')}</div>` : ''}${corpo(g.cap, g.minCompiti, g.compiti, g.studio, g.sopra, g.libero)}`;
     return `<div class="day${g.giornoIso === oggiIso ? ' today' : ''}" data-drop="giorno" data-g="${g.giornoIso}">
       <div class="day-h"><b>${g.giornoIso === oggiIso ? 'Oggi · ' : ''}${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b>
         <span class="cap">${g.cap ? `disponibili <b>${fmt(g.cap)}</b>` : ''}</span></div>
-      ${g.lf.length ? `<div class="fasce">${g.lf.map(f => `${f[0]}–${f[1]}`).join(' · ')}</div>` : ''}
       ${g.verifiche.map(v => `<div class="ver"><a href="verifiche-ada.html#ver-${v.id}">📝 ${v.tipo === 'interrogazione' ? 'Interrogazione' : 'Compito'} di ${esc(v.materia)}</a></div>`).join('')}
-      ${bar}${comp || stud ? `<ul>${comp}${stud}</ul>` : ''}${coda}</div>`;
+      ${dentro}</div>`;
   }).join('');
 }
 
