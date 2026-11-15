@@ -1,5 +1,5 @@
 /* ============================================================================
-   scuola-ada.js v1.8.0 — accesso, database e barra in alto per le pagine
+   scuola-ada.js v1.9.0 — accesso, database e barra in alto per le pagine
    della scuola di Ada (compiti, verifiche, calendario, impostazioni), e il
    piano di studio (SC.piano) che calendario e studio leggono uguale.
 
@@ -324,7 +324,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
       // Upsert sul token (= endpoint): riabbonando lo stesso browser si aggiorna la sua riga.
       await db('cm_push_devices?on_conflict=token', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: {
         user_id: sessione.user.id, token: json.endpoint, platform: 'web', device_name: nome, enabled: true,
-        web_push: json, app_version: 'scuola-ada.js v1.8.0', last_seen_at: new Date().toISOString() } });
+        web_push: json, app_version: 'scuola-ada.js v1.9.0', last_seen_at: new Date().toISOString() } });
       notifiche('Fatto: le notifiche arriveranno qui.');
     } catch (e) { console.error('🔔', e); notifiche('Non sono riuscito ad attivarle: ' + e.message, true); }
   }
@@ -405,7 +405,7 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
   // prima i compiti, poi lo studio — riempiendo la prima fascia e poi la
   // seconda; un'attività può spezzarsi fra due fasce (min = il pezzo, intero =
   // tutta l'attività). Quel che non entra va nell'ultima, che allora sfora.
-  // I compiti già fatti stanno nella prima, a zero minuti.
+  // I compiti già fatti stanno nella prima (o nella loro fascia scelta), a zero minuti.
   function blocchiDi(lf, cap, pausa, compiti, studio) {
     const fs = lf.map(f => ({ inizio: f[0], fine: f[1], lordo: Math.max(0, pMin(f[1]) - pMin(f[0])) }))
       .sort((x, y) => pMin(x.inizio) - pMin(y.inizio));
@@ -416,19 +416,34 @@ body.sc-con-barra{padding-top:calc(56px + env(safe-area-inset-top,0px))}
       resto -= c;
       return { i, inizio: f.inizio, fine: f.fine, cap: c, compiti: [], studio: [], usato: 0, libero: 0, sopra: 0 };
     });
-    let k = 0;
-    const metti = (lista, x) => {
+    // Riempie i blocchi nell'ordine dato; quel che non entra va nel blocco `dove`, che sfora.
+    const metti = (lista, x, ordine, dove) => {
       let min = x.min;
-      while (min > 0) {
-        const b = bl[k], ultimo = k === bl.length - 1;
-        if (!ultimo && b.cap - b.usato <= 0) { k++; continue; }
-        const q = ultimo ? min : Math.min(min, b.cap - b.usato);
-        b[lista].push(Object.assign({}, x, { min: q, intero: x.min, parte: q < x.min }));
+      const pezzi = new Map();
+      const aggiungi = (k, q) => {
+        const b = bl[k], p = pezzi.get(k);
+        if (p) p.min += q; else { const n = Object.assign({}, x, { min: q, intero: x.min }); b[lista].push(n); pezzi.set(k, n); }
         b.usato += q; min -= q;
+      };
+      for (const k of ordine) {
+        if (min <= 0) break;
+        const q = Math.min(min, Math.max(0, bl[k].cap - bl[k].usato));
+        if (q > 0) aggiungi(k, q);
       }
+      if (min > 0) aggiungi(dove, min);
+      for (const p of pezzi.values()) p.parte = p.min < x.min;
     };
-    for (const c of compiti) c.ok ? bl[0].compiti.push(Object.assign({}, c, { intero: c.min })) : metti('compiti', c);
-    for (const s of studio) metti('studio', s);
+    const tutte = bl.map((b, i) => i);
+    // Fascia scelta (v1.9.0, sc_spostamenti.fascia): l'attività va prima lì; quel che
+    // non entra passa alle fasce dopo, poi a quelle prima; se non entra da nessuna
+    // parte, sfora nella fascia scelta. Le attività con la fascia scelta si mettono per prime.
+    const scelta = x => { const f = x.sp && x.sp.fascia; if (!f) return -1; return bl.findIndex(b => `${b.inizio}-${b.fine}` === f); };
+    const ordineDa = p => [p, ...tutte.filter(i => i > p), ...tutte.filter(i => i < p).reverse()];
+    const fissi = [], liberi = [];
+    for (const c of compiti) if (c.ok) bl[Math.max(0, scelta(c))].compiti.push(Object.assign({}, c, { intero: c.min })); else (scelta(c) >= 0 ? fissi : liberi).push(['compiti', c]);
+    for (const s of studio) (scelta(s) >= 0 ? fissi : liberi).push(['studio', s]);
+    for (const [l, x] of fissi) metti(l, x, ordineDa(scelta(x)), scelta(x));
+    for (const [l, x] of liberi) metti(l, x, tutte, bl.length - 1);
     for (const b of bl) { b.libero = Math.max(0, b.cap - b.usato); b.sopra = Math.max(0, b.usato - b.cap); }
     return bl;
   }

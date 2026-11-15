@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.9.1</title>
+<title>Studio di oggi v1.10.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -61,7 +61,7 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .btn.stop.gelo{background:#0284c7;color:#fff}
 .zone.gelo,.btn.pausa.gelo{opacity:.5;filter:grayscale(.6)}
 .zone{position:relative;flex:1;min-height:0}
-.z{position:absolute;box-sizing:border-box;border:4px solid #000;border-radius:12px;background:var(--zc);overflow:hidden;cursor:pointer;display:flex;user-select:none;-webkit-user-select:none}
+.z{position:absolute;box-sizing:border-box;border:4px solid #000;border-radius:12px;background:var(--zc);overflow:hidden;cursor:pointer;display:flex;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 /* Ogni impegno ha il suo colore (--zl/--ql chiaro, --zd/--qd scuro): fondo tenue, liquido più pieno. */
 .z{--zc:var(--zl);--qc:var(--ql)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .z{--zc:var(--zd);--qc:var(--qd)}}
@@ -95,6 +95,13 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .vuoto,.loading{color:var(--muted)}
 .vuoto a{color:var(--accent)}
 .nota{font-size:13px;color:var(--muted)}
+/* Sposta in un'altra fascia (v1.10.0): si apre tenendo premuto un impegno */
+.menu{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.menu-c{background:var(--card);border-radius:16px;padding:16px;width:100%;max-width:420px;box-sizing:border-box;display:grid;gap:10px}
+.menu-c .nota{margin:0}
+.menu-l{display:grid;gap:8px}
+.menu-l .btn{justify-content:space-between;width:100%}
+.menu-l .btn small{font-weight:500;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;max-width:calc(100% - 32px);box-sizing:border-box;z-index:600;font-size:14px}
 </style>
 </head>
@@ -104,7 +111,7 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
     <h1 id="titolo">Studio di oggi</h1>
     <div class="tot" id="tot"></div>
   </div>
-  <div class="pagine" id="pagine" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per passare alla pausa."><p class="loading">Carico…</p></div>
+  <div class="pagine" id="pagine" title="Tocca un impegno per far partire il tempo; toccane un altro per passare a quello. Ritoccalo per passare alla pausa. Tienilo premuto per spostarlo in un'altra fascia."><p class="loading">Carico…</p></div>
   <div class="punti" id="punti" hidden></div>
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
@@ -114,11 +121,16 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="menu" id="menu" hidden><div class="menu-c" role="dialog" aria-labelledby="menu-t">
+  <b id="menu-t"></b><p class="nota">Sposta in un'altra fascia di oggi. Se non c'entra tutto, il resto va nelle altre fasce.</p>
+  <div class="menu-l" id="menu-l"></div>
+  <button type="button" class="btn" id="menu-no">Annulla</button>
+</div></div>
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.9.1';
-var BUILD_TIME  = '2026-11-15T16:45:00Z';
+var APP_VERSION = 'v1.10.0';
+var BUILD_TIME  = '2026-11-15T16:58:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -165,6 +177,12 @@ function pianoDiOggi(dati) {
   const g = SC.piano(dati, null, 1).giorni[0], pausa = dati.imp.pausa_minuti || 0;
   const bl = g.blocchi && g.blocchi.length ? g.blocchi : [{ inizio: '', fine: '', cap: g.cap, compiti: g.compiti, studio: g.studio }];
   const tot = new Map(), voci = [], pagine = [];
+  // Da dove viene ogni impegno (v1.10.0): la quota normale di oggi e/o le righe di
+  // sc_spostamenti. Serve a «Sposta in un'altra fascia», che le sposta tutte.
+  const fonti = new Map();
+  const fonte = (k, x) => { const l = fonti.get(k) || []; const id = x.sp ? x.sp.id : 'n';
+    if (!l.some(f => f.id === id)) l.push({ id, sp: x.sp || null, da: x.da, min: x.intero || x.min }); fonti.set(k, l); };
+  bl.forEach(b => { b.compiti.forEach(c => fonte(chiave('compito', c.id), c)); b.studio.forEach(s => fonte(chiave('argomento', s.a.id), s)); });
   bl.forEach((b, p) => {
     const per = new Map(), lista = [];
     const metti = v => {
@@ -195,7 +213,7 @@ function pianoDiOggi(dati) {
     pagine[p].voci.push({ tipo: 'argomento', rif: a.id, titolo: v ? `${v.materia} · ${a.titolo}` : a.titolo, sotto: v ? `per il ${v.data.slice(8)}/${v.data.slice(5,7)}` : 'Studiato', min, prima: 0, fatto: true });
   }
   pagine.forEach((pg, p) => pg.voci.forEach((v, j) => { v.p = p; v.j = j; v.i = voci.length; voci.push(v); }));
-  for (const v of voci) v.totale = tot.get(chiave(v.tipo, v.rif));
+  for (const v of voci) { v.totale = tot.get(chiave(v.tipo, v.rif)); v.fonti = fonti.get(chiave(v.tipo, v.rif)) || []; }
   // Pausa concessa: i minuti di pausa per ogni ora di lavoro previsto.
   const lavoro = [...tot.values()].reduce((a, m) => a + m, 0);
   return { voci, pagine, pausaMax: Math.round(lavoro * pausa / 60) };
@@ -496,8 +514,67 @@ function finitoPrima() {
   aggiorna();
 }
 
+// 🧱 Sposta in un'altra fascia (v1.10.0): tenendo premuto un impegno (o col tasto
+// destro) si sceglie una fascia di oggi. Si spostano tutte le sue fonti di oggi:
+// le righe di sc_spostamenti già esistenti prendono la fascia, la quota normale
+// ne diventa una nuova («rimandato» con a = oggi). Il piano (SC.piano) la mette
+// lì per prima e passa il resto alle altre fasce.
+let menuVoce = null;
+function apriMenu(v) {
+  if (menuVoce) return;
+  if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; }
+  const fasce = S.pagine.filter(p => p.fine);
+  if (fasce.length < 2) { toast('Oggi c\'è una fascia sola: non c\'è dove spostarlo.'); return; }
+  menuVoce = v;
+  document.getElementById('menu-t').textContent = v.titolo;
+  document.getElementById('menu-l').innerHTML = S.pagine.map((p, k) => {
+    if (!p.fine) return '';
+    const qui = p.voci.find(x => chiave(x.tipo, x.rif) === chiave(v.tipo, v.rif));
+    const tutto = qui && qui.min >= v.totale;
+    return `<button type="button" class="btn" data-fascia="${esc(p.inizio)}-${esc(p.fine)}"${tutto ? ' disabled' : ''}>${esc(p.inizio)}–${esc(p.fine)} <small>${tutto ? 'è già qui' : qui ? 'in parte qui' : ''}</small></button>`;
+  }).join('');
+  document.getElementById('menu').hidden = false;
+}
+function chiudiMenu() { menuVoce = null; document.getElementById('menu').hidden = true; }
+function spostaInFascia(v, fascia) {
+  const g = iso(oggi());
+  inFila(async () => {
+    try {
+      for (const f of v.fonti) {
+        if (f.sp) await SC.db(`sc_spostamenti?id=eq.${f.sp.id}`, { method: 'PATCH', body: { stato: 'rimandato', a: g, fascia }, prefer: 'return=minimal' });
+        else await SC.db('sc_spostamenti', { method: 'POST', prefer: 'return=minimal',
+          body: { tipo: v.tipo, rif: v.rif, da: f.da || g, min: Math.round(f.min), stato: 'rimandato', a: g, fascia } });
+      }
+      toast(`Spostato nella fascia ${fascia.replace('-', '–')}.`);
+    } catch (err) { toast('Non spostato: ' + err.message); }
+    S.pagina = null; await carica();
+  });
+}
+// Pressione lunga: 500 ms fermi sul rettangolo; muovendo il dito (per strisciare) si annulla.
+const LUNGA = { t: null, x: 0, y: 0, fatta: false };
+document.addEventListener('pointerdown', e => {
+  const z = e.target.closest('.z'); LUNGA.fatta = false; clearTimeout(LUNGA.t);
+  if (!z || e.button > 0) return;
+  LUNGA.x = e.clientX; LUNGA.y = e.clientY;
+  LUNGA.t = setTimeout(() => { LUNGA.fatta = true; if (navigator.vibrate) try { navigator.vibrate(20); } catch (x) {} apriMenu(S.voci[z.dataset.i]); }, 500);
+});
+document.addEventListener('pointermove', e => { if (LUNGA.t && Math.hypot(e.clientX - LUNGA.x, e.clientY - LUNGA.y) > 10) { clearTimeout(LUNGA.t); LUNGA.t = null; } });
+document.addEventListener('pointerup', () => { clearTimeout(LUNGA.t); LUNGA.t = null; });
+document.addEventListener('pointercancel', () => { clearTimeout(LUNGA.t); LUNGA.t = null; });
+document.addEventListener('contextmenu', e => {
+  const z = e.target.closest('.z'); if (!z) return;
+  e.preventDefault(); LUNGA.fatta = true; clearTimeout(LUNGA.t); apriMenu(S.voci[z.dataset.i]);
+});
+
 document.addEventListener('click', e => {
+  if (e.target.closest('#menu')) {
+    const b = e.target.closest('[data-fascia]'), v = menuVoce;
+    if (b && !b.disabled && v) { chiudiMenu(); spostaInFascia(v, b.dataset.fascia); }
+    else if (e.target.closest('#menu-no') || e.target.id === 'menu') chiudiMenu();
+    return;
+  }
   const z = e.target.closest('.z');
+  if (z && LUNGA.fatta) { LUNGA.fatta = false; return; }   // era una pressione lunga: niente cronometro
   if (z) { const v = S.voci[z.dataset.i]; if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; } tocca(v.tipo, v.rif, v.titolo); return; }
   if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
   if (e.target.closest('#libero')) {

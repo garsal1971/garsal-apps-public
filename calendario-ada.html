@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calendario di studio v1.8.0</title>
+<title>Calendario di studio v1.9.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — avvisi in cima, poi un riquadro per giorno da oggi all'ultima verifica */
@@ -136,8 +136,8 @@ li .spost{color:var(--warn)}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.8.0';
-var BUILD_TIME  = '2026-11-15T17:00:00Z';
+var APP_VERSION = 'v1.9.0';
+var BUILD_TIME  = '2026-11-15T16:55:00Z';
 console.log('%c CALENDARIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -272,16 +272,19 @@ function render(p, giorni) {
     // Il contenuto di una fascia (o del giorno intero, se la fascia è una sola).
     // Un pezzo di attività spezzata fra due fasce si trascina come attività intera
     // per i compiti, come il solo pezzo per lo studio.
-    const corpo = (cap, minC, compiti, studio, sopra, libero) => {
+    const corpo = (cap, minC, compiti, studio, sopra, libero, f) => {
       const usatoStudio = studio.reduce((a, s) => a + s.min, 0);
       const base = Math.max(cap, minC + usatoStudio) || 1;
       const bar = cap || minC ? `<div class="bar"><i style="width:${minC / base * 100}%;background:var(--compiti)"></i><i style="width:${usatoStudio / base * 100}%;background:var(--studio)"></i></div>` : '';
+      // ↪ = viene da un altro giorno; 📌 = spostata in questa fascia lo stesso giorno.
+      const segno = sp => !sp ? '' : sp.da !== g.giornoIso ? ` <small class="spost">↪ dal ${dataBreve(sp.da)}</small>`
+        : sp.fascia ? ` <small class="spost">📌 fascia scelta</small>` : '';
       const parte = x => x.parte ? ` <small>· parte (${fmt(x.intero)} in tutto)</small>` : '';
-      const comp = compiti.map(c => riga({ tipo: 'compito', rif: c.id, da: c.da, min: c.intero || c.min, sp: c.sp }, '--compiti',
-        `<a class="n" draggable="false" href="compiti-ada.html#c-${c.da}-${c.id}">${esc(c.nome)}${parte(c)}${c.sp ? ` <small class="spost">↪ dal ${dataBreve(c.da)}</small>` : ''}</a>`,
+      const comp = compiti.map(c => riga({ tipo: 'compito', rif: c.id, da: c.da, min: c.intero || c.min, sp: c.sp, g: g.giornoIso, f }, '--compiti',
+        `<a class="n" draggable="false" href="compiti-ada.html#c-${c.da}-${c.id}">${esc(c.nome)}${parte(c)}${segno(c.sp)}</a>`,
         c.ok ? '✅' : fmt(c.min), c.ok ? 'fatto' : '')).join('');
-      const stud = studio.map(s => riga({ tipo: 'argomento', rif: s.a.id, da: s.sp ? s.sp.da : g.giornoIso, min: s.min, sp: s.sp }, '--studio',
-        `<a class="n" draggable="false" href="verifiche-ada.html#arg-${s.a.id}">${nomeArg(s.v, s.a)}${s.sp ? ` <small class="spost">↪ dal ${dataBreve(s.sp.da)}</small>` : ''}</a>`, fmt(s.min))).join('');
+      const stud = studio.map(s => riga({ tipo: 'argomento', rif: s.a.id, da: s.sp ? s.sp.da : g.giornoIso, min: s.min, intero: s.intero || s.min, sp: s.sp, g: g.giornoIso, f }, '--studio',
+        `<a class="n" draggable="false" href="verifiche-ada.html#arg-${s.a.id}">${nomeArg(s.v, s.a)}${segno(s.sp)}</a>`, fmt(s.min))).join('');
       const coda = sopra ? `<div class="over">Le attività superano la fascia di ${fmt(sopra)}</div>`
         : cap ? `<div class="free">Libero: ${fmt(libero)}</div>` : (comp ? '' : `<div class="free">Nessuna fascia di studio</div>`);
       return `${bar}${comp || stud ? `<ul>${comp}${stud}</ul>` : ''}${coda}`;
@@ -289,7 +292,7 @@ function render(p, giorni) {
     const minC = l => l.filter(c => !c.ok).reduce((a, c) => a + c.min, 0);
     const bl = g.blocchi || [];
     const dentro = bl.length > 1
-      ? bl.map(b => `<div class="blocco"><div class="blocco-h"><b>${b.inizio}–${b.fine}</b><span class="cap">disponibili <b>${fmt(b.cap)}</b></span></div>${corpo(b.cap, minC(b.compiti), b.compiti, b.studio, b.sopra, b.libero)}</div>`).join('')
+      ? bl.map(b => `<div class="blocco" data-drop="fascia" data-g="${g.giornoIso}" data-f="${b.inizio}-${b.fine}"><div class="blocco-h"><b>${b.inizio}–${b.fine}</b><span class="cap">disponibili <b>${fmt(b.cap)}</b></span></div>${corpo(b.cap, minC(b.compiti), b.compiti, b.studio, b.sopra, b.libero, `${b.inizio}-${b.fine}`)}</div>`).join('')
       : `${g.lf.length ? `<div class="fasce">${g.lf.map(f => `${f[0]}–${f[1]}`).join(' · ')}</div>` : ''}${corpo(g.cap, g.minCompiti, g.compiti, g.studio, g.sopra, g.libero)}`;
     return `<div class="day${g.giornoIso === oggiIso ? ' today' : ''}" data-drop="giorno" data-g="${g.giornoIso}">
       <div class="day-h"><b>${g.giornoIso === oggiIso ? 'Oggi · ' : ''}${FULL[g.d.getDay()]} ${g.d.getDate()} ${MESI[g.d.getMonth()]}</b>
@@ -343,17 +346,25 @@ async function scrivi(f) {
   finally { inCorso = false; }
   try { await ricaricaSpostamenti(); } catch (e) {}
 }
-const nuova = (v, stato, a) => SC.db('sc_spostamenti', { method: 'POST', prefer: 'return=minimal',
-  body: { tipo: v.tipo, rif: v.rif, da: v.da, min: Math.round(v.min), stato, a: a || null } });
+const nuova = (v, stato, a, fascia) => SC.db('sc_spostamenti', { method: 'POST', prefer: 'return=minimal',
+  body: { tipo: v.tipo, rif: v.rif, da: v.da, min: Math.round(v.min), stato, a: a || null, fascia: fascia || null } });
 const cambia = (sp, body) => SC.db(`sc_spostamenti?id=eq.${sp.id}`, { method: 'PATCH', body, prefer: 'return=minimal' });
 
-function lascia(v, dove, giorno) {
+function lascia(v, dove, giorno, fascia) {
+  // In un'altra fascia (v1.9.0), anche dello stesso giorno: si sposta l'attività intera
+  // di quel giorno (per un argomento, tutti i suoi minuti di quel giorno, non il solo pezzo).
+  if (dove === 'fascia') {
+    if (v.g === giorno && v.f === fascia) return;     // la sua stessa fascia: niente
+    const min = Math.round(v.intero || v.min);
+    scrivi(() => v.sp ? cambia(v.sp, { stato: 'rimandato', a: giorno, fascia, min }) : nuova({ ...v, min }, 'rimandato', giorno, fascia));
+    return;
+  }
   if (dove === 'giorno') {
     if (!v.sp && giorno === v.da) return;            // rilasciata sul suo stesso giorno: niente
     if (v.sp && v.sp.stato === 'rimandato' && v.sp.a === giorno) return;
   }
   const stato = dove === 'cancella' ? 'cancellato' : 'rimandato', a = dove === 'giorno' ? giorno : null;
-  scrivi(() => v.sp ? cambia(v.sp, { stato, a }) : nuova(v, stato, a));
+  scrivi(() => v.sp ? cambia(v.sp, { stato, a, fascia: null }) : nuova(v, stato, a));
 }
 
 // «Distribuisci da domani»: ogni attività in «da rimandare» va nel primo tempo
@@ -387,7 +398,7 @@ async function distribuisci() {
         await cambia(x.sp, { min: Math.round(resto) });
         for (const z of pezzi) await nuova({ ...v, min: z.min }, 'rimandato', z.a);
       } else {
-        await cambia(x.sp, { a: pezzi[0].a, min: Math.round(pezzi[0].min) });
+        await cambia(x.sp, { a: pezzi[0].a, min: Math.round(pezzi[0].min), fascia: null });
         for (const z of pezzi.slice(1)) await nuova({ ...v, min: z.min }, 'rimandato', z.a);
       }
     }
@@ -443,7 +454,7 @@ function fineDnD() {
   const t = DnD.sopra, v = DnD.voce;
   DnD.appenaTrascinato = true; setTimeout(() => { DnD.appenaTrascinato = false; }, 400);
   annullaDnD();
-  if (t && v) lascia(v, t.dataset.drop, t.dataset.g);
+  if (t && v) lascia(v, t.dataset.drop, t.dataset.g, t.dataset.f);
 }
 document.addEventListener('pointerup', fineDnD);
 document.addEventListener('pointercancel', () => { if (!DnD.attivo) annullaDnD(); });
