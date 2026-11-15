@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.10.1</title>
+<title>Studio di oggi v1.11.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -38,9 +38,6 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .top .tot{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .top .tot b{color:var(--fg)}
 .ctrl{flex:none;display:flex;flex-wrap:wrap;gap:8px}
-.btn.libero{flex:1;min-width:0;justify-content:space-between;border-color:var(--ok)}
-.btn.libero.on{background:var(--ok);color:var(--card)}
-.btn.libero small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
 /* ✅ Finito prima (v1.10.1): dentro il rettangolo dell'impegno acceso */
 .z .fp{flex:none;font:inherit;font-size:.85em;font-weight:600;padding:4px 10px;min-height:32px;border-radius:999px;border:2px solid var(--ok);background:var(--card);color:var(--ok);cursor:pointer}
 /* Una pagina per fascia di studio (v1.9.0): si passa dall'una all'altra strisciando */
@@ -116,7 +113,6 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
   <div class="punti" id="punti" hidden></div>
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
-    <button type="button" class="btn libero" id="libero" hidden>⏳ Tempo libero <small id="libero-t"></small></button>
     <button type="button" class="btn stop" id="stop" hidden>❄️ Congela</button>
   </div>
 </div>
@@ -129,8 +125,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.10.1';
-var BUILD_TIME  = '2026-11-15T20:15:00Z';
+var APP_VERSION = 'v1.11.0';
+var BUILD_TIME  = '2026-11-15T20:30:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -227,6 +223,23 @@ function paginaDiAdesso() {
 // ⏳ Tempo libero (v1.9.0): i minuti guadagnati oggi con «Finito prima»,
 // in sc_impostazioni.tempo_libero {giorno, minuti}; un altro giorno vale zero.
 const leggiLibero = t => t && t.giorno === iso(oggi()) ? Number(t.minuti) || 0 : 0;
+// Dalla v1.11.0 il tempo libero è un rettangolo del mosaico, nella pagina della fascia
+// in corso (o della prossima), con l'area dei suoi minuti. Si rimette a ogni lettura:
+// torna true se è cambiato qualcosa, così si ridisegna solo allora.
+function conLibero() {
+  const prima = S.voci.find(v => v.tipo === 'libero');
+  S.pagine.forEach(pg => { pg.voci = pg.voci.filter(v => v.tipo !== 'libero'); });
+  const ms = speso('libero', null), min = Math.max(S.liberoMin, Math.ceil(ms / 60e3));
+  let p = null;
+  if (min > 0 && S.pagine.length) {
+    p = prima ? Math.min(prima.p, S.pagine.length - 1) : paginaDiAdesso();
+    S.pagine[p].voci.push({ tipo: 'libero', rif: null, titolo: '⏳ Tempo libero', sotto: 'Guadagnato con «Finito prima»', min: S.liberoMin || min, prima: 0, totale: S.liberoMin || min, fonti: [], fatto: false });
+  }
+  S.voci = [];
+  S.pagine.forEach((pg, k) => pg.voci.forEach((v, j) => { v.p = k; v.j = j; v.i = S.voci.length; S.voci.push(v); }));
+  const dopo = S.voci.find(v => v.tipo === 'libero');
+  return !prima !== !dopo || (prima && dopo && (prima.min !== dopo.min || prima.p !== dopo.p));
+}
 
 async function carica() {
   const t = oggi(), oggiIso = iso(t); S.giorno = oggiIso;
@@ -261,6 +274,7 @@ async function carica() {
     S.congelato = S.aperta ? null : leggiGelo(gelo); if (!S.congelato && gelo) scriviGelo(null);
     // Compiti spuntati e argomenti «Studiati» oggi restano a schermo come completati (v1.9.1);
     // il resto che il piano non propone più non si mostra, ma il suo tempo resta nel totale.
+    conLibero();
     disegna();
   } catch (e) { document.getElementById('pagine').innerHTML = `<p class="vuoto">Non riesco a leggere i dati: ${esc(e.message)}</p>`; }
 }
@@ -276,7 +290,8 @@ function speso(tipo, rif) {
 
 // Il colore di un impegno è lo stesso su tutte le pagine (numerato per chiave).
 function coloreDi(v) {
-  const ks = [...new Set(S.voci.map(x => chiave(x.tipo, x.rif)))];
+  if (v.tipo === 'libero') return '--zl:hsl(140 70% 86%);--ql:hsl(140 60% 52%);--zd:hsl(140 45% 22%);--qd:hsl(140 55% 40%)';
+  const ks = [...new Set(S.voci.filter(x => x.tipo !== 'libero').map(x => chiave(x.tipo, x.rif)))];
   return colori(ks.indexOf(chiave(v.tipo, v.rif)));
 }
 function disegna() {
@@ -287,7 +302,7 @@ function disegna() {
   } else {
     const piu = S.pagine.length > 1;
     pg.innerHTML = S.pagine.map((p, k) => `<section class="pagina" data-p="${k}">
-      ${piu ? `<div class="ph"><b>${esc(p.inizio)}–${esc(p.fine)}</b><span>${k + 1} di ${S.pagine.length} · ${fmtMin(p.voci.reduce((a, v) => a + v.min, 0))} di attività</span></div>` : ''}
+      ${piu ? `<div class="ph"><b>${esc(p.inizio)}–${esc(p.fine)}</b><span>${k + 1} di ${S.pagine.length} · ${fmtMin(p.voci.reduce((a, v) => a + (v.tipo === 'libero' ? 0 : v.min), 0))} di attività</span></div>` : ''}
       <div class="zone">${p.voci.length ? p.voci.map(v => `<div class="z ${v.tipo}" data-i="${v.i}" role="button" tabindex="0" style="${coloreDi(v)}">
       <div class="fill"></div>
       <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}${v.min < v.totale ? ' (parte)' : ''}</small></div><span class="play"></span></div>
@@ -375,19 +390,14 @@ function aggiorna() {
     // pagina dei compiti o delle verifiche, dove la voce si spunta a mano.
     // Un pezzo che non è l'ultimo: finita la sua parte si passa alla pausa e basta.
     const k = chiave(v.tipo, v.rif) + '@' + v.p;
-    if (run && !v.fatto && prev && ms >= prev && !S.avvisati.has(k)) {
+    if (run && !v.fatto && v.tipo !== 'libero' && prev && ms >= prev && !S.avvisati.has(k)) {
       S.avvisati.add(k);
       if (msTot >= v.totale * 60e3) finito(v);
       else { bip(); toast(`Finita la parte di questa fascia per «${v.titolo}»: il resto è nella fascia dopo.`); inFila(async () => { await chiudi(); await apri('pausa', null, 'Pausa'); aggiorna(); }); }
     }
   });
-  // ⏳ Tempo libero: si vede quando c'è, e quando finisce il cronometro si ferma.
+  // ⏳ Tempo libero (un rettangolo del mosaico): quando finisce il cronometro si ferma.
   const lms = speso('libero', null), liberoOn = S.aperta && S.aperta.tipo === 'libero';
-  const lb = document.getElementById('libero');
-  lb.hidden = !S.liberoMin && !lms;
-  lb.classList.toggle('on', !!liberoOn);
-  lb.firstChild.textContent = liberoOn ? '⏳ Tempo libero in corso ' : '⏳ Tempo libero ';
-  document.getElementById('libero-t').textContent = `${orologio(lms)} / ${fmtMin(S.liberoMin)}`;
   if (liberoOn && lms >= S.liberoMin * 60e3 && !S.avvisati.has('libero')) {
     S.avvisati.add('libero'); bip(); toast('Il tempo libero di oggi è finito.');
     inFila(async () => { await chiudi(); aggiorna(); });
@@ -405,7 +415,7 @@ function aggiorna() {
   sb.textContent = g ? '▶️ Riprendi ' + (g.tipo === 'pausa' ? 'la pausa' : g.titolo) : '❄️ Congela';
   document.getElementById('pagine').classList.toggle('gelo', !!g);
   pb.classList.toggle('gelo', !!g); lb.classList.toggle('gelo', !!g);
-  const prev = S.voci.filter(v => !v.fatto).reduce((a, v) => a + v.min, 0);
+  const prev = S.voci.filter(v => !v.fatto && v.tipo !== 'libero').reduce((a, v) => a + v.min, 0);
   document.getElementById('tot').innerHTML = `studiato <b>${fmtMin(tot / 60e3)}</b>${prev ? ` su ${fmtMin(prev)} previsti` : ''}`;
 }
 setInterval(() => { if (document.visibilityState === 'visible' && S.voci) aggiorna(); }, 1000);
@@ -429,7 +439,7 @@ function sincronizza() {
     const gelo = leggiGelo((imp[0] || {}).congelato);
     S.congelato = S.aperta ? null : gelo;
     if (S.aperta && gelo) scriviGelo(null);
-    aggiorna();
+    if (conLibero()) disegna(); else aggiorna();
   });
 }
 setInterval(sincronizza, OGNI_MS_SYNC);
@@ -523,6 +533,7 @@ let menuVoce = null;
 function apriMenu(v) {
   if (menuVoce) return;
   if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; }
+  if (v.tipo === 'libero') { toast('Il tempo libero sta nella fascia in corso: non si sposta.'); return; }
   const fasce = S.pagine.filter(p => p.fine);
   if (fasce.length < 2) { toast('Oggi c\'è una fascia sola: non c\'è dove spostarlo.'); return; }
   menuVoce = v;
@@ -576,12 +587,10 @@ document.addEventListener('click', e => {
   if (e.target.closest('.fp')) { finitoPrima(); return; }   // dentro il rettangolo: non tocca il cronometro
   const z = e.target.closest('.z');
   if (z && LUNGA.fatta) { LUNGA.fatta = false; return; }   // era una pressione lunga: niente cronometro
-  if (z) { const v = S.voci[z.dataset.i]; if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; } tocca(v.tipo, v.rif, v.titolo); return; }
+  if (z) { const v = S.voci[z.dataset.i]; if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; }
+    if (v.tipo === 'libero' && !(S.aperta && S.aperta.tipo === 'libero') && speso('libero', null) >= S.liberoMin * 60e3) { toast('Il tempo libero di oggi è già finito.'); return; }
+    tocca(v.tipo, v.rif, v.titolo); return; }
   if (e.target.closest('#pausa')) { tocca('pausa', null, 'Pausa'); return; }
-  if (e.target.closest('#libero')) {
-    if (!(S.aperta && S.aperta.tipo === 'libero') && speso('libero', null) >= S.liberoMin * 60e3) { toast('Il tempo libero di oggi è già finito.'); return; }
-    tocca('libero', null, 'Tempo libero'); return;
-  }
   const d = e.target.closest('[data-vai]'); if (d) { vaiPagina(Number(d.dataset.vai), true); return; }
   if (e.target.closest('#stop')) {
     if (S.congelato) { const g = S.congelato; S.congelato = null; scriviGelo(null); tocca(g.tipo, g.rif, g.titolo); return; }
