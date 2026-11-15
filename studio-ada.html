@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.11.1</title>
+<title>Studio di oggi v1.11.2</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -125,8 +125,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.11.1';
-var BUILD_TIME  = '2026-11-15T20:35:00Z';
+var APP_VERSION = 'v1.11.2';
+var BUILD_TIME  = '2026-11-15T20:55:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -144,7 +144,7 @@ const chiave = (tipo, rif) => tipo + ':' + (rif || '');
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => el.hidden = true, 3500); }
 
 // Stato: impegni di oggi, sessioni di oggi (chiuse) e quella in corso.
-const S = { voci: [], pagine: [], pagina: null, sessioni: [], aperta: null, congelato: null, pausaMax: 0, liberoMin: 0, avvisati: new Set(), giorno: '' };
+const S = { voci: [], pagine: [], pagina: null, sessioni: [], aperta: null, congelato: null, pausaMax: 0, liberoMin: 0, liberoFascia: null, avvisati: new Set(), giorno: '' };
 
 // ❄️ Congela (v1.4.0): ferma il tempo e ricorda cosa era acceso (impegno o pausa);
 // finché non si tocca Riprendi niente parte. Vale per il giorno in cui è stato
@@ -202,11 +202,24 @@ function pianoDiOggi(dati) {
   for (const a of dati.args || []) {
     if (!a.studiato || a.annullato || !msDi.has(a.id) || tot.has(chiave('argomento', a.id))) continue;
     const d = quando.get(a.id), m = d.getHours() * 60 + d.getMinutes(), v = verDi.get(a.verifica_id);
+    // Senza fascia salvata (prima della v1.11.2): quella dell'ultima sessione, o la
+    // prossima, e dopo l'ultima fascia l'ultima pagina (non la prima).
     let p = pagine.findIndex(pg => pg.fine && minuti(pg.inizio) <= m && m < minuti(pg.fine));
-    if (p < 0) p = Math.max(0, pagine.findIndex(pg => pg.fine && minuti(pg.fine) > m)); if (p < 0) p = 0;
+    if (p < 0) p = pagine.findIndex(pg => pg.fine && minuti(pg.fine) > m); if (p < 0) p = pagine.length - 1;
     const min = Math.max(1, Math.round(msDi.get(a.id) / 60e3));
     tot.set(chiave('argomento', a.id), min);
     pagine[p].voci.push({ tipo: 'argomento', rif: a.id, titolo: v ? `${v.materia} · ${a.titolo}` : a.titolo, sotto: v ? `per il ${v.data.slice(8)}/${v.data.slice(5,7)}` : 'Studiato', min, prima: 0, fatto: true });
+  }
+  // ✅ Finito prima (v1.11.2): l'impegno completato resta sempre nella fascia in cui
+  // è stato finito, salvata in sc_impostazioni.tempo_libero.fatti [{tipo, rif, fascia}].
+  for (const f of fattiLibero(dati.imp.tempo_libero)) {
+    const q = pagine.findIndex(pg => pg.fine && `${pg.inizio}-${pg.fine}` === f.fascia); if (q < 0) continue;
+    const k = chiave(f.tipo, f.rif); let unito = null;
+    pagine.forEach(pg => { pg.voci = pg.voci.filter(v => {
+      if (!v.fatto || chiave(v.tipo, v.rif) !== k) return true;
+      if (unito) unito.min += v.min; else unito = v; return false;
+    }); });
+    if (unito) { unito.prima = 0; pagine[q].voci.push(unito); }
   }
   pagine.forEach((pg, p) => pg.voci.forEach((v, j) => { v.p = p; v.j = j; v.i = voci.length; voci.push(v); }));
   for (const v of voci) { v.totale = tot.get(chiave(v.tipo, v.rif)); v.fonti = fonti.get(chiave(v.tipo, v.rif)) || []; }
@@ -223,6 +236,10 @@ function paginaDiAdesso() {
 // ⏳ Tempo libero (v1.9.0): i minuti guadagnati oggi con «Finito prima»,
 // in sc_impostazioni.tempo_libero {giorno, minuti}; un altro giorno vale zero.
 const leggiLibero = t => t && t.giorno === iso(oggi()) ? Number(t.minuti) || 0 : 0;
+// Le attività finite prima oggi, con la loro fascia (v1.11.2); il tempo libero sta
+// nella fascia dell'ultima.
+const fattiLibero = t => t && t.giorno === iso(oggi()) && Array.isArray(t.fatti) ? t.fatti : [];
+const fasciaLibero = t => { const f = fattiLibero(t); return f.length ? f[f.length - 1].fascia : null; };
 // Dalla v1.11.0 il tempo libero è un rettangolo del mosaico, nella pagina della fascia
 // in corso (o della prossima), con l'area dei suoi minuti. Si rimette a ogni lettura:
 // torna true se è cambiato qualcosa, così si ridisegna solo allora.
@@ -232,7 +249,8 @@ function conLibero() {
   const ms = speso('libero', null), min = Math.max(S.liberoMin, Math.ceil(ms / 60e3));
   let p = null;
   if (min > 0 && S.pagine.length) {
-    p = prima ? Math.min(prima.p, S.pagine.length - 1) : paginaDiAdesso();
+    const q = S.pagine.findIndex(pg => pg.fine && `${pg.inizio}-${pg.fine}` === S.liberoFascia);
+    p = q >= 0 ? q : prima ? Math.min(prima.p, S.pagine.length - 1) : paginaDiAdesso();
     S.pagine[p].voci.push({ tipo: 'libero', rif: null, titolo: '⏳ Tempo libero', sotto: 'Guadagnato con «Finito prima»', min: S.liberoMin || min, prima: 0, totale: S.liberoMin || min, fonti: [], fatto: false });
   }
   S.voci = [];
@@ -256,7 +274,7 @@ async function carica() {
     ]);
     const p = pianoDiOggi({ materie, orario, fatti, ver, args, imp: imp[0] || { fasce: {}, pausa_minuti: 0 }, sposta, sess });
     S.voci = p.voci; S.pagine = p.pagine; S.pausaMax = p.pausaMax;
-    S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero);
+    S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero); S.liberoFascia = fasciaLibero((imp[0] || {}).tempo_libero);
     if (S.pagina === null || S.giorno !== oggiIso) S.pagina = paginaDiAdesso();
     // Sessioni aperte: una sola è buona; quelle di altri giorni o dimenticate si chiudono.
     S.aperta = null; S.sessioni = [];
@@ -431,7 +449,7 @@ function sincronizza() {
   inFila(async () => {
     let sess, imp;
     try { [sess, imp] = await Promise.all([SC.db(`sc_sessioni?select=*&giorno=eq.${S.giorno}&order=inizio`), SC.db('sc_impostazioni?select=congelato,tempo_libero&limit=1')]); } catch (e) { return; }
-    S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero);
+    S.liberoMin = leggiLibero((imp[0] || {}).tempo_libero); S.liberoFascia = fasciaLibero((imp[0] || {}).tempo_libero);
     const aperte = sess.filter(s => !s.fine);
     S.sessioni = sess.filter(s => s.fine);
     S.aperta = aperte.length ? aperte[aperte.length - 1] : null;
@@ -505,16 +523,22 @@ function finitoPrima() {
   const cosa = v.tipo === 'compito' ? 'spunto il compito' : 'segno l\'argomento «Studiato»';
   if (!confirm(`Hai finito «${v.titolo}»? Ne ${cosa}${resto ? ` e metto ${fmtMin(resto)} nel tempo libero` : ''}.`)) return;
   S.voci.filter(x => chiave(x.tipo, x.rif) === chiave(v.tipo, v.rif)).forEach(x => S.avvisati.add(chiave(x.tipo, x.rif) + '@' + x.p));
+  // La fascia in cui lo si finisce: quella della pagina aperta, se l'impegno ci sta.
+  const pv = S.voci.find(x => chiave(x.tipo, x.rif) === chiave(v.tipo, v.rif) && x.p === S.pagina) || v;
+  const pg = S.pagine[pv.p], fascia = pg && pg.fine ? `${pg.inizio}-${pg.fine}` : null;
   inFila(async () => {
     await chiudi();
     try {
       if (v.tipo === 'compito')
         await SC.db('sc_compiti_fatti?on_conflict=user_id,giorno,orario_id', { method: 'POST', body: { giorno: v.da || iso(oggi()), orario_id: v.rif, stato: 'fatto' }, prefer: 'resolution=merge-duplicates,return=minimal' });
       else await SC.db(`sc_argomenti?id=eq.${v.rif}`, { method: 'PATCH', body: { studiato: true }, prefer: 'return=minimal' });
-      if (resto) {
+      if (resto || fascia) {
         // Si rilegge prima di sommare: un altro dispositivo può averne aggiunto.
         const [r] = await SC.db('sc_impostazioni?select=tempo_libero&limit=1');
-        const nuovo = { giorno: iso(oggi()), minuti: leggiLibero(r && r.tempo_libero) + resto };
+        const t = r && r.tempo_libero;
+        const fatti = fattiLibero(t).filter(f => chiave(f.tipo, f.rif) !== chiave(v.tipo, v.rif));
+        if (fascia) fatti.push({ tipo: v.tipo, rif: v.rif, fascia });
+        const nuovo = { giorno: iso(oggi()), minuti: leggiLibero(t) + resto, fatti };
         await SC.db('sc_impostazioni?user_id=not.is.null', { method: 'PATCH', body: { tempo_libero: nuovo }, prefer: 'return=minimal' });
       }
       toast(resto ? `Fatto! +${fmtMin(resto)} di tempo libero.` : 'Fatto!');
@@ -533,7 +557,7 @@ let menuVoce = null;
 function apriMenu(v) {
   if (menuVoce) return;
   if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; }
-  if (v.tipo === 'libero') { toast('Il tempo libero sta nella fascia in corso: non si sposta.'); return; }
+  if (v.tipo === 'libero') { toast('Il tempo libero sta nella fascia in cui è stato guadagnato: non si sposta.'); return; }
   const fasce = S.pagine.filter(p => p.fine);
   if (fasce.length < 2) { toast('Oggi c\'è una fascia sola: non c\'è dove spostarlo.'); return; }
   menuVoce = v;
