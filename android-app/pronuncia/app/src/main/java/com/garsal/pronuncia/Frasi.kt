@@ -38,6 +38,10 @@ object Frasi {
      *  «famosi») vale «tutti»: filtrarci sopra non darebbe niente da dire. */
     fun temaValido(tema: String?): String? = tema?.takeIf { it in TEMI }
 
+    /** v1.35.0: un tema che il catalogo scelto non ha (un tema delle sole
+     *  parole con le frasi) vale «tutti», invece di non dare niente da dire. */
+    fun temaValido(tema: String?, soloParole: Boolean): String? = temaValido(tema)?.takeIf { it in temi(soloParole) }
+
     fun temi(soloParole: Boolean): List<String> =
         if (soloParole) TEMI.keys.toList() else TEMI.keys.filter { it in TEMI_FRASI }
 

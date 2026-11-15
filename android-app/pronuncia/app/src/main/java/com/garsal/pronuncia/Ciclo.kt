@@ -98,8 +98,8 @@ data class StatoCiclo(
  * ⚠️ v1.34.0, **meno attese**: (1) l'audio si prepara in sottofondo
  * ([sottofondo]) — la frase dopo mentre si fa quella in corso, il commento e
  * le parole lente mentre si riascolta la propria voce — così quando serve è
- * già in cache; (2) voto e commento sono una frase sola; (3) il riascolto c'è
- * solo sui tentativi da ripetere. Un errore in sottofondo non conta: la
+ * già in cache; (2) voto e commento sono una frase sola; (3) il riascolto c'era
+ * solo sui tentativi da ripetere (dalla v1.35.0 di nuovo su tutti). Un errore in sottofondo non conta: la
  * stessa sintesi si rifà quando serve davvero, e lì l'errore si vede.
  *
  * Gira dentro `CicloService`, non nella schermata: deve continuare a schermo
@@ -291,7 +291,7 @@ object Ciclo {
         }
 
         val coda = ArrayDeque(Sessione.scegli(ctx, p.livelloCiclo, p.temaCiclo, p.paroleCiclo, quante))
-        if (coda.isEmpty()) { stato.update { it.copy(nota = "Nessuna frase per questo filtro.") }; return }
+        if (coda.isEmpty()) { stato.update { it.copy(nota = if (p.paroleCiclo) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.") }; return }
         var silenzi = 0
         var tentativo = 0
         var guasti = 0
@@ -328,6 +328,11 @@ object Ciclo {
                 stato.update { it.copy(verdetto = verdetto) }
                 if (verdetto.buona) {
                     stato.update { it.copy(buone = it.buone + 1) }
+                    // v1.35.0: la propria voce anche quando il voto passa.
+                    if (p.riascoltoCiclo) Servizi.valutatore.ultimaVoce?.let { v ->
+                        cosa("🔁 La tua voce")
+                        Riascolto.suona(v, Servizi.tts.comunicazione)
+                    }
                     cosa("📊 Il voto")
                     Servizi.tts.parla(Feedback.votoE(lingua, esito.pronuncia, Feedback.Cosa.BRAVO), voceFb, linguaFb)
                     return Fine.Avanti
@@ -356,7 +361,7 @@ object Ciclo {
                 }
                 // Il riascolto: la propria voce prima del giudizio, così il
                 // voto si confronta con quel che si è appena sentito.
-                // ⚠️ v1.34.0: solo quando è da ripetere — riuscita, si va avanti.
+                // (v1.35.0: anche sui riusciti, nel ramo qui sopra.)
                 if (p.riascoltoCiclo) Servizi.valutatore.ultimaVoce?.let { v ->
                     cosa("🔁 La tua voce")
                     Riascolto.suona(v, Servizi.tts.comunicazione)
