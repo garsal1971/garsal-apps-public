@@ -52,7 +52,7 @@ data class StatoCiclo(
  *
  * - se il [Giudizio] la promuove (voto ≥ [SOGLIA_BUONA] più i controlli
  *   accesi nelle impostazioni) si dice «85. Good!» e si passa alla prossima;
- * - sotto, se acceso (`Prefs.riascoltoCiclo`), si riascolta la propria
+ * - sotto, se non è «Mai» (`Prefs.riascoltoCiclo`), si riascolta la propria
  *   registrazione; poi «62. Try again. Listen.», il difetto in breve (le
  *   lettere del suono su una parola, la parola peggiore su una frase), le 1-2
  *   parole peggiori lente e la frase di nuovo, fino a [TENTATIVI]; all'ultimo
@@ -328,8 +328,9 @@ object Ciclo {
                 stato.update { it.copy(verdetto = verdetto) }
                 if (verdetto.buona) {
                     stato.update { it.copy(buone = it.buone + 1) }
-                    // v1.35.0: la propria voce anche quando il voto passa.
-                    if (p.riascoltoCiclo) Servizi.valutatore.ultimaVoce?.let { v ->
+                    // v1.35.0: la propria voce anche quando il voto passa
+                    // (v1.36.0: solo con «Sempre»).
+                    if (p.riascoltoCiclo == RiascoltoCiclo.SEMPRE) Servizi.valutatore.ultimaVoce?.let { v ->
                         cosa("🔁 La tua voce")
                         Riascolto.suona(v, Servizi.tts.comunicazione)
                     }
@@ -361,8 +362,8 @@ object Ciclo {
                 }
                 // Il riascolto: la propria voce prima del giudizio, così il
                 // voto si confronta con quel che si è appena sentito.
-                // (v1.35.0: anche sui riusciti, nel ramo qui sopra.)
-                if (p.riascoltoCiclo) Servizi.valutatore.ultimaVoce?.let { v ->
+                // (Sui riusciti solo con «Sempre», nel ramo qui sopra.)
+                if (p.riascoltoCiclo != RiascoltoCiclo.MAI) Servizi.valutatore.ultimaVoce?.let { v ->
                     cosa("🔁 La tua voce")
                     Riascolto.suona(v, Servizi.tts.comunicazione)
                 }

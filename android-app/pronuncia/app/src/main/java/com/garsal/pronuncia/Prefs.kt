@@ -40,6 +40,16 @@ enum class Controllo(val chiave: String, val etichetta: String, val frase: Int, 
 }
 
 /** Da dove si ascolta nel ciclo a mani libere (`CicloService.instrada`). */
+/** v1.36.0: quando a mani libere si riascolta la propria voce. Era un
+ *  interruttore (`riascolto_ciclo`): acceso vale SEMPRE, spento MAI. */
+enum class RiascoltoCiclo(val etichetta: String) {
+    MAI("🔇 Mai"),
+    SEMPRE("🔁 Sempre"),
+    BOCCIATI("❌ Solo quando non supero");
+
+    companion object { fun da(n: String?) = entries.firstOrNull { it.name == n } }
+}
+
 enum class Microfono(val etichetta: String) {
     TELEFONO("📱 Telefono"),
     CUFFIE("🎧 Cuffie Bluetooth"),
@@ -161,9 +171,12 @@ class Prefs(ctx: Context) {
      *  registrazione, poi dà il voto (v1.34.0: prima lo faceva sempre, anche
      *  quando era andata bene). Letta a ogni tentativo: cambiarla a ciclo
      *  acceso vale subito. */
-    var riascoltoCiclo: Boolean
-        get() = p.getBoolean("riascolto_ciclo", true)
-        set(v) = p.edit().putBoolean("riascolto_ciclo", v).apply()
+    /** ⚠️ Chiave nuova (`riascolto_ciclo_modo`): la vecchia era un booleano, e
+     *  finché la nuova non c'è si rilegge quella (acceso = SEMPRE, spento = MAI). */
+    var riascoltoCiclo: RiascoltoCiclo
+        get() = RiascoltoCiclo.da(p.getString("riascolto_ciclo_modo", null))
+            ?: if (p.getBoolean("riascolto_ciclo", true)) RiascoltoCiclo.SEMPRE else RiascoltoCiclo.MAI
+        set(v) = p.edit().putString("riascolto_ciclo_modo", v.name).apply()
 
     /** v1.30.0: quanto largo è il confronto dei comandi registrati
      *  (`ComandiVoce`): la soglia × questo numero. Più alto = li prende più

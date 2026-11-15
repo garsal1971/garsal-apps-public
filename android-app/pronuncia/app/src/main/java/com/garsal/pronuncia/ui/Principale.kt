@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -51,6 +50,7 @@ import com.garsal.pronuncia.DialogoAggiornamento
 import com.garsal.pronuncia.Giudizio
 import com.garsal.pronuncia.LinguaFeedback
 import com.garsal.pronuncia.Microfono
+import com.garsal.pronuncia.RiascoltoCiclo
 import com.garsal.pronuncia.Obiettivo
 import com.garsal.pronuncia.QUANTE
 import androidx.compose.runtime.LaunchedEffect
@@ -258,9 +258,8 @@ private fun Impostazioni(accento: Accento, onAccento: (Accento) -> Unit, paroleE
             feedback = it; prefs.linguaFeedback = it
         }
         // Letta a ogni tentativo: vale anche a ciclo acceso.
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("🔁 Fammi riascoltare la mia voce dopo ogni tentativo", Modifier.weight(1f))
-            Switch(checked = riascolto, onCheckedChange = { riascolto = it; prefs.riascoltoCiclo = it })
+        Tendina("Riascolta la mia voce", riascolto, RiascoltoCiclo.entries, { it.etichetta }) {
+            riascolto = it; prefs.riascoltoCiclo = it
         }
         Nota("Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica. Le cuffie USB col filo valgono anche per l'Esercizio; se non sono collegate si ascolta dal telefono.")
         MieiComandi()

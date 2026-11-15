@@ -4042,6 +4042,10 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   `Prefs.temaCiclo` ripiegava sul tema dell'Esercizio — anche uno delle sole parole, cioè «Nessuna
   frase per questo filtro.». E `Frasi.temaValido(tema, soloParole)` fa valere «tutti» un tema che
   il catalogo scelto non ha. L'Esercizio, se la scelta della sessione fallisce, scrive l'errore.
+- **Riascolto in tre modi** (v1.36.0, `RiascoltoCiclo`): l'interruttore è diventato la tendina
+  «Riascolta la mia voce» — 🔇 Mai · 🔁 Sempre · ❌ Solo quando non supero. Chiave nuova
+  `riascolto_ciclo_modo`; finché non c'è vale il vecchio booleano `riascolto_ciclo` (acceso =
+  Sempre, spento = Mai).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
