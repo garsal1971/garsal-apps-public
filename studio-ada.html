@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.10.0</title>
+<title>Studio di oggi v1.10.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -41,7 +41,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 .btn.libero{flex:1;min-width:0;justify-content:space-between;border-color:var(--ok)}
 .btn.libero.on{background:var(--ok);color:var(--card)}
 .btn.libero small{font-weight:500;font-variant-numeric:tabular-nums;opacity:.85}
-.btn.prima{border-color:var(--ok);color:var(--ok)}
+/* ✅ Finito prima (v1.10.1): dentro il rettangolo dell'impegno acceso */
+.z .fp{flex:none;font:inherit;font-size:.85em;font-weight:600;padding:4px 10px;min-height:32px;border-radius:999px;border:2px solid var(--ok);background:var(--card);color:var(--ok);cursor:pointer}
 /* Una pagina per fascia di studio (v1.9.0): si passa dall'una all'altra strisciando */
 .pagine{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
 .pagine::-webkit-scrollbar{display:none}
@@ -116,7 +117,6 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
   <div class="ctrl">
     <button type="button" class="btn pausa" id="pausa">☕ Pausa <small id="pausa-t"></small></button>
     <button type="button" class="btn libero" id="libero" hidden>⏳ Tempo libero <small id="libero-t"></small></button>
-    <button type="button" class="btn prima" id="prima" hidden>✅ Finito prima</button>
     <button type="button" class="btn stop" id="stop" hidden>❄️ Congela</button>
   </div>
 </div>
@@ -129,8 +129,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.10.0';
-var BUILD_TIME  = '2026-11-15T16:58:00Z';
+var APP_VERSION = 'v1.10.1';
+var BUILD_TIME  = '2026-11-15T20:15:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -291,7 +291,7 @@ function disegna() {
       <div class="zone">${p.voci.length ? p.voci.map(v => `<div class="z ${v.tipo}" data-i="${v.i}" role="button" tabindex="0" style="${coloreDi(v)}">
       <div class="fill"></div>
       <div class="in"><div class="r1"><div class="t">${esc(v.titolo)}<small>${esc(v.sotto)}${v.min ? ' · ' + fmtMin(v.min) : ''}${v.min < v.totale ? ' (parte)' : ''}</small></div><span class="play"></span></div>
-      <div class="r2"><span class="tempo"></span></div></div></div>`).join('') : `<p class="vuoto">In questa fascia non c'è niente in programma.</p>`}</div></section>`).join('');
+      <div class="r2"><span class="tempo"></span><button type="button" class="fp" hidden>✅ Finito prima</button></div></div></div>`).join('') : `<p class="vuoto">In questa fascia non c'è niente in programma.</p>`}</div></section>`).join('');
     dots.hidden = !piu;
     dots.innerHTML = piu ? S.pagine.map((p, k) => `<button type="button" data-vai="${k}" aria-label="Fascia ${esc(p.inizio)}–${esc(p.fine)}"></button>`).join('') : '';
   }
@@ -368,6 +368,7 @@ function aggiorna() {
     const prev = v.min * 60e3, frac = v.fatto ? 1 : prev ? ms / prev : (ms ? 1 : 0), oltre = !v.fatto && prev && ms > prev;
     el.classList.toggle('run', !!run); el.classList.toggle('oltre', !!oltre); el.classList.toggle('fatto', !!v.fatto);
     const fill = el.querySelector('.fill'); fill.style.height = Math.min(100, frac * 100) + '%'; fill.classList.toggle('secca', !ms && !v.fatto);
+    el.querySelector('.fp').hidden = !run || !!v.fatto || !studio(v.tipo) || !!S.congelato;
     el.querySelector('.play').textContent = v.fatto ? '✅' : run ? '⏸' : '▶️';
     el.querySelector('.tempo').innerHTML = `<b>${orologio(ms)}</b>${prev ? '<span class="su"> / ' + fmtMin(v.min) + '</span>' : ''}${oltre ? ` <span class="piu">+${fmtMin((ms - prev) / 60e3)}</span>` : ''}`;
     // Tempo previsto raggiunto: un suono, il cronometro si ferma e si passa alla
@@ -392,7 +393,6 @@ function aggiorna() {
     inFila(async () => { await chiudi(); aggiorna(); });
   }
   if (!liberoOn || lms < S.liberoMin * 60e3) S.avvisati.delete('libero');
-  document.getElementById('prima').hidden = !(S.aperta && studio(S.aperta.tipo)) || !!S.congelato;
   const pms = speso('pausa', null), pausaOn = S.aperta && S.aperta.tipo === 'pausa';
   const pb = document.getElementById('pausa');
   pb.classList.toggle('on', !!pausaOn);
@@ -554,7 +554,7 @@ function spostaInFascia(v, fascia) {
 const LUNGA = { t: null, x: 0, y: 0, fatta: false };
 document.addEventListener('pointerdown', e => {
   const z = e.target.closest('.z'); LUNGA.fatta = false; clearTimeout(LUNGA.t);
-  if (!z || e.button > 0) return;
+  if (!z || e.button > 0 || e.target.closest('.fp')) return;
   LUNGA.x = e.clientX; LUNGA.y = e.clientY;
   LUNGA.t = setTimeout(() => { LUNGA.fatta = true; if (navigator.vibrate) try { navigator.vibrate(20); } catch (x) {} apriMenu(S.voci[z.dataset.i]); }, 500);
 });
@@ -573,6 +573,7 @@ document.addEventListener('click', e => {
     else if (e.target.closest('#menu-no') || e.target.id === 'menu') chiudiMenu();
     return;
   }
+  if (e.target.closest('.fp')) { finitoPrima(); return; }   // dentro il rettangolo: non tocca il cronometro
   const z = e.target.closest('.z');
   if (z && LUNGA.fatta) { LUNGA.fatta = false; return; }   // era una pressione lunga: niente cronometro
   if (z) { const v = S.voci[z.dataset.i]; if (v.fatto) { toast(`«${v.titolo}» è già fatto ✅`); return; } tocca(v.tipo, v.rif, v.titolo); return; }
@@ -581,7 +582,6 @@ document.addEventListener('click', e => {
     if (!(S.aperta && S.aperta.tipo === 'libero') && speso('libero', null) >= S.liberoMin * 60e3) { toast('Il tempo libero di oggi è già finito.'); return; }
     tocca('libero', null, 'Tempo libero'); return;
   }
-  if (e.target.closest('#prima')) { finitoPrima(); return; }
   const d = e.target.closest('[data-vai]'); if (d) { vaiPagina(Number(d.dataset.vai), true); return; }
   if (e.target.closest('#stop')) {
     if (S.congelato) { const g = S.congelato; S.congelato = null; scriviGelo(null); tocca(g.tipo, g.rif, g.titolo); return; }
