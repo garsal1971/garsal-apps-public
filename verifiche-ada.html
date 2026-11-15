@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Verifiche di Ada v2.4.1</title>
+<title>Verifiche di Ada v2.5.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — prossima verifica in evidenza, elenco per data, form per aggiungere */
@@ -82,6 +82,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .checks{display:flex;flex-wrap:wrap;gap:6px}
 .chk{font:inherit;font-size:13px;background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:4px 10px;min-height:34px;cursor:pointer}
 .chk[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--on-accent)}
+/* Argomento annullato (v2.5.0): barrato, fuori da ore, barre e piano */
+.chk.ann[aria-pressed="true"]{background:var(--muted);border-color:var(--muted)}
+.arg.ann .t{text-decoration:line-through;color:var(--muted)}
+.arg.ann .chk:not(.ann){opacity:.5}
 .recap{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px}
 .recap b{color:var(--fg);font-variant-numeric:tabular-nums}
 .form-args{grid-column:1/-1;display:grid;gap:8px}
@@ -167,8 +171,8 @@ textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.4.1';
-var BUILD_TIME  = '2026-11-12T12:20:00Z';
+var APP_VERSION = 'v2.5.0';
+var BUILD_TIME  = '2026-11-15T16:10:00Z';
 console.log('%c VERIFICHE ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#c4527a;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -218,12 +222,16 @@ const FACCE = { triste: '😞', indifferente: '😐', contenta: '😊' };
 const finalizzata = v => v.voto != null || v.giudizio || v.commento;
 const SPUNTE = [['studiato', 'Studiato'], ['ripetuto', 'Ripetuto'], ['tranquillo', 'Mi sento tranquillo']];
 // Recap: argomenti, pagine, ore e quanti hanno ciascuna spunta.
-function recapHtml(lista, spunte) {
-  if (!lista.length) return '';
+// Gli annullati non contano: si dicono a parte.
+function recapHtml(tutti, spunte) {
+  if (!tutti.length) return '';
+  const lista = tutti.filter(a => !a.annullato), nAnn = tutti.length - lista.length;
+  const coda = nAnn ? `<span>annullati: <b>${nAnn}</b></span>` : '';
+  if (!lista.length) return coda;
   const pag = lista.reduce((t, a) => t + (Number(a.pagine) || 0), 0), ore = lista.reduce((t, a) => t + (Number(a.ore) || 0), 0);
   let h = `<span><b>${lista.length}</b> argoment${lista.length === 1 ? 'o' : 'i'}</span><span><b>${pag}</b> pagine</span><span><b>${num(ore)}</b> ore</span>`;
   if (spunte) h += SPUNTE.map(([k, l]) => `<span>${l}: <b>${lista.filter(a => a[k]).length}/${lista.length}</b></span>`).join('');
-  return h;
+  return h + coda;
 }
 
 function render() {
@@ -263,8 +271,9 @@ document.addEventListener('toggle', e => {
   const d = e.target; if (!d.classList || !d.classList.contains('argbox')) return;
   d.open ? aperti.add(d.dataset.ver) : aperti.delete(d.dataset.ver);
 }, true);
-function barreHtml(lista) {
-  const n = lista.length;
+function barreHtml(tutti) {
+  const lista = tutti.filter(a => !a.annullato), n = lista.length;
+  if (!n) return '';
   return `<div class="barre">${SPUNTE.map(([k, l]) => { const f = lista.filter(a => a[k]).length;
     return `<div class="barra"><span>${l}</span><b>${f}/${n}</b><span class="tr"><i style="width:${n ? f / n * 100 : 0}%"></i></span></div>`; }).join('')}</div>`;
 }
@@ -274,8 +283,8 @@ function argomentiHtml(id) {
     <div class="recap">${recapHtml(lista, false)}</div>${barreHtml(lista)}<span class="apri"></span></summary>
     <div class="args">${lista.map(a => {
     const det = [a.pagine != null ? `${a.pagine} pag.` : '', a.ore != null ? `${num(a.ore)} h` : ''].filter(Boolean).join(' · ');
-    return `<div class="arg" id="arg-${a.id}"><div class="t">${esc(a.titolo)}${det ? ` <small>· ${det}</small>` : ''}</div>
-      <div class="checks">${SPUNTE.map(([k, l]) => `<button type="button" class="chk" data-arg="${a.id}" data-k="${k}" aria-pressed="${a[k] ? 'true' : 'false'}">${a[k] ? '☑' : '☐'} ${l}</button>`).join('')}</div></div>`;
+    return `<div class="arg${a.annullato ? ' ann' : ''}" id="arg-${a.id}"><div class="t">${esc(a.titolo)}${det ? ` <small>· ${det}</small>` : ''}</div>
+      <div class="checks">${SPUNTE.map(([k, l]) => `<button type="button" class="chk" data-arg="${a.id}" data-k="${k}" aria-pressed="${a[k] ? 'true' : 'false'}">${a[k] ? '☑' : '☐'} ${l}</button>`).join('')}<button type="button" class="chk ann" data-arg="${a.id}" data-k="annullato" aria-pressed="${a.annullato ? 'true' : 'false'}">${a.annullato ? '✕' : '☐'} Annullato</button></div></div>`;
   }).join('')}</div></details>`;
 }
 

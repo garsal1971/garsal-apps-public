@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Studio">
-<title>Studio di oggi v1.8.0</title>
+<title>Studio di oggi v1.8.1</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: tutta la finestra è il tempo di studio di oggi. L'area sotto la barra
@@ -99,8 +99,8 @@ h1{font-family:var(--display);font-weight:800;font-size:20px;margin:0;letter-spa
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.8.0';
-var BUILD_TIME  = '2026-11-15T10:10:00Z';
+var APP_VERSION = 'v1.8.1';
+var BUILD_TIME  = '2026-11-15T16:10:00Z';
 console.log('%c STUDIO ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#0891b2;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -158,9 +158,9 @@ async function carica() {
     const [materie, orario, fatti, ver, args, imp, sess, sposta] = await Promise.all([
       SC.db('sc_materie?select=id,nome,minuti'),
       SC.db('sc_orario?select=id,giorno,ora,materia_id,senza_compiti&order=giorno,ora'),
-      SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${iso(piu(t, -60))}`),
+      SC.db(`sc_compiti_fatti?select=giorno,orario_id,stato&giorno=gte.${iso(piu(t, -60))}`),
       SC.db(`sc_verifiche?select=id,data,materia&data=gt.${oggiIso}&order=data,created_at`),
-      SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,posizione&order=posizione'),
+      SC.db('sc_argomenti?select=id,verifica_id,titolo,ore,studiato,annullato,posizione&order=posizione'),
       SC.db('sc_impostazioni?select=*&limit=1'),
       SC.db(`sc_sessioni?select=*&or=(giorno.eq.${oggiIso},fine.is.null)&order=inizio`),
       SC.db('sc_spostamenti?select=*').catch(() => [])

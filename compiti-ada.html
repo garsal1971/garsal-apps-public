@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Compiti di Ada v2.1.1</title>
+<title>Compiti di Ada v2.2.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — piano della settimana, orario, minuti per materia */
@@ -49,7 +49,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .tasks input{accent-color:var(--ok);width:18px;height:18px;flex:none}
 .evid{outline:3px solid var(--accent);outline-offset:3px;border-radius:8px;animation:evid 1.2s ease-in-out 3}
 @keyframes evid{50%{outline-color:transparent}}
-.tasks li.ok .n{text-decoration:line-through;color:var(--muted)}
+.tasks li.ok .n,.tasks li.ann .n{text-decoration:line-through;color:var(--muted)}
+.tasks li.ann .m{text-decoration:line-through}
+/* Spunta a tre stati (v2.2.0): da fare → fatto → annullato → da fare */
+.spunta{font:inherit;flex:none;width:28px;height:28px;border-radius:6px;border:1.5px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer;display:inline-grid;place-items:center;font-size:14px;line-height:1;padding:0}
+.spunta.fatto{background:var(--ok);border-color:var(--ok);color:var(--on-accent)}
+.spunta.annullato{background:var(--muted);border-color:var(--muted);color:var(--on-accent)}
+.tasks .riga{display:flex;align-items:center;gap:8px;padding:3px 0}
 .free{color:var(--muted);font-size:13px}
 .tbl-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;min-width:620px;font-size:13px}
@@ -109,8 +115,8 @@ td.h{color:var(--muted);font-variant-numeric:tabular-nums;width:48px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v2.1.1';
-var BUILD_TIME  = '2026-11-12T12:20:00Z';
+var APP_VERSION = 'v2.2.0';
+var BUILD_TIME  = '2026-11-15T16:10:00Z';
 console.log('%c COMPITI ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#2f5bd3;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -118,7 +124,8 @@ console.log('%c COMPITI ADA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
 const FULL = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 const CORTI = ['Lun','Mar','Mer','Gio','Ven','Sab'];
 const MESI = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
-const S = { materie: [], orario: [], fatti: new Set(), lunedi: null };
+// S.fatti: chiave → 'fatto' | 'annullato' (nessuna voce = da fare).
+const S = { materie: [], orario: [], fatti: new Map(), lunedi: null };
 
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const piu = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -145,8 +152,8 @@ async function carica() {
 }
 async function caricaFatti() {
   const da = iso(piu(S.lunedi, -1)), a = iso(piu(S.lunedi, 5));
-  const righe = await SC.db(`sc_compiti_fatti?select=giorno,orario_id&giorno=gte.${da}&giorno=lte.${a}`);
-  S.fatti = new Set(righe.map(r => chiave(r.giorno, r.orario_id)));
+  const righe = await SC.db(`sc_compiti_fatti?select=giorno,orario_id,stato&giorno=gte.${da}&giorno=lte.${a}`);
+  S.fatti = new Map(righe.map(r => [chiave(r.giorno, r.orario_id), r.stato || 'fatto']));
   render();
   evidenzia();
 }
@@ -182,17 +189,19 @@ function render() {
   document.getElementById('week-label').textContent =
     `Scuola ${S.lunedi.getDate()} ${MESI[S.lunedi.getMonth()]} – ${sabato.getDate()} ${MESI[sabato.getMonth()]}`;
   const totale = pomeriggi.reduce((a, p) => a + tot(p), 0);
-  const fatto = pomeriggi.reduce((a, p) => a + p.items.filter(o => S.fatti.has(chiave(p.giorno, o.id))).reduce((x, o) => x + mat(o.materia_id).minuti, 0), 0);
+  const minDi = st => pomeriggi.reduce((a, p) => a + p.items.filter(o => S.fatti.get(chiave(p.giorno, o.id)) === st).reduce((x, o) => x + mat(o.materia_id).minuti, 0), 0);
+  const fatto = minDi('fatto'), annul = minDi('annullato');
   document.getElementById('wtot').textContent = fmt(totale);
-  document.getElementById('wfatti').textContent = totale ? `fatti ${fmt(fatto)}` : '';
+  document.getElementById('wfatti').textContent = totale ? `fatti ${fmt(fatto)}${annul ? ` · annullati ${fmt(annul)}` : ''}` : '';
   const oggiIso = iso(oggi());
 
   document.getElementById('week').innerHTML = pomeriggi.map(p => {
     const t = tot(p);
     const body = p.items.length ? `<ul class="tasks">${p.items.map(o => {
-      const m = mat(o.materia_id), k = chiave(p.giorno, o.id), ok = S.fatti.has(k);
-      return `<li class="${ok ? 'ok' : ''}"><label><input type="checkbox" id="c-${p.giorno}-${o.id}" data-g="${p.giorno}" data-o="${o.id}" ${ok ? 'checked' : ''}>
-        <span class="dot" style="background:${col(m)}"></span><span class="n">${esc(m.nome)}</span><span class="m">${m.minuti}′</span></label></li>`;
+      const m = mat(o.materia_id), k = chiave(p.giorno, o.id), st = S.fatti.get(k) || '';
+      const titolo = st === 'fatto' ? 'Fatto — tocca per annullarlo' : st === 'annullato' ? 'Annullato — tocca per rimetterlo da fare' : 'Da fare — tocca quando è fatto';
+      return `<li class="${st === 'fatto' ? 'ok' : st === 'annullato' ? 'ann' : ''}"><div class="riga"><button type="button" class="spunta ${st}" id="c-${p.giorno}-${o.id}" data-g="${p.giorno}" data-o="${o.id}" title="${titolo}" aria-label="${esc(m.nome)}: ${titolo}">${st === 'fatto' ? '✓' : st === 'annullato' ? '✕' : ''}</button>
+        <span class="dot" style="background:${col(m)}"></span><span class="n">${esc(m.nome)}</span><span class="m">${m.minuti}′</span></div></li>`;
     }).join('')}</ul>` : `<div class="free">Pomeriggio libero</div>`;
     return `<div class="day${p.giorno === oggiIso ? ' today' : ''}">
       <div class="day-h"><b>${FULL[p.d.getDay()]} ${p.d.getDate()}</b><span class="tot">${t ? fmt(t) : '—'}</span></div>
@@ -244,21 +253,24 @@ document.addEventListener('click', async e => {
     catch (err) { o.senza_compiti = !o.senza_compiti; render(); toast('Non salvato: ' + err.message); }
   } else if (b.dataset.m) {
     const m = mat(b.dataset.m); salvaMinuti(m, m.minuti + Number(b.dataset.d));
-  }
+  } else if (b.dataset.g) giraSpunta(b.dataset.g, b.dataset.o);
 });
+
+// Tre stati: da fare (nessuna riga) → fatto → annullato → da fare.
+// Scritto in upsert, così uno stato messo da un altro telefono non è un errore.
+async function giraSpunta(g, oid) {
+  const k = chiave(g, oid), prima = S.fatti.get(k) || '';
+  const dopo = prima === '' ? 'fatto' : prima === 'fatto' ? 'annullato' : '';
+  dopo ? S.fatti.set(k, dopo) : S.fatti.delete(k); render();
+  try {
+    if (dopo) await SC.db('sc_compiti_fatti?on_conflict=user_id,giorno,orario_id', { method: 'POST',
+      body: { giorno: g, orario_id: oid, stato: dopo }, prefer: 'resolution=merge-duplicates,return=minimal' });
+    else await SC.db(`sc_compiti_fatti?giorno=eq.${g}&orario_id=eq.${oid}`, { method: 'DELETE', prefer: 'return=minimal' });
+  } catch (err) { prima ? S.fatti.set(k, prima) : S.fatti.delete(k); render(); toast('Spunta non salvata: ' + err.message); }
+}
 document.addEventListener('change', async e => {
   const t = e.target;
   if (t.dataset.in) { const v = parseInt(t.value, 10); salvaMinuti(mat(t.dataset.in), isNaN(v) ? 0 : v); return; }
-  if (t.dataset.g) {
-    const k = chiave(t.dataset.g, t.dataset.o), fatto = t.checked;
-    fatto ? S.fatti.add(k) : S.fatti.delete(k); render();
-    try {
-      // Una spunta già messa da un altro telefono non è un errore.
-      if (fatto) await SC.db('sc_compiti_fatti', { method: 'POST', body: { giorno: t.dataset.g, orario_id: t.dataset.o }, prefer: 'return=minimal' })
-        .catch(err => { if (!/duplicate|unique/i.test(err.message)) throw err; });
-      else await SC.db(`sc_compiti_fatti?giorno=eq.${t.dataset.g}&orario_id=eq.${t.dataset.o}`, { method: 'DELETE', prefer: 'return=minimal' });
-    } catch (err) { fatto ? S.fatti.delete(k) : S.fatti.add(k); render(); toast('Spunta non salvata: ' + err.message); }
-  }
 });
 
 if (!S.lunedi) S.lunedi = lunediCorrente();
