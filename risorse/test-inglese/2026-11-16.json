@@ -1,0 +1,42 @@
+{
+  "id": "2026-11-16",
+  "livello": "B1",
+  "grammatica": [
+    { "q": "If it rains tomorrow, we ___ the barbecue indoors.", "opts": ["would have", "had have", "will have", "are have"], "ok": 2 },
+    { "q": "I ___ to London three times, but I've never seen Big Ben.", "opts": ["have been", "had gone", "was going", "am going"], "ok": 0 },
+    { "q": "He said that he ___ the email the day before.", "opts": ["has sent", "had sent", "is sending", "will send"], "ok": 1 },
+    { "q": "There aren't ___ eggs left, so I need to buy some.", "opts": ["much", "no", "any", "some"], "ok": 2 },
+    { "q": "The match went ahead ___ the heavy rain.", "opts": ["although", "because", "unless", "despite"], "ok": 3 },
+    { "q": "I'm looking forward to ___ you next week.", "opts": ["see", "seeing", "saw", "seen"], "ok": 1 },
+    { "q": "The man ___ car was stolen called the police.", "opts": ["who", "which", "whose", "whom"], "ok": 2 },
+    { "q": "You ___ have told me! I would have helped you.", "opts": ["should", "must", "can", "will"], "ok": 0 },
+    { "q": "This bridge ___ in 1890.", "opts": ["were built", "was built", "has built", "is building"], "ok": 1 },
+    { "q": "It's getting late; we'd better ___ now.", "opts": ["leaving", "left", "leaves", "leave"], "ok": 3 }
+  ],
+  "lettura": {
+    "titolo": "Five Minutes at the Bus Stop",
+    "testo": "When Anna, an accountant from Turin, moved to Manchester, she felt confident about her English. She was good with numbers, wrote clear reports and had no problems in meetings. But small talk scared her. When strangers at the bus stop said something about the weather, she answered with one word and looked at her phone.\n\nHer daughter, who had grown up partly in England, gave her a challenge: every day, have one short conversation with someone she didn't know. \"Five minutes,\" she said. \"That's all.\"\n\nThe first week was difficult. Anna prepared sentences at home, but real conversations never followed her script. A woman at the bakery talked about her dog; an old man on the bus complained about football. Slowly Anna discovered that people didn't expect perfect answers. They wanted her to listen, react and ask something back. One morning a young man asked her where she was from, and they talked about Italian food until his bus arrived.\n\nShe started keeping a small notebook. Every evening she wrote down new expressions she had heard, like \"It's a bit nippy today\" or \"Fair enough\". At weekends she read them aloud and tried to use two or three of them during the following week.\n\nSix months later, Anna still prefers numbers to small talk. But last month, when a new colleague from Spain looked lost in the office kitchen, Anna was the first person to start a conversation with her. \"I remembered exactly how it felt,\" she says.",
+    "domande": [
+      { "q": "Why did Anna avoid talking to strangers at first?", "opts": ["She didn't like the people in Manchester.", "Small talk made her feel nervous.", "She was always too busy with work.", "Her phone was more interesting to her."], "ok": 1 },
+      { "q": "What was her daughter's challenge?", "opts": ["To take an evening English course.", "To speak only English at home.", "To talk to a stranger every day.", "To write a report in English."], "ok": 2 },
+      { "q": "What did Anna discover in the first week?", "opts": ["Listening and asking back mattered more than perfect answers.", "Preparing sentences at home worked very well.", "People expected her grammar to be perfect.", "Football was the only topic people talked about."], "ok": 0 },
+      { "q": "How did Anna use her notebook?", "opts": ["She wrote her daily reports in it.", "She used it to plan her bus journeys.", "She copied grammar rules into it.", "She noted new expressions and practised them."], "ok": 3 },
+      { "q": "Why did Anna help her Spanish colleague?", "opts": ["Her manager asked her to do it.", "She remembered feeling the same way.", "She wanted to practise her Spanish.", "She was working in the office kitchen."], "ok": 1 }
+    ]
+  },
+  "ascolto": {
+    "intro": "You will hear a phone message from a language school.",
+    "testo": "Hello, this is Mark from Riverside Language School, calling for Mr Garofalo. I'm ringing about the speaking course you signed up for. Unfortunately, our teacher, Helen, is ill this week, so the first lesson on Monday is cancelled. We're starting on Wednesday instead, at the same time, six fifteen. The lessons will be in room twelve on the second floor, not room four as we said in the email, because the group is bigger than we expected. There are fourteen students now. Please bring a photo ID on the first day, as you'll need it to get your student card. The course book costs eighteen pounds, but you don't need to buy it before the first lesson. Helen will tell you which one to get. If Wednesday isn't possible for you, just send us an email and we'll move you to the Saturday morning group. Thanks very much, and see you soon. Bye!",
+    "domande": [
+      { "q": "Why is Monday's lesson cancelled?", "opts": ["The room is not ready.", "The teacher is ill.", "There are too many students.", "The school is closed."], "ok": 1 },
+      { "q": "When does the course start now?", "opts": ["Monday at 6.15.", "Wednesday at 6.50.", "Saturday morning.", "Wednesday at 6.15."], "ok": 3 },
+      { "q": "Where will the lessons take place?", "opts": ["Room twelve, second floor.", "Room four, second floor.", "Room twelve, first floor.", "Room four, ground floor."], "ok": 0 },
+      { "q": "What must students bring on the first day?", "opts": ["The course book.", "Eighteen pounds.", "A photo ID.", "A copy of the email."], "ok": 2 },
+      { "q": "What should he do if Wednesday is not possible?", "opts": ["Phone Mark.", "Send an email.", "Talk to Helen.", "Come on Monday."], "ok": 1 }
+    ]
+  },
+  "scrittura": {
+    "consegna": "Last weekend you met a new neighbour from England. Write a message to an English-speaking friend about it (120–150 words).",
+    "punti": ["where and how you met", "what you talked about", "one thing you found difficult to understand or say", "what you plan to do together next time"]
+  }
+}
