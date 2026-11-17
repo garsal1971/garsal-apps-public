@@ -2340,7 +2340,7 @@ a pezzo e una al kg/l (solo se la misura è nota). Toccandola il centro diventa 
 dal prezzo Amazon (−50 %…+50 %, passo 1 centesimo); al rilascio compare il riquadro con prezzo,
 negozio facoltativo e 💾 Salva, e parte il GPS. La riga va in **`amz_prezzi_negozio`**
 (`20261017120000_amz_prezzi_negozio.sql`: `unita` `pezzo`|`kg_l`, `prezzo`, `negozio`, `lat`/`lon`/
-`precisione_m` — NULL = posizione non avuta, il prezzo si salva lo stesso). 📍 **Rilevazioni (N)** sotto le barre (v1.9.0) elenca i prezzi visti di quell'abbonamento, dal più recente (data e ora, prezzo, unità, negozio, link alla mappa), e li cancella col 🗑: la percentuale della barra torna sulla rilevazione precedente. Accanto alla barra
+`precisione_m` — NULL = posizione non avuta, il prezzo si salva lo stesso). 🧻 **Unità `strappi`** (v1.10.0, `20261117160000_amz_unita_strappi.sql`): `amz_abbonamenti.unita` ammette anche `'strappi'` (12 rotoli × 150 strappi), e il secondo prezzo è **ogni 100 strappi** (prezzo / (pezzi × misura / 100), tre decimali) nella stessa chiave `prezzo_kg` e nella stessa barra `kg_l` del negozio; l'etichetta la dà `etichettaKg()`. `amz_task_registra` non la conosce: si sceglie dal form. 📍 **Rilevazioni (N)** sotto le barre (v1.9.0) elenca i prezzi visti di quell'abbonamento, dal più recente (data e ora, prezzo, unità, negozio, link alla mappa), e li cancella col 🗑: la percentuale della barra torna sulla rilevazione precedente. Accanto alla barra
 «Amazon ±N%» = (Amazon − ultimo prezzo visto) / prezzo visto. ⚠️ Si salva col pulsante e non al
 rilascio: un tocco per sbaglio non deve lasciare un prezzo falso. La gestione di prima (schede,
 form, chiavi) sta dietro il FAB 📦.
