@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.5.0</title>
+    <title>Scorte Amazon v1.6.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -91,6 +91,7 @@
         .storico { margin-top: 0.6rem; font-size: 1rem; }
         .storico-riga { display: flex; gap: 0.6rem; border-bottom: 1px solid var(--border); padding: 0.25rem 0; flex-wrap: wrap; }
         .consegne { margin-top: 0.6rem; }
+        .tipo-st { font-size: 0.8rem; font-weight: 700; border-radius: 4px; padding: 0 0.35rem; background: var(--input-bg, #f3f4f6); border: 1px solid var(--border); }
         .consegne summary { cursor: pointer; font-weight: 600; padding: 0.2rem 0; }
         .consegne .storico-riga .x { font-size: 0.8rem; border: 1px solid var(--border); border-radius: 4px; padding: 0 0.3rem; }
         .storico-riga .g { font-family: 'Space Mono', monospace; font-size: 0.85rem; min-width: 6rem; }
@@ -271,6 +272,19 @@
     </div>
 </div>
 
+<!-- Storico completo di un abbonamento -->
+<div class="modal" id="modalStorico">
+    <div class="modal-box">
+        <div class="modal-title">📜 Storico</div>
+        <div class="muted" id="stTitolo"></div>
+        <div class="form-hint">Tutte le righe: promemoria, spedizioni, consegne, modifiche, extra. Il prezzo a confezione della scheda è quello della riga più recente che ha un prezzo (extra esclusi).</div>
+        <div id="stElenco" style="margin-top:0.5rem"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalStorico')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
 <!-- Chiavi dell'attività programmata -->
 <div class="modal" id="modalChiavi">
     <div class="modal-box">
@@ -291,8 +305,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.5.0';
-var BUILD_TIME  = '2026-11-17T11:00:00Z';
+var APP_VERSION = 'v1.6.0';
+var BUILD_TIME  = '2026-11-17T11:30:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -645,31 +659,69 @@ async function salvaConsegna() {
 // ma solo se l'ultimo conteggio è quello di quel giorno (cioè l'ha fatto lui):
 // altrimenti il conteggio è venuto dopo e già tiene conto di com'era la dispensa.
 async function cancellaConsegna(abbId, cId) {
-    const r = S.righe.find(x => x.id === abbId);
     const c = ((S.consegne || {})[abbId] || []).find(x => x.id === cId);
-    if (!r || !c) return;
+    if (await cancellaRiga(abbId, c)) carica();
+}
+const TIPI_ST = { iniziale: '🆕 iniziale', nuovo: '🆕 nuovo', promemoria: '🔔 promemoria', spedito: '🚚 spedito',
+    consegnato: '📦 consegnato', modificato: '✏️ modificato', saltato: '⏭ saltato', annullato: '✖ annullato', manuale: '✋ manuale' };
+// Cancella UNA riga di amz_consegne, di qualunque tipo. Torna true se l'ha cancellata.
+async function cancellaRiga(abbId, c) {
+    const r = S.righe.find(x => x.id === abbId);
+    if (!r || !c) return false;
+    const cId = c.id;
     const togli = c.extra && r.scorta_contata != null && r.scorta_contata_il === c.giorno && c.quantita;
-    let msg = `Cancellare la consegna del ${fmtData(c.giorno)}${c.extra ? ' (extra)' : ''}?`;
+    let msg = c.tipo === 'consegnato' || c.extra
+        ? `Cancellare la consegna del ${fmtData(c.giorno)}${c.extra ? ' (extra)' : ''}?`
+        : `Cancellare la riga «${c.tipo}» del ${fmtData(c.giorno)}?`;
+    if (c.prezzo != null && !c.extra && r.prezzo_del === c.giorno && Number(r.prezzo) === Number(c.prezzo))
+        msg += '\n\nÈ il prezzo attuale dell\'abbonamento: torna a valere quello della riga precedente.';
     if (c.extra) msg += togli
         ? `\n\nDalla scorta contata si tolgono ${c.quantita} ${c.quantita === 1 ? 'confezione' : 'confezioni'}.`
         : '\n\nLa scorta non cambia: il conteggio attuale è di un altro giorno. Se serve, correggila dal ✏️.';
     if (c.mail_id) msg += '\n\nVeniva da una mail: alla prossima lettura delle mail potrebbe tornare.';
-    if (!confirm(msg)) return;
+    if (!confirm(msg)) return false;
     const del = await sb.from('amz_consegne').delete().eq('id', cId);
-    if (del.error) { if (!handleAuthError(del.error)) showToast('❌ ' + del.error.message, 5000); return; }
+    if (del.error) { if (!handleAuthError(del.error)) showToast('❌ ' + del.error.message, 5000); return false; }
     if (togli) {
         const nuova = Math.max(0, Math.round((Number(r.scorta_contata) - c.quantita) * 100) / 100);
         const up = await sb.from('amz_abbonamenti').update({ scorta_contata: nuova, updated_at: new Date().toISOString() }).eq('id', abbId);
         if (up.error) showToast('⚠️ Consegna cancellata, ma la scorta non si è aggiornata: ' + up.error.message, 6000);
     }
-    showToast('Consegna cancellata');
-    carica();
+    showToast('Riga cancellata');
+    return true;
+}
+
+async function apriStorico(id) {
+    const r = S.righe.find(x => x.id === id);
+    if (!r) return;
+    S.storicoId = id;
+    $('stTitolo').textContent = r.titolo;
+    $('stElenco').innerHTML = '<div class="muted">Carico…</div>';
+    openModal('modalStorico');
+    const { data, error } = await sb.from('amz_consegne').select('id, giorno, tipo, prezzo, quantita, nota, mail_id')
+        .eq('abbonamento_id', id).order('giorno', { ascending: false }).order('created_at', { ascending: false }).limit(300);
+    if (S.storicoId !== id) return;
+    if (error) { if (!handleAuthError(error)) $('stElenco').innerHTML = `<div class="form-error">❌ ${esc(error.message)}</div>`; return; }
+    S.storico = (data || []).map(c => ({ ...c, extra: c.tipo === 'manuale' && /^extra/i.test(c.nota || '') }));
+    $('stElenco').innerHTML = S.storico.length
+        ? S.storico.map(c => `<div class="storico-riga"><button class="icon-btn" title="Cancella" onclick="cancellaDaStorico('${c.id}')">🗑</button>`
+            + `<span class="g">${fmtData(c.giorno)}</span><span class="tipo-st">${c.extra ? '📦 extra' : esc(TIPI_ST[c.tipo] || c.tipo)}</span>`
+            + (c.quantita != null ? `<span>${c.quantita} conf.</span>` : '')
+            + (c.prezzo != null ? `<b>${euro(c.prezzo)}</b>` : '')
+            + (c.nota && !c.extra ? `<span class="muted">${esc(c.nota)}</span>` : '')
+            + '</div>').join('')
+        : '<div class="muted">Nessuna riga.</div>';
+}
+async function cancellaDaStorico(cId) {
+    const id = S.storicoId;
+    const c = (S.storico || []).find(x => x.id === cId);
+    if (await cancellaRiga(id, c)) { await carica(); apriStorico(id); }
 }
 
 // Elenco chiuso di default: si apre col tocco, la scheda resta corta.
 function consegneRicevute(r) {
     const el = (S.consegne || {})[r.id] || [];
-    const agg = `<div style="margin-top:0.4rem"><button class="btn" onclick="apriConsegna('${r.id}')">＋ Aggiungi consegna</button></div>`;
+    const agg = `<div style="margin-top:0.4rem;display:flex;gap:0.5rem;flex-wrap:wrap"><button class="btn" onclick="apriConsegna('${r.id}')">＋ Aggiungi consegna</button><button class="btn" onclick="apriStorico('${r.id}')">📜 Storico</button></div>`;
     if (!el.length) return `<div class="consegne"><div class="muted" style="font-size:0.95rem">📦 Nessuna consegna ricevuta registrata.</div>${agg}</div>`;
     return `<details class="consegne"${S.aperte && S.aperte.has(r.id) ? ' open' : ''} ontoggle="ricordaAperta('${r.id}', this.open)"><summary>📦 Consegne ricevute · ${el.length}</summary>${agg}
         ${el.map(c => `<div class="storico-riga"><button class="icon-btn" title="Prezzo" onclick="modificaConsegna('${r.id}', '${c.id}')">✏️</button><button class="icon-btn" title="Cancella" onclick="cancellaConsegna('${r.id}', '${c.id}')">🗑</button><span class="g">${fmtData(c.giorno)}</span>`
