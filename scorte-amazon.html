@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.9.0</title>
+    <title>Scorte Amazon v1.10.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -168,7 +168,7 @@
 
 <div class="wrap" id="vistaPrezzi" style="padding-bottom:6rem">
     <div class="page-title">🏷️ Prezzi Amazon</div>
-    <div class="page-hint">Il prezzo Amazon per pezzo e al kg/l. Al supermercato tocca una barra, sposta il cursore sul prezzo che vedi e salvalo: la percentuale dice quanto Amazon conviene.</div>
+    <div class="page-hint">Il prezzo Amazon per pezzo e al kg/l (ogni 100 strappi per la carta igienica). Al supermercato tocca una barra, sposta il cursore sul prezzo che vedi e salvalo: la percentuale dice quanto Amazon conviene.</div>
     <div id="elencoPrezzi"></div>
 </div>
 
@@ -205,10 +205,10 @@
         <div class="form-label">Formato di UNA confezione</div>
         <div class="row">
             <div class="grow"><input id="fPezzi" class="form-input" type="number" min="0.01" step="any" placeholder="Pezzi" title="Pezzi per confezione"></div>
-            <div class="grow"><input id="fMisura" class="form-input" type="number" min="0.01" step="any" placeholder="Misura per pezzo" title="Grammi o ml di ciascun pezzo"></div>
-            <div class="grow"><select id="fUnita" class="form-input"><option value="ml">ml</option><option value="g">g</option><option value="pz">solo pezzi</option></select></div>
+            <div class="grow"><input id="fMisura" class="form-input" type="number" min="0.01" step="any" placeholder="Misura per pezzo" title="Grammi, ml o strappi di ciascun pezzo"></div>
+            <div class="grow"><select id="fUnita" class="form-input"><option value="ml">ml</option><option value="g">g</option><option value="strappi">strappi</option><option value="pz">solo pezzi</option></select></div>
         </div>
-        <div class="form-hint">Es. «5 × 650 ml» → 5 · 650 · ml. Carta igienica 40 rotoli → 40 · vuoto · solo pezzi.</div>
+        <div class="form-hint">Es. «5 × 650 ml» → 5 · 650 · ml. Carta igienica 12 rotoli da 150 strappi → 12 · 150 · strappi (prezzo ogni 100 strappi).</div>
 
         <label class="form-label">Consegna</label>
         <div class="row">
@@ -319,8 +319,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.9.0';
-var BUILD_TIME  = '2026-11-17T14:00:00Z';
+var APP_VERSION = 'v1.10.0';
+var BUILD_TIME  = '2026-11-17T16:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -448,8 +448,8 @@ function frequenza(r) {
     const u = r.freq_unita === 'settimane' ? (r.freq_valore === 1 ? 'settimana' : 'settimane') : (r.freq_valore === 1 ? 'mese' : 'mesi');
     return `${r.quantita} ${r.quantita === 1 ? 'confezione' : 'confezioni'} ogni ${r.freq_valore === 1 ? '' : r.freq_valore + ' '}${u}`;
 }
-// L'etichetta del prezzo al kg/l segue l'unità di misura.
-function etichettaKg(r) { return r.unita === 'ml' ? 'al litro' : 'al kg'; }
+// L'etichetta del secondo prezzo segue l'unità di misura: al litro, al kg, ogni 100 strappi.
+function etichettaKg(r) { return r.unita === 'ml' ? 'al litro' : r.unita === 'strappi' ? 'ogni 100 strappi' : 'al kg'; }
 
 // I testi degli avvisi: i codici li dà amz__situazione() nel database.
 // ⚠️ Gemella di recapAmazon() in index.html: cambiando un testo, cambialo anche là.
