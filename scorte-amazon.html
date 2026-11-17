@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.4.0</title>
+    <title>Scorte Amazon v1.5.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -245,8 +245,9 @@
 <!-- Consegna inserita a mano -->
 <div class="modal" id="modalConsegna">
     <div class="modal-box">
-        <div class="modal-title">📦 Consegna ricevuta</div>
+        <div class="modal-title" id="cIntesta">📦 Consegna ricevuta</div>
         <div class="muted" id="cTitolo"></div>
+        <div id="cNuova">
         <label class="form-label" for="cTipo">Che consegna è</label>
         <select id="cTipo" class="form-input" onchange="spiegaConsegna()">
             <option value="abbonamento">Consegna dell'abbonamento</option>
@@ -257,6 +258,11 @@
         <input id="cGiorno" class="form-input" type="date">
         <label class="form-label" for="cQuantita">Confezioni</label>
         <input id="cQuantita" class="form-input" type="number" min="1" step="1">
+        </div>
+        <div id="cDiChe" class="form-hint"></div>
+        <label class="form-label" for="cPrezzo">Prezzo per confezione (€) <span class="muted" style="font-weight:500">(facoltativo)</span></label>
+        <input id="cPrezzo" class="form-input" type="number" min="0" step="0.01" placeholder="vuoto = non noto">
+        <div class="form-hint" id="cPrezzoSpiega"></div>
         <div id="cErr" class="form-error"></div>
         <div class="modal-btns">
             <button class="btn" onclick="closeModal('modalConsegna')">Annulla</button>
@@ -285,8 +291,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.4.0';
-var BUILD_TIME  = '2026-11-17T10:30:00Z';
+var APP_VERSION = 'v1.5.0';
+var BUILD_TIME  = '2026-11-17T11:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -538,11 +544,17 @@ function ricordaAperta(id, aperta) {
 // dell'abbonamento, non dalle righe. «Extra» fa quel che fa amz_task_registra con un
 // evento 'extra' — stessa regola, da tenere allineata a lei: se la data non è prima
 // dell'ultimo conteggio, scorta_contata = scorta stimata quel giorno + confezioni.
-// Nessun prezzo, di proposito: cambierebbe l'«ultimo prezzo» dell'abbonamento.
+// Il prezzo è facoltativo; su un extra non conta come ultimo prezzo
+// (20261117100000_amz_prezzo_extra_non_conta.sql).
 function apriConsegna(id) {
     const r = S.righe.find(x => x.id === id);
     if (!r) return;
     S.consegnaId = id;
+    S.consegnaModifica = null;
+    $('cIntesta').textContent = '📦 Consegna ricevuta';
+    $('cNuova').style.display = '';
+    $('cDiChe').textContent = '';
+    $('cPrezzo').value = '';
     $('cTitolo').textContent = r.titolo;
     $('cTipo').value = 'abbonamento';
     $('cGiorno').value = oggiIso();
@@ -552,13 +564,50 @@ function apriConsegna(id) {
     spiegaConsegna();
     openModal('modalConsegna');
 }
+// Il prezzo di una consegna già registrata: si scrive o si corregge solo quello.
+// Data e confezioni no — su un extra hanno già spostato la scorta.
+function modificaConsegna(abbId, cId) {
+    const r = S.righe.find(x => x.id === abbId);
+    const c = ((S.consegne || {})[abbId] || []).find(x => x.id === cId);
+    if (!r || !c) return;
+    S.consegnaId = abbId;
+    S.consegnaModifica = c;
+    $('cIntesta').textContent = '✏️ Prezzo della consegna';
+    $('cTitolo').textContent = r.titolo;
+    $('cNuova').style.display = 'none';
+    $('cDiChe').textContent = `Consegna del ${fmtData(c.giorno)}${c.extra ? ' · extra' : ''}${c.quantita != null ? ' · ' + c.quantita + (c.quantita === 1 ? ' confezione' : ' confezioni') : ''}`;
+    $('cPrezzo').value = c.prezzo ?? '';
+    $('cErr').textContent = '';
+    spiegaPrezzo(c.extra);
+    openModal('modalConsegna');
+}
+function spiegaPrezzo(extra) {
+    $('cPrezzoSpiega').textContent = extra
+        ? 'Su un ordine extra il prezzo si mostra ma non cambia l\'ultimo prezzo dell\'abbonamento.'
+        : 'Se è il più recente, diventa l\'ultimo prezzo dell\'abbonamento (prezzi, spesa al mese, avvisi).';
+}
 function spiegaConsegna() {
+    spiegaPrezzo($('cTipo').value === 'extra');
     $('cSpiega').textContent = $('cTipo').value === 'extra'
         ? 'Aggiorna la scorta: diventa la scorta stimata di quel giorno più queste confezioni. La prossima consegna non cambia.'
         : 'Entra nell\'elenco delle consegne ricevute. La prossima consegna non si sposta: per quello c\'è «È arrivata».';
 }
 async function salvaConsegna() {
     const id = S.consegnaId, r = S.righe.find(x => x.id === id);
+    const pTxt = String($('cPrezzo').value).trim().replace(',', '.');
+    const prezzo = pTxt === '' ? null : Number(pTxt);
+    if (prezzo != null && !(prezzo >= 0)) { $('cErr').textContent = 'Il prezzo deve essere un numero, zero o più.'; return; }
+    if (S.consegnaModifica) {
+        $('cSalva').disabled = true;
+        const up = await sb.from('amz_consegne').update({ prezzo }).eq('id', S.consegnaModifica.id);
+        $('cSalva').disabled = false;
+        if (up.error) { if (!handleAuthError(up.error)) $('cErr').textContent = '❌ ' + up.error.message; return; }
+        closeModal('modalConsegna');
+        (S.aperte ||= new Set()).add(id);
+        showToast('Prezzo salvato');
+        carica();
+        return;
+    }
     const giorno = $('cGiorno').value, q = parseInt($('cQuantita').value, 10);
     const extra = $('cTipo').value === 'extra';
     if (!r) return;
@@ -576,7 +625,7 @@ async function salvaConsegna() {
             if (up.error) throw up.error;
         }
         const ins = await sb.from('amz_consegne').insert({
-            abbonamento_id: id, giorno, quantita: q,
+            abbonamento_id: id, giorno, quantita: q, prezzo,
             tipo: extra ? 'manuale' : 'consegnato',
             nota: extra ? 'extra: inserito a mano' : 'inserita a mano'
         });
@@ -623,10 +672,10 @@ function consegneRicevute(r) {
     const agg = `<div style="margin-top:0.4rem"><button class="btn" onclick="apriConsegna('${r.id}')">＋ Aggiungi consegna</button></div>`;
     if (!el.length) return `<div class="consegne"><div class="muted" style="font-size:0.95rem">📦 Nessuna consegna ricevuta registrata.</div>${agg}</div>`;
     return `<details class="consegne"${S.aperte && S.aperte.has(r.id) ? ' open' : ''} ontoggle="ricordaAperta('${r.id}', this.open)"><summary>📦 Consegne ricevute · ${el.length}</summary>${agg}
-        ${el.map(c => `<div class="storico-riga"><button class="icon-btn" title="Cancella" onclick="cancellaConsegna('${r.id}', '${c.id}')">🗑</button><span class="g">${fmtData(c.giorno)}</span>`
+        ${el.map(c => `<div class="storico-riga"><button class="icon-btn" title="Prezzo" onclick="modificaConsegna('${r.id}', '${c.id}')">✏️</button><button class="icon-btn" title="Cancella" onclick="cancellaConsegna('${r.id}', '${c.id}')">🗑</button><span class="g">${fmtData(c.giorno)}</span>`
             + `<span>${c.quantita != null ? c.quantita + (c.quantita === 1 ? ' confezione' : ' confezioni') : ''}</span>`
             + (c.extra ? '<span class="x">extra</span>' : '')
-            + (c.prezzo != null ? `<b>${euro(c.prezzo)}</b>` : '')
+            + (c.prezzo != null ? `<b${c.extra ? ' title="Prezzo di un extra: non cambia l\'ultimo prezzo"' : ''}>${euro(c.prezzo)}</b>` : '<span class="muted">prezzo —</span>')
             + (c.nota && !c.extra ? `<span class="muted">${esc(c.nota)}</span>` : '')
             + '</div>').join('')}
     </details>`;
