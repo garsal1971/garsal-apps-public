@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.10.0</title>
+    <title>Scorte Amazon v1.11.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -52,6 +52,10 @@
         .avviso.rosso { border-color: var(--danger); background: #FDECEA; }
         .avviso.verde { border-color: var(--success); background: #E6F8F3; }
         .avviso.blu { border-color: #2563EB; background: #EEF4FF; }
+        .avviso.chiudibile { display: flex; align-items: flex-start; gap: 0.5rem; }
+        .avviso.chiudibile > div { flex: 1; min-width: 0; }
+        .chiudi-avviso { flex-shrink: 0; min-width: 2.2rem; min-height: 2.2rem; border: 1.5px solid currentColor; background: #fff; font-weight: 700; cursor: pointer; }
+        .badge .chiudi-avviso { min-width: 0; min-height: 0; border: none; background: none; padding: 0 0 0 0.3rem; font-size: 1em; color: inherit; }
 
         .card { border: 2px solid var(--border); background: var(--card-bg); padding: 0.9rem; margin-bottom: 0.9rem; }
         .card.spento { opacity: 0.55; }
@@ -319,8 +323,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.10.0';
-var BUILD_TIME  = '2026-11-17T16:00:00Z';
+var APP_VERSION = 'v1.11.0';
+var BUILD_TIME  = '2026-11-17T17:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -471,6 +475,21 @@ const AVVISI_IN_CIMA = ['consegna_passata', 'finisce_prima', 'prezzo_su', 'prezz
 // ════════════════════════════════════════════════════════════
 // CARICAMENTO E DISEGNO
 // ════════════════════════════════════════════════════════════
+// ✕ sugli avvisi di prezzo: si scrive la coppia «prima>ora» che la funzione del database
+// restituisce in chiave_prezzo; l'avviso torna da sé quando il prezzo cambia di nuovo.
+const PREZZO_CHIUDIBILE = ['prezzo_su', 'prezzo_giu'];
+function btnChiudi(r) {
+    return r.chiave_prezzo
+        ? `<button class="chiudi-avviso" onclick="chiudiAvvisoPrezzo('${r.id}')" title="Togli l'avviso finché il prezzo non cambia di nuovo" aria-label="Togli l'avviso">✕</button>` : '';
+}
+async function chiudiAvvisoPrezzo(id) {
+    const r = S.righe.find(x => x.id === id);
+    if (!r || !r.chiave_prezzo) return;
+    const { error } = await sb.from('amz_abbonamenti').update({ avviso_prezzo_chiuso: r.chiave_prezzo }).eq('id', id);
+    if (error) { alert('Errore: ' + (error.message || 'avviso non tolto')); return; }
+    await carica();
+}
+
 async function carica() {
     const { data, error } = await sb.rpc('amz_situazione', { p_oggi: oggiIso() });
     if (error) {
@@ -512,7 +531,9 @@ function disegna() {
     for (const r of attivi) for (const c of r.avvisi || []) if (AVVISI_IN_CIMA.includes(c)) avv.push({ r, c });
     avv.sort((a, b) => AVVISI_IN_CIMA.indexOf(a.c) - AVVISI_IN_CIMA.indexOf(b.c));
     document.getElementById('avvisi').innerHTML = avv.length
-        ? avv.map(({ r, c }) => `<div class="avviso ${AVVISI[c].c === 'giallo' ? '' : AVVISI[c].c}"><b>${esc(r.titolo)}</b><br>${esc(AVVISI[c].t(r))}</div>`).join('')
+        ? avv.map(({ r, c }) => PREZZO_CHIUDIBILE.includes(c)
+            ? `<div class="avviso chiudibile ${AVVISI[c].c}"><div><b>${esc(r.titolo)}</b><br>${esc(AVVISI[c].t(r))}</div>${btnChiudi(r)}</div>`
+            : `<div class="avviso ${AVVISI[c].c === 'giallo' ? '' : AVVISI[c].c}"><b>${esc(r.titolo)}</b><br>${esc(AVVISI[c].t(r))}</div>`).join('')
         : '<div class="muted">Nessun avviso.</div>';
 
     document.getElementById('elenco').innerHTML = attivi.length
@@ -545,7 +566,7 @@ function scheda(r) {
     }
     // «senza prezzo» lo dice già la riga dei prezzi: un badge ripeterebbe la stessa frase.
     const badges = (r.avvisi || []).filter(c => c !== 'senza_prezzo').map(c => AVVISI[c]
-        ? `<span class="badge b-${AVVISI[c].c}">${esc(AVVISI[c].t(r))}</span>` : '').join('');
+        ? `<span class="badge b-${AVVISI[c].c}">${esc(AVVISI[c].t(r))}${PREZZO_CHIUDIBILE.includes(c) ? btnChiudi(r) : ''}</span>` : '').join('');
     const consegna = r.prossima_consegna ? ` · prossima <b>${fmtData(r.prossima_consegna)}</b> (${fmtFra(r.prossima_consegna)})` : '';
     const arrivata = r.attivo && (r.avvisi || []).includes('consegna_passata')
         ? `<div style="margin-top:0.5rem"><button class="btn" onclick="segnaArrivata('${r.id}')">📦 È arrivata: sposta alla prossima</button></div>` : '';

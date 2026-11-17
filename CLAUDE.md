@@ -2325,6 +2325,8 @@ la scorta contata** — da lì si sommano le consegne arrivate e si toglie il co
 p_eventi)`, che riconosce l'articolo per ASIN, titolo identico o un inizio di titolo che aggancia un
 abbonamento solo; quello che non riconosce nasce `da_verificare`. Prezzo NULL = non ancora noto, non zero.
 
+✕ **Gli avvisi di prezzo si chiudono** (v1.11.0, `20261117180000_amz_avviso_prezzo_chiuso.sql`): la ✕ su «Prezzo salito/sceso» (in Avvisi e sul badge) scrive in `amz_abbonamenti.avviso_prezzo_chiuso` la `chiave_prezzo` restituita da `amz__situazione` («prima>ora»); finché la coppia è quella, `prezzo_su`/`prezzo_giu` non escono — anche nei recap web e nativo. Cambiato il prezzo, l'avviso torna.
+
 📦 **Gli ordini FUORI abbonamento** (`20261023160000_amz_ordini_extra.sql`): un evento `tipo: 'extra'`
 (giorno = data di **consegna**, `quantita` = confezioni arrivate) fissa un nuovo conteggio,
 `scorta_contata` = scorta stimata quel giorno + `quantita`. ⚠️ Aggancia **solo** un abbonamento che
