@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.7.0</title>
+    <title>Scorte Amazon v1.8.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -277,7 +277,7 @@
     <div class="modal-box">
         <div class="modal-title">📜 Storico</div>
         <div class="muted" id="stTitolo"></div>
-        <div class="form-hint">Tutte le righe: promemoria, spedizioni, consegne, modifiche, extra. Il prezzo a confezione della scheda è quello della consegna più recente col prezzo (o del prezzo scritto nel ✏️); senza, quello della riga più recente col prezzo. Gli extra non contano.</div>
+        <div class="form-hint">Tutte le righe: promemoria, spedizioni, consegne, modifiche, extra. Il prezzo a confezione della scheda è quello della consegna più recente col prezzo (o del prezzo scritto nel ✏️)), extra compresi; senza, quello della riga più recente col prezzo.</div>
         <div id="stElenco" style="margin-top:0.5rem"></div>
         <div class="modal-btns">
             <button class="btn" onclick="closeModal('modalStorico')">Chiudi</button>
@@ -305,8 +305,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.7.0';
-var BUILD_TIME  = '2026-11-17T12:00:00Z';
+var APP_VERSION = 'v1.8.0';
+var BUILD_TIME  = '2026-11-17T12:30:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -558,8 +558,8 @@ function ricordaAperta(id, aperta) {
 // dell'abbonamento, non dalle righe. «Extra» fa quel che fa amz_task_registra con un
 // evento 'extra' — stessa regola, da tenere allineata a lei: se la data non è prima
 // dell'ultimo conteggio, scorta_contata = scorta stimata quel giorno + confezioni.
-// Il prezzo è facoltativo; su un extra non conta come ultimo prezzo
-// (20261117100000_amz_prezzo_extra_non_conta.sql).
+// Il prezzo è facoltativo, e conta come ultimo prezzo anche su un extra
+// (20261117140000_amz_prezzo_extra_conta.sql).
 function apriConsegna(id) {
     const r = S.righe.find(x => x.id === id);
     if (!r) return;
@@ -596,9 +596,7 @@ function modificaConsegna(abbId, cId) {
     openModal('modalConsegna');
 }
 function spiegaPrezzo(extra) {
-    $('cPrezzoSpiega').textContent = extra
-        ? 'Su un ordine extra il prezzo si mostra ma non cambia l\'ultimo prezzo dell\'abbonamento.'
-        : 'Se è il più recente, diventa l\'ultimo prezzo dell\'abbonamento (prezzi, spesa al mese, avvisi).';
+    $('cPrezzoSpiega').textContent = 'Se è la consegna più recente col prezzo, diventa l\'ultimo prezzo dell\'abbonamento (prezzi, spesa al mese, avvisi).';
 }
 function spiegaConsegna() {
     spiegaPrezzo($('cTipo').value === 'extra');
@@ -727,7 +725,7 @@ function consegneRicevute(r) {
         ${el.map(c => `<div class="storico-riga"><button class="icon-btn" title="Prezzo" onclick="modificaConsegna('${r.id}', '${c.id}')">✏️</button><button class="icon-btn" title="Cancella" onclick="cancellaConsegna('${r.id}', '${c.id}')">🗑</button><span class="g">${fmtData(c.giorno)}</span>`
             + `<span>${c.quantita != null ? c.quantita + (c.quantita === 1 ? ' confezione' : ' confezioni') : ''}</span>`
             + (c.extra ? '<span class="x">extra</span>' : '')
-            + (c.prezzo != null ? `<b${c.extra ? ' title="Prezzo di un extra: non cambia l\'ultimo prezzo"' : ''}>${euro(c.prezzo)}</b>` : '<span class="muted">prezzo —</span>')
+            + (c.prezzo != null ? `<b>${euro(c.prezzo)}</b>` : '<span class="muted">prezzo —</span>')
             + (c.nota && !c.extra ? `<span class="muted">${esc(c.nota)}</span>` : '')
             + '</div>').join('')}
     </details>`;
