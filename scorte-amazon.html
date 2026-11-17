@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.2.0</title>
+    <title>Scorte Amazon v1.3.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -242,6 +242,29 @@
     </div>
 </div>
 
+<!-- Consegna inserita a mano -->
+<div class="modal" id="modalConsegna">
+    <div class="modal-box">
+        <div class="modal-title">📦 Consegna ricevuta</div>
+        <div class="muted" id="cTitolo"></div>
+        <label class="form-label" for="cTipo">Che consegna è</label>
+        <select id="cTipo" class="form-input" onchange="spiegaConsegna()">
+            <option value="abbonamento">Consegna dell'abbonamento</option>
+            <option value="extra">Ordine extra (fuori abbonamento)</option>
+        </select>
+        <div class="form-hint" id="cSpiega"></div>
+        <label class="form-label" for="cGiorno">Arrivata il</label>
+        <input id="cGiorno" class="form-input" type="date">
+        <label class="form-label" for="cQuantita">Confezioni</label>
+        <input id="cQuantita" class="form-input" type="number" min="1" step="1">
+        <div id="cErr" class="form-error"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalConsegna')">Annulla</button>
+            <button class="btn btn-primary" id="cSalva" onclick="salvaConsegna()">Salva</button>
+        </div>
+    </div>
+</div>
+
 <!-- Chiavi dell'attività programmata -->
 <div class="modal" id="modalChiavi">
     <div class="modal-box">
@@ -262,8 +285,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.2.0';
-var BUILD_TIME  = '2026-11-17T09:30:00Z';
+var APP_VERSION = 'v1.3.0';
+var BUILD_TIME  = '2026-11-17T10:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -505,11 +528,76 @@ function scheda(r) {
     </div>`;
 }
 
+function ricordaAperta(id, aperta) {
+    S.aperte ||= new Set();
+    aperta ? S.aperte.add(id) : S.aperte.delete(id);
+}
+
+// ── Consegna inserita a mano ──
+// «Abbonamento» registra e basta: la scorta conta le consegne dal calendario
+// dell'abbonamento, non dalle righe. «Extra» fa quel che fa amz_task_registra con un
+// evento 'extra' — stessa regola, da tenere allineata a lei: se la data non è prima
+// dell'ultimo conteggio, scorta_contata = scorta stimata quel giorno + confezioni.
+// Nessun prezzo, di proposito: cambierebbe l'«ultimo prezzo» dell'abbonamento.
+function apriConsegna(id) {
+    const r = S.righe.find(x => x.id === id);
+    if (!r) return;
+    S.consegnaId = id;
+    $('cTitolo').textContent = r.titolo;
+    $('cTipo').value = 'abbonamento';
+    $('cGiorno').value = oggiIso();
+    $('cGiorno').max = oggiIso();
+    $('cQuantita').value = r.quantita || 1;
+    $('cErr').textContent = '';
+    spiegaConsegna();
+    openModal('modalConsegna');
+}
+function spiegaConsegna() {
+    $('cSpiega').textContent = $('cTipo').value === 'extra'
+        ? 'Aggiorna la scorta: diventa la scorta stimata di quel giorno più queste confezioni. La prossima consegna non cambia.'
+        : 'Entra nell\'elenco delle consegne ricevute. La prossima consegna non si sposta: per quello c\'è «È arrivata».';
+}
+async function salvaConsegna() {
+    const id = S.consegnaId, r = S.righe.find(x => x.id === id);
+    const giorno = $('cGiorno').value, q = parseInt($('cQuantita').value, 10);
+    const extra = $('cTipo').value === 'extra';
+    if (!r) return;
+    if (!giorno) { $('cErr').textContent = 'Scegli la data di arrivo.'; return; }
+    if (giorno > oggiIso()) { $('cErr').textContent = 'Una consegna ricevuta non può essere nel futuro.'; return; }
+    if (!(q >= 1)) { $('cErr').textContent = 'Le confezioni devono essere almeno 1.'; return; }
+    $('cSalva').disabled = true;
+    try {
+        if (extra && (!r.scorta_contata_il || r.scorta_contata_il <= giorno)) {
+            const sit = await sb.rpc('amz_situazione', { p_oggi: giorno });
+            if (sit.error) throw sit.error;
+            const quella = (sit.data || []).find(x => x.id === id);
+            const nuova = Math.round(((quella && quella.scorta) || 0) * 100 + q * 100) / 100;
+            const up = await sb.from('amz_abbonamenti').update({ scorta_contata: nuova, scorta_contata_il: giorno, updated_at: new Date().toISOString() }).eq('id', id);
+            if (up.error) throw up.error;
+        }
+        const ins = await sb.from('amz_consegne').insert({
+            abbonamento_id: id, giorno, quantita: q,
+            tipo: extra ? 'manuale' : 'consegnato',
+            nota: extra ? 'extra: inserito a mano' : 'inserita a mano'
+        });
+        if (ins.error) throw ins.error;
+        closeModal('modalConsegna');
+        (S.aperte ||= new Set()).add(id);
+        showToast(extra ? 'Ordine extra registrato, scorta aggiornata' : 'Consegna registrata');
+        carica();
+    } catch (e) {
+        if (!handleAuthError(e)) $('cErr').textContent = '❌ ' + (e.message || e);
+    } finally {
+        $('cSalva').disabled = false;
+    }
+}
+
 // Elenco chiuso di default: si apre col tocco, la scheda resta corta.
 function consegneRicevute(r) {
     const el = (S.consegne || {})[r.id] || [];
-    if (!el.length) return '<div class="muted consegne" style="font-size:0.95rem">📦 Nessuna consegna ricevuta registrata.</div>';
-    return `<details class="consegne"><summary>📦 Consegne ricevute · ${el.length}</summary>
+    const agg = `<div style="margin-top:0.4rem"><button class="btn" onclick="apriConsegna('${r.id}')">＋ Aggiungi consegna</button></div>`;
+    if (!el.length) return `<div class="consegne"><div class="muted" style="font-size:0.95rem">📦 Nessuna consegna ricevuta registrata.</div>${agg}</div>`;
+    return `<details class="consegne"${S.aperte && S.aperte.has(r.id) ? ' open' : ''} ontoggle="ricordaAperta('${r.id}', this.open)"><summary>📦 Consegne ricevute · ${el.length}</summary>${agg}
         ${el.map(c => `<div class="storico-riga"><span class="g">${fmtData(c.giorno)}</span>`
             + `<span>${c.quantita != null ? c.quantita + (c.quantita === 1 ? ' confezione' : ' confezioni') : ''}</span>`
             + (c.extra ? '<span class="x">extra</span>' : '')
