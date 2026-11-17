@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.8.0</title>
+    <title>Scorte Amazon v1.9.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -132,6 +132,7 @@
         .pv-mid { flex: 1 1 10rem; min-width: 0; text-align: center; }
         .pv-amz { font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
         .pv-ult { font-size: 0.9rem; color: var(--muted); }
+        .pv-ril { margin-top: 0.1rem; }
         .pv-pct { font-weight: 900; padding: 0.05rem 0.5rem; border: 2px solid currentColor; white-space: nowrap; }
         .pv-pct.meglio { color: #00876C; } .pv-pct.peggio { color: var(--danger); } .pv-pct.pari { color: var(--muted); }
         .pv-val { font-size: 1.9rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
@@ -272,6 +273,19 @@
     </div>
 </div>
 
+<!-- Rilevazioni dei prezzi visti in negozio, di un abbonamento -->
+<div class="modal" id="modalRilevazioni">
+    <div class="modal-box">
+        <div class="modal-title">📍 Prezzi visti in negozio</div>
+        <div class="muted" id="rlTitolo"></div>
+        <div class="form-hint">La percentuale accanto alla barra si calcola sulla rilevazione più recente: cancellandola vale quella prima.</div>
+        <div id="rlElenco" style="margin-top:0.5rem"></div>
+        <div class="modal-btns">
+            <button class="btn" onclick="closeModal('modalRilevazioni')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
 <!-- Storico completo di un abbonamento -->
 <div class="modal" id="modalStorico">
     <div class="modal-box">
@@ -305,8 +319,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.8.0';
-var BUILD_TIME  = '2026-11-17T12:30:00Z';
+var APP_VERSION = 'v1.9.0';
+var BUILD_TIME  = '2026-11-17T14:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -913,8 +927,62 @@ function disegnaPrezzi() {
               <div class="pv-sub">${esc(formato(r))}</div>
               ${barra(r, 'pezzo')}
               ${r.unita !== 'pz' && r.misura != null ? barra(r, 'kg_l') : ''}
+              ${bottoneRilevazioni(r)}
           </div>`).join('')
         : '<div class="muted">Nessun abbonamento attivo.</div>';
+}
+// ════════════════════════════════════════════════════════════
+// RILEVAZIONI — l'elenco dei prezzi visti in negozio, e la loro cancellazione
+// ════════════════════════════════════════════════════════════
+// Il pulsante c'è solo se di quell'abbonamento c'è almeno una rilevazione.
+function bottoneRilevazioni(r) {
+    const n = S.negozio.filter(x => x.abbonamento_id === r.id).length;
+    return n ? `<button class="btn pv-ril" onclick="apriRilevazioni('${r.id}')">📍 Rilevazioni (${n})</button>` : '';
+}
+function oraLocale(ts) {
+    const d = new Date(ts);
+    return fmtData(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+        + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function apriRilevazioni(id) {
+    const r = S.righe.find(x => x.id === id); if (!r) return;
+    S.rilevazioniDi = id;
+    $('rlTitolo').textContent = r.titolo;
+    disegnaRilevazioni();
+    openModal('modalRilevazioni');
+}
+// ⚠️ S.negozio è già dal più recente: l'elenco segue quell'ordine, e la prima riga
+// di ogni unità è quella su cui si calcola la percentuale della barra.
+function disegnaRilevazioni() {
+    const r = S.righe.find(x => x.id === S.rilevazioniDi); if (!r) return;
+    const el = S.negozio.filter(x => x.abbonamento_id === r.id);
+    $('rlElenco').innerHTML = el.length
+        ? el.map(x => {
+            const pos = x.lat != null && x.lon != null
+                ? `<a href="https://www.google.com/maps?q=${x.lat},${x.lon}" target="_blank" rel="noopener" title="± ${x.precisione_m ?? '?'} m">📍 mappa</a>`
+                : '<span class="muted">senza posizione</span>';
+            return `<div class="storico-riga" style="align-items:center">
+                <button class="icon-btn" title="Cancella" onclick="cancellaRilevazione('${x.id}')">🗑</button>
+                <span class="g">${oraLocale(x.rilevato_il)}</span>
+                <b>${euro(x.prezzo)}</b>
+                <span class="muted">${x.unita === 'pezzo' ? 'a pezzo' : esc(etichettaKg(r))}</span>
+                ${x.negozio ? `<span>${esc(x.negozio)}</span>` : ''}
+                ${pos}
+            </div>`;
+        }).join('')
+        : '<div class="muted">Nessuna rilevazione.</div>';
+}
+async function cancellaRilevazione(rid) {
+    const x = S.negozio.find(y => y.id === rid); if (!x) return;
+    const r = S.righe.find(y => y.id === x.abbonamento_id);
+    if (!confirm(`Cancellare la rilevazione del ${oraLocale(x.rilevato_il)}: ${euro(x.prezzo)} ${x.unita === 'pezzo' ? 'a pezzo' : etichettaKg(r)}${x.negozio ? ' da ' + x.negozio : ''}?\n\nNon si torna indietro.`)) return;
+    const { error } = await sb.from('amz_prezzi_negozio').delete().eq('id', rid);
+    if (error) { if (!handleAuthError(error)) alert('Errore: ' + error.message); return; }
+    S.negozio = S.negozio.filter(y => y.id !== rid);
+    disegnaPrezzi();
+    if (S.negozio.some(y => y.abbonamento_id === x.abbonamento_id)) disegnaRilevazioni();
+    else closeModal('modalRilevazioni');
+    showToast('🗑 Rilevazione cancellata');
 }
 function barra(r, unita) {
     const amz = prezzoAmazon(r, unita), ult = ultimoNegozio(r.id, unita);
