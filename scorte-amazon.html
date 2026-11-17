@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.6.0</title>
+    <title>Scorte Amazon v1.7.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -277,7 +277,7 @@
     <div class="modal-box">
         <div class="modal-title">📜 Storico</div>
         <div class="muted" id="stTitolo"></div>
-        <div class="form-hint">Tutte le righe: promemoria, spedizioni, consegne, modifiche, extra. Il prezzo a confezione della scheda è quello della riga più recente che ha un prezzo (extra esclusi).</div>
+        <div class="form-hint">Tutte le righe: promemoria, spedizioni, consegne, modifiche, extra. Il prezzo a confezione della scheda è quello della consegna più recente col prezzo (o del prezzo scritto nel ✏️); senza, quello della riga più recente col prezzo. Gli extra non contano.</div>
         <div id="stElenco" style="margin-top:0.5rem"></div>
         <div class="modal-btns">
             <button class="btn" onclick="closeModal('modalStorico')">Chiudi</button>
@@ -305,8 +305,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.6.0';
-var BUILD_TIME  = '2026-11-17T11:30:00Z';
+var APP_VERSION = 'v1.7.0';
+var BUILD_TIME  = '2026-11-17T12:00:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
