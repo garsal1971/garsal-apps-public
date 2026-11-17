@@ -2333,6 +2333,8 @@ esiste (uno sconosciuto si scarta, non nasce `da_verificare`), **non** tocca qua
 prezzo NULL e nota «extra: …» — un prezzo pieno farebbe scattare `prezzo_su`/`prezzo_giu` per sbaglio.
 Registrarlo come `consegnato` sarebbe peggio: a ±3 giorni dalla consegna in programma la sposterebbe.
 
+📦 **Consegne ricevute in ogni scheda** (v1.2.0–1.5.0): righe `consegnato` più gli extra (`manuale` con nota «extra…»). Si aggiungono a mano (＋, abbonamento o extra; l'extra ricalcola `scorta_contata` come `amz_task_registra`, regola duplicata nella pagina), si cancellano (🗑: su un extra si tolgono le confezioni solo se `scorta_contata_il` è il suo giorno) e se ne scrive il prezzo (✏️). ⚠️ Il prezzo di un extra **non** è l'ultimo prezzo: `amz__situazione` lo esclude (`20261117100000_amz_prezzo_extra_non_conta.sql`).
+
 🏷️ **La pagina si apre sui PREZZI** (v1.1.0): per ogni abbonamento attivo una barra col prezzo Amazon
 a pezzo e una al kg/l (solo se la misura è nota). Toccandola il centro diventa un cursore che parte
 dal prezzo Amazon (−50 %…+50 %, passo 1 centesimo); al rilascio compare il riquadro con prezzo,
