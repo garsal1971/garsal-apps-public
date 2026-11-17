@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scorte Amazon v1.3.0</title>
+    <title>Scorte Amazon v1.4.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -285,8 +285,8 @@
 // ════════════════════════════════════════════════════════════
 // SCORTE AMAZON — versione
 // ════════════════════════════════════════════════════════════
-var APP_VERSION = 'v1.3.0';
-var BUILD_TIME  = '2026-11-17T10:00:00Z';
+var APP_VERSION = 'v1.4.0';
+var BUILD_TIME  = '2026-11-17T10:30:00Z';
 console.log('%c 📦 SCORTE AMAZON ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#C45500;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -450,7 +450,7 @@ async function carica() {
     S.negozio = pn.data || [];
     // Le consegne ricevute: quelle in abbonamento arrivate ('consegnato') e gli ordini
     // extra, che stanno come 'manuale' con la nota «extra: …» (amz_task_registra).
-    const cs = await sb.from('amz_consegne').select('abbonamento_id, giorno, tipo, prezzo, quantita, nota')
+    const cs = await sb.from('amz_consegne').select('id, abbonamento_id, giorno, tipo, prezzo, quantita, nota, mail_id')
         .in('tipo', ['consegnato', 'manuale']).order('giorno', { ascending: false }).order('created_at', { ascending: false }).limit(2000);
     if (cs.error) log('consegne non lette', cs.error.message);
     S.consegne = {};
@@ -592,13 +592,38 @@ async function salvaConsegna() {
     }
 }
 
+// Cancellare una consegna. Su un extra si tolgono le sue confezioni dalla scorta,
+// ma solo se l'ultimo conteggio è quello di quel giorno (cioè l'ha fatto lui):
+// altrimenti il conteggio è venuto dopo e già tiene conto di com'era la dispensa.
+async function cancellaConsegna(abbId, cId) {
+    const r = S.righe.find(x => x.id === abbId);
+    const c = ((S.consegne || {})[abbId] || []).find(x => x.id === cId);
+    if (!r || !c) return;
+    const togli = c.extra && r.scorta_contata != null && r.scorta_contata_il === c.giorno && c.quantita;
+    let msg = `Cancellare la consegna del ${fmtData(c.giorno)}${c.extra ? ' (extra)' : ''}?`;
+    if (c.extra) msg += togli
+        ? `\n\nDalla scorta contata si tolgono ${c.quantita} ${c.quantita === 1 ? 'confezione' : 'confezioni'}.`
+        : '\n\nLa scorta non cambia: il conteggio attuale è di un altro giorno. Se serve, correggila dal ✏️.';
+    if (c.mail_id) msg += '\n\nVeniva da una mail: alla prossima lettura delle mail potrebbe tornare.';
+    if (!confirm(msg)) return;
+    const del = await sb.from('amz_consegne').delete().eq('id', cId);
+    if (del.error) { if (!handleAuthError(del.error)) showToast('❌ ' + del.error.message, 5000); return; }
+    if (togli) {
+        const nuova = Math.max(0, Math.round((Number(r.scorta_contata) - c.quantita) * 100) / 100);
+        const up = await sb.from('amz_abbonamenti').update({ scorta_contata: nuova, updated_at: new Date().toISOString() }).eq('id', abbId);
+        if (up.error) showToast('⚠️ Consegna cancellata, ma la scorta non si è aggiornata: ' + up.error.message, 6000);
+    }
+    showToast('Consegna cancellata');
+    carica();
+}
+
 // Elenco chiuso di default: si apre col tocco, la scheda resta corta.
 function consegneRicevute(r) {
     const el = (S.consegne || {})[r.id] || [];
     const agg = `<div style="margin-top:0.4rem"><button class="btn" onclick="apriConsegna('${r.id}')">＋ Aggiungi consegna</button></div>`;
     if (!el.length) return `<div class="consegne"><div class="muted" style="font-size:0.95rem">📦 Nessuna consegna ricevuta registrata.</div>${agg}</div>`;
     return `<details class="consegne"${S.aperte && S.aperte.has(r.id) ? ' open' : ''} ontoggle="ricordaAperta('${r.id}', this.open)"><summary>📦 Consegne ricevute · ${el.length}</summary>${agg}
-        ${el.map(c => `<div class="storico-riga"><span class="g">${fmtData(c.giorno)}</span>`
+        ${el.map(c => `<div class="storico-riga"><button class="icon-btn" title="Cancella" onclick="cancellaConsegna('${r.id}', '${c.id}')">🗑</button><span class="g">${fmtData(c.giorno)}</span>`
             + `<span>${c.quantita != null ? c.quantita + (c.quantita === 1 ? ' confezione' : ' confezioni') : ''}</span>`
             + (c.extra ? '<span class="x">extra</span>' : '')
             + (c.prezzo != null ? `<b>${euro(c.prezzo)}</b>` : '')
