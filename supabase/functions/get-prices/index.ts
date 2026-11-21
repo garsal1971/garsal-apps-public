@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "5.23.0"; // TAO (Bittensor) nella mappa CoinGecko; bilancio di tempo (niente 504), cambi da Yahoo; simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
+const VERSION = "5.24.0"; // 1ANT (Anthropic) fissato su Yahoo ANT (Nasdaq, USD→EUR); TAO (Bittensor) nella mappa CoinGecko; bilancio di tempo (niente 504), cambi da Yahoo; simboli in parallelo, fonte ricordata (source/source_ref), TD a turni, timeout; fonte per tipo: BTPi→SoldiOnline, BTP→rendimentibtp, ETF→JustETF(HTML)/Yahoo/Investing, crypto→CoinGecko(batch)+Coinbase, azioni→TD/GoogleFinance
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -243,6 +243,10 @@ const YAHOO_FINANCE_TICKER_MAP: Record<string, string> = {
   // il prezzo veniva chiesto a Twelve Data col simbolo nudo «SMEA»: un nome, non
   // un'identità: nostro, non necessariamente lo stesso strumento su TD.
   "SMEA": "SMEA.MI",
+  // 1ANT, Anthropic: quotata dal 19 novembre 2026. La linea di Borsa Italiana
+  // (prefisso «1», titoli esteri) su Yahoo non c'è, quindi si legge la quotazione
+  // primaria sul Nasdaq, in USD, convertita in EUR col cambio del momento.
+  "1ANT": "ANT",
 };
 
 // Known symbol → Google Finance exchange + currency.
@@ -622,9 +626,11 @@ async function fetchYahooQuoteEur(
 }
 
 // Fetches price directly from Yahoo Finance using a known ticker (e.g. "RYA.IR").
-// Does NOT require ISIN. Returns price only if currency is EUR.
+// Does NOT require ISIN. Un prezzo non in EUR si converte con `cambioVersoEur`
+// (il ticker è scelto a mano, quindi la valuta è voluta); senza, si scarta.
 async function fetchYahooFinanceByTicker(
   yTicker: string, requestId: string, dbEntries: DbEntry[],
+  cambioVersoEur?: (valuta: string) => Promise<number | null>,
 ): Promise<number | null> {
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -651,8 +657,14 @@ async function fetchYahooFinanceByTicker(
       return null;
     }
     if (currency !== "EUR") {
-      dbLog(dbEntries, "WARN", `Yahoo Finance direct: non-EUR for ${yTicker}`, { yTicker, currency, price }, requestId);
-      return null;
+      const rate = cambioVersoEur && currency ? await cambioVersoEur(currency) : null;
+      if (!rate) {
+        dbLog(dbEntries, "WARN", `Yahoo Finance direct: non-EUR for ${yTicker}`, { yTicker, currency, price }, requestId);
+        return null;
+      }
+      const converted = roundMoney(price * rate);
+      dbLog(dbEntries, "INFO", `Yahoo Finance direct: ${yTicker} → ${price} ${currency} = ${converted} EUR`, { yTicker, price, currency, rate, converted }, requestId);
+      return converted;
     }
     dbLog(dbEntries, "INFO", `Yahoo Finance direct: ${yTicker} → ${price} EUR`, { yTicker, price }, requestId);
     return price;
@@ -1315,7 +1327,10 @@ serve(async (req) => {
           // che BTP10, ripulito la mattina del 13 agosto 2026, si riscrisse a 18,70 €
           // nel pomeriggio.
           if (!outcome.ok && YAHOO_FINANCE_TICKER_MAP[symbol]) {
-            const yfDirectPrice = await fetchYahooFinanceByTicker(YAHOO_FINANCE_TICKER_MAP[symbol], requestId, dbEntries);
+            const yfDirectPrice = await fetchYahooFinanceByTicker(
+              YAHOO_FINANCE_TICKER_MAP[symbol], requestId, dbEntries,
+              (valuta) => getConversionRate(valuta, TARGET_CURRENCY, TWELVE_DATA_API_KEY, requestId, rateCache),
+            );
             if (yfDirectPrice !== null && pushPrice(symbol, yfDirectPrice, { source: "yahoo_ticker", source_ref: YAHOO_FINANCE_TICKER_MAP[symbol] })) {
               dbLog(dbEntries, "INFO", `Fetched ${symbol} from Yahoo Finance (ticker fissato)`, { yTicker: YAHOO_FINANCE_TICKER_MAP[symbol], price: yfDirectPrice }, requestId);
               return;
