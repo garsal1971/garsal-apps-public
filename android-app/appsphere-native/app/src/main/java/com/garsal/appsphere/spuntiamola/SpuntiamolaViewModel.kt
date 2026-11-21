@@ -1,5 +1,6 @@
 package com.garsal.appsphere.spuntiamola
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -86,7 +87,7 @@ class SpuntiamolaViewModel : ViewModel() {
                 Log.w(TAG, "caricamento fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -223,7 +224,7 @@ class SpuntiamolaViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "impostazioni non salvate", e)
                 _state.value = _state.value.copy(
-                    toast = Toast("⚠️", "Impostazioni non salvate: ${e.message}", 3500)
+                    toast = Toast("⚠️", "Impostazioni non salvate: ${e.messaggioBreve()}", 3500)
                 )
             }
         }
@@ -242,7 +243,7 @@ class SpuntiamolaViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "giornate chiave non salvate", e)
                 _state.value = _state.value.copy(
-                    toast = Toast("⚠️", "Giornate chiave non salvate: ${e.message}", 3500)
+                    toast = Toast("⚠️", "Giornate chiave non salvate: ${e.messaggioBreve()}", 3500)
                 )
             }
         }
@@ -299,7 +300,7 @@ class SpuntiamolaViewModel : ViewModel() {
                     chiusuraInCorso = false,
                     toast = Toast(
                         "⚠️",
-                        "La stecca non è stata archiviata (${e.message ?: "connessione assente"}). Riprova.",
+                        "La stecca non è stata archiviata (${e.messaggioBreve()}). Riprova.",
                         4000,
                     ),
                 )
@@ -343,7 +344,7 @@ class SpuntiamolaViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "traguardo non cancellato", e)
                 _state.value = _state.value.copy(
-                    toast = Toast("⚠️", "Il traguardo non è stato cancellato (${e.message ?: "connessione assente"}). Riprova.", 4000)
+                    toast = Toast("⚠️", "Il traguardo non è stato cancellato (${e.messaggioBreve()}). Riprova.", 4000)
                 )
                 return@launch
             }

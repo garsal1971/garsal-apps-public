@@ -1,5 +1,6 @@
 package com.garsal.appsphere.frz
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
@@ -183,7 +184,7 @@ class ForziereViewModel : ViewModel() {
                 .onFailure { e ->
                     _stato.value = _stato.value.copy(
                         fase = FaseForziere.ASSENTE,
-                        errore = e.message ?: "non riesco a leggere il forziere",
+                        errore = e.messaggioBreve("non riesco a leggere il forziere"),
                     )
                 }
         }
@@ -205,7 +206,7 @@ class ForziereViewModel : ViewModel() {
                 }
                 apri(ForziereCripto.normParole(parole))
             } catch (e: Exception) {
-                _stato.value = _stato.value.copy(stato = null, errore = e.message ?: "non si apre")
+                _stato.value = _stato.value.copy(stato = null, errore = e.messaggioBreve("non si apre"))
             }
         }
     }
@@ -217,7 +218,7 @@ class ForziereViewModel : ViewModel() {
             try {
                 apri(ForziereCripto.normParole(parole))
             } catch (e: Exception) {
-                _stato.value = _stato.value.copy(stato = null, errore = e.message ?: "non si apre")
+                _stato.value = _stato.value.copy(stato = null, errore = e.messaggioBreve("non si apre"))
             }
         }
     }
@@ -236,7 +237,7 @@ class ForziereViewModel : ViewModel() {
                 val parole = withContext(Dispatchers.IO) { ForziereBiometria.svolgi(ctx, cipher) }
                 apri(ForziereCripto.normParole(parole))
             } catch (e: Exception) {
-                _stato.value = _stato.value.copy(stato = null, errore = e.message ?: "non si apre")
+                _stato.value = _stato.value.copy(stato = null, errore = e.messaggioBreve("non si apre"))
             }
         }
     }
@@ -331,7 +332,7 @@ class ForziereViewModel : ViewModel() {
                 scomparti = boxes, documenti = file, miniature = mini, errore = null,
             )
         } catch (e: Exception) {
-            _stato.value = _stato.value.copy(errore = e.message ?: "non riesco a leggere l'elenco")
+            _stato.value = _stato.value.copy(errore = e.messaggioBreve("non riesco a leggere l'elenco"))
         }
     }
 
@@ -406,7 +407,7 @@ class ForziereViewModel : ViewModel() {
             if (esito.isFailure) {
                 _stato.value = _stato.value.copy(
                     cancellaErrore = "non riesco a controllare: " +
-                        (esito.exceptionOrNull()?.message ?: "errore"),
+                        ((esito.exceptionOrNull()?.messaggioBreve("errore") ?: "errore")),
                 )
                 return@launch
             }
@@ -480,7 +481,7 @@ class ForziereViewModel : ViewModel() {
                 _stato.value = _stato.value.copy(
                     stato = null, avanzamento = null,
                     errore = (if (fatti > 0) "ne ho buttati $fatti su ${docs.size}: " else "") +
-                        (e.message ?: "errore"),
+                        (e.messaggioBreve("errore")),
                 )
             } finally {
                 // Gli indici si riscrivono per i soli scomparti toccati, e anche
@@ -571,7 +572,7 @@ class ForziereViewModel : ViewModel() {
             } catch (e: Exception) {
                 _stato.value = _stato.value.copy(
                     stato = null, avanzamento = null,
-                    errore = "«${doc.meta.nome}» non si apre: " + (e.message ?: "errore"),
+                    errore = "«${doc.meta.nome}» non si apre: " + (e.messaggioBreve("errore")),
                 )
             } finally {
                 // ⚠️ Il `.gpg` temporaneo se ne va SEMPRE: è già stato
@@ -723,7 +724,7 @@ class ForziereViewModel : ViewModel() {
             } catch (e: Exception) {
                 _stato.value = _stato.value.copy(
                     stato = null, avanzamento = null,
-                    errore = "il file non è entrato: " + (e.message ?: "errore"),
+                    errore = "il file non è entrato: " + (e.messaggioBreve("errore")),
                 )
             } finally {
                 origine?.delete(); cifrato?.delete()

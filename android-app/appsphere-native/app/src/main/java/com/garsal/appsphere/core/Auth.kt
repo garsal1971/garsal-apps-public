@@ -141,7 +141,7 @@ object AuthRepo {
                 auth.parseSessionFromFragment(fragment)
             } catch (e: Exception) {
                 Log.w(TAG, "fragment non leggibile", e)
-                annotaRientro("token ricevuti ma non leggibili: ${e.message}")
+                annotaRientro("token ricevuti ma non leggibili: ${e.messaggioBreve()}")
                 return@launch
             }
             try {
@@ -151,7 +151,7 @@ object AuthRepo {
                 annotaRientro(null)
             } catch (e: Exception) {
                 Log.w(TAG, "sessione non importata", e)
-                annotaRientro("sessione non importata: ${e.message}")
+                annotaRientro("sessione non importata: ${e.messaggioBreve()}")
                 return@launch
             }
             // L'anagrafica dell'utente è un di più: serve alle etichette, non a
@@ -178,7 +178,7 @@ object AuthRepo {
                 annotaRientro(null)
             } catch (e: Exception) {
                 Log.w(TAG, "scambio del codice fallito", e)
-                annotaRientro("scambio del codice fallito: ${e.message}")
+                annotaRientro("scambio del codice fallito: ${e.messaggioBreve()}")
             }
         }
     }

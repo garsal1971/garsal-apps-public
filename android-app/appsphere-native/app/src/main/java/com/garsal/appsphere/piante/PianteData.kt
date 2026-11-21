@@ -1,5 +1,6 @@
 package com.garsal.appsphere.piante
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -541,7 +542,7 @@ object PianteRepository {
                     when {
                         "bucket not found" in m -> "Il bucket «pv-images» non esiste: va creato a mano dalla dashboard di Supabase."
                         "row-level" in m || "unauthorized" in m -> "Le regole del bucket «pv-images» non permettono il caricamento."
-                        else -> e.message ?: "Caricamento non riuscito"
+                        else -> e.messaggioBreve("Caricamento non riuscito")
                     }, e,
                 )
             }

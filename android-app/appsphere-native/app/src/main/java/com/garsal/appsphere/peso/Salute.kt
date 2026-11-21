@@ -1,5 +1,6 @@
 package com.garsal.appsphere.peso
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -132,7 +133,7 @@ object SaluteRepository {
         } catch (e: SecurityException) {
             EsitoSalute.PermessiRichiesti
         } catch (e: Exception) {
-            EsitoSalute.Errore(e.message ?: "Errore Health Connect")
+            EsitoSalute.Errore(e.messaggioBreve("Errore Health Connect"))
         }
     }
 

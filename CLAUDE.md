@@ -1560,7 +1560,7 @@ contro gli 8 concessi; ora 0,2 s, risultato identico). Dentro un ciclo sui giorn
 `al_peso_al`.
 ⚠️ **Nel nativo gli errori si mostrano con `messaggioBreve()`** (`core/Errori.kt`): il messaggio
 delle eccezioni di supabase-kt porta in coda URL e header, **token compreso**, e finiva a schermo.
-Oggi lo usano Calorie e Peso; le altre schermate hanno ancora `e.message`.
+Dall'APK 1.0.158 lo usano tutte le schermate: `e.message` resta solo nei `Log` e nei controlli sul testo (es. «JWT expired»), mai a schermo.
 
 | Table | Purpose |
 |---|---|
@@ -5648,8 +5648,8 @@ URL e header **token compreso** a schermo, perché scriveva `e.message`. Ora
 `MainActivity.onStart` chiama `AuthRepo.rinnovaSeServe()` e la home `assicuraSessione()` prima di
 caricare: se il token non è vivo (`Jwt.vivo`) si rinnova, **uno per volta** (`Mutex`, o lo stesso
 refresh token si spenderebbe due volte). Se il server risponde comunque «JWT expired» la home
-rinnova a forza e riprova una volta, e l'errore si mostra con `messaggioBreve()`. ⚠️ Le altre
-schermate hanno ancora `e.message` in parecchi punti.
+rinnova a forza e riprova una volta, e l'errore si mostra con `messaggioBreve()`, come tutte le altre
+schermate dall'APK 1.0.158.
 
 ### ⚠️ Il rientro dal login non passa da `parseFragmentAndImportSession`
 

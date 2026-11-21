@@ -1,5 +1,6 @@
 package com.garsal.appsphere.obiettivi
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -176,7 +177,7 @@ class PianoViewModel : ViewModel() {
                 Log.w(TAG, "caricamento del piano fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -222,7 +223,7 @@ class PianoViewModel : ViewModel() {
         }
     } catch (e: Exception) {
         Log.w(TAG, "RPC non riuscita", e)
-        _state.value = _state.value.copy(messaggio = "❌ " + (e.message ?: "errore"))
+        _state.value = _state.value.copy(messaggio = "❌ " + (e.messaggioBreve("errore")))
         null
     }
 
@@ -284,7 +285,7 @@ class PianoViewModel : ViewModel() {
                     )
                     if (esito.ok) fatte++ else errori += "$nome: ${esito.error ?: "errore"}"
                 } catch (e: Exception) {
-                    errori += "$nome: ${e.message ?: "errore"}"
+                    errori += "$nome: ${e.messaggioBreve("errore")}"
                 }
             }
             _state.value = if (errori.isEmpty()) {
@@ -308,7 +309,7 @@ class PianoViewModel : ViewModel() {
                 _state.value = _state.value.copy(esecuzioni = PianoRepository.esecuzioni())
             } catch (e: Exception) {
                 Log.w(TAG, "esecuzioni non lette", e)
-                _state.value = _state.value.copy(messaggio = "❌ " + (e.message ?: "errore"))
+                _state.value = _state.value.copy(messaggio = "❌ " + (e.messaggioBreve("errore")))
             }
         }
     }
@@ -338,7 +339,7 @@ class PianoViewModel : ViewModel() {
                 }
             } catch (ex: Exception) {
                 Log.w(TAG, "annullamento non riuscito", ex)
-                _state.value = _state.value.copy(messaggio = "❌ " + (ex.message ?: "errore"))
+                _state.value = _state.value.copy(messaggio = "❌ " + (ex.messaggioBreve("errore")))
             }
         }
     }
@@ -378,7 +379,7 @@ class PianoViewModel : ViewModel() {
             try {
                 PianoRepository.correggi(c.esecuzione, nuovoIstante, esito, punti)
             } catch (e: Exception) {
-                _state.value = _state.value.copy(messaggio = "❌ " + (e.message ?: "errore"))
+                _state.value = _state.value.copy(messaggio = "❌ " + (e.messaggioBreve("errore")))
                 return@launch
             }
             val giorno = c.esecuzione.giornoRilevazioni
@@ -388,7 +389,7 @@ class PianoViewModel : ViewModel() {
                     val r = ObiettiviRepository.registraRilevazione(metricaId, valore, giorno, nota, giudizi[metricaId], c.esecuzione.azioneId)
                     if (!r.ok) errori += "$nome: ${r.error ?: "errore"}"
                 } catch (e: Exception) {
-                    errori += "$nome: ${e.message ?: "errore"}"
+                    errori += "$nome: ${e.messaggioBreve("errore")}"
                 }
             }
             _state.value = _state.value.copy(

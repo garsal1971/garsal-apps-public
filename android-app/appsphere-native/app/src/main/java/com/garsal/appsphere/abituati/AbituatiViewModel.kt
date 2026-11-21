@@ -1,5 +1,6 @@
 package com.garsal.appsphere.abituati
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -227,10 +228,10 @@ class AbituatiViewModel : ViewModel() {
                     (if (vinti.isNotEmpty() || persi.isNotEmpty()) " · ${vinti.size} vinti, ${persi.size} game over" else ""))
             } catch (e: Exception) {
                 Log.w(TAG, "caricamento fallito", e)
-                log("❌ Caricamento: ${e.message}")
+                log("❌ Caricamento: ${e.messaggioBreve()}")
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -269,7 +270,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "spunta non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Spunta non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Spunta non riuscita"))
             }
         }
     }
@@ -312,7 +313,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "spunta non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Spunta non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Spunta non riuscita"))
             } finally {
                 inVolo.remove(abitudine.id)
             }
@@ -351,7 +352,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "rimozione non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Rimozione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Rimozione non riuscita"))
             } finally {
                 inVolo.remove(abitudine.id)
             }
@@ -372,7 +373,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "chiusura stack non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Chiusura non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Chiusura non riuscita"))
             }
         }
     }
@@ -386,7 +387,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "nuovo ciclo non riuscito", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Nuovo ciclo non riuscito")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Nuovo ciclo non riuscito"))
             }
         }
     }
@@ -416,7 +417,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "interruzione non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Interruzione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Interruzione non riuscita"))
             }
         }
     }
@@ -428,7 +429,7 @@ class AbituatiViewModel : ViewModel() {
                 carica(oggi)
             } catch (e: Exception) {
                 Log.w(TAG, "ripresa non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Ripresa non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Ripresa non riuscita"))
             }
         }
     }
@@ -453,14 +454,14 @@ class AbituatiViewModel : ViewModel() {
                 runCatching { AbituatiRepository.sincronizzaPromemoria(salvata, bozza) }
                     .onFailure {
                         Log.w(TAG, "promemoria non salvato", it)
-                        _state.value = _state.value.copy(errore = "Errore salvataggio promemoria: ${it.message}")
+                        _state.value = _state.value.copy(errore = "Errore salvataggio promemoria: ${it.messaggioBreve()}")
                     }
                 log("Salvata «${bozza.nome.trim()}»")
                 onFatto()
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "salvataggio non riuscito", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Salvataggio non riuscito")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Salvataggio non riuscito"))
             }
         }
     }
@@ -473,7 +474,7 @@ class AbituatiViewModel : ViewModel() {
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "eliminazione non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Eliminazione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Eliminazione non riuscita"))
             }
         }
     }

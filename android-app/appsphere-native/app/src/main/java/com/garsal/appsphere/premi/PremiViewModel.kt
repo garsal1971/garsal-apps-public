@@ -1,5 +1,6 @@
 package com.garsal.appsphere.premi
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -42,7 +43,7 @@ class PremiViewModel : ViewModel() {
                 Log.w(TAG, "catalogo premi non caricato", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -54,7 +55,7 @@ class PremiViewModel : ViewModel() {
                 _state.value = _state.value.copy(cronologia = PremiRepository.cronologia())
             } catch (e: Exception) {
                 Log.w(TAG, "cronologia non caricata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Cronologia non disponibile")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Cronologia non disponibile"))
             }
         }
     }
@@ -65,7 +66,7 @@ class PremiViewModel : ViewModel() {
                 PremiRepository.riscatta(premio)
             } catch (e: Exception) {
                 Log.w(TAG, "riscatto non riuscito", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Riscatto non riuscito")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Riscatto non riuscito"))
             }
             // Si rilegge in ogni caso: se il log è passato e l'aggiornamento
             // del premio no, i punti sono già spesi e il catalogo a schermo
@@ -81,7 +82,7 @@ class PremiViewModel : ViewModel() {
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "premio non salvato", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Salvataggio non riuscito")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Salvataggio non riuscito"))
             }
         }
     }
@@ -93,7 +94,7 @@ class PremiViewModel : ViewModel() {
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "premio non eliminato", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Eliminazione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Eliminazione non riuscita"))
             }
         }
     }

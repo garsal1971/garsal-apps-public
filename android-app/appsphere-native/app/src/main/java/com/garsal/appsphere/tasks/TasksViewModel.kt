@@ -1,5 +1,6 @@
 package com.garsal.appsphere.tasks
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -364,7 +365,7 @@ class TasksViewModel : ViewModel() {
                 Log.w(TAG, "caricamento fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -397,7 +398,7 @@ class TasksViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "nascondi non riuscito", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non riuscito: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non riuscito: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -421,7 +422,7 @@ class TasksViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "azione non riuscita", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non riuscito: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non riuscito: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -447,7 +448,7 @@ class TasksViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "salvataggio non riuscito", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non salvato: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non salvato: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -462,7 +463,7 @@ class TasksViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "riattivazione non riuscita", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non riattivato: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non riattivato: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -485,7 +486,7 @@ class TasksViewModel : ViewModel() {
                 Log.w(TAG, "eliminazione non riuscita", e)
                 _state.value = _state.value.copy(
                     task = prima,
-                    messaggio = "Non eliminato: ${e.message ?: "connessione assente"}",
+                    messaggio = "Non eliminato: ${e.messaggioBreve()}",
                 )
             }
         }

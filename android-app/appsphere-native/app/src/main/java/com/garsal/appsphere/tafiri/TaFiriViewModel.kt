@@ -1,5 +1,6 @@
 package com.garsal.appsphere.tafiri
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -89,7 +90,7 @@ class TaFiriViewModel : ViewModel() {
                 Log.w(TAG, "caricamento fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -168,7 +169,7 @@ class TaFiriViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "check-in non riuscito", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non riuscito: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non riuscito: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -200,7 +201,7 @@ class TaFiriViewModel : ViewModel() {
                 Log.w(TAG, "giorno non aggiornato", e)
                 _state.value = _state.value.copy(
                     checkin = prima,
-                    messaggio = "Non salvato: ${e.message ?: "connessione assente"}",
+                    messaggio = "Non salvato: ${e.messaggioBreve()}",
                 )
             }
         }
@@ -244,7 +245,7 @@ class TaFiriViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "salvataggio non riuscito", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non salvato: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non salvato: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -282,7 +283,7 @@ class TaFiriViewModel : ViewModel() {
                 Log.w(TAG, "eliminazione non riuscita", e)
                 _state.value = _state.value.copy(
                     sfide = prima,
-                    messaggio = "Non eliminata: ${e.message ?: "connessione assente"}",
+                    messaggio = "Non eliminata: ${e.messaggioBreve()}",
                 )
             }
         }

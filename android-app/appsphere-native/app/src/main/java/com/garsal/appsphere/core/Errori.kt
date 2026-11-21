@@ -12,5 +12,9 @@ fun Throwable.messaggioBreve(ripiego: String = "connessione assente"): String {
     val m = message?.trim().orEmpty()
     if (m.isEmpty()) return ripiego
     val taglio = Regex("""\s*\b(URL|Headers|Http Method|Status)\s*:""").find(m)?.range?.first ?: m.length
-    return m.substring(0, taglio).trim().ifEmpty { ripiego }
+    // «HTTP request to <url> (POST) failed with message: …»: l'indirizzo davanti non dice
+    // niente a chi legge e spinge fuori schermo il motivo vero.
+    return m.substring(0, taglio).trim()
+        .replace(Regex("""^HTTP request to \S+ \(\w+\) failed with message:\s*"""), "")
+        .ifEmpty { ripiego }
 }
