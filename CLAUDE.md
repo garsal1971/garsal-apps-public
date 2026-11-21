@@ -475,7 +475,7 @@ e intestato all'utente cercato per email, e salta senza fallire se quell'utente 
 ### Possibili soluzioni (`fnz_coverage_items`)
 | Table | Purpose |
 |---|---|
-| `fnz_coverage_items` | Le voci di copertura, **una riga per voce**: `side` (`fabbisogno`\|`dotazione`), `item_key`, `amount`, `periodicity`, `revaluation_pct`, `linked_other_asset_id`, `excluded`, `note` |
+| `fnz_coverage_items` | Le voci di copertura, **una riga per voce**: `side` (`fabbisogno`\|`dotazione`), `item_key`, `amount`, `periodicity`, `linked_other_asset_id`, `excluded`, `note` |
 
 Si compila da `finanza.html` → Piano pensione → 🛡️ **Possibili soluzioni**, la voce di menù
 sotto 🏛️ Simulazione INPS. Quello che servirà, quello con cui ci si arriva, e quanto manca.
@@ -619,7 +619,7 @@ pezzo del piano. Ritrovarla spostata di tre anni riaprendo la pagina vorrebbe di
 proiettati credendoli quelli di oggi, che è il modo peggiore di sbagliarsi. La **percentuale**
 invece è un'ipotesi come le durate dell'uscita, e sta in `cm_settings` chiave
 **`fnz_rivalutazione`** (JSON `{pct}`, di partenza 2), letta da `loadUscita()` con le altre tre.
-⚠️ **Non è la colonna `revaluation_pct`** di `fnz_coverage_items`, che resta inutilizzata: quella
+⚠️ **Non è la colonna `revaluation_pct`** di `fnz_coverage_items`, oggi tolta: quella
 era una percentuale per voce, questa è una sola per tutta la pagina.
 
 ### 🎯 «Scopertura a zero» — il bottone che muove la barra al posto tuo
@@ -871,9 +871,9 @@ percentuale composta, e il fabbisogno usciva in euro del giorno in cui sarebbe s
 ⚠️ L'ultimo anno parziale entra per la sua frazione: fermarsi all'anno intero perderebbe fino a
 undici mesi di spesa.
 
-⚠️ La colonna **`revaluation_pct` esiste ancora in tabella e non la legge più nessuno**
-(`20260901160000_...`): va tolta con una migration quando si tocca di nuovo questa parte — una
-colonna che nessuno riempie è un invito a reimplementare la rivalutazione una seconda volta.
+⚠️ La colonna **`revaluation_pct` è stata tolta** (`20261121200000_colonne_inutilizzate_tolte.sql`):
+non la leggeva più nessuno, e una colonna che nessuno riempie è un invito a reimplementare la
+rivalutazione una seconda volta.
 ⚠️ La rivalutazione della ⏳ macchina del tempo **non è lei**: è una percentuale sola per tutta la
 pagina, in `cm_settings` chiave `fnz_rivalutazione`.
 
@@ -1575,8 +1575,7 @@ corregge, e nessun modo di sapere quale è quella giusta. La pagina li mostra in
 il pulsante che apre la scheda (`/#profilo`, che `index.html` intercetta all'avvio per aprire il
 modale invece di lasciare sulla home); `al_profile.activity` resta di qua perché è una scelta di
 questa pagina e in `cm_profile` non c'è. Le colonne `birth_date`, `height_cm` e `sex` di
-`al_profile` non vengono più né lette né scritte — restano lì in attesa di una migration che le
-tolga.
+`al_profile` sono state tolte (`20261121200000_colonne_inutilizzate_tolte.sql`).
 
 ⚠️ `cm_profile.sesso` ammette anche `'Altro'`, che Mifflin-St Jeor non prevede: le sue due
 varianti differiscono di una costante (+5 contro −161), quindi lì si usa la **via di mezzo** e la
