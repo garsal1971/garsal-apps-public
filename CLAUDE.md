@@ -5648,8 +5648,8 @@ URL e header **token compreso** a schermo, perché scriveva `e.message`. Ora
 `MainActivity.onStart` chiama `AuthRepo.rinnovaSeServe()` e la home `assicuraSessione()` prima di
 caricare: se il token non è vivo (`Jwt.vivo`) si rinnova, **uno per volta** (`Mutex`, o lo stesso
 refresh token si spenderebbe due volte). Se il server risponde comunque «JWT expired» la home
-rinnova a forza e riprova una volta, e l'errore si mostra con `messaggioBreve()`. ⚠️ Le altre
-schermate sono passate a `messaggioBreve()` nell'APK 1.0.158.
+rinnova a forza e riprova una volta, e l'errore si mostra con `messaggioBreve()`, come tutte le altre
+schermate dall'APK 1.0.158.
 
 ### ⚠️ Il rientro dal login non passa da `parseFragmentAndImportSession`
 
