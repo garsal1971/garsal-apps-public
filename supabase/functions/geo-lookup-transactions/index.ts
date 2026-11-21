@@ -100,12 +100,37 @@ async function nominatimLookup(query: string): Promise<string | null> {
   }
 }
 
+// Solo un utente loggato: la chiave pubblica anon NON passa. Senza questo controllo
+// la funzione (verify_jwt = false) era un accesso libero alla chiave IA per chiunque
+// conoscesse l'indirizzo. /auth/v1/user risponde solo a un JWT di un utente vero.
+async function utenteLoggato(req: Request): Promise<boolean> {
+  const header = req.headers.get('Authorization') ?? '';
+  if (!header.toLowerCase().startsWith('bearer ')) return false;
+  try {
+    const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+      headers: { Authorization: header, apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '' },
+    });
+    if (!r.ok) return false;
+    const u = await r.json();
+    return !!u?.id;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+  }
+
+  if (!(await utenteLoggato(req))) {
+    return new Response(
+      JSON.stringify({ error: { message: 'Serve un login valido: rientra in AppSphere e riprova.' } }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   const apiKey = Deno.env.get('GROQ_API_KEY');
