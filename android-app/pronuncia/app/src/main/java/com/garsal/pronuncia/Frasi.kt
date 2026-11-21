@@ -27,12 +27,13 @@ object Frasi {
         "viaggio" to "✈️ Viaggio", "politica" to "🏛️ Politica", "storia" to "📜 Storia",
         "natura" to "🌿 Piante e animali", "citta" to "🏙️ Città e luoghi", "comuni" to "🔗 Parole di uso comune",
         "cibo" to "🍽️ Cibo", "casa" to "🏠 Casa e famiglia", "lavoro" to "💼 Lavoro", "salute" to "🩺 Salute",
+        Corso.TEMA to "📘 Corso",
     )
 
     /** ⚠️ Le frasi hanno sette temi — i tre di partenza e, dalla v1.33.0, i
      *  quattro quotidiani (cibo, casa, lavoro, salute) — le parole (v1.20.0)
      *  tutti e dieci: un tema senza frasi lascerebbe l'esercizio senza niente da dire. */
-    val TEMI_FRASI = setOf("viaggio", "politica", "storia", "cibo", "casa", "lavoro", "salute")
+    val TEMI_FRASI = setOf("viaggio", "politica", "storia", "cibo", "casa", "lavoro", "salute", Corso.TEMA)
 
     /** Un tema rimasto nelle preferenze ma tolto dal catalogo (v1.21.0:
      *  «famosi») vale «tutti»: filtrarci sopra non darebbe niente da dire. */
@@ -56,8 +57,10 @@ object Frasi {
         parole ?: leggi(ctx, "words.json", "words", true).also { parole = it }
     }
 
-    /** Le frasi o le parole, secondo quel che si è scelto di esercitare. */
-    fun catalogo(ctx: Context, soloParole: Boolean) = if (soloParole) parole(ctx) else tutte(ctx)
+    /** Le frasi o le parole, secondo quel che si è scelto di esercitare, più le
+     *  voci del corso dello stesso tipo (v1.37.0, `pr_parole_corso`). */
+    fun catalogo(ctx: Context, soloParole: Boolean): List<Frase> =
+        (if (soloParole) parole(ctx) else tutte(ctx)) + Corso.voci(ctx).filter { it.parola == soloParole }
 
     private fun leggi(ctx: Context, file: String, chiave: String, parola: Boolean): List<Frase> {
         val testo = ctx.assets.open(file).bufferedReader().use { it.readText() }
@@ -76,7 +79,7 @@ object Frasi {
     fun aCaso(ctx: Context, livello: String?, tema: String?, esclusa: String? = null, soloParole: Boolean = false): Frase? {
         val tema = temaValido(tema)
         val scelte = catalogo(ctx, soloParole).filter {
-            (livello == null || it.livello == livello) && (tema == null || it.tema == tema)
+            Corso.passaLivello(it, livello) && (tema == null || it.tema == tema)
         }
         return scelte.filter { it.id != esclusa }.randomOrNull() ?: scelte.randomOrNull()
     }

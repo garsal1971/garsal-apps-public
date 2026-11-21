@@ -23,7 +23,7 @@ object Sessione {
             val tema = Frasi.temaValido(tema, soloParole)
             val dao = Storico.dao(ctx)
             val scelte = Frasi.catalogo(ctx, soloParole).filter {
-                (livello == null || it.livello == livello) && (tema == null || it.tema == tema)
+                Corso.passaLivello(it, livello) && (tema == null || it.tema == tema)
             }
             val righe = dao.fonemiRecenti(ProfiloSuoni.RIGHE).map { it.parola to it.fonemi }
             val deboli = ProfiloSuoni.deboli(ProfiloSuoni.calcola(righe)).map { it.fonema }

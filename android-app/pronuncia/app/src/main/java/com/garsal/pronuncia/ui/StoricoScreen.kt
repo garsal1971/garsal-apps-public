@@ -112,7 +112,7 @@ fun SchermataStorico(onChiudi: (() -> Unit)? = null) {
 
             Sezione("📚 Le mie parole") {
                 // Solo le parole del catalogo: quelle di un tema tolto restano in archivio e non si elencano.
-                val catalogo = remember { Frasi.parole(ctx).map { it.id }.toSet() }
+                val catalogo = remember { Frasi.catalogo(ctx, true).map { it.id }.toSet() }
                 MieParole(perParola.filter { it.fraseId in catalogo }, catalogo.size)
             }
 
@@ -233,7 +233,7 @@ private fun MieParole(righe: List<StatParola>, catalogo: Int) {
     Tendina("Tema", tema, listOf(null) + Frasi.TEMI.keys, { it?.let { k -> Frasi.TEMI[k] } ?: "Tutti" }) { tema = it; quante = 30 }
     Tendina("Livello", livello, listOf(null) + Frasi.LIVELLI, { it ?: "Tutti" }) { livello = it; quante = 30 }
     Tendina("Ordina", ordine, Ordine.entries.toList(), { it.etichetta }) { ordine = it; quante = 30 }
-    val scelte = righe.filter { (tema == null || it.tema == tema) && (livello == null || it.livello == livello) }
+    val scelte = righe.filter { (tema == null || it.tema == tema) && (livello == null || it.tema == Corso.TEMA || it.livello == livello) }
         .let { l ->
             when (ordine) {
                 Ordine.RIPETUTE -> l.sortedWith(compareByDescending<StatParola> { it.volte }.thenBy { it.testo })

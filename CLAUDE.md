@@ -4055,6 +4055,16 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   «Riascolta la mia voce» — 🔇 Mai · 🔁 Sempre · ❌ Solo quando non supero. Chiave nuova
   `riascolto_ciclo_modo`; finché non c'è vale il vecchio booleano `riascolto_ciclo` (acceso =
   Sempre, spento = Mai).
+- **📘 Voci del corso** (v1.37.0, `Corso.kt`, `20261121100000_pr_parole_corso.sql`): parole e
+  frasi viste a lezione stanno in **`pr_parole_corso`** (`testo`, `traduzione`, `tipo`
+  `parola`|`frase`, `origine` es. «Lezione 1», `inserita_il`; sola lettura agli `authenticated`) e
+  le **inserisce Claude a fine lezione** con l'SQL — ⚠️ quelle righe non si committano. L'app le
+  scarica insieme alle traduzioni (una volta per avvio, cache in `filesDir/corso.json`) e le mette
+  nel catalogo col tema **«📘 Corso»** (frasi e parole, secondo `tipo`); con «Tutti» si mescolano
+  al resto. Id nell'app **`c-<uuid>`** (lo storico lo cita: l'uuid non si cambia), traduzione del
+  fumetto dalla tabella stessa, e ripasso, voti e intervalli quelli di `Ripasso.componi`.
+  ⚠️ Non hanno livello: il filtro Livello le lascia sempre passare (`Corso.passaLivello`, usata da
+  `Sessione`, `Frasi.aCaso` e dallo Storico).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.
