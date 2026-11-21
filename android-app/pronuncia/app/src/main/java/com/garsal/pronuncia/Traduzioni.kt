@@ -22,22 +22,27 @@ import java.net.URL
  * comparire al tocco, non dopo una chiamata di rete, e senza rete resta buona
  * l'ultima copia. Se non c'è nemmeno quella il fumetto lo dice.
  */
-class Traduzioni(ctx: Context, private val auth: Auth) {
+class Traduzioni(private val ctx: Context, private val auth: Auth) {
 
     private val file = File(ctx.filesDir, "traduzioni.json")
     private val mutex = Mutex()
     private var lette = false
 
-    private val _mappa = MutableStateFlow(leggiCache())
+    // v1.37.0: alle traduzioni del catalogo si aggiungono quelle delle voci del corso.
+    private val _mappa = MutableStateFlow(leggiCache() + Corso.traduzioni(ctx))
     val mappa: StateFlow<Map<String, String>> = _mappa
 
     /** Chiamata dalle schermate che mostrano una frase: la prima volta scarica. */
     suspend fun aggiorna() = mutex.withLock {
         if (lette || !auth.connesso) return@withLock
-        val nuova = runCatching { scarica(auth.token()) }.getOrNull() ?: return@withLock
+        val jwt = runCatching { auth.token() }.getOrNull() ?: return@withLock
+        // Le voci del corso: un errore lascia buona la copia in cache.
+        runCatching { Corso.aggiorna(ctx, jwt) }
+        val nuova = runCatching { scarica(jwt) }.getOrNull()
+        if (nuova == null) { _mappa.value = _mappa.value + Corso.traduzioni(ctx); return@withLock }
         lette = true
-        if (nuova.isEmpty()) return@withLock
-        _mappa.value = nuova
+        if (nuova.isEmpty()) { _mappa.value = _mappa.value + Corso.traduzioni(ctx); return@withLock }
+        _mappa.value = nuova + Corso.traduzioni(ctx)
         runCatching {
             val o = JSONObject()
             nuova.forEach { (k, v) -> o.put(k, v) }
