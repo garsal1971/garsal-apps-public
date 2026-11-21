@@ -73,6 +73,8 @@ data class TasksState(
     val preset: List<TsPreset> = emptyList(),
     /** Le regole dei promemoria per id del task: servono a riaprire il form com'era. */
     val promemoria: Map<String, PromemoriaTask> = emptyMap(),
+    /** 🚨 Le escalation in corso, per id del task (task_escalation_stato). */
+    val escalation: Map<String, Escalation> = emptyMap(),
     val caricamento: Boolean = true,
     val errore: String? = null,
     val messaggio: String? = null,
@@ -359,6 +361,7 @@ class TasksViewModel : ViewModel() {
                         .getOrDefault(emptyMap()),
                     preset = TasksRepository.preset(),
                     promemoria = TasksRepository.promemoria(),
+                    escalation = runCatching { TasksRepository.escalation() }.getOrDefault(emptyMap()),
                     caricamento = false,
                 )
             } catch (e: Exception) {
@@ -496,6 +499,43 @@ class TasksViewModel : ViewModel() {
         runCatching { TasksRepository.task() }
             .onSuccess { _state.value = _state.value.copy(task = it) }
             .onFailure { Log.w(TAG, "ricarica non riuscita", it) }
+        // Completare, saltare o fallire può aver fermato un'escalation (trigger nel DB).
+        runCatching { TasksRepository.escalation() }
+            .onSuccess { _state.value = _state.value.copy(escalation = it) }
+    }
+
+    /** 🚨 Avvia l'escalation di un task scaduto fino a [fino], con [quante] notifiche. */
+    fun avviaEscalation(id: String, fino: java.time.LocalDateTime, quante: Int) {
+        viewModelScope.launch {
+            try {
+                val istante = fino.atZone(java.time.ZoneId.systemDefault()).toInstant()
+                val esito = TasksRepository.escalationAvvia(id, istante, quante)
+                _state.value = _state.value.copy(
+                    messaggio = if (esito.ok) "🚨 Escalation avviata: $quante notifiche"
+                    else "Non riuscito: ${esito.errore ?: "il server ha detto no"}"
+                )
+                ricaricaTask()
+            } catch (e: Exception) {
+                Log.w(TAG, "escalation non avviata", e)
+                _state.value = _state.value.copy(messaggio = "Non riuscito: ${e.messaggioBreve()}")
+            }
+        }
+    }
+
+    fun fermaEscalation(id: String) {
+        viewModelScope.launch {
+            try {
+                val esito = TasksRepository.escalationFerma(id)
+                _state.value = _state.value.copy(
+                    messaggio = if (esito.ok) "🚨 Escalation fermata"
+                    else "Non riuscito: ${esito.errore ?: "il server ha detto no"}"
+                )
+                ricaricaTask()
+            } catch (e: Exception) {
+                Log.w(TAG, "escalation non fermata", e)
+                _state.value = _state.value.copy(messaggio = "Non riuscito: ${e.messaggioBreve()}")
+            }
+        }
     }
 
     fun messaggioMostrato() {

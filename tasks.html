@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Language" content="it-IT">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasks v19.31.0</title>
+    <title>Tasks v19.32.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -2029,6 +2029,28 @@
         </div>
     </div>
 
+    <!-- 🚨 Escalation: notifiche Smart Block sempre più ravvicinate fino a una scadenza massima -->
+    <div id="escalationModal" class="modal" style="z-index:9998;">
+        <div class="modal-content" style="max-width: 380px;">
+            <div class="modal-header">
+                <h3 class="modal-title">🚨 Escalation</h3>
+                <span class="modal-close" onclick="chiudiEscalation()">✕</span>
+            </div>
+            <div style="padding:1.5rem;">
+                <p id="escalationTask" style="margin-bottom: 1rem; font-weight: 600; overflow-wrap: anywhere;"></p>
+                <label class="form-label">Scadenza massima</label>
+                <input type="datetime-local" class="form-input" id="escalationFino" oninput="anteprimaEscalation()" style="width: 100%;">
+                <label class="form-label" style="margin-top: 1rem;">Numero di notifiche</label>
+                <input type="number" class="form-input" id="escalationQuante" min="1" max="20" value="4" oninput="anteprimaEscalation()" style="width: 100%;">
+                <p id="escalationAnteprima" style="margin-top: 0.75rem; font-size: 0.9rem; color: var(--muted); line-height: 1.5;"></p>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem;">
+                    <button class="btn btn-primary" style="flex: 1 1 8rem;" onclick="confermaEscalation()">🚨 Avvia</button>
+                    <button class="btn btn-secondary" style="flex: 1 1 8rem;" onclick="chiudiEscalation()">Annulla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Modal (Create/Edit) -->
     <div id="taskModal" class="modal">
         <div class="modal-content">
@@ -2415,8 +2437,8 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v19.31.0';
-        const BUILD_TIME  = '2026-11-05T11:57:04Z';
+        const APP_VERSION = 'v19.32.0';
+        const BUILD_TIME  = '2026-11-21T22:30:00Z';
 
         // ── Icone SVG per tipo task e azioni (usate nei renderTaskCard) ──────
         const TASK_TYPE_SVG = {
@@ -2677,6 +2699,7 @@
             // Carica preset promemoria e mappa regole notifica
             await loadReminderPresets();
             await loadNotificationRulesMap();
+            await caricaEscalation();
 
             // Aggiorna badge promemoria
             updateRemindersCount();
@@ -3146,6 +3169,8 @@
                 debugLog('❌ Exception loading tasks:', e.message);
                 alert('Eccezione nel caricamento dei task: ' + e.message);
             }
+            // Dopo ogni completa/salta/fallisci il trigger può aver tolto un'escalation.
+            await caricaEscalation();
         }
 
         async function loadHistory() {
@@ -8122,6 +8147,91 @@
                 `🙈 Nascosto fino al ${fine.toLocaleDateString('it-IT')}`);
         }
 
+        // 🚨 Escalation: notifiche Smart Block a intervalli dimezzati fino a una scadenza
+        // massima (l'ultima cade lì). Tutto il conto lo fa la RPC task_escalation_avvia; si
+        // ferma da sé (trigger) quando il task viene completato, saltato, fallito o spostato.
+        let escalationMap = {};          // task_id → { fino, quante, rimaste, prossima }
+        let _escalationTaskId = null;
+
+        async function caricaEscalation() {
+            try {
+                const { data, error } = await sb.rpc('task_escalation_stato');
+                if (error) { console.warn('task_escalation_stato:', error); return; }
+                escalationMap = {};
+                for (const e of data || []) if (e.rimaste > 0) escalationMap[e.task_id] = e;
+            } catch (e) { console.warn('caricaEscalation:', e); }
+        }
+
+        // Stessa regola della RPC: d1 = T·2^(N−1)/(2^N−1), poi ogni intervallo è la metà.
+        function orariEscalation(fino, n) {
+            const ora = Date.now(), tot = fino.getTime() - ora;
+            let passo = tot * Math.pow(2, n - 1) / (Math.pow(2, n) - 1), acc = 0;
+            const out = [];
+            for (let k = 1; k <= n; k++) { acc += passo; out.push(k === n ? fino : new Date(ora + acc)); passo /= 2; }
+            return out;
+        }
+
+        function apriEscalation(id) {
+            const task = tasks.find(t => t.id === id);
+            _escalationTaskId = id;
+            document.getElementById('escalationTask').textContent = task ? task.title : '';
+            const d = new Date(Date.now() + 12 * 3600 * 1000);
+            d.setMinutes(0, 0, 0);
+            const pad = x => String(x).padStart(2, '0');
+            document.getElementById('escalationFino').value =
+                `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            document.getElementById('escalationQuante').value = 4;
+            anteprimaEscalation();
+            document.getElementById('escalationModal').classList.add('active');
+        }
+
+        function chiudiEscalation() {
+            document.getElementById('escalationModal').classList.remove('active');
+            _escalationTaskId = null;
+        }
+
+        function anteprimaEscalation() {
+            const v = document.getElementById('escalationFino').value;
+            const n = parseInt(document.getElementById('escalationQuante').value, 10);
+            const el = document.getElementById('escalationAnteprima');
+            const fino = v ? new Date(v) : null;
+            if (!fino || isNaN(fino) || fino.getTime() <= Date.now() + 60000) { el.textContent = 'La scadenza massima deve essere nel futuro.'; return; }
+            if (!(n >= 1 && n <= 20)) { el.textContent = 'Da 1 a 20 notifiche.'; return; }
+            const fmt = d => d.toLocaleString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            el.innerHTML = 'Arriveranno:<br>' + orariEscalation(fino, n).map((d, i) => `${i + 1}. ${fmt(d)}`).join('<br>');
+        }
+
+        async function confermaEscalation() {
+            const id = _escalationTaskId;
+            const v = document.getElementById('escalationFino').value;
+            const n = parseInt(document.getElementById('escalationQuante').value, 10);
+            const fino = v ? new Date(v) : null;
+            if (!id || !fino || isNaN(fino)) return;
+            const { data, error } = await sb.rpc('task_escalation_avvia',
+                { p_task_id: id, p_fino: fino.toISOString(), p_quante: n });
+            if (error || !data?.ok) { alert('Errore: ' + (error?.message || data?.error)); return; }
+            chiudiEscalation();
+            await caricaEscalation();
+            showToast(`🚨 Escalation avviata: ${n} notifiche fino al ${fino.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`);
+            renderDashboard();
+        }
+
+        async function fermaEscalation(id) {
+            if (!await customConfirm('Fermare l\'escalation? Le notifiche rimaste non arriveranno.')) return;
+            const { data, error } = await sb.rpc('task_escalation_ferma', { p_task_id: id });
+            if (error || !data?.ok) { alert('Errore: ' + (error?.message || data?.error)); return; }
+            delete escalationMap[id];
+            showToast('🚨 Escalation fermata');
+            renderDashboard();
+        }
+
+        function rigaEscalation(task) {
+            const e = escalationMap[task.id];
+            if (!e) return '';
+            const fino = new Date(e.fino).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            return `<div class="dash-task-meta" style="margin-top: 0.4rem; font-size: 0.85rem; color: var(--danger); display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">🚨 Escalation fino al ${fino} · ${e.rimaste} ${e.rimaste === 1 ? 'rimasta' : 'rimaste'} <span style="cursor: pointer; font-weight: 700;" title="Ferma l'escalation" onclick="event.stopPropagation(); fermaEscalation('${task.id}')">✕</span></div>`;
+        }
+
         async function mostraTask(id) {
             await scriviNascostoFino(id, null, '👁 Task di nuovo fra gli scaduti');
         }
@@ -9555,9 +9665,11 @@ Per attivarle:
                             <div style="display: flex; gap: 0.4rem; align-items: center;">
                                 <button style="background: #F59E0B; color: #1F2937; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); openWorkflowPopup('${task.id}')">Gestisci</button>
                                 ${sectionColor === 'var(--danger)' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); nascondiTask('${task.id}')">🙈 Nascondi</button>` : ''}
+                                ${sectionColor === 'var(--danger)' ? `<button style="background: #B91C1C; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); apriEscalation('${task.id}')">🚨 Escalation</button>` : ''}
                                 ${sectionColor === 'nascosti' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); mostraTask('${task.id}')">👁 Mostra</button>` : ''}
                             </div>
                             ${sectionColor === 'nascosti' ? `<div class="dash-task-meta" style="margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted);">🙈 Nascosto fino al ${task.nascosto_fino.split('-').reverse().join('/')}</div>` : ''}
+                            ${rigaEscalation(task)}
                         </div>
                     `;
                 }
@@ -9579,9 +9691,11 @@ Per attivarle:
                             ${task.type !== 'free_repeat' ? `<button style="background: #E74C3C; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); failTask('${task.id}')">Fallisci</button>` : ''}
                             ${(task.type === 'recurring' || task.type === 'simple_recurring' || task.type === 'multiple') ? `<button style="background: #2563EB; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); skipTask('${task.id}')">Salta</button>` : ''}
                             ${sectionColor === 'var(--danger)' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); nascondiTask('${task.id}')">🙈 Nascondi</button>` : ''}
+                                ${sectionColor === 'var(--danger)' ? `<button style="background: #B91C1C; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); apriEscalation('${task.id}')">🚨 Escalation</button>` : ''}
                             ${sectionColor === 'nascosti' ? `<button style="background: #6B7280; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; white-space: nowrap;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="event.stopPropagation(); mostraTask('${task.id}')">👁 Mostra</button>` : ''}
                         </div>
                         ${sectionColor === 'nascosti' ? `<div class="dash-task-meta" style="margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted);">🙈 Nascosto fino al ${task.nascosto_fino.split('-').reverse().join('/')}</div>` : ''}
+                            ${rigaEscalation(task)}
                     </div>
                 `;
             };

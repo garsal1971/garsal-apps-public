@@ -373,7 +373,7 @@ private fun giornoMeseItaliano(gm: String): String {
 // seguono l'ingrandimento dei caratteri del telefono senza che nessuno se ne
 // occupi, e sono i selettori che l'utente conosce dalle altre app.
 
-private fun scegliData(context: Context, iniziale: LocalDate, poi: (LocalDate) -> Unit) {
+internal fun scegliData(context: Context, iniziale: LocalDate, poi: (LocalDate) -> Unit) {
     DatePickerDialog(
         context,
         { _, anno, meseZeroBased, giorno -> poi(LocalDate.of(anno, meseZeroBased + 1, giorno)) },
@@ -383,7 +383,7 @@ private fun scegliData(context: Context, iniziale: LocalDate, poi: (LocalDate) -
     ).show()
 }
 
-private fun scegliOra(context: Context, iniziale: String, poi: (String) -> Unit) {
+internal fun scegliOra(context: Context, iniziale: String, poi: (String) -> Unit) {
     val ore = iniziale.take(2).toIntOrNull() ?: 9
     val minuti = iniziale.drop(3).toIntOrNull() ?: 0
     TimePickerDialog(

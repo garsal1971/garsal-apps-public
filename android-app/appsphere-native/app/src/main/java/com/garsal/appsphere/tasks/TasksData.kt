@@ -462,6 +462,35 @@ object TasksRepository {
         put("p_task_id", id)
     }
 
+    // ── 🚨 Escalation: notifiche Smart Block a intervalli dimezzati ────────
+    //
+    // Gemelle di apriEscalation / fermaEscalation / caricaEscalation in tasks.html. Il conto
+    // degli orari e la scrittura della coda li fa task_escalation_avvia; si ferma da sé
+    // (trigger su ts_tasks) quando il task viene completato, saltato, fallito o spostato.
+
+    suspend fun escalationAvvia(id: String, fino: java.time.Instant, quante: Int): Esito =
+        rpc("task_escalation_avvia") {
+            put("p_task_id", id)
+            put("p_fino", fino.toString())
+            put("p_quante", quante)
+        }
+
+    suspend fun escalationFerma(id: String): Esito = rpc("task_escalation_ferma") {
+        put("p_task_id", id)
+    }
+
+    /** Le escalation in corso con almeno una notifica ancora da mandare, per id del task. */
+    suspend fun escalation(): Map<String, Escalation> = withContext(Dispatchers.IO) {
+        val righe = db.rpc("task_escalation_stato").decodeAs<JsonArray>()
+        righe.mapNotNull { el ->
+            val o = el as? JsonObject ?: return@mapNotNull null
+            val id = testo(o, "task_id") ?: return@mapNotNull null
+            val rimaste = numero(o, "rimaste") ?: 0
+            if (rimaste <= 0) null
+            else id to Escalation(fino = testo(o, "fino").orEmpty(), quante = numero(o, "quante") ?: 0, rimaste = rimaste)
+        }.toMap()
+    }
+
     private suspend fun rpc(nome: String, parametri: JsonObjectBuilderScope): Esito =
         withContext(Dispatchers.IO) {
             val risposta = db.rpc(nome, buildJsonObject(parametri)).decodeAs<JsonObject>()
@@ -639,6 +668,9 @@ object TasksRepository {
 
     data class Esito(val ok: Boolean, val azione: String?, val punti: Int?, val errore: String?)
 }
+
+/** Un'escalation in corso: fino a quando, quante notifiche in tutto e quante ne restano. */
+data class Escalation(val fino: String, val quante: Int, val rimaste: Int)
 
 private typealias JsonObjectBuilderScope = kotlinx.serialization.json.JsonObjectBuilder.() -> Unit
 

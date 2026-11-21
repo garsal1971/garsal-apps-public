@@ -63,6 +63,8 @@ fun VistaPanoramica(
     onSalta: (TsTask) -> Unit,
     onNascondi: (TsTask) -> Unit,
     onMostra: (TsTask) -> Unit,
+    onEscalation: (TsTask) -> Unit,
+    onFermaEscalation: (TsTask) -> Unit,
 ) {
     if (stato.panoramicaVuota) {
         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -71,8 +73,8 @@ fun VistaPanoramica(
         return
     }
 
-    val azioni = AzioniScheda(onApri, onCompleta, onFallisci, onSalta, onNascondi, onMostra)
-    val larghezzaPulsanti = larghezzaPulsanti(listOf(COMPLETA, FALLISCI, SALTA, NASCONDI, MOSTRA))
+    val azioni = AzioniScheda(onApri, onCompleta, onFallisci, onSalta, onNascondi, onMostra, onEscalation, onFermaEscalation)
+    val larghezzaPulsanti = larghezzaPulsanti(listOf(COMPLETA, FALLISCI, SALTA, NASCONDI, MOSTRA, ESCALATION))
 
     LazyColumn(
         contentPadding = PaddingValues(10.dp, 6.dp, 10.dp, 88.dp),
@@ -122,6 +124,8 @@ private data class AzioniScheda(
     val salta: (TsTask) -> Unit,
     val nascondi: (TsTask) -> Unit,
     val mostra: (TsTask) -> Unit,
+    val escalation: (TsTask) -> Unit,
+    val fermaEscalation: (TsTask) -> Unit,
 )
 
 /** In quale sezione sta la scheda: decide se offrire 🙈 Nascondi o 👁 Mostra. */
@@ -286,10 +290,25 @@ private fun SchedaTask(
                 Pillola(SALTA, Palette.accent, larghezzaPulsanti) { azioni.salta(task) }
             }
             when (modo) {
-                Modo.SCADUTO -> Pillola(NASCONDI, Palette.muted, larghezzaPulsanti) { azioni.nascondi(task) }
+                Modo.SCADUTO -> {
+                    Pillola(NASCONDI, Palette.muted, larghezzaPulsanti) { azioni.nascondi(task) }
+                    Pillola(ESCALATION, Palette.danger, larghezzaPulsanti) { azioni.escalation(task) }
+                }
                 Modo.NASCOSTO -> Pillola(MOSTRA, Palette.muted, larghezzaPulsanti) { azioni.mostra(task) }
                 Modo.NORMALE -> Unit
             }
+        }
+
+        stato.escalation[task.id]?.let { e ->
+            // Gemella di rigaEscalation() in tasks.html: fino a quando e quante ne restano,
+            // e la ✕ per fermarla.
+            Text(
+                text = "🚨 Escalation fino al ${istanteLocale(e.fino)} · ${e.rimaste} " +
+                    (if (e.rimaste == 1) "rimasta" else "rimaste") + "   ✕ Ferma",
+                color = Palette.danger,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 6.dp).clickable { azioni.fermaEscalation(task) },
+            )
         }
 
         if (modo == Modo.NASCOSTO) {
@@ -311,6 +330,17 @@ private const val FALLISCI = "Fallisci"
 private const val SALTA = "Salta"
 private const val NASCONDI = "🙈 Nascondi"
 private const val MOSTRA = "👁 Mostra"
+
+/**
+ * `fino` è un istante vero (timestamptz), non un orario «già locale» come le date dei task:
+ * si porta all'ora del telefono invece di tagliare la stringa.
+ */
+private fun istanteLocale(iso: String): String = runCatching {
+    java.time.OffsetDateTime.parse(iso.replace(' ', 'T'))
+        .atZoneSameInstant(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"))
+}.getOrDefault(iso)
+private const val ESCALATION = "🚨 Escalation"
 
 @Composable
 private fun Etichetta(testo: String, colore: Color) {
