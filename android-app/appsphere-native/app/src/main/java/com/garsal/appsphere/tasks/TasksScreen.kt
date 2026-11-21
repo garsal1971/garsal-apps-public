@@ -71,6 +71,8 @@ fun TasksScreen(
     var daEliminare by remember { mutableStateOf<TsTask?>(null) }
     var daSaltare by remember { mutableStateOf<TsTask?>(null) }
     var daNascondere by remember { mutableStateOf<TsTask?>(null) }
+    var daEscalare by remember { mutableStateOf<TsTask?>(null) }
+    var escalationDaFermare by remember { mutableStateOf<TsTask?>(null) }
 
     inCompilazione?.let { (bozza, id) ->
         TaskForm(
@@ -140,6 +142,8 @@ fun TasksScreen(
                             onSalta = { daSaltare = it },
                             onNascondi = { daNascondere = it },
                             onMostra = { vm.nascondi(it.id, null) },
+                            onEscalation = { daEscalare = it },
+                            onFermaEscalation = { escalationDaFermare = it },
                         )
 
                         Vista.GESTIONE -> VistaGestione(
@@ -254,6 +258,26 @@ fun TasksScreen(
             task = task,
             onAnnulla = { daSaltare = null },
             onConferma = { giorni -> vm.salta(task.id, giorni); daSaltare = null },
+        )
+    }
+
+    daEscalare?.let { task ->
+        DialogoEscalation(
+            titolo = task.titolo,
+            onAnnulla = { daEscalare = null },
+            onConferma = { fino, quante -> vm.avviaEscalation(task.id, fino, quante); daEscalare = null },
+        )
+    }
+
+    escalationDaFermare?.let { task ->
+        AlertDialog(
+            onDismissRequest = { escalationDaFermare = null },
+            title = { Text("Fermare l'escalation?") },
+            text = { Text("Le notifiche rimaste di «${task.titolo}» non arriveranno.") },
+            confirmButton = {
+                TextButton(onClick = { vm.fermaEscalation(task.id); escalationDaFermare = null }) { Text("Ferma") }
+            },
+            dismissButton = { TextButton(onClick = { escalationDaFermare = null }) { Text("Annulla") } },
         )
     }
 
@@ -499,6 +523,74 @@ private fun DialogoNascondi(onAnnulla: () -> Unit, onConferma: (Int) -> Unit) {
                 enabled = numero != null && numero >= 1,
                 onClick = { numero?.let(onConferma) },
             ) { Text("Nascondi") }
+        },
+        dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla") } },
+    )
+}
+
+/**
+ * 🚨 Escalation di un task scaduto: scadenza massima e numero di notifiche Smart Block.
+ * Gemella di apriEscalation() in tasks.html; gli orari mostrati usano la stessa regola
+ * della RPC task_escalation_avvia (intervalli dimezzati, l'ultima sulla scadenza).
+ */
+@Composable
+private fun DialogoEscalation(
+    titolo: String,
+    onAnnulla: () -> Unit,
+    onConferma: (java.time.LocalDateTime, Int) -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val partenza = remember {
+        java.time.LocalDateTime.now().plusHours(12).withMinute(0).withSecond(0).withNano(0)
+    }
+    var giorno by remember { mutableStateOf(partenza.toLocalDate()) }
+    var ora by remember { mutableStateOf("%02d:%02d".format(partenza.hour, partenza.minute)) }
+    var quante by remember { mutableStateOf("4") }
+    val n = quante.toIntOrNull()
+    val fino = java.time.LocalDateTime.of(giorno, java.time.LocalTime.parse(ora))
+    val adesso = java.time.LocalDateTime.now()
+    val valido = n != null && n in 1..20 && fino.isAfter(adesso.plusMinutes(1))
+
+    AlertDialog(
+        onDismissRequest = onAnnulla,
+        title = { Text("🚨 Escalation") },
+        text = {
+            Column {
+                Text(titolo, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Scadenza massima", style = MaterialTheme.typography.bodySmall, color = Palette.muted)
+                Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { scegliData(context, giorno) { giorno = it } }) {
+                        Text(dataItaliana(giorno.toString()))
+                    }
+                    TextButton(onClick = { scegliOra(context, ora) { ora = it } }) { Text(ora) }
+                }
+                OutlinedTextField(
+                    value = quante,
+                    onValueChange = { quante = it.filter { c -> c.isDigit() }.take(2) },
+                    label = { Text("Numero di notifiche") },
+                    singleLine = true,
+                )
+                val nota = when {
+                    !fino.isAfter(adesso.plusMinutes(1)) -> "La scadenza massima deve essere nel futuro."
+                    n == null || n !in 1..20 -> "Da 1 a 20 notifiche."
+                    else -> {
+                        val tot = java.time.Duration.between(adesso, fino).seconds.toDouble()
+                        var passo = tot * Math.pow(2.0, (n - 1).toDouble()) / (Math.pow(2.0, n.toDouble()) - 1)
+                        var acc = 0.0
+                        val fmt = java.time.format.DateTimeFormatter.ofPattern("EEE dd/MM HH:mm", java.util.Locale.ITALIAN)
+                        "Arriveranno:\n" + (1..n).joinToString("\n") { k ->
+                            acc += passo; passo /= 2
+                            val t = if (k == n) fino else adesso.plusSeconds(acc.toLong())
+                            "$k. ${t.format(fmt)}"
+                        }
+                    }
+                }
+                Text(nota, style = MaterialTheme.typography.bodySmall, color = Palette.muted,
+                    modifier = Modifier.padding(top = 8.dp))
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = valido, onClick = { if (valido) onConferma(fino, n!!) }) { Text("Avvia") }
         },
         dismissButton = { TextButton(onClick = onAnnulla) { Text("Annulla") } },
     )

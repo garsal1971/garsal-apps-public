@@ -5953,6 +5953,21 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   `show_in_panoramica` (👁️ NON IN PANORAMICA), che è per sempre. Gemelli da cambiare insieme:
   `isNascosto` / `nascondiTask` / `scriviNascostoFino` in `tasks.html`, `TasksState.scadutiNascosti`
   / `TasksViewModel.nascondi` / `TasksRepository.nascondiFino` nel nativo.
+- **🚨 Escalation** (web v19.32.0, APK 1.0.159, `20261121220000_ts_escalation.sql`): sui task
+  ⚠️ SCADUTI un pulsante chiede **scadenza massima** e **numero di notifiche** (1-20) e manda
+  notifiche Smart Block a **intervalli dimezzati**, l'ultima sulla scadenza (4 in 15 h → +8, +12,
+  +14, +15 h). Le scrive la RPC `task_escalation_avvia`: una regola `cm_notification_rules`
+  **spenta** (`enabled = false`, così `fill-notification-queue` non la tocca) con `entity_id =
+  md5('escalation:'||task)::uuid` e `reminder_presets = {kind:'escalation', task_id, fino, quante}`,
+  più le righe di coda (`entity_id` = il task vero, `metadata = {device_token, escalation: true}`):
+  lo Smart Blocker non cambia e sbloccando chiama `task_complete`. ⚠️ **Si ferma da sé**: il
+  trigger `trg_ts_tasks_ferma_escalation` toglie la regola (e in cascata la coda) quando
+  cambiano `next_occurrence_date` o `status`, o il task si cancella — completa, salta e fallisci
+  da qualunque client. `task_escalation_ferma` è la ✕ sulla scheda, `task_escalation_stato` la
+  riga «🚨 fino al … · N rimaste». Una per task: la nuova sostituisce la vecchia. Gemelli:
+  `apriEscalation` / `orariEscalation` / `rigaEscalation` in `tasks.html`,
+  `DialogoEscalation` + `TasksRepository.escalation*` nel nativo; la formula degli orari
+  d'anteprima è copiata dalla RPC e va cambiata insieme.
 - `cm_priorities` e `cm_categories` sono **sola lettura** in tasks.html — si gestiscono da AppSphere → ☰ → 🚦 Priorità / 🏷️ Categorie
 - Significant file (~8 500 lines); sections delineated by `// ========================================` comments
 
