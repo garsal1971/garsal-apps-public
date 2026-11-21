@@ -1,5 +1,6 @@
 package com.garsal.appsphere.piante
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -193,7 +194,7 @@ class PianteViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "caricamento fallito", e)
-                _state.value = _state.value.copy(caricamento = false, errore = e.message ?: "Caricamento non riuscito")
+                _state.value = _state.value.copy(caricamento = false, errore = e.messaggioBreve("Caricamento non riuscito"))
             }
         }
     }
@@ -212,7 +213,7 @@ class PianteViewModel : ViewModel() {
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "operazione non riuscita", e)
-                _state.value = _state.value.copy(occupato = false, messaggio = "❌ " + (e.message ?: "errore"))
+                _state.value = _state.value.copy(occupato = false, messaggio = "❌ " + (e.messaggioBreve("errore")))
             }
         }
     }
@@ -305,7 +306,7 @@ class PianteViewModel : ViewModel() {
                 _state.value = _state.value.copy(messaggio = verbo + punti + prossima)
                 carica()
             } catch (ex: Exception) {
-                _state.value = _state.value.copy(messaggio = "❌ " + (ex.message ?: "errore"))
+                _state.value = _state.value.copy(messaggio = "❌ " + (ex.messaggioBreve("errore")))
             }
         }
     }
@@ -335,7 +336,7 @@ class PianteViewModel : ViewModel() {
                 _state.value = _state.value.copy(gruppi = (_state.value.gruppi + g).sortedBy { it.nome.lowercase() })
                 dopo(g.id)
             } catch (e: Exception) {
-                _state.value = _state.value.copy(messaggio = "❌ " + (e.message ?: "errore"))
+                _state.value = _state.value.copy(messaggio = "❌ " + (e.messaggioBreve("errore")))
             }
         }
     }
@@ -362,7 +363,7 @@ class PianteViewModel : ViewModel() {
                 _state.value = _state.value.copy(iaInCorso = false, risposte = risposte)
                 dopo()
             } catch (e: Exception) {
-                _state.value = _state.value.copy(iaInCorso = false, erroreIA = e.message ?: "errore")
+                _state.value = _state.value.copy(iaInCorso = false, erroreIA = e.messaggioBreve("errore"))
             }
         }
     }

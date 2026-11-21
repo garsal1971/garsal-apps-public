@@ -1,5 +1,6 @@
 package com.garsal.appsphere.tasks
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import com.garsal.appsphere.core.AuthRepo
 import com.garsal.appsphere.core.DateMultiple
@@ -610,7 +611,7 @@ object TasksRepository {
         val dueAt = (corpo["next_occurrence_date"] as? JsonPrimitive)?.takeIf { it.isString }?.content
             ?: (corpo["start_date"] as? JsonPrimitive)?.takeIf { it.isString }?.content
         runCatching { scriviRegole(idTask, bozza, if (bozza.tipo == "free_repeat") null else dueAt) }
-            .exceptionOrNull()?.let { "Promemoria non salvati: ${it.message}" }
+            .exceptionOrNull()?.let { "Promemoria non salvati: ${it.messaggioBreve()}" }
     }
 
     /**

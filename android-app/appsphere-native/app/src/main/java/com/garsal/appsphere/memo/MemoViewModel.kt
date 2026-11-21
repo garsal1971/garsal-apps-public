@@ -1,5 +1,6 @@
 package com.garsal.appsphere.memo
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -161,7 +162,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 Log.w(TAG, "caricamento schede fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -253,7 +254,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 Log.w(TAG, "vista non caricata per ${scheda.id}", e)
                 _state.value = _state.value.copy(
                     vista = _state.value.vista?.copy(caricamento = false),
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -300,7 +301,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 ricontaSchede()
             } catch (e: Exception) {
                 Log.w(TAG, "voce non aggiunta", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Voce non aggiunta")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Voce non aggiunta"))
             }
         }
     }
@@ -313,7 +314,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 ricontaSchede()
             } catch (e: Exception) {
                 Log.w(TAG, "voce non eliminata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Voce non eliminata")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Voce non eliminata"))
             }
         }
     }
@@ -349,7 +350,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 ricontaSchede()
             } catch (e: Exception) {
                 Log.w(TAG, "registrazione non salvata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Registrazione non salvata")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Registrazione non salvata"))
             }
         }
     }
@@ -368,7 +369,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 ricontaSchede()
             } catch (e: Exception) {
                 Log.w(TAG, "registrazione non eliminata", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Eliminazione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Eliminazione non riuscita"))
             }
         }
     }
@@ -461,7 +462,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 if (_state.value.vista?.schedaId == schedaId) apriVistaPerId(schedaId)
             } catch (e: Exception) {
                 Log.w(TAG, "salvataggio non riuscito", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Salvataggio non riuscito")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Salvataggio non riuscito"))
             }
         }
     }
@@ -498,7 +499,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "eliminazione non riuscita", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Eliminazione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Eliminazione non riuscita"))
             }
         }
     }
@@ -532,7 +533,7 @@ class MemoViewModel(app: Application) : AndroidViewModel(app) {
                 carica()
             } catch (e: Exception) {
                 Log.w(TAG, "pin non cambiato", e)
-                _state.value = _state.value.copy(errore = e.message ?: "Operazione non riuscita")
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Operazione non riuscita"))
             }
         }
     }

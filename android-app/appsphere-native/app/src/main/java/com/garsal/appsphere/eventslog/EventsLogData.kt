@@ -1,5 +1,6 @@
 package com.garsal.appsphere.eventslog
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -286,7 +287,7 @@ class EventsLogViewModel : ViewModel() {
                 Log.w(TAG, "caricamento fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }
@@ -369,7 +370,7 @@ class EventsLogViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.w(TAG, "log non registrato", e)
                 _state.value = _state.value.copy(
-                    messaggio = "Non registrato: ${e.message ?: "connessione assente"}"
+                    messaggio = "Non registrato: ${e.messaggioBreve()}"
                 )
             }
         }
@@ -385,7 +386,7 @@ class EventsLogViewModel : ViewModel() {
                 Log.w(TAG, "cancellazione non riuscita", e)
                 _state.value = _state.value.copy(
                     log = prima,
-                    messaggio = "Non cancellato: ${e.message ?: "connessione assente"}",
+                    messaggio = "Non cancellato: ${e.messaggioBreve()}",
                 )
             }
         }

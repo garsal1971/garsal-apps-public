@@ -103,7 +103,7 @@ fun DialogoAggiornamento(onChiudi: () -> Unit) {
     LaunchedEffect(Unit) {
         runCatching { Rilascio.scheda() }
             .onSuccess { scheda = it }
-            .onFailure { errore = it.message ?: "non raggiungibile" }
+            .onFailure { errore = it.messaggioBreve("non raggiungibile") }
         inLettura = false
     }
 

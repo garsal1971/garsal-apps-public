@@ -1,5 +1,6 @@
 package com.garsal.appsphere.obiettivi
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -53,7 +54,7 @@ class ObiettiviViewModel : ViewModel() {
                 Log.w(TAG, "caricamento fallito", e)
                 _state.value = _state.value.copy(
                     caricamento = false,
-                    errore = e.message ?: "Caricamento non riuscito",
+                    errore = e.messaggioBreve("Caricamento non riuscito"),
                 )
             }
         }

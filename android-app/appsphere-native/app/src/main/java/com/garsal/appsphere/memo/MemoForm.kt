@@ -1,5 +1,6 @@
 package com.garsal.appsphere.memo
 
+import com.garsal.appsphere.core.messaggioBreve
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -326,7 +327,7 @@ fun MemoForm(
                 descritte.forEach { foto ->
                     runCatching { MemoFoto.testoDaFoto(context, foto.uri) }
                         .onSuccess { accodaTesto(it) }
-                        .onFailure { avviso = "❌ OCR non riuscito: ${it.message ?: "errore"}" }
+                        .onFailure { avviso = "❌ OCR non riuscito: ${it.messaggioBreve("errore")}" }
                 }
             }
         }
