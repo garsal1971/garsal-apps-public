@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.garsal.pronuncia.FonemiParola
+import com.garsal.pronuncia.Corso
 import com.garsal.pronuncia.Frasi
 import com.garsal.pronuncia.ParolaTentativo
 import com.garsal.pronuncia.ProfiloSuoni
