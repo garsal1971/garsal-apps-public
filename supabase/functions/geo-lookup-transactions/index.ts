@@ -30,7 +30,11 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const NOMINATIM_USER_AGENT = 'AnalisiCosti/1.0 (Supabase Edge Function; contatto: garsal1971@gmail.com)';
+// Il contatto NON sta scritto qui: la repo è pubblica. Se serve, lo si mette nel secret
+// NOMINATIM_CONTACT (es. un indirizzo dedicato); senza, lo User-Agent identifica solo l'app.
+const NOMINATIM_CONTACT = Deno.env.get('NOMINATIM_CONTACT') ?? '';
+const NOMINATIM_USER_AGENT = 'AnalisiCosti/1.0 (Supabase Edge Function' +
+  (NOMINATIM_CONTACT ? '; contatto: ' + NOMINATIM_CONTACT : '') + ')';
 
 function extractJson(text: string): unknown {
   try {
