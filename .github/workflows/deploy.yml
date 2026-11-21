@@ -105,7 +105,16 @@ jobs:
             exit 0
           fi
           FILES=$(git diff HEAD~1 HEAD --name-only)
-          FN_LIST=$(echo "$FILES" | grep '^supabase/functions/' | awk -F/ '{print $3}' | sort -u | xargs || true)
+          FN_LIST=$(echo "$FILES" | grep '^supabase/functions/' | grep -v '^supabase/functions/_shared/' | awk -F/ '{print $3}' | sort -u | xargs || true)
+          # supabase/functions/_shared/ non è una funzione: è codice che le funzioni
+          # importano. Un file cambiato lì va ridistribuito con TUTTE le funzioni che lo
+          # importano, o resterebbero con la copia vecchia impacchettata dentro.
+          for SH in $(echo "$FILES" | grep '^supabase/functions/_shared/' | xargs -r -n1 basename); do
+            USERS=$(grep -l "_shared/$SH" supabase/functions/*/index.ts 2>/dev/null | awk -F/ '{print $3}' | xargs || true)
+            echo "_shared/$SH → $USERS"
+            FN_LIST="$FN_LIST $USERS"
+          done
+          FN_LIST=$(echo $FN_LIST | tr ' ' '\n' | grep -v '^$' | sort -u | xargs || true)
           if [ -n "$FN_LIST" ]; then
             echo "functions=true" >> $GITHUB_OUTPUT
           else

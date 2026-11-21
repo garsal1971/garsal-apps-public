@@ -104,23 +104,7 @@ async function nominatimLookup(query: string): Promise<string | null> {
   }
 }
 
-// Solo un utente loggato: la chiave pubblica anon NON passa. Senza questo controllo
-// la funzione (verify_jwt = false) era un accesso libero alla chiave IA per chiunque
-// conoscesse l'indirizzo. /auth/v1/user risponde solo a un JWT di un utente vero.
-async function utenteLoggato(req: Request): Promise<boolean> {
-  const header = req.headers.get('Authorization') ?? '';
-  if (!header.toLowerCase().startsWith('bearer ')) return false;
-  try {
-    const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
-      headers: { Authorization: header, apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '' },
-    });
-    if (!r.ok) return false;
-    const u = await r.json();
-    return !!u?.id;
-  } catch {
-    return false;
-  }
-}
+import { utenteLoggato } from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

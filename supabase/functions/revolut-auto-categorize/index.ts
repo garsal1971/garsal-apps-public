@@ -67,14 +67,13 @@
 // sull'errore) e il ponte si filtra in memoria; i conteggi finiscono nei log e nella risposta.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { ENABLE_BANKING_API_BASE, createEnableBankingJWT, pick } from '../_shared/enable-banking.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
-
-const ENABLE_BANKING_API_BASE = 'https://api.enablebanking.com';
 
 // ── Telefono di Teresa (flavor "teresa" dell'APK Smart Blocker) ────────────────────────────
 // Riceve una notifica separata con le sole transazioni fatte con la sua carta. Il token è una
@@ -87,46 +86,6 @@ const TERESA_DEVICE_TOKEN = 'teresa-smartblock';
 // Come si chiama Teresa in ca_people. Il collegamento carta → persona lo fa già
 // enable-banking-sync via ca_card_person_map: qui serve solo a risalire dal nome all'id.
 const TERESA_PERSON_NAME = 'teresa';
-
-function base64url(input: ArrayBuffer | string): string {
-  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : new Uint8Array(input);
-  let str = '';
-  for (const b of bytes) str += String.fromCharCode(b);
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  const pemBody = pem
-    .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/, '')
-    .replace(/-----END (RSA )?PRIVATE KEY-----/, '')
-    .replace(/\s+/g, '');
-  const binaryDer = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey(
-    'pkcs8',
-    binaryDer.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-}
-
-async function createEnableBankingJWT(appId: string, privateKeyPem: string): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { typ: 'JWT', alg: 'RS256', kid: appId };
-  const jwtBody = { iss: 'enablebanking.com', aud: 'api.enablebanking.com', iat: now, exp: now + 3600 };
-  const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(jwtBody))}`;
-  const key = await importPrivateKey(privateKeyPem);
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(signingInput));
-  return `${signingInput}.${base64url(signature)}`;
-}
-
-// Estrae un campo da più varianti di nome plausibili (snake_case / camelCase / Berlin Group).
-function pick(obj: any, ...keys: string[]): unknown {
-  for (const k of keys) {
-    if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
-  }
-  return null;
-}
 
 // Ora del pagamento — né ca_transactions.date (è un `date`, senza orario) né created_at (è il
 // momento del sync, non del pagamento) la contengono: l'unico posto dove sopravvive è

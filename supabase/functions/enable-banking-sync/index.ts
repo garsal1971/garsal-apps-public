@@ -15,63 +15,13 @@
 // v1 — 2026-07-18 · v2 — 2026-07-19: paginazione completa + attribuzione spender per carta
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { ENABLE_BANKING_API_BASE, createEnableBankingJWT, decodeSupabaseJwtSub, psuHeaders, pick } from '../_shared/enable-banking.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-const ENABLE_BANKING_API_BASE = 'https://api.enablebanking.com';
-
-function base64url(input: ArrayBuffer | string): string {
-  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : new Uint8Array(input);
-  let str = '';
-  for (const b of bytes) str += String.fromCharCode(b);
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  const pemBody = pem
-    .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/, '')
-    .replace(/-----END (RSA )?PRIVATE KEY-----/, '')
-    .replace(/\s+/g, '');
-  const binaryDer = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey(
-    'pkcs8',
-    binaryDer.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-}
-
-async function createEnableBankingJWT(appId: string, privateKeyPem: string): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { typ: 'JWT', alg: 'RS256', kid: appId };
-  const jwtBody = { iss: 'enablebanking.com', aud: 'api.enablebanking.com', iat: now, exp: now + 3600 };
-  const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(jwtBody))}`;
-  const key = await importPrivateKey(privateKeyPem);
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(signingInput));
-  return `${signingInput}.${base64url(signature)}`;
-}
-
-function decodeSupabaseJwtSub(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-    return payload.sub || null;
-  } catch {
-    return null;
-  }
-}
-
-// Estrae un campo da più varianti di nome plausibili (snake_case / camelCase / Berlin Group).
-function pick(obj: any, ...keys: string[]): unknown {
-  for (const k of keys) {
-    if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
-  }
-  return null;
-}
 
 // PostgREST limita di default una select() senza .range() a 1000 righe: senza questa
 // paginazione, con più di 1000 transazioni nel DB il pool di candidati per il match CSV/sync si
@@ -90,22 +40,6 @@ async function fetchAllRows(makeQuery: (from: number, to: number) => PromiseLike
     from += PAGE_SIZE;
   }
   return all;
-}
-
-// Alcune banche pretendono di sapere da quale IP arriva l'utente che sta autorizzando: lo
-// dichiarano in required_psu_headers nel catalogo /aspsps (UniCredit IT chiede
-// "psu-ip-address"). Senza quell'header il consenso viene comunque autorizzato, ma la banca
-// non espone nessun conto — e non arriva nessun errore che lo spieghi.
-// L'IP è quello del browser dell'utente, che raggiunge la Edge Function in x-forwarded-for:
-// se manca (chiamata da un job, senza utente davanti) l'header non si inventa.
-function psuHeaders(req: Request): Record<string, string> {
-  const fwd = req.headers.get('x-forwarded-for') || '';
-  const ip = fwd.split(',')[0].trim();
-  if (!ip) return {};
-  const headers: Record<string, string> = { 'psu-ip-address': ip };
-  const ua = req.headers.get('user-agent');
-  if (ua) headers['psu-user-agent'] = ua;
-  return headers;
 }
 
 Deno.serve(async (req) => {
