@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClasseViva v1.2.0</title>
+<title>ClasseViva v1.3.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — sincronizza, poi le schede (Voti / Assenze / Agenda / Lezioni / Insegnanti) */
@@ -109,6 +109,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
       <label>Indirizzo base<input id="o-base" placeholder="https://web.spaggiari.eu/rest/v1"></label>
       <label>User-Agent<input id="o-ua" placeholder="CVVS/std/4.1.7 Android/10"></label>
       <label>Z-Dev-Apikey<input id="o-apikey" placeholder="Tg1NWEwNGIgIC0K"></label>
+      <h3>🔎 Prova di indirizzi</h3>
+      <p class="hint">Diagnostica: oltre ai dati normali, l'app legge questi indirizzi (uno per riga, <code>{id}</code> = lo studente, al più 15) e mostra qui sotto le risposte grezze. Non salva niente nel database. Serve a cercare dati che le letture normali non danno, come le giustificazioni «in approvazione». Richiede AppSfera Web 1.2.13.</p>
+      <textarea id="o-sonde" rows="7" style="font:12px/1.4 monospace;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px"></textarea>
+      <div class="row"><button class="ghost" type="button" id="b-sonde">🔎 Sincronizza e prova gli indirizzi</button>
+        <button class="ghost" type="button" id="b-sonde-copia" hidden>📋 Copia le risposte</button></div>
+      <pre id="sonde-out" hidden></pre>
     </details>
   </div>
 
@@ -125,8 +131,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.2.0';
-var BUILD_TIME  = '2026-11-22T14:00:00Z';
+var APP_VERSION = 'v1.3.0';
+var BUILD_TIME  = '2026-11-22T09:40:00Z';
 console.log('%c CLASSEVIVA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#D4145A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -168,8 +174,16 @@ async function carica() {
 // ⚠️ Ogni tipo deve stare nel CHECK di sc_classeviva.tipo.
 const TIPI = ['voti', 'agenda', 'lezioni', 'insegnanti', 'assenze'];
 const OPZ = ['base', 'ua', 'apikey'];
+// Indirizzi di prova di partenza: candidati per lo stato «in approvazione» delle giustificazioni.
+const SONDE_DEFAULT = ['/students/{id}/absences/details', '/students/{id}/absences', '/students/{id}/absences/justifications',
+  '/students/{id}/absences/justification', '/students/{id}/justifications', '/students/{id}/absences/web',
+  '/students/{id}/absences/webjustifications', '/students/{id}/absences/details/justifications', '/students/{id}/card',
+  '/students/{id}/noticeboard'].join('\n');
+let conSonde = false;
 function preparaSync() {
   OPZ.forEach(k => { const el = document.getElementById('o-' + k); el.value = ls.get('cv_' + k) || ''; el.onchange = () => ls.set('cv_' + k, el.value.trim()); });
+  const so = document.getElementById('o-sonde');
+  so.value = ls.get('cv_sonde') || SONDE_DEFAULT; so.onchange = () => ls.set('cv_sonde', so.value.trim());
   const b = ponte();
   document.getElementById('sync-web').hidden = !!b;
   document.getElementById('avanzate').hidden = !b;
@@ -195,12 +209,31 @@ document.getElementById('b-cred').onclick = () => { document.getElementById('cre
 document.getElementById('c-annulla').onclick = preparaSync;
 document.getElementById('c-dimentica').onclick = () => { ponte().classevivaDimentica(); preparaSync(); toast('Credenziali tolte dal telefono'); };
 
-document.getElementById('b-sync').onclick = () => {
+function avviaSync(sonde) {
   const b = ponte(), btn = document.getElementById('b-sync');
   btn.disabled = true; btn.textContent = '⏳ Leggo ClasseViva…'; erroreSync('');
   const opz = {}; OPZ.forEach(k => { const v = ls.get('cv_' + k); if (v) opz[k] = v; });
+  conSonde = sonde;
+  if (sonde) opz.sonde = document.getElementById('o-sonde').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 15);
   b.classevivaSincronizza(JSON.stringify(opz), 'sync');
+}
+document.getElementById('b-sync').onclick = () => avviaSync(false);
+document.getElementById('b-sonde').onclick = () => { if (ponte()) avviaSync(true); else toast('Serve l\'app AppSfera Web sul telefono'); };
+document.getElementById('b-sonde-copia').onclick = () => {
+  const t = document.getElementById('sonde-out').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Risposte copiate'), () => toast('Non riesco a copiare: seleziona il testo a mano'));
 };
+// Le risposte delle sonde: grezze, solo a schermo. Un'APK precedente alla 1.2.13 non le manda.
+function mostraSonde(r) {
+  if (!conSonde) return;
+  conSonde = false;
+  const out = document.getElementById('sonde-out');
+  const s = r.sonde;
+  out.textContent = !s ? 'L\'app non ha mandato le risposte: aggiorna AppSfera Web alla 1.2.13.'
+    : Object.entries(s).map(([k, v]) => `### ${k}\n${v.errore ? 'ERRORE ' + v.errore : 'HTTP ' + v.stato + '\n' + v.corpo}`).join('\n\n') || 'Nessun indirizzo valido.';
+  out.hidden = false; document.getElementById('b-sonde-copia').hidden = false;
+  document.getElementById('avanzate').open = true;
+}
 
 // La chiama l'APK quando ha finito. I dati si prendono col ponte: non viaggiano nel codice JS.
 window.classevivaCallback = async function () {
@@ -208,7 +241,8 @@ window.classevivaCallback = async function () {
   let r;
   try { r = JSON.parse(ponte().classevivaPrendi() || '{}'); } catch (e) { r = { ok: false, errore: 'Risposta illeggibile dal telefono.' }; }
   try {
-    if (!r.ok) { erroreSync(r.errore || 'Sincronizzazione non riuscita.'); return; }
+    if (!r.ok) { conSonde = false; erroreSync(r.errore || 'Sincronizzazione non riuscita.'); return; }
+    mostraSonde(r);
     const errori = r.errori || {};
     // ⚠️ Si salva solo quel che è stato letto: una lettura fallita non deve
     // sostituire con un elenco vuoto l'ultima copia buona.

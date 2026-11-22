@@ -11,8 +11,8 @@ android {
         applicationId "com.garsalapps"
         minSdk 28          // Android 9 — supporto biometria completo
         targetSdk 36
-        versionCode 55
-        versionName "1.2.12"
+        versionCode 56
+        versionName "1.2.13"
     }
 
     buildTypes {
