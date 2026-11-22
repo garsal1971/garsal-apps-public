@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Stack Tracker v9.8.0</title>
+    <title>Habit Stack Tracker v9.9.0</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
@@ -1336,7 +1336,7 @@
     <div id="addHabitModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Nuova Abitudine</h2>
+                <h2 class="modal-title" id="addHabitTitle">Nuova Abitudine</h2>
                 <span class="modal-close" onclick="closeModal('addHabitModal')">✕</span>
             </div>
             <form onsubmit="addHabit(event)">
@@ -1764,6 +1764,23 @@
         </div>
     </div>
 
+    <!-- 💉 Resurrezione di un ciclo dalla lista degli archiviati -->
+    <div class="modal" id="resurrezioneArchivioModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="resArchTitolo">💉 Resuscita</h2>
+                <span class="modal-close" onclick="closeModal('resurrezioneArchivioModal')">✕</span>
+            </div>
+            <div id="resArchInfo" style="font-size: 0.95rem; margin-bottom: 0.75rem;"></div>
+            <div class="form-group">
+                <label class="form-label" for="resArchJolly">🃏 Jolly da comprare</label>
+                <input type="number" class="form-input" id="resArchJolly" min="1" step="1" oninput="aggiornaCostoResArch()">
+            </div>
+            <div id="resArchCosto" style="font-weight: bold; margin-bottom: 0.75rem;"></div>
+            <button class="btn btn-primary" id="resArchConferma" onclick="confermaResArch()" style="width: 100%;">💉 Paga e resuscita</button>
+        </div>
+    </div>
+
     <!-- Stack Success Modal -->
     <div class="modal" id="stackSuccessModal" style="z-index: 2000;">
         <div class="modal-content" style="max-width: 500px; text-align: center; background: linear-gradient(135deg, #00B894 0%, #00CEC9 100%); color: white; border: none; animation: pop 0.4s;">
@@ -1838,8 +1855,8 @@
         // ==========================================
         // VERSION
         // ==========================================
-        const APP_VERSION = 'v9.8.0';
-        const BUILD_TIME  = '2026-11-22T10:00:00Z';
+        const APP_VERSION = 'v9.9.0';
+        const BUILD_TIME  = '2026-11-22T12:00:00Z';
         console.log('%c Habit Stack ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
             'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -2328,6 +2345,22 @@
                     showToast(`In ${window_days} giorni a ${max_per_day} al giorno ci stanno al massimo ${window_days * max_per_day} volte`);
                     return;
                 }
+            }
+
+            // 💉 Modalità «scheda da resuscitare»: il form non crea niente, dà
+            // alla resurrezione dall'archivio la scheda che quel ciclo ha perso.
+            if (resArch) {
+                resArch.scheda = {
+                    name, description, category_id: categoryId, frequency, weekdays, daily_times,
+                    times_target, window_days, max_per_day, goal, max_failures: maxFailures,
+                    points_reward: pointsReward, points_penalty: pointsPenalty,
+                    riservato: document.getElementById('habitRiservato')?.checked || false
+                };
+                const r = resArch;
+                closeModal('addHabitModal');
+                resArch = r;
+                apriFinestraResurrezione();
+                return;
             }
 
             try {
@@ -4032,6 +4065,117 @@
             }
         }
 
+        // 💉 Resurrezione DALLA LISTA DEGLI ARCHIVIATI (v9.9.0). Regola, minimo
+        // e costo stanno nella RPC `hb_resuscita_archivio`
+        // (20261122120000_hb_resurrezione_archivio.sql): con p_conferma = false
+        // è l'anteprima e non scrive niente. Ricrea la riga di hb_habits con lo
+        // stesso id e la stessa data d'inizio (le spunte di allora si
+        // riagganciano), compra i jolly che coprono anche i giorni fra la
+        // chiusura e ieri, e TOGLIE la riga d'archivio con la sua penalità.
+        // I cicli archiviati prima della v9.9.0 non hanno la scheda: la si
+        // riscrive nel form «Nuova Abitudine», che qui non crea niente.
+        let resArch = null;          // { stackId, nome, scheda }
+        let resArchMinimo = 1;
+        let resArchTimer = null;
+
+        function resuscitaDaArchivio(stackId) {
+            const stack = archivedStacks.find(s => String(s.id) === String(stackId));
+            if (!stack) return;
+            if (stack.scheda) {
+                resArch = { stackId: stack.id, nome: stack.habit_name, scheda: null };
+                apriFinestraResurrezione();
+                return;
+            }
+            showAddHabitModal();
+            resArch = { stackId: stack.id, nome: stack.habit_name, scheda: null };
+            document.getElementById('addHabitTitle').textContent = '💉 Scheda di «' + (stack.habit_name || '') + '»';
+            document.getElementById('habitName').value = stack.habit_name || '';
+            if (stack.category_id) document.getElementById('habitCategory').value = stack.category_id;
+            document.getElementById('habitStartDate').value = stack.started_at || localDateStr();
+            showToast('Questo ciclo è stato archiviato senza la sua scheda: riscrivila (frequenza, obiettivo, jolly, punti)', 5000);
+        }
+
+        async function resArchChiama(jolly, conferma) {
+            return supabaseClient.rpc('hb_resuscita_archivio', {
+                p_archivio_id: resArch.stackId,
+                p_jolly: jolly,
+                p_scheda: resArch.scheda,
+                p_oggi: localDateStr(),
+                p_conferma: conferma
+            });
+        }
+
+        async function apriFinestraResurrezione() {
+            if (!resArch) return;
+            document.getElementById('resArchTitolo').textContent = '💉 Resuscita «' + (resArch.nome || '') + '»';
+            document.getElementById('resArchInfo').textContent = 'Calcolo…';
+            document.getElementById('resArchCosto').textContent = '';
+            document.getElementById('resurrezioneArchivioModal').classList.add('active');
+            const { data, error } = await resArchChiama(1, false);
+            if (error || !data?.ok) {
+                document.getElementById('resArchInfo').textContent = '⚠️ ' + (error?.message || data?.error || 'Non riesco a calcolare il costo');
+                document.getElementById('resArchConferma').disabled = true;
+                return;
+            }
+            resArchMinimo = data.minimo;
+            const perJolly = Number(data.per_jolly || 0).toLocaleString('it-IT', { maximumFractionDigits: 2 });
+            document.getElementById('resArchInfo').innerHTML =
+                `A oggi i fallimenti sarebbero <strong>${data.fallimenti}</strong> (compresi i giorni senza spunta dalla chiusura a ieri) e i jolly <strong>${data.jolly}</strong>: ne servono almeno <strong>${data.minimo}</strong>.<br>` +
+                `Ogni jolly costa ${perJolly} punti (penalità ÷ giorni dello stack). La riga d'archivio se ne va, e con lei la penalità di ${data.penalita_tolta} punti.<br>` +
+                `<span style="opacity:0.7">Il ciclo riparte dalla sua data d'inizio, con le spunte di allora. I promemoria si rimettono da MODIFICA.</span>`;
+            const inp = document.getElementById('resArchJolly');
+            inp.min = String(data.minimo);
+            inp.value = String(data.minimo);
+            aggiornaCostoResArch();
+        }
+
+        function aggiornaCostoResArch() {
+            const n = parseInt(document.getElementById('resArchJolly').value, 10);
+            const out = document.getElementById('resArchCosto');
+            const btn = document.getElementById('resArchConferma');
+            if (!Number.isInteger(n) || n < resArchMinimo) {
+                out.textContent = `⚠️ Almeno ${resArchMinimo} jolly.`;
+                btn.disabled = true; btn.style.opacity = '0.5';
+                return;
+            }
+            btn.disabled = false; btn.style.opacity = '1';
+            clearTimeout(resArchTimer);
+            resArchTimer = setTimeout(async () => {
+                if (!resArch) return;
+                const { data, error } = await resArchChiama(n, false);
+                if (error || !data?.ok) { out.textContent = '⚠️ Costo non disponibile'; return; }
+                out.textContent = `Costo: −${data.punti} punti`;
+            }, 250);
+        }
+
+        async function confermaResArch() {
+            if (!resArch) return;
+            const n = parseInt(document.getElementById('resArchJolly').value, 10);
+            if (!Number.isInteger(n) || n < resArchMinimo) { aggiornaCostoResArch(); return; }
+            const btn = document.getElementById('resArchConferma');
+            btn.disabled = true;
+            try {
+                const { data, error } = await resArchChiama(n, true);
+                if (error) throw error;
+                if (!data?.ok) throw new Error(data?.error || 'hb_resuscita_archivio');
+                closeModal('resurrezioneArchivioModal');
+                showToast(`💉 Resuscitato! ${data.jolly} jolly, −${data.punti} punti`);
+                await loadHabits();
+                await loadCompletions();
+                await loadArchivedStacks();
+                habits.forEach(h => { h._streak = computeHabitStreak(h); });
+                recalculateTotalScore();
+                await renderDashboard();
+                renderHabits();
+                renderArchive();
+            } catch (err) {
+                console.error('❌ Errore resurrezione dall\'archivio:', err);
+                showToast('Errore: ' + (err.message || 'resurrezione non riuscita'));
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         function updateSingleCard(habitId, dateStr, newState) {
             console.log(`🔄 updateSingleCard: habit=${habitId}, date=${dateStr}, newState=${newState}`);
             
@@ -4766,6 +4910,11 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+            if (modalId === 'addHabitModal' || modalId === 'resurrezioneArchivioModal') {
+                resArch = null;
+                const t = document.getElementById('addHabitTitle');
+                if (t) t.textContent = 'Nuova Abitudine';
+            }
         }
 
         function toggleSidebar() {
@@ -5938,8 +6087,8 @@
         function renderArchive() {
             const container = document.getElementById('archivedStacksList');
 
-            const reasonLabel = { completato: '✅ Completato', fallito: '💀 Fallito', interrotto: '⏹ Interrotto', stopped: '⏹ Interrotto' };
-            const reasonBg    = { completato: '#e8f5e9', fallito: '#ffebee', interrotto: '#fff8e1', stopped: '#fff8e1' };
+            const reasonLabel = { completato: '✅ Completato', fallito: '💀 Fallito', interrotto: '⏹ Interrotto', stopped: '⏹ Interrotto', jolly_esauriti: '💀 Jolly esauriti', completato_con_jolly: '✅ Completato coi jolly', scadenza_calendario: '⌛ Scaduto' };
+            const reasonBg    = { completato: '#e8f5e9', fallito: '#ffebee', interrotto: '#fff8e1', stopped: '#fff8e1', jolly_esauriti: '#ffebee', completato_con_jolly: '#e8f5e9', scadenza_calendario: '#fff8e1' };
             const statusLabel = { completed: '✅ Completata', failed: '💀 Fallita', stopped: '⏹ Interrotta' };
             const statusBg    = { completed: '#e8f5e9', failed: '#ffebee', stopped: '#fff8e1' };
 
@@ -5982,6 +6131,12 @@
                             <div class="progress-bar" style="margin: 0; height: 8px; border-radius: 4px;">
                                 <div class="progress-fill" style="width: ${pct}%;"></div>
                             </div>
+                            ${stack.reason === 'jolly_esauriti' ? `
+                            <div style="margin-top: 0.75rem;">
+                                <button class="btn btn-primary" onclick="resuscitaDaArchivio('${stack.id}')" style="padding: 0.45rem 0.9rem; font-size: 0.9rem;">
+                                    💉 Resuscita (compra jolly)
+                                </button>
+                            </div>` : ''}
                             <div class="archive-delete" style="display: none; margin-top: 0.75rem; text-align: right;">
                                 <button class="btn btn-danger" onclick="deleteArchivedStack('${stack.id}')" style="padding: 0.35rem 0.8rem; font-size: 0.85rem;">
                                     🗑 Elimina dall'archivio

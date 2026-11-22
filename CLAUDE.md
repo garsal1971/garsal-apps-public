@@ -319,7 +319,7 @@ soli campi del preset (classe `no-tpl` sugli altri). Solo web: il nativo non lo 
 | `hb_completions` | Daily completion records |
 | `hb_user_points` | Gamification points balance |
 | `hb_points_transactions` | Points ledger |
-| `hb_archived_stacks` | Archived habit stacks |
+| `hb_archived_stacks` | Archived habit stacks; `scheda` jsonb = la riga di `hb_habits` alla chiusura (per resuscitare) |
 | `hb_resurrezioni` | 💉 Resurrezioni: jolly comprati per uscire dal game over e punti pagati (`habit_id` ON DELETE SET NULL, nome copiato) |
 
 ### Events Log (`el_`)
@@ -5991,6 +5991,17 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   la riga dell'abitudine, il prezzo pagato deve restare). La `score_query` la toglie, e vanno
   allineati `recalculateTotalScore()` e il lettore di 🏆 Punti in `index.html`. Ha sostituito il
   vecchio «🔁 Ripristina» gratuito (missed → completed). Solo web: il nativo non lo offre ancora.
+- 💉 **Resuscita dall'archivio** (v9.9.0, `20261122120000_hb_resurrezione_archivio.sql`): sui cicli
+  archiviati con `reason = 'jolly_esauriti'`. `hb_archived_stacks.scheda` (jsonb) è la riga di
+  `hb_habits` al momento della chiusura, scritta da `hb_chiudi_stack`; i cicli archiviati prima
+  non ce l'hanno e la scheda si riscrive nel form «Nuova Abitudine» in modalità `resArch` (non
+  crea niente). `hb_resuscita_archivio(archivio, jolly, scheda, oggi, conferma)` ricrea la riga
+  con lo **stesso id e la stessa data d'inizio** (le spunte di allora si riagganciano), conta i
+  fallimenti a oggi compresi i giorni senza riga dalla chiusura a ieri
+  (`hb__fallimenti_alla_ripresa`), minimo = fallimenti − jolly + 1, paga in `hb_resurrezioni` e
+  **cancella la riga d'archivio** (la sua penalità esce dal punteggio). Con `conferma = false` è
+  l'anteprima, in un sottoblocco annullato. ⚠️ I promemoria non tornano; se il ciclo era stato
+  «Ricomincia»to, il clone resta e le due abitudini convivono.
 - ⚠️ **I punti premio e penalità si leggono dalle caselle** (v9.7.1): `habitPointsReward` /
   `habitPointsPenalty` nella creazione e `editHabitPointsReward` / `editHabitPointsPenalty` nella
   modifica, scritti in `points_reward` / `points_penalty` dell'insert e dell'update. Fino alla
