@@ -160,10 +160,25 @@ object ClasseViva {
             // Assenze, ritardi e uscite dell'anno: `events` con evtCode ABA0/ABR0/ABR1/ABU0.
             val assenze = leggi("assenze", "/students/$id/absences/details", "events")
 
+            // Sonde: indirizzi di prova mandati dalla pagina (solo GET, solo sotto la base,
+            // al più 15), per cercare dati che le letture fisse non danno — es. lo stato
+            // «in approvazione» delle giustificazioni. Non si salvano: tornano grezzi alla pagina.
+            val sonde = JSONObject()
+            opz.optJSONArray("sonde")?.let { lista ->
+                for (i in 0 until minOf(lista.length(), 15)) {
+                    val path = lista.optString(i).trim().replace("{id}", id)
+                    if (!path.startsWith("/") || path.contains("..") || path.contains("://")) continue
+                    sonde.put(path, try {
+                        val x = chiama("$base$path", "GET", h)
+                        JSONObject().put("stato", x.stato).put("corpo", x.corpo.take(6000))
+                    } catch (e: Exception) { JSONObject().put("errore", e.message ?: e.toString()) })
+                }
+            }
+
             JSONObject().put("ok", true)
                 .put("studente", "${j.optString("firstName")} ${j.optString("lastName")}".trim())
                 .put("voti", voti).put("agenda", agenda).put("lezioni", lezioni)
-                .put("insegnanti", insegnanti).put("assenze", assenze)
+                .put("insegnanti", insegnanti).put("assenze", assenze).put("sonde", sonde)
                 .put("errori", errori).toString()
         } catch (e: Exception) {
             JSONObject().put("ok", false).put("errore", "Rete o risposta illeggibile: ${e.message ?: e}").toString()
