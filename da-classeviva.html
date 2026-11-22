@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClasseViva v1.1.2</title>
+<title>ClasseViva v1.2.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
-/* Layout: colonna unica — sincronizza, poi tre schede (Voti / Agenda / Lezioni) */
+/* Layout: colonna unica — sincronizza, poi le schede (Voti / Assenze / Agenda / Lezioni / Insegnanti) */
 :root{
   --bg:#f3f5f8; --card:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#dde2ea; --accent:#2f5bd3; --on-accent:#ffffff; --ok:#2e8b57; --danger:#c0392b; --warn:#b36b0a;
   --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
@@ -59,6 +59,20 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .ev.verifica{border-left-color:var(--danger)}
 .badge{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 8px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
 .badge.ok{color:var(--ok);border-color:var(--ok)}
+.badge.no{color:var(--danger);border-color:var(--danger)}
+.seg{justify-self:start;display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:var(--card);border:0;color:var(--fg);padding:6px 14px;min-height:38px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.crono{display:grid;gap:0}
+.crono .r{display:flex;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.crono .r:first-child{border-top:0}
+.crono .r .voto{flex:0 0 auto}
+.crono .r .d{display:grid;gap:2px;min-width:0}
+.crono .r .d .t{font-weight:600}
+.crono .r .d .m{font-size:13px;color:var(--muted)}
+.ev.ritardo{border-left-color:var(--warn)}
+.ev.uscita{border-left-color:var(--muted)}
+.ev.assenza{border-left-color:var(--danger)}
 pre{white-space:pre-wrap;font-size:12px;background:var(--bg);border-radius:8px;padding:8px;margin:0;max-height:240px;overflow:auto}
 details summary{cursor:pointer;color:var(--muted);font-size:14px}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px);z-index:700}
@@ -68,7 +82,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 <div class="wrap" id="app" hidden>
   <header>
     <h1>ClasseViva</h1>
-    <p class="sub" id="letto">Voti, agenda, lezioni e insegnanti dal registro elettronico.</p>
+    <p class="sub" id="letto">Voti, assenze, agenda, lezioni e insegnanti dal registro elettronico.</p>
   </header>
 
   <!-- Sincronizzazione: possibile solo dentro l'app AppSfera Web (il server è bloccato da Spaggiari, il browser da CORS) -->
@@ -100,6 +114,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
   <div class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="voti">📊 Voti</button>
+    <button type="button" role="tab" data-tab="assenze">🚫 Assenze</button>
     <button type="button" role="tab" data-tab="agenda">📅 Agenda</button>
     <button type="button" role="tab" data-tab="lezioni">📖 Lezioni</button>
     <button type="button" role="tab" data-tab="insegnanti">👩‍🏫 Insegnanti</button>
@@ -110,13 +125,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.1.2';
-var BUILD_TIME  = '2026-11-11T20:30:00Z';
+var APP_VERSION = 'v1.2.0';
+var BUILD_TIME  = '2026-11-22T14:00:00Z';
 console.log('%c CLASSEVIVA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#D4145A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
 
-const S = { voti: [], agenda: [], lezioni: [], insegnanti: [], letto: {}, verCv: new Set(), tab: 'voti', periodo: '' };
+const S = { voti: [], agenda: [], lezioni: [], insegnanti: [], assenze: [], letto: {}, verCv: new Set(), tab: 'voti', periodo: '', ordineVoti: 'materia' };
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Una media letta come a scuola: al quarto più vicino, 6,25 → 6+, 6,5 → 6½, 6,75 → 7-.
 const votoScuola = x => { const q = Math.round(x * 4) / 4, i = Math.floor(q), f = q - i;
@@ -150,6 +165,8 @@ async function carica() {
 }
 
 /* ── Sincronizzazione (solo nell'app) ─────────────────────────────────── */
+// ⚠️ Ogni tipo deve stare nel CHECK di sc_classeviva.tipo.
+const TIPI = ['voti', 'agenda', 'lezioni', 'insegnanti', 'assenze'];
 const OPZ = ['base', 'ua', 'apikey'];
 function preparaSync() {
   OPZ.forEach(k => { const el = document.getElementById('o-' + k); el.value = ls.get('cv_' + k) || ''; el.onchange = () => ls.set('cv_' + k, el.value.trim()); });
@@ -195,13 +212,13 @@ window.classevivaCallback = async function () {
     const errori = r.errori || {};
     // ⚠️ Si salva solo quel che è stato letto: una lettura fallita non deve
     // sostituire con un elenco vuoto l'ultima copia buona.
-    const righe = ['voti', 'agenda', 'lezioni', 'insegnanti'].filter(t => !errori[t])
+    const righe = TIPI.filter(t => !errori[t])
       .map(t => ({ tipo: t, dati: r[t] || [], letto_il: new Date().toISOString() }));
     if (righe.length) await SC.db('sc_classeviva?on_conflict=user_id,tipo', { method: 'POST', body: righe, prefer: 'resolution=merge-duplicates,return=minimal' });
     const msg = Object.entries(errori).map(([k, v]) => `${k}: ${v}`).join('\n');
     erroreSync(msg ? 'Alcune letture non sono riuscite:\n' + msg : '');
     if (!msg && !(r.voti || []).length) erroreSync('ClasseViva ha risposto, ma l\'elenco dei voti è vuoto.');
-    toast(`Sincronizzato: ${(r.voti || []).length} voti, ${(r.agenda || []).length} eventi, ${(r.lezioni || []).length} lezioni`);
+    toast(`Sincronizzato: ${(r.voti || []).length} voti, ${(r.assenze || []).length} assenze, ${(r.agenda || []).length} eventi, ${(r.lezioni || []).length} lezioni`);
     await carica();
   } catch (e) { erroreSync('Letto da ClasseViva ma non salvato: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '🔄 Sincronizza'; }
@@ -216,7 +233,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
 function render() {
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
   const el = document.getElementById('vista');
-  el.innerHTML = S.tab === 'agenda' ? vistaAgenda() : S.tab === 'lezioni' ? vistaLezioni() : S.tab === 'insegnanti' ? vistaInsegnanti() : vistaVoti();
+  el.innerHTML = S.tab === 'assenze' ? vistaAssenze() : S.tab === 'agenda' ? vistaAgenda() : S.tab === 'lezioni' ? vistaLezioni() : S.tab === 'insegnanti' ? vistaInsegnanti() : vistaVoti();
 }
 
 // Voti: per materia la media dei voti con un valore numerico (i «+», «-» e i
@@ -235,9 +252,21 @@ function vistaVoti() {
   const medie = mat.map(m => media(perMat[m])).filter(x => x != null);
   const mg = medie.length ? medie.reduce((a, b) => a + b, 0) / medie.length : null;
   const classe = v => v.canceled ? 'annullato' : typeof v.decimalValue !== 'number' ? 'blu' : v.decimalValue >= 6 ? 'suff' : 'insuff';
-  return `<div class="card"><div class="kpi"><span class="big">${mg != null ? mediaHtml(mg) : '–'}</span><span class="hint">media delle medie · ${lista.filter(contano).length} voti</span></div>
-    ${periodi.length > 1 ? `<label>Periodo<select id="periodo"><option value="">Tutto l'anno</option>${periodi.map(p => `<option${p === S.periodo ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></label>` : ''}</div>
-    <div style="display:grid;gap:12px;margin-top:12px">${mat.map(m => {
+  const dm = v => esc((v.evtDate || '').slice(8, 10) + '/' + (v.evtDate || '').slice(5, 7));
+  const ordine = `<div class="seg" role="group" aria-label="Ordine dei voti">${[['materia', 'Per materia'], ['data', 'Cronologico']].map(([k, t]) =>
+    `<button type="button" data-ordine="${k}" aria-pressed="${S.ordineVoti === k}">${t}</button>`).join('')}</div>`;
+  const testa = `<div class="card"><div class="kpi"><span class="big">${mg != null ? mediaHtml(mg) : '–'}</span><span class="hint">media delle medie · ${lista.filter(contano).length} voti</span></div>
+    ${periodi.length > 1 ? `<label>Periodo<select id="periodo"><option value="">Tutto l'anno</option>${periodi.map(p => `<option${p === S.periodo ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></label>` : ''}
+    ${ordine}</div>`;
+  // Cronologico: un elenco solo, dal più recente; a parità di giorno per materia.
+  if (S.ordineVoti === 'data') {
+    const vs = lista.slice().sort((a, b) => (b.evtDate || '').localeCompare(a.evtDate || '') || (a.subjectDesc || '').localeCompare(b.subjectDesc || '', 'it'));
+    return testa + `<div class="card crono" style="margin-top:12px">${vs.map(v => `<div class="r"><div class="voto ${classe(v)}"><b>${esc(v.displayValue || '–')}</b><span>${dm(v)}</span></div>
+      <div class="d"><div class="t">${esc(v.subjectDesc || '—')}</div>
+      <div class="m">${esc(giornoIt(v.evtDate || ''))}${v.componentDesc || TIPO_VOTO[v.evtCode] ? ' · ' + esc(v.componentDesc || TIPO_VOTO[v.evtCode]) : ''}${v.canceled ? ' · annullato' : ''}</div>
+      ${v.notesForFamily ? `<div class="m">${esc(v.notesForFamily)}</div>` : ''}</div></div>`).join('')}</div>`;
+  }
+  return testa + `<div style="display:grid;gap:12px;margin-top:12px">${mat.map(m => {
       const vs = perMat[m].slice().sort((a, b) => (b.evtDate || '').localeCompare(a.evtDate || ''));
       const md = media(vs);
       return `<div class="card"><div class="mat-h"><h2>${esc(m)}</h2><span class="media" style="color:${md == null ? 'var(--muted)' : md >= 6 ? 'var(--ok)' : 'var(--danger)'}">${md != null ? mediaHtml(md) : '–'}</span></div>
@@ -247,6 +276,27 @@ function vistaVoti() {
     }).join('')}</div>`;
 }
 document.addEventListener('change', e => { if (e.target.id === 'periodo') { S.periodo = e.target.value; render(); } });
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ordine]'); if (!b) return;
+  S.ordineVoti = b.dataset.ordine; ls.set('cv_ordine_voti', S.ordineVoti); render();
+});
+
+// Assenze: totali in cima, poi dal giorno più recente. evtCode: ABA0 assenza,
+// ABR0 ritardo, ABR1 ritardo breve, ABU0 uscita anticipata.
+const TIPO_ASS = { ABA0: ['assenza', 'Assenza'], ABR0: ['ritardo', 'Ritardo'], ABR1: ['ritardo', 'Ritardo breve'], ABU0: ['uscita', 'Uscita anticipata'] };
+function vistaAssenze() {
+  if (!S.assenze.length) return `<p class="hint">${S.letto.assenze ? 'Nessuna assenza quest\'anno.' : 'Nessuna assenza salvata: tocca 🔄 Sincronizza dall\'app (serve AppSfera Web 1.2.12 o successiva).'}</p>`;
+  const tipo = a => TIPO_ASS[a.evtCode] || ['assenza', a.evtCode || 'Evento'];
+  const conta = k => S.assenze.filter(a => tipo(a)[0] === k).length;
+  const daGiust = S.assenze.filter(a => !a.isJustified).length;
+  const kpi = (n, t) => `<div><span class="big">${n}</span> <span class="hint">${t}</span></div>`;
+  const lista = S.assenze.slice().sort((a, b) => (b.evtDate || '').localeCompare(a.evtDate || ''));
+  return `<div class="card"><div class="kpi">${kpi(conta('assenza'), 'assenze')}${kpi(conta('ritardo'), 'ritardi')}${kpi(conta('uscita'), 'uscite')}${kpi(daGiust, 'da giustificare')}</div></div>
+    <div class="card giorno" style="margin-top:12px">${lista.map(a => { const [c, t] = tipo(a);
+      return `<div class="ev ${c}"><div class="t">${esc(t)} · ${esc(giornoIt(a.evtDate || ''))}</div>
+        <div class="m">${[a.evtHPos ? a.evtHPos + 'ª ora' : '', a.justifReasonDesc || ''].filter(Boolean).map(esc).join(' · ')}</div>
+        <div>${a.isJustified ? '<span class="badge ok">✔ giustificata</span>' : '<span class="badge no">da giustificare</span>'}</div></div>`; }).join('')}</div>`;
+}
 
 // Agenda: da oggi in avanti, per giorno. Una voce che parla di verifica o
 // interrogazione è marcata, e ogni voce si può portare nelle Verifiche.
@@ -307,7 +357,8 @@ function vistaInsegnanti() {
     `<div class="card giorno"><h3>${esc(d.nome)}</h3><div class="m">${esc(materieMostrate(d.materie).join(' · '))}</div></div>`).join('')}</div>`;
 }
 
-S.tab = ['voti', 'agenda', 'lezioni', 'insegnanti'].includes(ls.get('cv_tab')) ? ls.get('cv_tab') : 'voti';
+S.tab = TIPI.includes(ls.get('cv_tab')) ? ls.get('cv_tab') : 'voti';
+S.ordineVoti = ls.get('cv_ordine_voti') === 'data' ? 'data' : 'materia';
 SC.avvia('da-classeviva.html', carica);
 </script>
 </body>
