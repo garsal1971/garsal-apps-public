@@ -4086,6 +4086,18 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   schermata. Senza modello niente comandi a voce (restano i tasti delle cuffie). Il modello si
   carica in memoria all'avvio del ciclo (`precarica`). La vecchia cartella `filesDir/comandi` si
   cancella all'avvio.
+- **Le voci del corso arrivano davvero** (v1.39.0, `Corso.kt`, `Traduzioni.aggiornaCorso`): fino
+  alla v1.38.0 `pr_parole_corso` si scaricava **una volta per processo** (`Traduzioni.lette`), quindi
+  le voci inserite con l'app già aperta non arrivavano, e a mani libere la sessione si sceglieva
+  prima che lo scarico finisse. Ora si riscarica a ogni `onStart` di `MainActivity` (al più ogni
+  `CORSO_OGNI_MS`, 2 minuti) e **prima di scegliere la sessione** in Esercizio e a Mani libere
+  (al più `CORSO_ATTESA_MS`, 5 s, poi vale la cache `filesDir/corso.json`). `Corso.leggi` salta
+  la riga malformata invece di buttare tutto il corso, e una risposta che non è un elenco lascia
+  la copia di prima. `Corso.filtra` è il filtro unico di `Sessione` e `Frasi.aCaso`. «📚 Le mie
+  parole» conta anche le parole del corso (`c-%`). ⚠️ **Nei tentativi le voci del corso si
+  riconoscono da `tema = 'corso'` e `frase_id = 'c-<uuid>'`**: `fonte` resta la modalità
+  (`mani_libere` | `esercizio`, CHECK invariato), scelto apposta per non perderla. Test in
+  `CorsoTest.kt` (`testImplementation org.json`, perché nei test JVM org.json è uno stub).
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

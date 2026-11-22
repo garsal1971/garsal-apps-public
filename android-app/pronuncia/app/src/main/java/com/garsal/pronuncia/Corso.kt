@@ -16,12 +16,18 @@ import java.net.URL
  * ⚠️ L'id nell'app è `c-<uuid>`: lo storico lo cita, quindi non cambia.
  * ⚠️ Non hanno un livello A1–B2: il filtro Livello le lascia passare sempre
  * ([passaLivello]).
- * ⚠️ Si scaricano una volta per avvio (da `Traduzioni.aggiorna`) e si tengono
- * in cache su file: senza rete resta buona l'ultima copia.
+ * ⚠️ Si tengono in cache su file: senza rete resta buona l'ultima copia.
+ * v1.39.0: si riscaricano a ogni ritorno in primo piano (al più ogni
+ * `Traduzioni.CORSO_OGNI_MS`) e prima di scegliere una sessione — fino alla
+ * v1.38.0 una volta sola per processo, e le voci inserite con l'app già aperta
+ * non arrivavano finché Android non la chiudeva.
+ * ⚠️ Nei tentativi le voci del corso si riconoscono da `tema = 'corso'` e
+ * `frase_id = 'c-<uuid>'`; `fonte` resta la modalità (mani libere / esercizio).
  */
 object Corso {
     const val TEMA = "corso"
     const val LIVELLO = "—"
+    const val PREFISSO = "c-"
     private const val FILE = "corso.json"
 
     @Volatile private var voci: List<Frase>? = null
@@ -29,27 +35,45 @@ object Corso {
 
     fun passaLivello(f: Frase, livello: String?) = livello == null || f.tema == TEMA || f.livello == livello
 
+    /** Il filtro di una sessione: livello (che le voci del corso passano
+     *  sempre) e tema (`null` = tutti). Una regola sola per `Sessione` e `Frasi.aCaso`. */
+    fun filtra(voci: List<Frase>, livello: String?, tema: String?): List<Frase> =
+        voci.filter { passaLivello(it, livello) && (tema == null || it.tema == tema) }
+
     fun voci(ctx: Context): List<Frase> = voci ?: synchronized(this) {
-        voci ?: leggi(runCatching { File(ctx.filesDir, FILE).readText() }.getOrNull()).also { voci = it }
+        voci ?: (runCatching { File(ctx.filesDir, FILE).readText() }.getOrNull()?.let { applica(leggi(it)) }
+            ?: emptyList()).also { voci = it }
     }
 
     fun traduzioni(ctx: Context): Map<String, String> { voci(ctx); return traduzioni }
 
-    private fun leggi(testo: String?): List<Frase> {
-        if (testo == null) return emptyList()
-        return runCatching {
-            val a = JSONArray(testo)
-            val tr = HashMap<String, String>()
-            val l = (0 until a.length()).map { i ->
+    /** Quel che si legge dal JSON di `pr_parole_corso`. */
+    data class Lettura(val voci: List<Frase>, val traduzioni: Map<String, String>)
+
+    /**
+     * Legge la risposta di PostgREST. v1.39.0: una riga malformata (testo vuoto,
+     * campo mancante) si SALTA, invece di far sparire tutto il corso come prima
+     * (`getOrDefault(emptyList())` sull'intero elenco). Un JSON che non è un
+     * elenco torna `null`: per chi scarica vuol dire «tieni la copia di prima».
+     * ⚠️ Senza Android: la provano i test sulla JVM (`CorsoTest`).
+     */
+    fun leggi(testo: String): Lettura? {
+        val a = runCatching { JSONArray(testo) }.getOrNull() ?: return null
+        val tr = LinkedHashMap<String, String>()
+        val l = (0 until a.length()).mapNotNull { i ->
+            runCatching {
                 val o = a.getJSONObject(i)
-                val id = "c-" + o.getString("id")
-                tr[id] = o.getString("traduzione")
-                Frase(id, LIVELLO, TEMA, o.getString("testo").trim(), o.getString("tipo") == "parola")
-            }
-            traduzioni = tr
-            l
-        }.getOrDefault(emptyList())
+                val id = PREFISSO + o.getString("id").trim()
+                val t = o.getString("testo").trim()
+                if (id == PREFISSO || t.isEmpty()) return@runCatching null
+                o.optString("traduzione").trim().takeIf { it.isNotEmpty() }?.let { tr[id] = it }
+                Frase(id, LIVELLO, TEMA, t, o.optString("tipo") == "parola")
+            }.getOrNull()
+        }
+        return Lettura(l, tr)
     }
+
+    private fun applica(l: Lettura): List<Frase> { traduzioni = l.traduzioni; return l.voci }
 
     /** Scarica, scrive la cache e rimpiazza le voci in memoria. */
     suspend fun aggiorna(ctx: Context, jwt: String) = withContext(Dispatchers.IO) {
@@ -66,8 +90,8 @@ object Corso {
         } finally {
             c.disconnect()
         }
-        val nuove = leggi(testo)
-        synchronized(this@Corso) { voci = nuove }
+        val lettura = leggi(testo) ?: error("risposta non valida")
+        synchronized(this@Corso) { voci = applica(lettura) }
         runCatching {
             val f = File(ctx.filesDir, FILE)
             val tmp = File(f.path + ".tmp")

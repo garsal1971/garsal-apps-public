@@ -5,9 +5,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import com.garsal.pronuncia.ui.SchermataPrincipale
 import com.garsal.pronuncia.ui.TemaPronuncia
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Gli oggetti che vivono quanto il processo: una sessione sola, un token Azure
@@ -53,6 +55,14 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) gestisciRientro(intent)
         StoricoRemoto.sincronizzaPiuTardi(this)
         setContent { TemaPronuncia { SchermataPrincipale() } }
+    }
+
+    /** v1.39.0: tornando in primo piano si riscaricano le voci del corso
+     *  (al più ogni `Traduzioni.CORSO_OGNI_MS`), così quelle inserite con
+     *  l'app aperta arrivano senza doverla chiudere. */
+    override fun onStart() {
+        super.onStart()
+        lifecycleScope.launch { Servizi.traduzioni.aggiornaCorso() }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -290,6 +290,9 @@ object Ciclo {
             stato.update { it.copy(esitoObiettivo = esito) }
         }
 
+        // v1.39.0: le voci nuove del corso prima di scegliere, al più 5 s;
+        // senza rete si parte con la copia in cache.
+        kotlinx.coroutines.withTimeoutOrNull(Traduzioni.CORSO_ATTESA_MS) { Servizi.traduzioni.aggiornaCorso() }
         val coda = ArrayDeque(Sessione.scegli(ctx, p.livelloCiclo, p.temaCiclo, p.paroleCiclo, quante))
         if (coda.isEmpty()) { stato.update { it.copy(nota = if (p.paroleCiclo) "Nessuna parola per questo filtro." else "Nessuna frase per questo filtro.") }; return }
         var silenzi = 0

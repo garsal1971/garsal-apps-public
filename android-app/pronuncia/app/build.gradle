@@ -19,8 +19,8 @@ android {
         applicationId "com.garsal.pronuncia"
         minSdk 26
         targetSdk 36
-        versionCode 41
-        versionName "1.38.0"
+        versionCode 42
+        versionName "1.39.0"
 
         // ⚠️ Solo arm64: lo Speech SDK di Azure si porta dentro le librerie native
         // per quattro ABI, e tenerle tutte vorrebbe dire un APK tre volte più
@@ -99,4 +99,7 @@ dependencies {
     // v1.33.0: i test della logica che non tocca Android (ripasso, profilo dei
     // suoni, giudizio). Girano sulla JVM, prima della build (`build-pronuncia.yml`).
     testImplementation 'junit:junit:4.13.2'
+    // v1.39.0: `Corso.leggi` usa org.json, che nell'android.jar dei test JVM
+    // è solo uno stub («not mocked»): qui la libreria vera, per i soli test.
+    testImplementation 'org.json:json:20240303'
 }

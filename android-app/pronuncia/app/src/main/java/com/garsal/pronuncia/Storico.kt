@@ -157,7 +157,7 @@ interface StoricoDao {
         """SELECT t.frase_id AS fraseId, MAX(t.testo) AS testo, MAX(t.livello) AS livello, MAX(t.tema) AS tema,
            COUNT(*) AS volte, MAX(t.pronuncia) AS migliore, AVG(t.pronuncia) AS media, MAX(t.quando) AS quando,
            (SELECT u.pronuncia FROM tentativi u WHERE u.frase_id = t.frase_id ORDER BY u.quando DESC LIMIT 1) AS ultimo
-           FROM tentativi t WHERE t.frase_id LIKE 'w-%' GROUP BY t.frase_id""",
+           FROM tentativi t WHERE t.frase_id LIKE 'w-%' OR t.frase_id LIKE 'c-%' GROUP BY t.frase_id""",
     )
     fun perParola(): Flow<List<StatParola>>
 

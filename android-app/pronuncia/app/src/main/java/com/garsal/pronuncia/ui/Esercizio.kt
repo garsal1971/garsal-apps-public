@@ -98,6 +98,10 @@ fun Esercizio(parole: Boolean, livello: String?, tema: String?, quante: Int) {
     LaunchedEffect(giro) {
         pronta = false
         coda.clear()
+        // v1.39.0: le voci nuove del corso prima di scegliere (al più 5 s).
+        kotlinx.coroutines.withTimeoutOrNull(com.garsal.pronuncia.Traduzioni.CORSO_ATTESA_MS) {
+            Servizi.traduzioni.aggiornaCorso()
+        }
         // v1.35.0: un errore si dice, invece di passare per «Nessuna frase».
         runCatching { Sessione.scegli(ctx, livello, tema, parole, quante) }
             .onSuccess { coda.addAll(it); erroreScelta = null }
