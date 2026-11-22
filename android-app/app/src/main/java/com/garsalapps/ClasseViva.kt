@@ -101,7 +101,7 @@ object ClasseViva {
 
     /**
      * Login e lettura. Torna sempre un JSON: `{ok:true, studente, voti, agenda,
-     * lezioni, errori}` oppure `{ok:false, errore}`. Le tre letture sono
+     * lezioni, insegnanti, assenze, errori}` oppure `{ok:false, errore}`. Le letture sono
      * indipendenti: una che fallisce finisce in `errori` e le altre arrivano.
      */
     fun sincronizza(ctx: Context, opzioniJson: String?): String {
@@ -157,11 +157,13 @@ object ClasseViva {
             val agenda = leggi("agenda", "/students/$id/agenda/all/${giorno(-7)}/${giorno(giorniAgenda)}", "agenda")
             val lezioni = leggi("lezioni", "/students/$id/lessons/${giorno(-giorniLezioni)}/${giorno(0)}", "lessons")
             val insegnanti = leggi("insegnanti", "/students/$id/subjects", "subjects")
+            // Assenze, ritardi e uscite dell'anno: `events` con evtCode ABA0/ABR0/ABR1/ABU0.
+            val assenze = leggi("assenze", "/students/$id/absences/details", "events")
 
             JSONObject().put("ok", true)
                 .put("studente", "${j.optString("firstName")} ${j.optString("lastName")}".trim())
                 .put("voti", voti).put("agenda", agenda).put("lezioni", lezioni)
-                .put("insegnanti", insegnanti)
+                .put("insegnanti", insegnanti).put("assenze", assenze)
                 .put("errori", errori).toString()
         } catch (e: Exception) {
             JSONObject().put("ok", false).put("errore", "Rete o risposta illeggibile: ${e.message ?: e}").toString()
