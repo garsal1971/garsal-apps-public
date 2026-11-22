@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClasseViva v1.3.0</title>
+<title>ClasseViva v1.4.0</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 /* Layout: colonna unica — sincronizza, poi le schede (Voti / Assenze / Agenda / Lezioni / Insegnanti) */
@@ -60,6 +60,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .badge{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 8px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
 .badge.ok{color:var(--ok);border-color:var(--ok)}
 .badge.no{color:var(--danger);border-color:var(--danger)}
+.badge.warn{color:var(--warn);border-color:var(--warn)}
+.ev.approvazione{border-left-color:var(--warn)}
 .seg{justify-self:start;display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex-wrap:wrap}
 .seg button{background:var(--card);border:0;color:var(--fg);padding:6px 14px;min-height:38px;font-weight:600}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
@@ -131,13 +133,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 
 <script src="scuola-ada.js"></script>
 <script>
-var APP_VERSION = 'v1.3.0';
-var BUILD_TIME  = '2026-11-22T09:40:00Z';
+var APP_VERSION = 'v1.4.0';
+var BUILD_TIME  = '2026-11-22T10:20:00Z';
 console.log('%c CLASSEVIVA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
   'background:#D4145A;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
   'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
 
-const S = { voti: [], agenda: [], lezioni: [], insegnanti: [], assenze: [], letto: {}, verCv: new Set(), tab: 'voti', periodo: '', ordineVoti: 'materia' };
+const S = { voti: [], agenda: [], lezioni: [], insegnanti: [], assenze: [], giust: null, letto: {}, verCv: new Set(), tab: 'voti', periodo: '', ordineVoti: 'materia' };
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Una media letta come a scuola: al quarto più vicino, 6,25 → 6+, 6,5 → 6½, 6,75 → 7-.
 const votoScuola = x => { const q = Math.round(x * 4) / 4, i = Math.floor(q), f = q - i;
@@ -162,6 +164,7 @@ async function carica() {
     righe.forEach(r => { S[r.tipo] = Array.isArray(r.dati) ? r.dati : []; S.letto[r.tipo] = r.letto_il; });
     S.verCv = new Set(ver.map(v => v.cv_id));
   } catch (e) { toast('Non riesco a leggere i dati salvati: ' + e.message); }
+  await caricaGiust();
   const t = Object.values(S.letto).sort().pop();
   document.getElementById('letto').textContent = t
     ? 'Ultima sincronizzazione: ' + new Date(t).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })
@@ -177,8 +180,7 @@ const OPZ = ['base', 'ua', 'apikey'];
 // Indirizzi di prova di partenza: candidati per lo stato «in approvazione» delle giustificazioni.
 const SONDE_DEFAULT = ['/students/{id}/absences/details', '/students/{id}/absences', '/students/{id}/absences/justifications',
   '/students/{id}/absences/justification', '/students/{id}/justifications', '/students/{id}/absences/web',
-  '/students/{id}/absences/webjustifications', '/students/{id}/absences/details/justifications', '/students/{id}/card',
-  '/students/{id}/noticeboard'].join('\n');
+  '/students/{id}/absences/webjustifications', '/students/{id}/absences/details/justifications'].join('\n');
 let conSonde = false;
 function preparaSync() {
   OPZ.forEach(k => { const el = document.getElementById('o-' + k); el.value = ls.get('cv_' + k) || ''; el.onchange = () => ls.set('cv_' + k, el.value.trim()); });
@@ -322,15 +324,49 @@ function vistaAssenze() {
   if (!S.assenze.length) return `<p class="hint">${S.letto.assenze ? 'Nessuna assenza quest\'anno.' : 'Nessuna assenza salvata: tocca 🔄 Sincronizza dall\'app (serve AppSfera Web 1.2.12 o successiva).'}</p>`;
   const tipo = a => TIPO_ASS[a.evtCode] || ['assenza', a.evtCode || 'Evento'];
   const conta = k => S.assenze.filter(a => tipo(a)[0] === k).length;
-  const daGiust = S.assenze.filter(a => !a.isJustified).length;
+  const inAppr = a => !a.isJustified && S.giust && S.giust[String(a.evtId)];
+  const daGiust = S.assenze.filter(a => !a.isJustified && !inAppr(a)).length;
+  const nAppr = S.assenze.filter(inAppr).length;
   const kpi = (n, t) => `<div><span class="big">${n}</span> <span class="hint">${t}</span></div>`;
   const lista = S.assenze.slice().sort((a, b) => (b.evtDate || '').localeCompare(a.evtDate || ''));
-  return `<div class="card"><div class="kpi">${kpi(conta('assenza'), 'assenze')}${kpi(conta('ritardo'), 'ritardi')}${kpi(conta('uscita'), 'uscite')}${kpi(daGiust, 'da giustificare')}</div></div>
-    <div class="card giorno" style="margin-top:12px">${lista.map(a => { const [c, t] = tipo(a);
-      return `<div class="ev ${c}"><div class="t">${esc(t)} · ${esc(giornoIt(a.evtDate || ''))}</div>
+  return `<div class="card"><div class="kpi">${kpi(conta('assenza'), 'assenze')}${kpi(conta('ritardo'), 'ritardi')}${kpi(conta('uscita'), 'uscite')}${kpi(daGiust, 'da giustificare')}${nAppr ? kpi(nAppr, 'in approvazione') : ''}</div></div>
+    <div class="card giorno" style="margin-top:12px">${lista.map(a => { const [c, t] = tipo(a), app = inAppr(a), id = esc(a.evtId);
+      const stato = a.isJustified ? '<span class="badge ok">✔ giustificata</span>'
+        : app ? `<span class="badge warn">⏳ in approvazione dal ${esc(app.slice(8, 10) + '/' + app.slice(5, 7))}</span> <button class="link" type="button" data-giust="${id}">↩ Non ancora</button>`
+        : `<span class="badge no">da giustificare</span>${S.giust ? ` <button class="ghost" type="button" data-giust="${id}">⏳ L'ho giustificata</button>` : ''}`;
+      return `<div class="ev ${app ? 'approvazione' : c}"><div class="t">${esc(t)} · ${esc(giornoIt(a.evtDate || ''))}</div>
         <div class="m">${[a.evtHPos ? a.evtHPos + 'ª ora' : '', a.justifReasonDesc || ''].filter(Boolean).map(esc).join(' · ')}</div>
-        <div>${a.isJustified ? '<span class="badge ok">✔ giustificata</span>' : '<span class="badge no">da giustificare</span>'}</div></div>`; }).join('')}</div>`;
+        <div class="row" style="gap:8px">${stato}</div></div>`; }).join('')}</div>`;
 }
+
+// ⏳ Giustificate e in attesa del docente. L'API non lo dice (isJustified resta false finché il
+// docente non approva), quindi la spunta la mette chi ha giustificato, in cm_settings chiave
+// GIUST_KEY: {"<evtId>": "AAAA-MM-GG"}. ⚠️ cm_settings la legge solo Salvatore: da Ada
+// (S.giust === null) le assenze restano «da giustificare» e il pulsante non c'è.
+const GIUST_KEY = 'cv_giustificate';
+async function caricaGiust() {
+  try {
+    const r = await SC.db('cm_settings?key=eq.' + GIUST_KEY + '&select=value');
+    S.giust = r.length ? JSON.parse(r[0].value || '{}') : {};
+  } catch (e) { S.giust = null; return; }
+  // Si toglie da sé quando ClasseViva la dà giustificata (o l'assenza non c'è più).
+  // Solo con un elenco di assenze letto: vuoto vorrebbe dire nessun dato, non nessuna assenza.
+  if (!S.assenze.length) return;
+  const aperte = new Set(S.assenze.filter(a => !a.isJustified).map(a => String(a.evtId)));
+  const via = Object.keys(S.giust).filter(k => !aperte.has(k));
+  if (via.length) { via.forEach(k => delete S.giust[k]); salvaGiust().catch(() => {}); }
+}
+function salvaGiust() {
+  return SC.db('cm_settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+    body: { key: GIUST_KEY, value: JSON.stringify(S.giust) } });
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-giust]'); if (!b || !S.giust) return;
+  const id = b.dataset.giust, prima = { ...S.giust };
+  if (S.giust[id]) delete S.giust[id]; else S.giust[id] = isoOggi();
+  render();
+  try { await salvaGiust(); } catch (err) { S.giust = prima; render(); toast('Non salvato: ' + err.message); }
+});
 
 // Agenda: da oggi in avanti, per giorno. Una voce che parla di verifica o
 // interrogazione è marcata, e ogni voce si può portare nelle Verifiche.
