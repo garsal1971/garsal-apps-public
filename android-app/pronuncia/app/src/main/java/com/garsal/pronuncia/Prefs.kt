@@ -178,12 +178,12 @@ class Prefs(ctx: Context) {
             ?: if (p.getBoolean("riascolto_ciclo", true)) RiascoltoCiclo.SEMPRE else RiascoltoCiclo.MAI
         set(v) = p.edit().putString("riascolto_ciclo_modo", v.name).apply()
 
-    /** v1.30.0: quanto largo è il confronto dei comandi registrati
-     *  (`ComandiVoce`): la soglia × questo numero. Più alto = li prende più
-     *  facilmente, ma rischia di prendere per comando una parola. */
-    var sensibilitaComandi: Double
-        get() = p.getFloat("sensibilita_comandi", 1.25f).toDouble()
-        set(v) = p.edit().putFloat("sensibilita_comandi", v.toFloat()).apply()
+    /** v1.38.0: la sicurezza minima con cui Vosk deve sentire un comando
+     *  (`ComandiVoce`, da 0 a 1). Più bassa = li prende più facilmente, ma
+     *  rischia di prendere per comando una parola. */
+    var sicurezzaComandi: Double
+        get() = p.getFloat("sicurezza_comandi", 0.7f).toDouble()
+        set(v) = p.edit().putFloat("sicurezza_comandi", v.toFloat()).apply()
 
     /** Un id per questa installazione: con l'id locale del tentativo fa il
      *  `client_id` di `pr_tentativi`, che rende un rinvio innocuo. */

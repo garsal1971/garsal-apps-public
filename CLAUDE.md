@@ -3972,7 +3972,7 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   forzava sulla parola attesa («please»): due parole non si confondono con una da pronunciare.
   Senza prefisso non è un comando. `Comando.tollerante` accetta il prefisso storpiato («comment»,
   «commend») e il verbo storpiato come prima; la `PhraseListGrammar` riceve le frasi intere.
-- **Comandi in italiano con la tua voce** (v1.30.0, `ComandiVoce.kt`, `ui/MieiComandi.kt`): in
+- **Comandi in italiano con la tua voce** (v1.30.0; ⚠️ **sostituiti dalla v1.38.0 con Vosk**, vedi più sotto — quel che segue è la storia): in
   ⚙️ → 🎙 I miei comandi si registrano fino a 3 volte «Ripeti», «Avanti», «Lento», «Ferma»,
   «Ortografia», «Traduci». A mani libere, se c'è almeno una registrazione, la voce si tiene tutta
   sul telefono (`Ascolto.tieniFinoAlSilenzio`) e si confronta coi comandi — MFCC + DTW, soglia =
@@ -4072,6 +4072,20 @@ con lo storico dei tentativi e il ripasso delle frasi sbagliate. Le sei fasi son
   fumetto dalla tabella stessa, e ripasso, voti e intervalli quelli di `Ripasso.componi`.
   ⚠️ Non hanno livello: il filtro Livello le lascia sempre passare (`Corso.passaLivello`, usata da
   `Sessione`, `Frasi.aCaso` e dallo Storico).
+- **Comandi a voce con Vosk** (v1.38.0, `ComandiVoce.kt` riscritto, `ui/ComandiAVoce.kt`; tolti
+  `ui/MieiComandi.kt`, le registrazioni e `sensibilitaComandi`): i comandi in italiano li riconosce
+  **Vosk sul telefono** (`com.alphacephei:vosk-android`, modello `vosk-model-small-it-0.22`) con una
+  grammatica chiusa — i sei comandi più `[unk]` — sulla stessa voce che va ad Azure. È un comando
+  solo se Vosk sente **una** parola, che è un comando, con sicurezza ≥ `Prefs.sicurezzaComandi`
+  (0,7; tendina 0,5-0,9). ⚠️ Il `[unk]` è la metà che conta: senza, ogni parola inglese
+  diventerebbe un comando. Il confronto MFCC+DTW delle v1.30-1.37 funzionava nella Prova e non nel
+  ciclo: il comando finiva ad Azure come tentativo («sword» a 5). Il modello (~48 MB) **non sta
+  nell'APK**: si scarica da ⚙️ → 🎙 Comandi a voce da `https://apk.garsal.men/vosk-model-small-it-0.22.zip`
+  (lo carica su R2 `modello-vosk-r2.yml`, con lo SHA-256 controllato), si scompatta in una cartella
+  temporanea e solo alla fine in `filesDir/vosk-it`; lo scarico vive in `ComandiVoce` e non nella
+  schermata. Senza modello niente comandi a voce (restano i tasti delle cuffie). Il modello si
+  carica in memoria all'avvio del ciclo (`precarica`). La vecchia cartella `filesDir/comandi` si
+  cancella all'avvio.
 - ⚠️ **L'audio TTS è in cache su file** (`cacheDir/tts/<sha256 dell'SSML>.mp3`, `Tts.kt`):
   si sintetizza una volta per voce, lingua e velocità e si suona con `MediaPlayer`. Scritto prima
   in `.tmp` e poi rinominato; un file che non si suona si cancella.

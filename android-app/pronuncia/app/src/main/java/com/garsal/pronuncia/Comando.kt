@@ -17,7 +17,7 @@ enum class Comando { RIPETI, AVANTI, LENTO, FERMA,
 
     companion object {
         /** v1.31.0: i comandi si riconoscono SOLO sul telefono, confrontando la
-         *  voce con le registrazioni (`ComandiVoce`): i comandi inglesi detti ad
+         *  voce con le registrazioni, dalla v1.38.0 con Vosk (`ComandiVoce`): i comandi inglesi detti ad
          *  Azure («spell», «command spell») sono stati tolti, perché Azure li
          *  forzava sulla parola attesa. Il comando arriva al giro dentro
          *  `Esito.riconosciuto` con questo segno, che nessuna voce può produrre. */

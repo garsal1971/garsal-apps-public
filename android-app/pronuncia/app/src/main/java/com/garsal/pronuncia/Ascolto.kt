@@ -112,7 +112,7 @@ class Ascolto(comunicazione: Boolean) : AutoCloseable {
      * v1.30.0: la voce intera tenuta sul telefono, senza mandarla da nessuna
      * parte: i frame di [inizio] e quelli fino a [FINE_MS] di silenzio. Finisce
      * anche nella registrazione. Dalla v1.34.0 la usa solo la registrazione dei
-     * comandi (`MieiComandi`): il giro manda la voce ad Azure mentre arriva.
+     * comandi (`ComandiAVoce`, la Prova): il giro manda la voce ad Azure mentre arriva.
      */
     suspend fun tieniFinoAlSilenzio(inizio: List<ByteArray>): List<ByteArray> {
         val tutto = inizio.toMutableList()

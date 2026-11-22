@@ -66,7 +66,7 @@ class Valutatore(private val azure: AzureToken) {
 
     /** [ritmo] chiede ad Azure anche ritmo e intonazione (vedi `Giudizio`). */
     /** [comandi]: la voce si confronta anche coi comandi registrati
-     *  (`ComandiVoce`, v1.30.0). Solo a mani libere: nell'esercizio non ci sono comandi. */
+     *  (`ComandiVoce`: v1.30.0 registrazioni, dalla v1.38.0 Vosk). Solo a mani libere: nell'esercizio non ci sono comandi. */
     suspend fun valuta(riferimento: String, accento: Accento, ritmo: Boolean, comandi: Boolean = false): Esito = withContext(Dispatchers.IO) {
         // Il token prima della voce: se va rinnovato, il ritardo cade qui
         // e non mentre si sta parlando.
@@ -123,7 +123,7 @@ class Valutatore(private val azure: AzureToken) {
                                 // riconoscimento con una richiesta in volo non è
                                 // garantito che torni.
                                 if (comandi && Servizi.comandi.pronti()) {
-                                    Servizi.comandi.riconosci(voce, Servizi.prefs.sensibilitaComandi)?.let { c ->
+                                    Servizi.comandi.riconosci(voce, Servizi.prefs.sicurezzaComandi)?.let { c ->
                                         runCatching { runInterruptible { futuro.get() }.close() }
                                             .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
                                         return@withContext Esito(Comando.frase(c), 0.0, 0.0, 0.0, 0.0, emptyList())

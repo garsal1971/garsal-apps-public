@@ -392,6 +392,9 @@ object Ciclo {
         }
 
         esterno.value = null
+        // v1.38.0: il modello dei comandi in memoria prima del primo «tocca a
+        // te», o il primo comando aspetterebbe il caricamento.
+        sottofondo { Servizi.comandi.precarica() }
         // Le traduzioni per «translate»: la schermata le scarica già, ma il
         // ciclo può partire prima che lo abbia fatto. Senza rete resta la cache
         // (gli errori di rete li assorbe già `aggiorna`). In sottofondo dalla
