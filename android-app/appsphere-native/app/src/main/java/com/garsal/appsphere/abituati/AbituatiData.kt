@@ -170,7 +170,15 @@ data class HbArchiviato(
     val fallimenti: Int,
     val punti: Int,
     val motivo: String,
+    /** L'abitudine di quel ciclo (la riga di hb_habits non c'è più, le spunte sì). */
+    val abitudineId: String? = null,
+    val categoriaId: String? = null,
+    /** 💉 La scheda salvata alla chiusura: senza, per resuscitare la si riscrive nel form. */
+    val haScheda: Boolean = false,
 ) {
+    /** Si resuscita solo un ciclo chiuso per jolly esauriti, come `resuscitaDaArchivio` nel web. */
+    val resuscitabile: Boolean get() = motivo == "jolly_esauriti"
+
     /** Come lo racconta la scheda in archivio nel web. */
     val esito: String get() = when (motivo) {
         "completato" -> "🏆 Completato"
@@ -194,6 +202,9 @@ data class HbArchiviato(
                 fallimenti = numero(o, "total_failures") ?: 0,
                 punti = numero(o, "points_earned") ?: 0,
                 motivo = testo(o, "reason").orEmpty(),
+                abitudineId = testo(o, "habit_id"),
+                categoriaId = testo(o, "category_id"),
+                haScheda = o["scheda"] is JsonObject,
             )
         }
     }

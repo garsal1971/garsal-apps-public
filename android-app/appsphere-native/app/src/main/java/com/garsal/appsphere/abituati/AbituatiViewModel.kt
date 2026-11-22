@@ -378,6 +378,59 @@ class AbituatiViewModel : ViewModel() {
         }
     }
 
+    // ── 💉 Resurrezione ──────────────────────────────────────────────────
+    // Le anteprime tornano la risposta della RPC (o null se non arriva): il
+    // dialogo ne legge minimo e costo. Le scritture passano dalle RPC e poi
+    // si rilegge tutto, come dopo ogni altra cerimonia.
+
+    suspend fun anteprimaGameOver(esito: HbEsito, jolly: Int): kotlinx.serialization.json.JsonObject? =
+        runCatching { AbituatiRepository.resurrezioneCosto(esito.abitudineId, jolly) }
+            .onFailure { Log.w(TAG, "anteprima resurrezione non riuscita", it) }
+            .getOrNull()
+
+    fun resuscitaGameOver(esito: HbEsito, jolly: Int, oggi: LocalDate = LocalDate.now()) {
+        viewModelScope.launch {
+            try {
+                val r = AbituatiRepository.resuscita(esito.abitudineId, jolly)
+                if (testo(r, "ok") != "true") error(testo(r, "error") ?: "resurrezione non riuscita")
+                scartaGameOver(esito)
+                log("💉 Resuscitata «${esito.nome}»: +$jolly jolly, −${numero(r, "punti") ?: 0} punti")
+                _state.value = _state.value.copy(messaggio = "💉 Resuscitata! +$jolly jolly, −${numero(r, "punti") ?: 0} punti")
+                carica(oggi)
+            } catch (e: Exception) {
+                Log.w(TAG, "resurrezione non riuscita", e)
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Resurrezione non riuscita"))
+            }
+        }
+    }
+
+    suspend fun anteprimaArchivio(
+        riga: HbArchiviato, jolly: Int, scheda: kotlinx.serialization.json.JsonObject?,
+    ): kotlinx.serialization.json.JsonObject? =
+        runCatching { AbituatiRepository.resuscitaArchivio(riga.id, jolly, scheda, conferma = false) }
+            .onFailure { Log.w(TAG, "anteprima resurrezione archivio non riuscita", it) }
+            .getOrNull()
+
+    fun resuscitaArchivio(
+        riga: HbArchiviato, jolly: Int, scheda: kotlinx.serialization.json.JsonObject?,
+        oggi: LocalDate = LocalDate.now(),
+    ) {
+        viewModelScope.launch {
+            try {
+                val r = AbituatiRepository.resuscitaArchivio(riga.id, jolly, scheda, conferma = true, oggi = oggi)
+                if (testo(r, "ok") != "true") error(testo(r, "error") ?: "resurrezione non riuscita")
+                log("💉 Resuscitata «${riga.nome}» dall'archivio: ${numero(r, "jolly") ?: 0} jolly, −${numero(r, "punti") ?: 0} punti")
+                _state.value = _state.value.copy(
+                    messaggio = "💉 Resuscitata! ${numero(r, "jolly") ?: 0} jolly, −${numero(r, "punti") ?: 0} punti",
+                )
+                carica(oggi)
+            } catch (e: Exception) {
+                Log.w(TAG, "resurrezione dall'archivio non riuscita", e)
+                _state.value = _state.value.copy(errore = e.messaggioBreve("Resurrezione non riuscita"))
+            }
+        }
+    }
+
     /** «Ricomincia» dopo uno stack vinto: l'abitudine c'è ancora, si clona. */
     fun riparti(esito: HbEsito, inizio: LocalDate, oggi: LocalDate = LocalDate.now()) {
         viewModelScope.launch {

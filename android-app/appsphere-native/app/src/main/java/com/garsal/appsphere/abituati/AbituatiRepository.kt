@@ -218,6 +218,76 @@ object AbituatiRepository {
         ).decodeAs<JsonObject>()
     }
 
+    // ── 💉 Resurrezione: le regole stanno nelle RPC, qui si chiede ───────
+    // Gemelle di `apriResurrezione` / `resuscitaDaArchivio` in
+    // `habit-tracker.html`: minimo, costo e scritture le decidono
+    // `hb_resurrezione_costo` / `hb_resuscita` (20261122100000) e
+    // `hb_resuscita_archivio` (20261122120000).
+
+    /** Anteprima del game over in corso: fallimenti, jolly, minimo, costo di `jolly`. */
+    suspend fun resurrezioneCosto(abitudineId: String, jolly: Int): JsonObject =
+        withContext(Dispatchers.IO) {
+            db.rpc("hb_resurrezione_costo", buildJsonObject {
+                put("p_habit_id", abitudineId)
+                put("p_jolly", jolly)
+            }).decodeAs<JsonObject>()
+        }
+
+    /** Compra `jolly` jolly per uno stack ancora vivo in game over. */
+    suspend fun resuscita(abitudineId: String, jolly: Int): JsonObject =
+        withContext(Dispatchers.IO) {
+            db.rpc("hb_resuscita", buildJsonObject {
+                put("p_habit_id", abitudineId)
+                put("p_jolly", jolly)
+            }).decodeAs<JsonObject>()
+        }
+
+    /**
+     * Resuscita un ciclo dall'archivio. `conferma = false` è l'anteprima e non
+     * scrive niente; `scheda` serve solo ai cicli archiviati prima della colonna.
+     */
+    suspend fun resuscitaArchivio(
+        archivioId: String,
+        jolly: Int,
+        scheda: JsonObject?,
+        conferma: Boolean,
+        oggi: LocalDate = LocalDate.now(),
+    ): JsonObject = withContext(Dispatchers.IO) {
+        db.rpc("hb_resuscita_archivio", buildJsonObject {
+            put("p_archivio_id", archivioId)
+            put("p_jolly", jolly)
+            if (scheda != null) put("p_scheda", scheda)
+            put("p_oggi", oggi.toString())
+            put("p_conferma", conferma)
+        }).decodeAs<JsonObject>()
+    }
+
+    /**
+     * La scheda di un'abitudine nuova, com'è scritta in `hb_habits`: la usa
+     * `salva` e la resurrezione di un ciclo archiviato senza la sua.
+     */
+    fun schedaDa(b: BozzaAbitudine): JsonObject = buildJsonObject {
+        put("name", b.nome.trim())
+        put("description", b.descrizione.trim())
+        b.categoriaId?.let { put("category_id", it) }
+        put("goal", b.obiettivo)
+        put("max_failures", b.jolly)
+        put("points_reward", b.puntiPremio)
+        put("points_penalty", b.puntiPenalita)
+        put("frequency", b.frequenza)
+        if (b.frequenza == "weekly") {
+            put("weekdays", buildJsonArray { b.giorniSettimana.sorted().forEach { add(it) } })
+        }
+        if (b.frequenza == "daily_multiple") {
+            put("daily_times", buildJsonArray { b.orari.sorted().forEach { add(it) } })
+        }
+        if (b.frequenza == "count_window") {
+            put("times_target", b.volte)
+            put("window_days", b.giorniFinestra)
+            put("max_per_day", b.maxAlGiorno)
+        }
+    }
+
     /** Riapre uno stack appena completato, dalla data scelta. */
     suspend fun nuovoCiclo(abitudineId: String, inizio: LocalDate): Unit =
         withContext(Dispatchers.IO) {

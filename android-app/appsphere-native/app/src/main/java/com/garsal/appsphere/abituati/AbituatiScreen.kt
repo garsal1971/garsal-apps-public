@@ -30,7 +30,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import kotlinx.serialization.json.JsonObject
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,6 +120,11 @@ fun AbituatiScreen(
     var daEliminare by remember { mutableStateOf<HbAbitudine?>(null) }
     var daInterrompere by remember { mutableStateOf<HbAbitudine?>(null) }
     var daRiprendere by remember { mutableStateOf<HbAbitudine?>(null) }
+    // 💉 Resurrezione: dal game over in corso, o da un ciclo dell'archivio
+    // (con la scheda dell'archivio, o con quella riscritta nel form).
+    var resurrezioneGO by remember { mutableStateOf<HbEsito?>(null) }
+    var resurrezioneArch by remember { mutableStateOf<Pair<HbArchiviato, JsonObject?>?>(null) }
+    var schedaPer by remember { mutableStateOf<HbArchiviato?>(null) }
 
     inCompilazione?.let { (bozza, id) ->
         AbituatiForm(
@@ -123,8 +132,19 @@ fun AbituatiScreen(
             id = id,
             categorie = stato.categorie,
             preset = stato.preset,
-            onAnnulla = { inCompilazione = null },
-            onSalva = { compilata -> vm.salva(id, compilata) { inCompilazione = null } },
+            onAnnulla = { inCompilazione = null; schedaPer = null },
+            onSalva = { compilata ->
+                val riga = schedaPer
+                if (riga != null) {
+                    // Il form qui non crea niente: dà alla resurrezione la
+                    // scheda che il ciclo archiviato ha perso.
+                    resurrezioneArch = riga to AbituatiRepository.schedaDa(compilata)
+                    schedaPer = null
+                    inCompilazione = null
+                } else {
+                    vm.salva(id, compilata) { inCompilazione = null }
+                }
+            },
         )
         return
     }
@@ -185,7 +205,18 @@ fun AbituatiScreen(
                             modifier = Modifier.align(Alignment.Center),
                         )
 
-                    vista == Vista.ARCHIVIO -> Archivio(stato.archivio)
+                    vista == Vista.ARCHIVIO -> Archivio(stato.archivio) { riga ->
+                        if (riga.haScheda) {
+                            resurrezioneArch = riga to null
+                        } else {
+                            schedaPer = riga
+                            inCompilazione = BozzaAbitudine(
+                                nome = riga.nome,
+                                categoriaId = riga.categoriaId,
+                                inizio = riga.inizio?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: oggi,
+                            ) to null
+                        }
+                    }
                     vista == Vista.STATISTICHE -> Statistiche(stato)
                     vista == Vista.IMPOSTAZIONI -> Impostazioni(
                         stato,
@@ -258,11 +289,41 @@ fun AbituatiScreen(
         )
     }
 
-    stato.gameOver.firstOrNull()?.let { esito ->
+    if (resurrezioneGO == null) stato.gameOver.firstOrNull()?.let { esito ->
         GameOver(
             esito = esito,
             onRicomincia = { inizio -> vm.chiudiStack(esito, inizio, oggi) },
             onInterrompi = { vm.chiudiStack(esito, null, oggi) },
+            puoResuscitare = esito.motivo == "jolly_esauriti" && !esito.giaArchiviato,
+            onResuscita = { resurrezioneGO = esito },
+        )
+    }
+
+    resurrezioneGO?.let { esito ->
+        DialogoResurrezione(
+            nome = esito.nome,
+            nota = null,
+            anteprima = { n -> vm.anteprimaGameOver(esito, n) },
+            onConferma = { n ->
+                vm.resuscitaGameOver(esito, n, oggi)
+                resurrezioneGO = null
+            },
+            onChiudi = { resurrezioneGO = null },
+        )
+    }
+
+    resurrezioneArch?.let { (riga, scheda) ->
+        DialogoResurrezione(
+            nome = riga.nome,
+            nota = "Il ciclo riparte dal ${dataItaliana(riga.inizio)}, con le spunte di allora. " +
+                "La riga d'archivio se ne va, e con lei la sua penalità. " +
+                "🔔 I promemoria si rimettono da ✏️ Modifica.",
+            anteprima = { n -> vm.anteprimaArchivio(riga, n, scheda) },
+            onConferma = { n ->
+                vm.resuscitaArchivio(riga, n, scheda, oggi)
+                resurrezioneArch = null
+            },
+            onChiudi = { resurrezioneArch = null },
         )
     }
 
@@ -889,7 +950,7 @@ private fun SettimanaPallini(abitudine: HbAbitudine, stato: AbituatiState, oggi:
 }
 
 @Composable
-private fun Archivio(righe: List<HbArchiviato>) {
+private fun Archivio(righe: List<HbArchiviato>, onResuscita: (HbArchiviato) -> Unit) {
     if (righe.isEmpty()) {
         Vuoto("📦", "Nessuno stack in archivio.")
         return
@@ -925,6 +986,11 @@ private fun Archivio(righe: List<HbArchiviato>) {
                         color = if (riga.punti >= 0) Palette.success else Palette.danger,
                         fontWeight = FontWeight.Bold,
                     )
+                    if (riga.resuscitabile) {
+                        TextButton(onClick = { onResuscita(riga) }) {
+                            Text("💉 Resuscita (compra jolly)", color = NeroAbituati, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -974,6 +1040,8 @@ private fun GameOver(
     esito: HbEsito,
     onRicomincia: (LocalDate) -> Unit,
     onInterrompi: () -> Unit,
+    puoResuscitare: Boolean = false,
+    onResuscita: () -> Unit = {},
 ) {
     val context = LocalContext.current
     // Da domani, per la stessa ragione della `Festa` qui sopra.
@@ -999,6 +1067,12 @@ private fun GameOver(
                         .clickable { scegliData(context, inizio) { inizio = it } }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 )
+                // 💉 Il terzo modo di uscirne: comprare jolly pagando punti.
+                if (puoResuscitare) {
+                    TextButton(onClick = onResuscita) {
+                        Text("💉 Resuscita (compra jolly)", color = Palette.dark, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         },
         confirmButton = {
@@ -1118,6 +1192,101 @@ private fun Riprendi(
                     color = if (perso) Palette.danger else Palette.success,
                     fontWeight = FontWeight.Bold,
                 )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onChiudi) { Text("Annulla", color = Palette.muted) }
+        },
+    )
+}
+
+/**
+ * 💉 RESUSCITA: si comprano jolly pagando punti. Gemello della finestra di
+ * `habit-tracker.html` (game over e archivio): minimo, costo e scrittura li
+ * decidono le RPC, qui si legge l'anteprima e si chiede. Il costo è
+ * ceil(penalità ÷ giorni dello stack × jolly); il minimo è quel che basta a
+ * uscire dal game over (fallimenti − jolly + 1).
+ */
+@Composable
+private fun DialogoResurrezione(
+    nome: String,
+    nota: String?,
+    anteprima: suspend (Int) -> JsonObject?,
+    onConferma: (Int) -> Unit,
+    onChiudi: () -> Unit,
+) {
+    var base by remember { mutableStateOf<JsonObject?>(null) }
+    var caricato by remember { mutableStateOf(false) }
+    var testoJolly by remember { mutableStateOf("") }
+    var costo by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(Unit) {
+        val r = anteprima(1)
+        base = r
+        caricato = true
+        numero(r ?: JsonObject(emptyMap()), "minimo")?.let { testoJolly = it.toString() }
+    }
+    val okBase = base?.let { testo(it, "ok") == "true" } == true
+    val minimo = base?.let { numero(it, "minimo") } ?: 1
+    val n = testoJolly.toIntOrNull()
+    val valido = okBase && n != null && n >= minimo
+
+    LaunchedEffect(n, okBase) {
+        costo = null
+        if (valido && n != null) {
+            kotlinx.coroutines.delay(250)
+            costo = anteprima(n)?.let { numero(it, "punti") }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onChiudi,
+        title = { Text("💉 Resuscita «$nome»") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val b = base
+                when {
+                    !caricato -> Text("⏳ Calcolo…", color = Palette.muted)
+                    b == null -> Text("⚠️ Non riesco a calcolare il costo: controlla la connessione.", color = Palette.danger)
+                    !okBase -> Text("⚠️ ${testo(b, "error") ?: "Non si può resuscitare"}", color = Palette.danger)
+                    else -> {
+                        val perJolly = testo(b, "per_jolly")?.toDoubleOrNull() ?: 0.0
+                        Text(
+                            "Fallimenti ${numero(b, "fallimenti") ?: 0} su ${numero(b, "jolly") ?: 0} jolly: " +
+                                "ne servono almeno $minimo per tornare in gioco."
+                        )
+                        Text(
+                            "Ogni jolly costa ${String.format(java.util.Locale.ITALY, "%.2f", perJolly)} punti " +
+                                "(penalità ÷ giorni dello stack).",
+                            color = Palette.muted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedTextField(
+                            value = testoJolly,
+                            onValueChange = { v -> testoJolly = v.filter { it.isDigit() }.take(4) },
+                            label = { Text("🃏 Jolly da comprare") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                        )
+                        Text(
+                            text = when {
+                                n == null || n < minimo -> "⚠️ Almeno $minimo jolly."
+                                costo == null -> "⏳ Calcolo il costo…"
+                                else -> "Costo: −$costo punti"
+                            },
+                            fontWeight = FontWeight.Bold,
+                            color = if (n == null || n < minimo) Palette.danger else Palette.dark,
+                        )
+                        if (nota != null) {
+                            Text(nota, color = Palette.muted, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = valido, onClick = { n?.let(onConferma) }) {
+                Text("💉 Paga e resuscita", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
