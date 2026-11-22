@@ -41,7 +41,7 @@ object Corso {
         voci.filter { passaLivello(it, livello) && (tema == null || it.tema == tema) }
 
     fun voci(ctx: Context): List<Frase> = voci ?: synchronized(this) {
-        voci ?: (runCatching { File(ctx.filesDir, FILE).readText() }.getOrNull()?.let { applica(leggi(it)) }
+        voci ?: (runCatching { File(ctx.filesDir, FILE).readText() }.getOrNull()?.let { leggi(it) }?.let { applica(it) }
             ?: emptyList()).also { voci = it }
     }
 
