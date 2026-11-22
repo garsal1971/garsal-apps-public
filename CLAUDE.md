@@ -5990,7 +5990,10 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   penalità in `hb_resurrezioni` (tabella a sé: `hb_chiudi_stack`, scadenza ed Elimina cancellano
   la riga dell'abitudine, il prezzo pagato deve restare). La `score_query` la toglie, e vanno
   allineati `recalculateTotalScore()` e il lettore di 🏆 Punti in `index.html`. Ha sostituito il
-  vecchio «🔁 Ripristina» gratuito (missed → completed). Solo web: il nativo non lo offre ancora.
+  vecchio «🔁 Ripristina» gratuito (missed → completed). Anche in nativo dall'APK 1.0.160:
+  `DialogoResurrezione` in `AbituatiScreen.kt` (dal game over e dalla scheda 📦 Archivio; per i
+  cicli senza scheda si riapre `AbituatiForm`, che in quel caso non crea niente e passa
+  `AbituatiRepository.schedaDa(bozza)` alla RPC). Gemelli del web, regole tutte nelle RPC.
 - 💉 **Resuscita dall'archivio** (v9.9.0, `20261122120000_hb_resurrezione_archivio.sql`): sui cicli
   archiviati con `reason = 'jolly_esauriti'`. `hb_archived_stacks.scheda` (jsonb) è la riga di
   `hb_habits` al momento della chiusura, scritta da `hb_chiudi_stack`; i cicli archiviati prima
@@ -6000,7 +6003,7 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   fallimenti a oggi compresi i giorni senza riga dalla chiusura a ieri
   (`hb__fallimenti_alla_ripresa`), minimo = fallimenti − jolly + 1, paga in `hb_resurrezioni` e
   **cancella la riga d'archivio** (la sua penalità esce dal punteggio). Con `conferma = false` è
-  l'anteprima, in un sottoblocco annullato. ⚠️ I promemoria non tornano; se il ciclo era stato
+  l'anteprima, in un sottoblocco annullato. Web e nativo (APK 1.0.160). ⚠️ I promemoria non tornano; se il ciclo era stato
   «Ricomincia»to, il clone resta e le due abitudini convivono.
 - ⚠️ **I punti premio e penalità si leggono dalle caselle** (v9.7.1): `habitPointsReward` /
   `habitPointsPenalty` nella creazione e `editHabitPointsReward` / `editHabitPointsPenalty` nella
