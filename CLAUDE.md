@@ -320,6 +320,7 @@ soli campi del preset (classe `no-tpl` sugli altri). Solo web: il nativo non lo 
 | `hb_user_points` | Gamification points balance |
 | `hb_points_transactions` | Points ledger |
 | `hb_archived_stacks` | Archived habit stacks |
+| `hb_resurrezioni` | 💉 Resurrezioni: jolly comprati per uscire dal game over e punti pagati (`habit_id` ON DELETE SET NULL, nome copiato) |
 
 ### Events Log (`el_`)
 | Table | Purpose |
@@ -5983,6 +5984,13 @@ I punti dove la regola *è* la funzionalità, e non un dettaglio:
   da cambiare insieme: la `score_query`, il lettore di ☰ → 🏆 Punti in `index.html` e
   `recalculateTotalScore()` qui.
 - Imports/exports via JSON backup
+- 💉 **Resuscita** (v9.8.0, `20261122100000_hb_resurrezioni.sql`): nel game over per jolly
+  esauriti si comprano N jolly (`max_failures += N`) pagando `ceil(points_penalty / goal × N)`
+  punti; N minimo = fallimenti − jolly + 1. Regola in `hb_resurrezione_costo` / `hb_resuscita`,
+  penalità in `hb_resurrezioni` (tabella a sé: `hb_chiudi_stack`, scadenza ed Elimina cancellano
+  la riga dell'abitudine, il prezzo pagato deve restare). La `score_query` la toglie, e vanno
+  allineati `recalculateTotalScore()` e il lettore di 🏆 Punti in `index.html`. Ha sostituito il
+  vecchio «🔁 Ripristina» gratuito (missed → completed). Solo web: il nativo non lo offre ancora.
 - ⚠️ **I punti premio e penalità si leggono dalle caselle** (v9.7.1): `habitPointsReward` /
   `habitPointsPenalty` nella creazione e `editHabitPointsReward` / `editHabitPointsPenalty` nella
   modifica, scritti in `points_reward` / `points_penalty` dell'insert e dell'update. Fino alla

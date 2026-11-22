@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSphere v1.20.0</title>
+<title>AppSphere v1.20.1</title>
 <meta name="theme-color" content="#0081C8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2313,8 +2313,8 @@ const OLYMPIC = ['#0081C8','#FCB131','#1A1A1A','#00A651','#EE334E'];
 const PAD = 12;
 const GAP = 8; // minimum gap between circles
 
-const APP_VERSION = 'v1.20.0';
-const BUILD_TIME  = '2026-11-11T21:10:00Z';
+const APP_VERSION = 'v1.20.1';
+const BUILD_TIME  = '2026-11-22T10:00:00Z';
 
 // ── COOKIE helpers (per refresh_token persistente su mobile) ──────────────────
 function setCookie(name, value, days) {
@@ -6036,9 +6036,11 @@ const PT_LETTORI = {
   // hb_reconcile ne scrive i punti nella riga d'archivio, che si legge qui sotto
   // (20260930100000_hb_score_senza_stack_in_corso.sql).
   'habit-tracker.html': async () => {
-    const [abitudini, archivio] = await Promise.all([
+    const [abitudini, archivio, resurrezioni] = await Promise.all([
       ptLeggi('hb_habits?select=id,name,status,points_penalty,updated_at&status=eq.failed'),
       ptLeggi('hb_archived_stacks?select=habit_name,ended_at,points_earned,reason'),
+      // − SUM(punti) FROM hb_resurrezioni (20261122100000_hb_resurrezioni.sql)
+      ptLeggi('hb_resurrezioni?select=habit_name,jolly_aggiunti,punti,creato_il&punti=neq.0'),
     ]);
     const out = [];
     abitudini.forEach(h => {
@@ -6048,6 +6050,10 @@ const PT_LETTORI = {
     archivio.filter(a => a.points_earned).forEach(a => out.push({
       quando: ptData(a.ended_at), pts: a.points_earned,
       testo: '📦 Stack archiviato' + (a.reason ? ' (' + a.reason + ')' : '') + ' · ' + ptVirg(a.habit_name || 'senza nome'),
+    }));
+    resurrezioni.forEach(r => out.push({
+      quando: ptData(r.creato_il), pts: -r.punti,
+      testo: '💉 Resurrezione (+' + r.jolly_aggiunti + ' jolly) · ' + ptVirg(r.habit_name || 'senza nome'),
     }));
     return out;
   },

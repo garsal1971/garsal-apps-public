@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Stack Tracker v9.7.1</title>
+    <title>Habit Stack Tracker v9.8.0</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Darker+Grotesque:wght@300;500;700;900&display=swap" rel="stylesheet">
@@ -1745,9 +1745,19 @@
             <button onclick="closeGameOver(false)" style="width: 100%; margin-top: 0.75rem; font-size: 1rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 0.75rem; cursor: pointer;">
                 ⛔ Interrompi
             </button>
-            <button id="ripristinaGameOverBtn" onclick="ripristinaGameOver()" style="width: 100%; margin-top: 0.75rem; font-size: 1rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 0.75rem; cursor: pointer;">
-                🔁 Ripristina
+            <button id="resuscitaGameOverBtn" onclick="apriResurrezione()" style="width: 100%; margin-top: 0.75rem; font-size: 1rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 0.75rem; cursor: pointer;">
+                💉 Resuscita (compra jolly)
             </button>
+            <div id="resurrezioneBox" style="display: none; margin-top: 0.75rem; text-align: left; background: rgba(255,255,255,0.15); border-radius: 8px; padding: 0.75rem;">
+                <div id="resurrezioneInfo" style="font-size: 0.9rem; margin-bottom: 0.5rem;"></div>
+                <label for="resurrezioneJolly" style="font-size: 0.9rem; display: block; margin-bottom: 0.3rem;">🃏 Jolly da aggiungere</label>
+                <input type="number" id="resurrezioneJolly" min="1" step="1" oninput="aggiornaCostoResurrezione()"
+                    style="width: 100%; padding: 0.6rem 0.8rem; font-size: 1rem; border-radius: 8px; border: none; color: #333; box-sizing: border-box;" />
+                <div id="resurrezioneCosto" style="font-size: 0.95rem; margin-top: 0.5rem; font-weight: bold;"></div>
+                <button id="resurrezioneConferma" onclick="confermaResurrezione()" style="width: 100%; margin-top: 0.6rem; font-size: 1rem; background: white; color: #667eea; border: none; border-radius: 8px; padding: 0.75rem; cursor: pointer; font-weight: bold;">
+                    💉 Paga e resuscita
+                </button>
+            </div>
             <button id="undoGameOverBtn" onclick="undoGameOver()" style="width: 100%; margin-top: 0.75rem; font-size: 1rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 0.75rem; cursor: pointer;">
                 ↩ Annulla ultimo fallimento
             </button>
@@ -1828,8 +1838,8 @@
         // ==========================================
         // VERSION
         // ==========================================
-        const APP_VERSION = 'v9.7.1';
-        const BUILD_TIME  = '2026-10-23T12:47:22Z';
+        const APP_VERSION = 'v9.8.0';
+        const BUILD_TIME  = '2026-11-22T10:00:00Z';
         console.log('%c Habit Stack ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
             'background:#FF3366;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
             'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -2190,6 +2200,14 @@
                 for (const archived of (archivedStacks || [])) {
                     total += archived.points_earned || 0;
                 }
+
+                // − le penalità pagate per resuscitare (💉), come la score_query
+                // (20261122100000_hb_resurrezioni.sql). Tabella a sé: la riga
+                // dell'abitudine può sparire, il prezzo pagato no.
+                const { data: res, error: errRes } = await supabaseClient
+                    .from('hb_resurrezioni').select('punti');
+                if (errRes) console.warn('⚠️ hb_resurrezioni:', errRes.message);
+                for (const r of (res || [])) total -= r.punti || 0;
 
                 document.getElementById('totalScore').textContent = Math.round(total);
             } catch (err) {
@@ -3826,6 +3844,13 @@
             const undoBtn = document.getElementById('undoGameOverBtn');
             if (undoBtn) undoBtn.style.display = next.canUndo ? 'block' : 'none';
 
+            // 💉 Solo su uno stack ancora vivo per jolly esauriti: uno scaduto
+            // per calendario la RPC l'ha già archiviato e tolto.
+            window.currentResetReason = next.reason;
+            const resBtn = document.getElementById('resuscitaGameOverBtn');
+            if (resBtn) resBtn.style.display = (!next.alreadyProcessed && next.reason === 'jolly_esauriti') ? 'block' : 'none';
+            document.getElementById('resurrezioneBox').style.display = 'none';
+
             document.getElementById('gameOverModal').classList.add('active');
             if (!next.alreadyProcessed) playGameOverSound();
         }
@@ -3924,59 +3949,86 @@
             }
         }
 
-        async function ripristinaGameOver() {
+        // 💉 Resurrezione: si comprano jolly pagando una penalità. Regola e
+        // costo stanno nel database (`hb_resurrezione_costo` / `hb_resuscita`,
+        // 20261122100000_hb_resurrezioni.sql): qui si mostra e si chiama.
+        // Costo = ceil(points_penalty / goal × jolly); il minimo è quello che
+        // basta a uscire dal game over (fallimenti − jolly + 1).
+        let _resMinimo = 1;
+        let _resCostoTimer = null;
+
+        async function apriResurrezione() {
             const habitId = window.currentResetHabitId;
             if (!habitId) return;
+            const box = document.getElementById('resurrezioneBox');
+            box.style.display = 'block';
+            document.getElementById('resurrezioneInfo').textContent = 'Calcolo…';
+            document.getElementById('resurrezioneCosto').textContent = '';
+            const { data, error } = await supabaseClient.rpc('hb_resurrezione_costo', { p_habit_id: habitId, p_jolly: 1 });
+            if (error || !data?.ok) {
+                console.error('❌ hb_resurrezione_costo:', error || data?.error);
+                document.getElementById('resurrezioneInfo').textContent = '⚠️ Non riesco a calcolare il costo: ' + (error?.message || data?.error || '');
+                return;
+            }
+            _resMinimo = data.minimo;
+            const perJolly = Number(data.per_jolly || 0);
+            document.getElementById('resurrezioneInfo').innerHTML =
+                `Fallimenti <strong>${data.fallimenti}</strong> su <strong>${data.jolly}</strong> jolly: ne servono almeno <strong>${data.minimo}</strong> per tornare in gioco.<br>` +
+                `Ogni jolly costa ${perJolly.toLocaleString('it-IT', { maximumFractionDigits: 2 })} punti (penalità ÷ giorni dello stack).`;
+            const inp = document.getElementById('resurrezioneJolly');
+            inp.min = String(data.minimo);
+            inp.value = String(data.minimo);
+            aggiornaCostoResurrezione();
+        }
 
+        function aggiornaCostoResurrezione() {
+            const habitId = window.currentResetHabitId;
+            const n = parseInt(document.getElementById('resurrezioneJolly').value, 10);
+            const out = document.getElementById('resurrezioneCosto');
+            const btn = document.getElementById('resurrezioneConferma');
+            if (!Number.isInteger(n) || n < _resMinimo) {
+                out.textContent = `⚠️ Almeno ${_resMinimo} jolly.`;
+                btn.disabled = true; btn.style.opacity = '0.5';
+                return;
+            }
+            btn.disabled = false; btn.style.opacity = '1';
+            clearTimeout(_resCostoTimer);
+            _resCostoTimer = setTimeout(async () => {
+                const { data, error } = await supabaseClient.rpc('hb_resurrezione_costo', { p_habit_id: habitId, p_jolly: n });
+                if (error || !data?.ok) { out.textContent = '⚠️ Costo non disponibile'; return; }
+                out.textContent = `Costo: −${data.punti} punti`;
+            }, 250);
+        }
+
+        async function confermaResurrezione() {
+            const habitId = window.currentResetHabitId;
+            if (!habitId) return;
+            const n = parseInt(document.getElementById('resurrezioneJolly').value, 10);
+            if (!Number.isInteger(n) || n < _resMinimo) { aggiornaCostoResurrezione(); return; }
+            const btn = document.getElementById('resurrezioneConferma');
+            btn.disabled = true;
             try {
-                // L'habit è ancora in hb_habits (hb_reconcile i jolly esauriti li segnala e basta, non chiude)
-                const habit = habits.find(h => h.id === habitId);
-                const habitData = window.currentResetHabitData;
-                const startedAt = habit?.started_at || habitData?.started_at;
+                const { data, error } = await supabaseClient.rpc('hb_resuscita', { p_habit_id: habitId, p_jolly: n });
+                if (error) throw error;
+                if (!data?.ok) throw new Error(data?.error || 'hb_resuscita');
 
-                if (!startedAt) {
-                    showToast('Dati habit non disponibili');
-                    return;
-                }
-
-                // PASSO 1 — Cambia 'missed' → 'completed' (NON cancella)
-                // hb_reconcile troverà quei giorni già risolti e non li ri-aggiungerà come missed.
-                await supabaseClient
-                    .from('hb_completions')
-                    .update({ status: 'completed' })
-                    .eq('habit_id', habitId)
-                    .eq('status', 'missed')
-                    .gte('completed_at', startedAt + 'T00:00:00');
-
-                // Aggiorna array in-memory per coerenza
-                completions
-                    .filter(c => c.habit_id === habitId && c.status === 'missed' && c.completed_at >= startedAt + 'T00:00:00')
-                    .forEach(c => { c.status = 'completed'; });
-
-                // PASSO 2 — Azzera current_failures (l'habit è ancora attivo)
-                await supabaseClient
-                    .from('hb_habits')
-                    .update({ current_failures: 0 })
-                    .eq('id', habitId);
-
-                // PASSO 3 — Chiudi modal e ricarica
                 document.getElementById('gameOverModal').classList.remove('active');
                 window.currentResetHabitId = null;
                 window.currentResetHabitData = null;
-
-                showToast('✅ Stack ripristinato!');
+                showToast(`💉 Resuscitato! +${n} jolly, −${data.punti} punti`);
 
                 await loadHabits();
                 await loadCompletions();
                 habits.forEach(h => { h._streak = computeHabitStreak(h); });
                 recalculateTotalScore();
-                renderDashboard();
+                await renderDashboard();
                 renderHabits();
                 showNextGameOver();
-
             } catch (err) {
-                console.error('❌ Errore ripristinaGameOver:', err);
-                showToast('Errore nel ripristino');
+                console.error('❌ Errore resurrezione:', err);
+                showToast('Errore: ' + (err.message || 'resurrezione non riuscita'));
+            } finally {
+                btn.disabled = false;
             }
         }
 
