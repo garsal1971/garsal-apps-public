@@ -1,0 +1,39 @@
+# Carica su R2 il modello italiano di Vosk per i comandi a voce di Pronuncia
+# (v1.38.0, `ComandiVoce.kt`): l'app lo scarica da
+# https://apk.garsal.men/vosk-model-small-it-0.22.zip.
+#
+# ⚠️ Una volta sola, o quando cambia il modello: gira quando si tocca questo
+# file e a mano. Il modello si prende dal sito di Vosk e si controlla lo
+# SHA-256, così su R2 finisce esattamente il file che è stato provato.
+name: Modello Vosk su R2
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+    paths:
+      - '.github/workflows/modello-vosk-r2.yml'
+  workflow_dispatch:
+
+jobs:
+  carica:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica e controlla il modello
+        run: |
+          curl -fsSL -o /tmp/vosk-model-small-it-0.22.zip \
+            https://alphacephei.com/vosk/models/vosk-model-small-it-0.22.zip
+          echo "9ec65e75861d1c6c2e457cccd932705340dcdf233f5b239f00733b4de0bf3267  /tmp/vosk-model-small-it-0.22.zip" | sha256sum -c -
+          ls -l /tmp/vosk-model-small-it-0.22.zip
+
+      - name: Carica su apk.garsal.men
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # ⚠️ `--remote`: senza, wrangler scrive nella copia locale e «riesce».
+          npx --yes wrangler@4 r2 object put "garsal-apk/vosk-model-small-it-0.22.zip" \
+            --file=/tmp/vosk-model-small-it-0.22.zip \
+            --content-type=application/zip \
+            --remote
+          curl -fsSI https://apk.garsal.men/vosk-model-small-it-0.22.zip | head -5

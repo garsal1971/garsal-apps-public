@@ -19,8 +19,8 @@ android {
         applicationId "com.garsal.pronuncia"
         minSdk 26
         targetSdk 36
-        versionCode 40
-        versionName "1.37.0"
+        versionCode 41
+        versionName "1.38.0"
 
         // ⚠️ Solo arm64: lo Speech SDK di Azure si porta dentro le librerie native
         // per quattro ABI, e tenerle tutte vorrebbe dire un APK tre volte più
@@ -83,6 +83,13 @@ dependencies {
     // Assessment. Niente supabase-kt: del progetto Supabase servono il login e
     // una Edge Function, due chiamate HTTP che non valgono una libreria.
     implementation 'com.microsoft.cognitiveservices.speech:client-sdk:1.43.0'
+
+    // v1.38.0: i comandi a voce in italiano, riconosciuti sul telefono (modello
+    // scaricato a parte da R2, vedi ComandiVoce). Le .so per arm64 le tiene
+    // abiFilters; JNA è la dipendenza che Vosk dichiara, scritta per esteso
+    // perché con `@aar` Gradle non la segue da sé.
+    implementation 'com.alphacephei:vosk-android:0.3.75@aar'
+    implementation 'net.java.dev.jna:jna:5.18.1@aar'
 
     // Lo storico dei tentativi (fase 5), sul telefono e basta.
     implementation 'androidx.room:room-runtime:2.7.1'

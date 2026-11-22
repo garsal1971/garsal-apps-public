@@ -262,7 +262,7 @@ private fun Impostazioni(accento: Accento, onAccento: (Accento) -> Unit, paroleE
             riascolto = it; prefs.riascoltoCiclo = it
         }
         Nota("Con le cuffie Bluetooth come microfono il telefono le usa come in una chiamata: anche la voce si sente in qualità telefonica. Le cuffie USB col filo valgono anche per l'Esercizio; se non sono collegate si ascolta dal telefono.")
-        MieiComandi()
+        ComandiAVoce()
     }
 
     Area("🎯 Obiettivo") {
