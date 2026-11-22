@@ -78,9 +78,7 @@ object Frasi {
      *  quando si può. `null` nel filtro = tutti. */
     fun aCaso(ctx: Context, livello: String?, tema: String?, esclusa: String? = null, soloParole: Boolean = false): Frase? {
         val tema = temaValido(tema)
-        val scelte = catalogo(ctx, soloParole).filter {
-            Corso.passaLivello(it, livello) && (tema == null || it.tema == tema)
-        }
+        val scelte = Corso.filtra(catalogo(ctx, soloParole), livello, tema)
         return scelte.filter { it.id != esclusa }.randomOrNull() ?: scelte.randomOrNull()
     }
 }

@@ -36,8 +36,8 @@ class Traduzioni(private val ctx: Context, private val auth: Auth) {
     suspend fun aggiorna() = mutex.withLock {
         if (lette || !auth.connesso) return@withLock
         val jwt = runCatching { auth.token() }.getOrNull() ?: return@withLock
-        // Le voci del corso: un errore lascia buona la copia in cache.
-        runCatching { Corso.aggiorna(ctx, jwt) }
+        // Le voci del corso (v1.39.0: da `aggiornaCorso`, che vale anche da sola).
+        aggiornaCorso()
         val nuova = runCatching { scarica(jwt) }.getOrNull()
         if (nuova == null) { _mappa.value = _mappa.value + Corso.traduzioni(ctx); return@withLock }
         lette = true
@@ -49,6 +49,31 @@ class Traduzioni(private val ctx: Context, private val auth: Auth) {
             val tmp = File(file.path + ".tmp")
             tmp.writeText(o.toString())
             tmp.renameTo(file)
+        }
+    }
+
+    private val mutexCorso = Mutex()
+    @Volatile private var corsoLetto = 0L
+
+    /**
+     * v1.39.0: riscarica le voci del corso (`pr_parole_corso`) e le aggiunge al
+     * fumetto delle traduzioni. Si chiama al ritorno in primo piano e prima di
+     * scegliere una sessione, al più ogni [CORSO_OGNI_MS] — fino alla v1.38.0
+     * succedeva una volta sola per processo. Un errore lascia buona la copia
+     * in cache; non lancia mai (tranne l'annullamento).
+     */
+    suspend fun aggiornaCorso() = mutexCorso.withLock {
+        if (!auth.connesso) return@withLock
+        if (System.currentTimeMillis() - corsoLetto < CORSO_OGNI_MS) return@withLock
+        val jwt = runCatching { auth.token() }.getOrNull() ?: return@withLock
+        try {
+            Corso.aggiorna(ctx, jwt)
+            corsoLetto = System.currentTimeMillis()
+            _mappa.value = _mappa.value + Corso.traduzioni(ctx)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Senza rete resta la copia in cache.
         }
     }
 
@@ -87,5 +112,12 @@ class Traduzioni(private val ctx: Context, private val auth: Auth) {
         tutte
     }
 
-    private companion object { const val PAGINA = 1000 }
+    companion object {
+        private const val PAGINA = 1000
+        /** Ogni quanto, al più, si riscarica il corso. */
+        const val CORSO_OGNI_MS = 2 * 60_000L
+        /** Quanto si aspetta lo scarico del corso prima di scegliere una
+         *  sessione: oltre, si parte con la copia in cache. */
+        const val CORSO_ATTESA_MS = 5_000L
+    }
 }

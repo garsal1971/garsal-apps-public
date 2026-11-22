@@ -22,9 +22,7 @@ object Sessione {
         withContext(Dispatchers.IO) {
             val tema = Frasi.temaValido(tema, soloParole)
             val dao = Storico.dao(ctx)
-            val scelte = Frasi.catalogo(ctx, soloParole).filter {
-                Corso.passaLivello(it, livello) && (tema == null || it.tema == tema)
-            }
+            val scelte = Corso.filtra(Frasi.catalogo(ctx, soloParole), livello, tema)
             val righe = dao.fonemiRecenti(ProfiloSuoni.RIGHE).map { it.parola to it.fonemi }
             val deboli = ProfiloSuoni.deboli(ProfiloSuoni.calcola(righe)).map { it.fonema }
             val viste = ProfiloSuoni.paroleCon(righe)
