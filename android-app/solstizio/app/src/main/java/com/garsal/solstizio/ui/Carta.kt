@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,10 +26,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,6 +53,7 @@ import com.garsal.solstizio.Meteo
 import com.garsal.solstizio.Periodo
 import com.garsal.solstizio.Tema
 import com.garsal.solstizio.Temperature
+import com.garsal.solstizio.oreLuce
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -61,8 +65,9 @@ private val ORA = DateTimeFormatter.ofPattern("HH:mm", IT)
 
 private sealed interface StatoMeteo {
     data object Carico : StatoMeteo
-    data class Pronto(val t: Temperature) : StatoMeteo
-    data object Manca : StatoMeteo
+    /** [avviso]: le temperature ci sono ma vengono da una lettura vecchia. */
+    data class Pronto(val t: Temperature, val avviso: String? = null) : StatoMeteo
+    data class Manca(val motivo: String) : StatoMeteo
 }
 
 /**
@@ -85,18 +90,25 @@ fun DialogoCarta(
     var girata by remember { mutableStateOf(scoperta) }
     val rot by animateFloatAsState(if (girata) 180f else 0f, tween(700), label = "giro")
     var meteo by remember { mutableStateOf<StatoMeteo>(StatoMeteo.Carico) }
+    var tentativo by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(giorno) {
+    LaunchedEffect(giorno, tentativo) {
         // ⚠️ Prima la fotografia congelata, poi la rete: una carta di ieri deve
         // dire il tempo di ieri, anche quando le previsioni sono già andate oltre.
-        Archivio.temperatureDi(ctx, giorno)?.let { meteo = StatoMeteo.Pronto(it) }
+        val congelata = Archivio.temperatureDi(ctx, giorno)
+        meteo = congelata?.let { StatoMeteo.Pronto(it) } ?: StatoMeteo.Carico
         if (giorno == oggi) {
-            val t = Meteo.temperature(ctx, giorno)
-            if (t != null) {
-                meteo = StatoMeteo.Pronto(t)
-                Archivio.congela(ctx, giorno, t)
-            } else if (meteo is StatoMeteo.Carico) meteo = StatoMeteo.Manca
-        } else if (meteo is StatoMeteo.Carico) meteo = StatoMeteo.Manca
+            val l = Meteo.temperature(ctx, giorno, forza = tentativo > 0)
+            when {
+                l.t != null -> {
+                    meteo = StatoMeteo.Pronto(l.t, l.errore?.let { "ultima lettura: $it" })
+                    Archivio.congela(ctx, giorno, l.t)
+                }
+                congelata == null -> meteo = StatoMeteo.Manca(l.errore ?: "dati non disponibili")
+            }
+        } else if (congelata == null) {
+            meteo = StatoMeteo.Manca("questa carta è stata scoperta senza le temperature")
+        }
     }
 
     Dialog(onDismissRequest = onChiudi, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -149,10 +161,18 @@ fun DialogoCarta(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = onChiudi,
-                colors = ButtonDefaults.buttonColors(containerColor = Oro2, contentColor = Color(0xFF2B1F04)),
-            ) { Text("Chiudi") }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Il riprova sta fuori dalla carta: dentro, un tocco la girerebbe.
+                if (giorno == oggi && meteo !is StatoMeteo.Carico &&
+                    (meteo is StatoMeteo.Manca || (meteo as? StatoMeteo.Pronto)?.avviso != null)
+                ) {
+                    OutlinedButton(onClick = { tentativo++ }) { Text("↻ Riprova il meteo", color = Oro3) }
+                }
+                Button(
+                    onClick = onChiudi,
+                    colors = ButtonDefaults.buttonColors(containerColor = Oro2, contentColor = Color(0xFF2B1F04)),
+                ) { Text("Chiudi") }
+            }
         }
     }
 }
@@ -197,10 +217,11 @@ private fun Fronte(
                 color = Color(0xFFFFD54F), style = MaterialTheme.typography.bodyMedium,
             )
         }
+        RiquadroTemperature(meteo)
         // Il testo che scorre: una riga sola, e scorre invece di andare a capo —
         // coi caratteri grandi un paragrafo spingerebbe la carta fuori schermo.
         Text(
-            testoCheScorre(sole, ieri, meteo, giorno == oggi),
+            testoCheScorre(sole, ieri, remember(periodo) { Astro.sole(periodo.ultimo) }, periodo, meteo),
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 40.dp)
@@ -220,11 +241,10 @@ private fun gradi(v: Double?) = v?.let { String.format(IT, "%.1f°", it) } ?: "�
 private fun testoCheScorre(
     sole: com.garsal.solstizio.Sole,
     ieri: com.garsal.solstizio.Sole,
+    solstizio: com.garsal.solstizio.Sole,
+    periodo: Periodo,
     meteo: StatoMeteo,
-    eOggi: Boolean,
 ): String {
-    val ore = sole.minutiLuce / 60
-    val min = sole.minutiLuce % 60
     val diff = sole.minutiLuce - ieri.minutiLuce
     val varia = when {
         diff > 0 -> " (+$diff min da ieri)"
@@ -234,18 +254,58 @@ private fun testoCheScorre(
     val pezzi = mutableListOf(
         "🌅 Alba ${sole.alba.format(ORA)}",
         "🌇 Tramonto ${sole.tramonto.format(ORA)}",
-        "☀️ $ore h ${"%02d".format(min)} min di luce$varia",
+        "☀️ ${oreLuce(sole.minutiLuce)} di luce$varia",
+        "${periodo.prossimo.tipo.emoji} ${periodo.prossimo.tipo.al} ${oreLuce(solstizio.minutiLuce)}",
     )
-    when (meteo) {
-        is StatoMeteo.Pronto -> {
-            val t = meteo.t
-            if (t.min != null || t.max != null) pezzi += "🌡️ Minima ${gradi(t.min)} · Massima ${gradi(t.max)}"
-            if (t.media != null) pezzi += "Media del giorno ${gradi(t.media)}"
-            if (t.storica != null) pezzi += "Media storica per questo giorno ${gradi(t.storica)}"
-        }
-        StatoMeteo.Carico -> pezzi += "🌡️ Leggo le previsioni…"
-        StatoMeteo.Manca -> pezzi += if (eOggi) "🌡️ Previsioni non raggiungibili" else "🌡️ Temperature non registrate"
+    if (meteo is StatoMeteo.Pronto) {
+        val t = meteo.t
+        if (t.min != null || t.max != null) pezzi += "🌡️ Minima ${gradi(t.min)} · Massima ${gradi(t.max)}"
+        if (t.media != null) pezzi += "Media del giorno ${gradi(t.media)}"
+        if (t.storica != null) pezzi += "Media storica ${gradi(t.storica)}"
     }
     pezzi += "📍 ${com.garsal.solstizio.Luogo.NOME}"
     return pezzi.joinToString("     ·     ") + "          "
+}
+
+/**
+ * Le temperature in vista, ferme: nel testo che scorre arrivavano per ultime
+ * e dopo parecchi secondi, e non si vedevano. Se mancano si dice perché.
+ */
+@Composable
+private fun RiquadroTemperature(meteo: StatoMeteo) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x22FFFFFF))
+            .padding(12.dp),
+    ) {
+        when (meteo) {
+            StatoMeteo.Carico -> Text("🌡️ Leggo le previsioni…", color = Color(0xFFCFD8E3))
+            is StatoMeteo.Manca -> Text("🌡️ Temperature non disponibili: ${meteo.motivo}", color = Color(0xFFFFAB91))
+            is StatoMeteo.Pronto -> {
+                val t = meteo.t
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🌡️", style = MaterialTheme.typography.headlineSmall)
+                    Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                        Text("Minima", color = Color(0xFF90CAF9), style = MaterialTheme.typography.labelMedium)
+                        Text(gradi(t.min), color = Color.White, fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("Massima", color = Color(0xFFFFAB91), style = MaterialTheme.typography.labelMedium)
+                        Text(gradi(t.max), color = Color.White, fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
+                Text("Media del giorno ${gradi(t.media)} · media storica ${gradi(t.storica)}",
+                    color = Color(0xFFCFD8E3), style = MaterialTheme.typography.bodyMedium)
+                meteo.avviso?.let {
+                    Text("⚠️ $it", color = Color(0xFFFFCC80), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
 }
