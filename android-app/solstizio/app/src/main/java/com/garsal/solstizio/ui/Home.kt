@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.garsal.solstizio.Archivio
 import com.garsal.solstizio.Astro
 import com.garsal.solstizio.DialogoAggiornamento
+import com.garsal.solstizio.Rilascio
 import com.garsal.solstizio.Luogo
 import com.garsal.solstizio.Tema
 import com.garsal.solstizio.oreLuce
@@ -77,6 +79,12 @@ fun Home(oggi: LocalDate) {
     var versione by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf(false) }
     var elenco by remember { mutableStateOf(false) }
+    // Una versione più nuova di quella installata, se il controllo all'avvio la trova.
+    var nuova by remember { mutableStateOf<Rilascio.Scheda?>(null) }
+    LaunchedEffect(Unit) {
+        val s = Rilascio.scheda().getOrNull() ?: return@LaunchedEffect
+        if (s.versionCode > Rilascio.installata(ctx).second) nuova = s
+    }
 
     val giorni = periodo.giorni
     val mancano = ChronoUnit.DAYS.between(oggi, periodo.ultimo)
@@ -112,6 +120,22 @@ fun Home(oggi: LocalDate) {
         }
 
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp, 0.dp, 16.dp, 24.dp)) {
+            // ── l'avviso di aggiornamento ───────────────────────────────
+            nuova?.let { n ->
+                item {
+                    Text(
+                        "⬇ C'è la v${n.version} — tocca per aggiornare",
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Oro2)
+                            .clickable { versione = true }
+                            .padding(14.dp),
+                        color = Color(0xFF2B1F04), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
             // ── il conto alla rovescia ──────────────────────────────────
             item {
                 Column(

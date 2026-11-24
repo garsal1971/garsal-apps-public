@@ -3795,7 +3795,14 @@ nessuna bolla in `cm_apps`, icona propria (un sole d'oro su blu notte, non il ma
   che tempo faceva. Un valore che manca è un trattino, non zero.
 - I dati (carte scoperte, temperature, cache) stanno **solo nelle preferenze del telefono**:
   disinstallando si perdono. Per questo la firma è quella degli altri APK.
-- `Aggiornamento.kt` è il **settimo gemello** del controllo aggiornamenti (⚙️ → 📱 Versione app).
+- `Aggiornamento.kt` è il **settimo gemello** del controllo aggiornamenti (⚙️ → 📱 Versione app),
+  con due cose in più (v1.0.2): all'avvio la home **controlla da sola** e mostra un riquadro
+  «⬇ C'è la v…» se la scheda ha un `versionCode` più alto; e l'APK **si scarica e si installa
+  dall'app** (`Rilascio.scaricaEInstalla`: file `.part` in `cacheDir/aggiornamento`, impronta
+  SHA-256 controllata contro la scheda, poi `FileProvider` + `ACTION_VIEW` all'installatore). Serve
+  `REQUEST_INSTALL_PACKAGES`; senza il consenso «installa app sconosciute» si apre la pagina di
+  sistema per darlo. Il browser resta come ripiego («Dal browser»): dal browser il file scaricato a
+  volte non si apriva.
 
 ## Pronuncia — la pronuncia britannica a mani libere
 
