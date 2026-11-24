@@ -21,12 +21,15 @@ object Luogo {
     val ZONA: ZoneId = ZoneId.of("Europe/Rome")
 }
 
-enum class TipoEvento(val nome: String, val emoji: String) {
-    EQUINOZIO_PRIMAVERA("Equinozio di primavera", "🌱"),
-    SOLSTIZIO_ESTATE("Solstizio d'estate", "☀️"),
-    EQUINOZIO_AUTUNNO("Equinozio d'autunno", "🍂"),
-    SOLSTIZIO_INVERNO("Solstizio d'inverno", "❄️"),
+enum class TipoEvento(val nome: String, val emoji: String, val al: String) {
+    EQUINOZIO_PRIMAVERA("Equinozio di primavera", "🌱", "all'equinozio"),
+    SOLSTIZIO_ESTATE("Solstizio d'estate", "☀️", "al solstizio"),
+    EQUINOZIO_AUTUNNO("Equinozio d'autunno", "🍂", "all'equinozio"),
+    SOLSTIZIO_INVERNO("Solstizio d'inverno", "❄️", "al solstizio"),
 }
+
+/** «9 h 07 min»: le ore di luce scritte allo stesso modo dappertutto. */
+fun oreLuce(minuti: Int): String = "${minuti / 60} h ${"%02d".format(minuti % 60)} min"
 
 data class Evento(val tipo: TipoEvento, val istante: ZonedDateTime) {
     val giorno: LocalDate get() = istante.toLocalDate()

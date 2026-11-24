@@ -82,23 +82,37 @@ object Meteo {
         }.getOrNull()
     }
 
-    private suspend fun previsioni(ctx: Context, forza: Boolean): JSONObject? = withContext(Dispatchers.IO) {
+    /** Le previsioni, e il motivo quando non si sono potute leggere. */
+    private suspend fun previsioni(ctx: Context, forza: Boolean): Pair<JSONObject?, String?> = withContext(Dispatchers.IO) {
         val p = Archivio.prefs(ctx)
         val letto = p.getLong("previsioni_letto", 0)
         val fresca = System.currentTimeMillis() - letto < ORE_CACHE * 3_600_000L
         val cache = p.getString("previsioni", null)
-        if (!forza && fresca && cache != null) return@withContext JSONObject(cache)
+        if (!forza && fresca && cache != null) return@withContext JSONObject(cache) to null
         runCatching {
             val d = leggi(PREVISIONI).getJSONObject("daily")
             p.edit().putString("previsioni", d.toString())
                 .putLong("previsioni_letto", System.currentTimeMillis()).apply()
             d
-        }.getOrElse { cache?.let { JSONObject(it) } }
+        }.fold(
+            { it to null },
+            // Senza rete resta buona l'ultima lettura, se c'è: per oggi vale ancora.
+            { e -> cache?.let { JSONObject(it) } to motivo(e) },
+        )
     }
 
-    /** Le temperature di [giorno], o `null` se non c'è niente da dire. */
-    suspend fun temperature(ctx: Context, giorno: LocalDate, forza: Boolean = false): Temperature? {
-        val d = previsioni(ctx, forza)
+    private fun motivo(e: Throwable): String = when (e) {
+        is java.net.UnknownHostException -> "nessuna connessione a internet"
+        is java.net.SocketTimeoutException -> "il servizio non ha risposto in tempo"
+        else -> e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+    }
+
+    /** Esito di una lettura: le temperature (o `null`) e, se qualcosa è andato
+     *  storto, il perché — da scrivere sulla carta invece di tacerlo. */
+    data class Lettura(val t: Temperature?, val errore: String?)
+
+    suspend fun temperature(ctx: Context, giorno: LocalDate, forza: Boolean = false): Lettura {
+        val (d, errore) = previsioni(ctx, forza)
         val clima = clima(ctx)
         val storica = clima?.let { c ->
             val k = giorno.toString().substring(5)
@@ -115,7 +129,9 @@ object Meteo {
                 min = v("temperature_2m_min"); max = v("temperature_2m_max"); media = v("temperature_2m_mean")
             }
         }
-        if (min == null && max == null && media == null && storica == null) return null
-        return Temperature(min, max, media, storica)
+        if (min == null && max == null && media == null && storica == null) {
+            return Lettura(null, errore ?: if (d != null) "previsioni senza questo giorno" else "dati non disponibili")
+        }
+        return Lettura(Temperature(min, max, media, storica), errore)
     }
 }

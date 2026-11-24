@@ -3770,19 +3770,26 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 `build-solstizio.yml`. Kotlin + Compose. **Fuori dalla suite**: niente login, niente Supabase,
 nessuna bolla in `cm_apps`, icona propria (un sole d'oro su blu notte, non il marchio AppSphere).
 
-- **La stecca**: una casella per giorno, dal giorno dopo l'evento precedente fino al giorno del
-  prossimo solstizio/equinozio compreso (`Astro.periodo`); il giorno dopo l'evento riparte da sola.
-  Le date si calcolano sul telefono (Meeus cap. 27, 24 termini periodici; −69 s per passare da TT a
-  UTC), verificate: solstizio d'inverno 2026 = 21/12 alle 21:50.
-- **La carta**: la si scopre **solo il giorno stesso** — casella di oggi → retro dorato → tocco →
-  si gira (`DialogoCarta`). Le scoperte si rivedono quando si vuole; un giorno passato senza carta
-  resta grigio. Il tema (☀️ Sole, ✨ Stelle, 🌊 Mare) e l'illustrazione sono **seminati con la data**
-  (`Tema.di`, `Illustrazione`): la stessa carta riaperta un mese dopo è identica. Il giorno
-  dell'evento è sempre del Sole. Disegni tutti su Canvas, nessun file.
+- **Il conto alla rovescia** va dal giorno dopo l'evento precedente fino al giorno del prossimo
+  solstizio/equinozio compreso (`Astro.periodo`); il giorno dopo l'evento riparte da solo. Le date si
+  calcolano sul telefono (Meeus cap. 27, 24 termini periodici; −69 s per passare da TT a UTC),
+  verificate: solstizio d'inverno 2026 = 21/12 alle 21:50. Sotto il numero: ore di luce di oggi
+  **e** del giorno dell'evento («al solstizio 8 h 50 min»).
+- **Niente griglia di caselle** (tolta nella v1.0.1): un rettangolo «N giorni passati · M carte
+  scoperte», che apre l'elenco delle carte già scoperte da rivedere, e sotto la sola **carta di
+  oggi** (`CartaDiOggi`). La carta si scopre **solo il giorno stesso**: retro dorato → tocco → si
+  gira (`DialogoCarta`). Il tema (☀️ Sole, ✨ Stelle, 🌊 Mare) e l'illustrazione sono **seminati con
+  la data** (`Tema.di`, `Illustrazione`): la stessa carta riaperta un mese dopo è identica. Il
+  giorno dell'evento è sempre del Sole. Disegni tutti su Canvas, nessun file.
+- **Le temperature stanno in un riquadro fermo** sulla carta (`RiquadroTemperature`): minima e
+  massima grandi, media del giorno e media storica. ⚠️ Nella v1.0.0 erano solo in coda al testo che
+  scorre e non si vedevano. Quando mancano il riquadro **dice perché** (`Meteo.Lettura.errore`) e
+  sotto la carta compare «↻ Riprova il meteo», che forza la rilettura. Fonti: Open-Meteo
+  previsioni (cache 3 ore; senza rete vale l'ultima lettura, con l'avviso) e archivio 2015-2024
+  per la media storica (letto una volta e tenuto).
 - **Il testo che scorre** (`basicMarquee`, una riga sola apposta per i caratteri grandi): alba,
-  tramonto e ore di luce di **Bologna** (`Luogo`, metodo NOAA, calcolati sul telefono anche senza
-  rete) con la differenza da ieri, poi minima, massima e media del giorno (Open-Meteo, cache 3 ore)
-  e la media storica dello stesso giorno (archivio Open-Meteo 2015-2024, letto una volta e tenuto).
+  tramonto e ore di luce di **Bologna** (`Luogo`, metodo NOAA, offline) con la differenza da ieri,
+  le ore di luce del giorno dell'evento, e le temperature.
   ⚠️ Le temperature si **congelano** in `Archivio` alla prima apertura della carta di oggi: le
   previsioni non coprono i giorni passati, e senza la fotografia una carta vecchia non saprebbe più
   che tempo faceva. Un valore che manca è un trattino, non zero.
