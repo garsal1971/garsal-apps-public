@@ -4,6 +4,10 @@
     <!-- Solo per le temperature (Open-Meteo) e il controllo aggiornamenti:
          alba, tramonto, ore di luce e date dei solstizi si calcolano sul telefono. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- L'aggiornamento si scarica e si installa da dentro l'app: dal browser il
+         file scaricato a volte non si apriva. Android chiede comunque il consenso
+         («installa app sconosciute») la prima volta. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="true"
@@ -22,6 +26,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- L'APK scaricato passa all'installatore con un content://, non con un
+             file:// che Android rifiuterebbe (FileUriExposedException). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.aggiornamento"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>

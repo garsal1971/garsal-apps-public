@@ -4,6 +4,17 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,7 +29,10 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 /**
  * «Che versione ho, e ce n'è una più nuova?» — più il link per scaricarla.
@@ -84,6 +98,80 @@ object Rilascio {
         true
     }.getOrDefault(false)
 
+    /** Android lascia installare a quest'app? Va chiesto una volta, dalle impostazioni. */
+    fun puoInstallare(ctx: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ctx.packageManager.canRequestPackageInstalls()
+
+    /** Apre la pagina di sistema «Installa app sconosciute» per Solstizio. */
+    fun chiediPermesso(ctx: Context) {
+        runCatching {
+            ctx.startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${ctx.packageName}"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+
+    /**
+     * Scarica l'APK nella cache dell'app, ne controlla l'impronta contro la
+     * scheda (se c'è) e lo passa all'installatore di Android.
+     *
+     * ⚠️ Si scarica in un file `.part` e si rinomina solo a download finito e
+     * verificato: un APK troncato passato all'installatore risponde «pacchetto
+     * non valido», che si legge come un guasto dell'app invece che della rete.
+     */
+    suspend fun scaricaEInstalla(
+        ctx: Context,
+        versione: String,
+        sha256: String?,
+        onProgresso: (Float?) -> Unit,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val cartella = File(ctx.cacheDir, "aggiornamento").apply { mkdirs() }
+            val parte = File(cartella, "Solstizio.apk.part")
+            val apk = File(cartella, "Solstizio.apk")
+            val c = URL(apk(versione)).openConnection() as HttpURLConnection
+            c.connectTimeout = 15_000
+            c.readTimeout = 30_000
+            try {
+                if (c.responseCode != 200) error("HTTP ${c.responseCode}")
+                val totale = c.contentLengthLong
+                val md = MessageDigest.getInstance("SHA-256")
+                var letti = 0L
+                c.inputStream.use { inp ->
+                    parte.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = inp.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                            md.update(buf, 0, n)
+                            letti += n
+                            onProgresso(if (totale > 0) letti.toFloat() / totale else null)
+                        }
+                    }
+                }
+                val impronta = md.digest().joinToString("") { "%02x".format(it) }
+                if (!sha256.isNullOrBlank() && !impronta.equals(sha256, ignoreCase = true)) {
+                    parte.delete()
+                    error("il file scaricato non corrisponde alla versione pubblicata, riprova")
+                }
+            } finally {
+                c.disconnect()
+            }
+            apk.delete()
+            if (!parte.renameTo(apk)) error("non riesco a salvare il file scaricato")
+            val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.aggiornamento", apk)
+            withContext(Dispatchers.Main) {
+                ctx.startActivity(
+                    Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(uri, "application/vnd.android.package-archive")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
+    }
+
     /** La versione **installata**, letta dal pacchetto e non da BuildConfig: è
      *  quella vera, non quella che il codice credeva di essere.
      *
@@ -103,9 +191,12 @@ object Rilascio {
 @Composable
 fun DialogoAggiornamento(onChiudi: () -> Unit) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val (nome, codice) = remember { Rilascio.installata(ctx) }
     var scheda by remember { mutableStateOf<Rilascio.Scheda?>(null) }
     var stato by remember { mutableStateOf("Controllo cosa c'è pubblicato…") }
+    var progresso by remember { mutableStateOf<Float?>(null) }
+    var scarico by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val esito = Rilascio.scheda()
@@ -120,44 +211,69 @@ fun DialogoAggiornamento(onChiudi: () -> Unit) {
                 "C'è la v${s.version} (build ${s.versionCode}), " +
                     "${"%.1f".format(s.bytes / 1048576.0)} MB."
             s.versionCode == codice -> "Sei aggiornato: pubblicata la v${s.version} (build ${s.versionCode})."
-            // Capita provando una build fatta a mano prima che il workflow
-            // pubblichi la sua: dirlo è meglio che far scaricare all'indietro
-            // senza spiegare perché.
             else -> "Pubblicata la v${s.version} (build ${s.versionCode}), più vecchia di questa."
         }
     }
 
+    fun avvia() {
+        if (!Rilascio.puoInstallare(ctx)) {
+            stato = "Prima consenti a Solstizio di installare app: attiva l'interruttore nella " +
+                "pagina che si apre, poi torna qui e tocca di nuovo «Aggiorna»."
+            Rilascio.chiediPermesso(ctx)
+            return
+        }
+        val s = scheda
+        scarico = true
+        progresso = null
+        stato = "Scarico…"
+        scope.launch {
+            val r = Rilascio.scaricaEInstalla(ctx, s?.version ?: nome, s?.sha256) { p ->
+                scope.launch { progresso = p }
+            }
+            scarico = false
+            stato = r.fold(
+                { "Scaricato: conferma l'installazione nella schermata di Android." },
+                { "Download non riuscito: ${it.message ?: it.javaClass.simpleName}" },
+            )
+        }
+    }
+
     AlertDialog(
-        onDismissRequest = onChiudi,
+        onDismissRequest = { if (!scarico) onChiudi() },
         title = { Text("📱 Versione app") },
         text = {
-            Text(
-                "Installata: v$nome (build $codice)\n\n$stato\n\n" +
-                    "Si scarica dal browser: a fine download tocca il file per " +
-                    "installarlo sopra a questo.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Column {
+                Text("Installata: v$nome (build $codice)\n\n$stato", style = MaterialTheme.typography.bodyMedium)
+                if (scarico) {
+                    Spacer(Modifier.height(12.dp))
+                    val p = progresso
+                    if (p != null) LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth())
+                    else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
         },
         confirmButton = {
-            // ⚠️ Il pulsante c'è SEMPRE, anche senza scheda: la versione nel
-            // link è allora quella installata. Legandolo alla scheda — com'era
-            // fino alla v1.0.2 — una rete lenta o un 404 sulla scheda toglievano
-            // di mezzo **il download**, cioè la sola cosa per cui questo dialogo
-            // esiste, e senza che niente dicesse perché.
+            // ⚠️ Il pulsante c'è SEMPRE, anche senza scheda: la versione nel link è
+            // allora quella installata. Senza scheda non si controlla l'impronta.
             val s = scheda
-            TextButton(onClick = {
-                if (Rilascio.apriNelBrowser(ctx, Rilascio.apk(s?.version ?: nome))) onChiudi()
-                else stato = "Non ho trovato un browser da aprire su questo telefono."
-            }) {
+            TextButton(onClick = { avvia() }, enabled = !scarico) {
                 Text(
                     when {
-                        s == null -> "⬇ Scarica l'APK"
-                        s.versionCode > codice -> "⬇ Scarica la v${s.version}"
-                        else -> "⬇ Riscarica"
+                        s == null -> "⬇ Scarica e installa"
+                        s.versionCode > codice -> "⬇ Aggiorna alla v${s.version}"
+                        else -> "⬇ Reinstalla"
                     }
                 )
             }
         },
-        dismissButton = { TextButton(onClick = onChiudi) { Text("Chiudi") } },
+        dismissButton = {
+            TextButton(onClick = {
+                // Ripiego: il browser, come le altre app, se l'installazione da qui non va.
+                if (!Rilascio.apriNelBrowser(ctx, Rilascio.apk(scheda?.version ?: nome))) {
+                    stato = "Non ho trovato un browser da aprire su questo telefono."
+                }
+            }, enabled = !scarico) { Text("Dal browser") }
+            TextButton(onClick = onChiudi, enabled = !scarico) { Text("Chiudi") }
+        },
     )
 }
