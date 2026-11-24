@@ -3763,6 +3763,33 @@ voce di cui parla, così resta leggibile anche quando quella voce non c'è più 
 
 ---
 
+## Solstizio — una carta al giorno fino al prossimo solstizio o equinozio
+
+`android-app/solstizio/` è un **progetto Gradle standalone** (come `spese-in-giro/`),
+`applicationId` `com.garsal.solstizio`, APK `Solstizio-latest.apk` su R2, workflow
+`build-solstizio.yml`. Kotlin + Compose. **Fuori dalla suite**: niente login, niente Supabase,
+nessuna bolla in `cm_apps`, icona propria (un sole d'oro su blu notte, non il marchio AppSphere).
+
+- **La stecca**: una casella per giorno, dal giorno dopo l'evento precedente fino al giorno del
+  prossimo solstizio/equinozio compreso (`Astro.periodo`); il giorno dopo l'evento riparte da sola.
+  Le date si calcolano sul telefono (Meeus cap. 27, 24 termini periodici; −69 s per passare da TT a
+  UTC), verificate: solstizio d'inverno 2026 = 21/12 alle 21:50.
+- **La carta**: la si scopre **solo il giorno stesso** — casella di oggi → retro dorato → tocco →
+  si gira (`DialogoCarta`). Le scoperte si rivedono quando si vuole; un giorno passato senza carta
+  resta grigio. Il tema (☀️ Sole, ✨ Stelle, 🌊 Mare) e l'illustrazione sono **seminati con la data**
+  (`Tema.di`, `Illustrazione`): la stessa carta riaperta un mese dopo è identica. Il giorno
+  dell'evento è sempre del Sole. Disegni tutti su Canvas, nessun file.
+- **Il testo che scorre** (`basicMarquee`, una riga sola apposta per i caratteri grandi): alba,
+  tramonto e ore di luce di **Bologna** (`Luogo`, metodo NOAA, calcolati sul telefono anche senza
+  rete) con la differenza da ieri, poi minima, massima e media del giorno (Open-Meteo, cache 3 ore)
+  e la media storica dello stesso giorno (archivio Open-Meteo 2015-2024, letto una volta e tenuto).
+  ⚠️ Le temperature si **congelano** in `Archivio` alla prima apertura della carta di oggi: le
+  previsioni non coprono i giorni passati, e senza la fotografia una carta vecchia non saprebbe più
+  che tempo faceva. Un valore che manca è un trattino, non zero.
+- I dati (carte scoperte, temperature, cache) stanno **solo nelle preferenze del telefono**:
+  disinstallando si perdono. Per questo la firma è quella degli altri APK.
+- `Aggiornamento.kt` è il **settimo gemello** del controllo aggiornamenti (⚙️ → 📱 Versione app).
+
 ## Pronuncia — la pronuncia britannica a mani libere
 
 `android-app/pronuncia/` è un **progetto Gradle standalone** (come `spese-in-giro/`),
