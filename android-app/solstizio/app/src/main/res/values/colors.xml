@@ -1,0 +1,5 @@
+<resources>
+    <color name="avvio">#0B1D3A</color>
+    <!-- Il fondo dell'icona adattiva: blu notte, come il cielo del solstizio. -->
+    <color name="ic_launcher_background">#0B1D3A</color>
+</resources>
