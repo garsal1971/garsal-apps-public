@@ -448,9 +448,14 @@ function scadenzaDi(dueAt: string, _app: string): { istante: Date; dateStr: stri
       timeStr: `${m[2]}:${m[3]}`,
     }
   }
+  // Giorno e ora si leggono a Roma, non in UTC: «…T02:00:00+01:00» è il 30/11 ore 02:00,
+  // e toISOString() lo scriveva «ore 01:00» nel testo e nell'occurrence_id (24/11/2026).
   const istante = new Date(dueAt)
-  const iso     = istante.toISOString()
-  return { istante, dateStr: iso.slice(0, 10), timeStr: iso.slice(11, 16) }
+  const roma    = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Rome', hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).format(istante)                       // «2026-11-30 02:00»
+  return { istante, dateStr: roma.slice(0, 10), timeStr: roma.slice(11, 16) }
 }
 
 // ---------------------------------------------------------------------------
