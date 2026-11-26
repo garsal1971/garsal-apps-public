@@ -268,12 +268,6 @@ fun InoltroScreen(onIndietro: () -> Unit) {
                     scelto = MESI_IMPORTA.first { it.first == mesi }.second,
                     voci = MESI_IMPORTA.map { (it.first?.toString() ?: "tutti") to it.second },
                 ) { k -> mesi = k.toIntOrNull() }
-                if (mesi == null || mesi!! > 3) {
-                    Nota(
-                        "⚠️ La pulizia notturna cancella dalla tabella i messaggi più vecchi di 90 giorni: " +
-                            "quelli oltre i 3 mesi spariranno la notte stessa.",
-                    )
-                }
                 Pillola(if (importando) "Importo…" else "📥 Importa SMS dal telefono", Palette.accent) {
                     if (importando) return@Pillola
                     if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==
@@ -347,7 +341,6 @@ fun InoltroScreen(onIndietro: () -> Unit) {
                             modifier = Modifier.clickable { daFiltrare = m }.padding(vertical = 4.dp))
                     }
                 }
-                Nota("I messaggi più vecchi di 90 giorni si cancellano da soli.")
             }
         } }
     }
