@@ -152,8 +152,8 @@ fun InoltroScreen(onIndietro: () -> Unit) {
         scope.launch {
             runCatching { ImportaSms.importa(ctx, mesi) }
                 .onSuccess { r ->
-                    avviso = "📥 SMS importati: ${r.inviati} in invio, ${r.daDecidere} da decidere, " +
-                        "${r.codici} codici scartati, ${r.filtrati} filtrati, ${r.gia} già presenti."
+                    avviso = "📥 Impianto: ${r.inviati} SMS in invio, ${r.filtrati} filtrati, ${r.gia} già in coda. " +
+                        "Quelli già in archivio non si raddoppiano."
                 }
                 .onFailure { avviso = "Importazione non riuscita: ${it.messaggioBreve()}" }
             importando = false
@@ -251,15 +251,16 @@ fun InoltroScreen(onIndietro: () -> Unit) {
                 Interruttore("Inoltra gli SMS", Inoltro.smsAcceso(ctx)) { Inoltro.setSms(ctx, it); rifai() }
                 Interruttore("Inoltra WhatsApp", Inoltro.waAcceso(ctx)) { Inoltro.setWa(ctx, it); rifai() }
                 Nota(
-                    "I codici si scartano sempre. Un mittente o una chat mai visti finiscono in " +
+                    "Nessun filtro automatico dei codici: filtra il mittente. Un mittente o una chat mai visti finiscono in " +
                         "«⏳ Da decidere» e non partono finché non scegli.",
                 )
             }
 
             Riquadro("📥 SMS già sul telefono") {
                 Nota(
-                    "Legge tutti gli SMS ricevuti e li smista con le regole di sempre: codici e filtrati " +
-                        "scartati, mittenti inoltrati in invio, gli altri in «⏳ Da decidere». " +
+                    "L'impianto: tutti gli SMS ricevuti del periodo vanno nella tabella, senza passare da " +
+                        "«⏳ Da decidere». Restano fuori solo i mittenti filtrati. Gli elenchi non cambiano: " +
+                        "da dopo, un mittente mai deciso torna a passare dalla scelta. " +
                         "Quelli già in archivio non si raddoppiano.",
                 )
                 Tendina(

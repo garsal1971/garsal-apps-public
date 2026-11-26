@@ -7,8 +7,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * 📥 Gli SMS già sul telefono, solo i RICEVUTI (`Telephony.Sms.Inbox`), passati da
- * [Inoltro.smista]: codici e filtrati si scartano, i mittenti noti partono, quelli nuovi
- * vanno in «⏳ Da decidere». Serve READ_SMS.
+ * [Inoltro.smista], che fa l'IMPIANTO: vanno tutti in tabella tranne i mittenti filtrati,
+ * senza passare da «⏳ Da decidere». Serve READ_SMS.
  *
  * ⚠️ L'ora è `date_sent` (l'ora del centro servizi), con `date` come ripiego: è la stessa
  * che [SmsReceiver] legge dal PDU, quindi un SMS già inoltrato all'arrivo ha la stessa
