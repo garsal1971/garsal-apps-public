@@ -367,6 +367,11 @@ private fun Navigazione() {
         if (scorciatoia == Destinazione.PASTO && nav.currentDestination?.route != Route.CALORIE) {
             nav.navigate(Route.CALORIE)
         }
+        // 📨 La notifica dei messaggi da decidere: qui la si consuma, la schermata non la guarda.
+        if (scorciatoia == Destinazione.INOLTRO) {
+            Scorciatoia.consuma()
+            if (nav.currentDestination?.route != Route.INOLTRO) nav.navigate(Route.INOLTRO)
+        }
     }
 
     NavHost(navController = nav, startDestination = Route.HOME) {
