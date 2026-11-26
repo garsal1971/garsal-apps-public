@@ -327,7 +327,10 @@ fun HomeScreen(
     }
 
     if (mostraVersione) {
-        DialogoAggiornamento(onChiudi = { mostraVersione = false })
+        DialogoAggiornamento(
+            onChiudi = { mostraVersione = false },
+            onInoltro = { onApriApp(Route.INOLTRO) },
+        )
     }
 
     if (stato.recapAperto) {

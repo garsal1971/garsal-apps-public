@@ -94,7 +94,7 @@ data class SchedaBuild(
  * scheda serve a rispondere alla domanda dal telefono, senza aprire il sito.
  */
 @Composable
-fun DialogoAggiornamento(onChiudi: () -> Unit) {
+fun DialogoAggiornamento(onChiudi: () -> Unit, onInoltro: (() -> Unit)? = null) {
     val context = LocalContext.current
     var scheda by remember { mutableStateOf<SchedaBuild?>(null) }
     var errore by remember { mutableStateOf<String?>(null) }
@@ -146,6 +146,11 @@ fun DialogoAggiornamento(onChiudi: () -> Unit) {
                     color = Palette.muted,
                     modifier = Modifier.padding(top = 12.dp),
                 )
+                if (onInoltro != null) {
+                    TextButton(onClick = { onChiudi(); onInoltro() }, modifier = Modifier.padding(top = 8.dp)) {
+                        Text("📨 Inoltro messaggi")
+                    }
+                }
             }
         },
         confirmButton = {
