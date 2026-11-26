@@ -32,15 +32,15 @@ import java.util.concurrent.TimeUnit
  * legga dal connettore Supabase.
  *
  * Il giro: [SmsReceiver] / [WhatsAppListener] → [Inoltro.ricevuto] → una delle tre strade:
- * - **scartato** (fonte spenta, sembra un codice, mittente/chat fra i filtrati);
+ * - **scartato** (fonte spenta, mittente/chat fra i filtrati);
  * - **inviato**: mittente/chat fra gli inoltrati → coda su file → [InvioWorker] → msg-ingest;
  * - **⏳ da decidere**: mittente/chat mai visto → resta sul telefono finché nella schermata
  *   non si sceglie «Inoltra sempre» o «Filtra sempre» ([decidi]), con una notifica che lo dice.
  *
  * ⚠️ I FILTRI STANNO QUI E SOLO QUI: un messaggio scartato o in attesa non lascia il telefono.
  * Del messaggio scartato resta nel registro locale il motivo e il mittente, mai il testo.
- * ⚠️ Il filtro dei codici viene PRIMA degli elenchi: il codice di una banca fra gli
- * inoltrati si scarta lo stesso, e un codice non finisce nemmeno fra quelli da decidere.
+ * ⚠️ Nessun filtro automatico dei codici (tolto nella 1.0.165): un codice segue le regole
+ * di ogni altro messaggio, e chi non lo vuole filtra il mittente.
  * ⚠️ La coda è un file JSON e non Room: sono poche righe, e Room vorrebbe KSP
  * agganciato a Kotlin 2.1.20 per niente.
  */
@@ -176,35 +176,6 @@ object Inoltro {
     }
 
     // ---------------------------------------------------------------------
-    // Filtro OTP
-    // ---------------------------------------------------------------------
-
-    private val PAROLE_OTP = Regex(
-        "\\b(codice|codici|otp|password|pin|verifica|verification|code|passcode)\\b",
-        RegexOption.IGNORE_CASE,
-    )
-
-    /**
-     * Un numero di 4-8 cifre ISOLATO: niente cifre, `:` `/` `-` `+` attacco, niente
-     * «12,» / «12.» prima, niente «,5» / «.5» dopo, niente gruppo di cifre a uno
-     * spazio di distanza.
-     * ⚠️ Ristretto di proposito: «ore 09:30», «12,50 €», «03/12/2026», «1.250,00»
-     * e «+39 333 1234567» passano; «Usa 482913.» no.
-     * ⚠️ E un anno da 4 cifre (1900-2099) da solo non basta a scartare: «il 3
-     * dicembre 2026» è proprio il messaggio dell'appuntamento che si cerca.
-     */
-    private val NUMERO_ISOLATO =
-        Regex("(?<![\\d:/+\\-]|\\d[.,]|\\d )\\d{4,8}(?![\\d:/\\-]|[.,]\\d| \\d)")
-
-    /** Il motivo per cui il testo sembra un codice, o null se passa. */
-    fun motivoOtp(testo: String): String? {
-        PAROLE_OTP.find(testo)?.let { return "parola «${it.value.lowercase()}»" }
-        val numero = NUMERO_ISOLATO.findAll(testo).map { it.value }
-            .firstOrNull { !(it.length == 4 && it.toInt() in 1900..2099) }
-        return numero?.let { "numero di ${it.length} cifre" }
-    }
-
-    // ---------------------------------------------------------------------
     // Ricezione: le tre strade
     // ---------------------------------------------------------------------
 
@@ -218,7 +189,6 @@ object Inoltro {
         if (m.testo.isBlank()) return Esito.Scarta("vuoto")
         if (m.fonte == FONTE_SMS && !smsAcceso(ctx)) return Esito.Scarta("SMS spenti")
         if (m.fonte == FONTE_WA && !waAcceso(ctx)) return Esito.Scarta("WhatsApp spento")
-        motivoOtp(m.testo)?.let { return Esito.Scarta("sembra un codice ($it)") }
         val (inoltrati, filtrati) = elenchi(m.fonte)
         if (inLista(m.chiave, lista(ctx, filtrati))) return Esito.Scarta("filtrato")
         if (inLista(m.chiave, lista(ctx, inoltrati))) return Esito.Invia
@@ -292,36 +262,24 @@ object Inoltro {
     private fun scriviAttesa(ctx: Context, msgs: List<Messaggio>) =
         scriviFile(fileAttesa(ctx), msgs.map { it.json().put("ms", it.ricevutoIl).put("dal", it.dal) })
 
-    data class Smistati(val inviati: Int, val daDecidere: Int, val codici: Int, val filtrati: Int, val gia: Int)
+    data class Smistati(val inviati: Int, val filtrati: Int, val gia: Int)
 
     /**
-     * 📥 Lo smistamento in blocco dell'importazione: stesse regole di [ricevuto] ([esito]),
-     * ma una scrittura sola per file e una riga sola nel registro. ⚠️ Non passa da
-     * [primaVolta]: sono troppi per le sue 500 impronte, e i doppioni li fermano già
-     * l'attesa, la coda e l'impronta unica di `msg_messaggi`.
+     * 📥 L'IMPIANTO: gli SMS importati vanno tutti in tabella, senza passare da «⏳ Da
+     * decidere». Restano fuori solo fonte spenta e mittenti filtrati ([esito] che scarta).
+     * ⚠️ Gli elenchi non si toccano: da dopo l'impianto un mittente mai deciso torna a
+     * passare dalla scelta. ⚠️ Non passa da [primaVolta]: sono troppi per le sue 500
+     * impronte, e i doppioni li fermano già la coda e l'impronta unica di `msg_messaggi`.
      */
     @Synchronized
     fun smista(ctx: Context, msgs: List<Messaggio>, periodo: String = "tutti"): Smistati {
-        val invia = mutableListOf<Messaggio>()
-        val decidere = mutableListOf<Messaggio>()
-        var codici = 0
-        var filtrati = 0
-        msgs.forEach { m ->
-            when (val e = esito(ctx, m)) {
-                Esito.Invia -> invia += m
-                Esito.DaDecidere -> decidere += m
-                is Esito.Scarta -> if (e.motivo.startsWith("sembra")) codici++ else filtrati++
-            }
-        }
+        val invia = msgs.filter { esito(ctx, it) !is Esito.Scarta }
         val inCoda = coda(ctx).map { it.optString("impronta") }.toSet()
         val daInviare = invia.filter { it.impronta !in inCoda }
         if (daInviare.isNotEmpty()) { accoda(ctx, daInviare); avviaInvio(ctx) }
-        val aggiunti = mettiInAttesa(ctx, decidere)
-        val gia = (invia.size - daInviare.size) + (decidere.size - aggiunti)
-        val r = Smistati(daInviare.size, aggiunti, codici, filtrati, gia)
-        annota(ctx, "📥 importati ${msgs.size} SMS ($periodo): ${r.inviati} in coda, ${r.daDecidere} da decidere, " +
-            "${r.codici} codici, ${r.filtrati} filtrati, ${r.gia} già presenti")
-        notificaAttesa(ctx)
+        val r = Smistati(daInviare.size, msgs.size - invia.size, invia.size - daInviare.size)
+        annota(ctx, "📥 impianto di ${msgs.size} SMS ($periodo): ${r.inviati} in coda, " +
+            "${r.filtrati} filtrati, ${r.gia} già in coda")
         return r
     }
 

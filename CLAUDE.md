@@ -5407,10 +5407,7 @@ connettore Supabase.
   su una riga mette la chiave fra i filtrati **e cancella dall'archivio** i suoi messaggi
   (`cancellaDaArchivio`: SMS per mittente, WhatsApp per chat, chat singola per mittente con `chat`
   NULL), dopo una conferma.
-- ⚠️ **Filtro OTP ristretto** (`motivoOtp`), **prima** degli elenchi: parole (codice, OTP,
-  password, PIN, verifica, code…) o un numero di 4-8 cifre isolato — non attaccato a `:` `/` `-`
-  `+`, né a decimali, né a un altro gruppo di cifre a uno spazio (i telefoni passano); un anno
-  1900-2099 da solo non basta. Un codice non finisce nemmeno fra quelli da decidere.
+- ⚠️ **Nessun filtro automatico dei codici** (tolto nell'APK 1.0.165, era `motivoOtp`): un codice segue le regole di ogni altro messaggio, e chi non lo vuole filtra il mittente.
 - ⚠️ **WhatsApp parte spento**. Si leggono i singoli messaggi da MessagingStyle (mittente nullo =
   mio, scartato); riepiloghi, notifiche in corso e «N nuovi messaggi» si saltano. Chat silenziate,
   archiviate o aperte a schermo non arrivano. Un numero si confronta sulle ultime 9 cifre.
@@ -5418,7 +5415,7 @@ connettore Supabase.
 - ⚠️ Sideload su Android 13+: SMS e accesso alle notifiche sono «impostazioni con restrizioni» —
   App → AppSphere → ⋮ → «Consenti impostazioni con restrizioni».
 - 🧪 Test mette in coda un SMS finto «Prova AppSphere» saltando i filtri: finisce davvero in archivio.
-- 📥 **Importa SMS dal telefono** (APK 1.0.163, `ImportaSms.kt` + `Inoltro.smista`): chiede `READ_SMS` e legge tutti gli SMS **ricevuti** (`Telephony.Sms.Inbox`), smistati con le stesse regole dell'arrivo (codici e filtrati scartati, inoltrati in coda, gli altri in ⏳ Da decidere), con una sola riga nel registro. ⚠️ L'ora è `date_sent` (col ripiego su `date`), la stessa che `SmsReceiver` legge dal PDU: un SMS già inoltrato ha la stessa impronta e non si raddoppia. ⚠️ L'attesa di 30 giorni si conta da quando il messaggio è entrato in attesa (`dal` nel file), non da quando è arrivato. ⚠️ Gli SMS oltre 90 giorni li cancella comunque il job `msg-pulizia-90gg` la notte dopo. La tendina **Mesi da importare** (APK 1.0.164: ultimo mese · 3 · 6 · 12 · tutti, di partenza 3) filtra sulla colonna `date` del telefono; oltre i 3 mesi la schermata avvisa della pulizia.
+- 📥 **Importa SMS dal telefono** (APK 1.0.163, `ImportaSms.kt` + `Inoltro.smista`): chiede `READ_SMS` e legge tutti gli SMS **ricevuti** (`Telephony.Sms.Inbox`), e dall'APK 1.0.165 è un **impianto**: vanno tutti in tabella senza passare da ⏳ Da decidere, tranne i mittenti filtrati (e tutti se gli SMS sono spenti), con una sola riga nel registro. ⚠️ Gli elenchi non si toccano: da dopo l'impianto un mittente mai deciso torna a passare dalla scelta. ⚠️ L'ora è `date_sent` (col ripiego su `date`), la stessa che `SmsReceiver` legge dal PDU: un SMS già inoltrato ha la stessa impronta e non si raddoppia. ⚠️ L'attesa di 30 giorni si conta da quando il messaggio è entrato in attesa (`dal` nel file), non da quando è arrivato. ⚠️ Gli SMS oltre 90 giorni li cancella comunque il job `msg-pulizia-90gg` la notte dopo. La tendina **Mesi da importare** (APK 1.0.164: ultimo mese · 3 · 6 · 12 · tutti, di partenza 3) filtra sulla colonna `date` del telefono; oltre i 3 mesi la schermata avvisa della pulizia.
 
 ### Cosa compare in home: il registro `PortedApps`
 
