@@ -53,6 +53,7 @@ import com.garsal.appsphere.core.GarsalTopBar
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.Pillola
 import com.garsal.appsphere.core.RigaScorrevole
+import com.garsal.appsphere.core.Tendina
 import com.garsal.appsphere.core.Supabase
 import com.garsal.appsphere.core.larghezzaPulsanti
 import com.garsal.appsphere.core.messaggioBreve
@@ -84,6 +85,10 @@ private fun JsonObject.s(k: String): String? = (this[k] as? JsonPrimitive)?.take
 private fun icona(fonte: String) = if (fonte == Inoltro.FONTE_SMS) "📩" else "💬"
 
 private const val INOLTRA = "✓ Inoltra sempre"
+
+/** Le scelte di «Mesi da importare»; null = tutti. */
+private val MESI_IMPORTA = listOf(1 to "Ultimo mese", 3 to "Ultimi 3 mesi", 6 to "Ultimi 6 mesi",
+    12 to "Ultimi 12 mesi", null to "Tutti")
 private const val FILTRA = "✗ Filtra sempre"
 
 /**
@@ -140,11 +145,12 @@ fun InoltroScreen(onIndietro: () -> Unit) {
     var daFiltrare by remember { mutableStateOf<Archiviato?>(null) }
     var avviso by remember { mutableStateOf<String?>(null) }
     var importando by remember { mutableStateOf(false) }
+    var mesi by remember { mutableStateOf<Int?>(3) }   // null = tutti
 
     fun importa() {
         importando = true
         scope.launch {
-            runCatching { ImportaSms.importa(ctx) }
+            runCatching { ImportaSms.importa(ctx, mesi) }
                 .onSuccess { r ->
                     avviso = "📥 SMS importati: ${r.inviati} in invio, ${r.daDecidere} da decidere, " +
                         "${r.codici} codici scartati, ${r.filtrati} filtrati, ${r.gia} già presenti."
@@ -256,6 +262,17 @@ fun InoltroScreen(onIndietro: () -> Unit) {
                         "scartati, mittenti inoltrati in invio, gli altri in «⏳ Da decidere». " +
                         "Quelli già in archivio non si raddoppiano.",
                 )
+                Tendina(
+                    etichetta = "Mesi da importare",
+                    scelto = MESI_IMPORTA.first { it.first == mesi }.second,
+                    voci = MESI_IMPORTA.map { (it.first?.toString() ?: "tutti") to it.second },
+                ) { k -> mesi = k.toIntOrNull() }
+                if (mesi == null || mesi!! > 3) {
+                    Nota(
+                        "⚠️ La pulizia notturna cancella dalla tabella i messaggi più vecchi di 90 giorni: " +
+                            "quelli oltre i 3 mesi spariranno la notte stessa.",
+                    )
+                }
                 Pillola(if (importando) "Importo…" else "📥 Importa SMS dal telefono", Palette.accent) {
                     if (importando) return@Pillola
                     if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==

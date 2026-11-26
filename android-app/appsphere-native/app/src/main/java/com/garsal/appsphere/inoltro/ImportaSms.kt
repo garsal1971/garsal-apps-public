@@ -14,14 +14,21 @@ import kotlinx.coroutines.withContext
  * che [SmsReceiver] legge dal PDU, quindi un SMS già inoltrato all'arrivo ha la stessa
  * impronta e `msg_messaggi` non lo raddoppia.
  * ⚠️ Il mittente è `address` com'è, come all'arrivo: niente rubrica.
+ * [mesi] = quanti mesi indietro da adesso (sulla colonna `date`, l'ora di arrivo sul telefono);
+ * null = tutti.
  */
 object ImportaSms {
-    suspend fun importa(ctx: Context): Inoltro.Smistati = withContext(Dispatchers.IO) {
+    suspend fun importa(ctx: Context, mesi: Int?): Inoltro.Smistati = withContext(Dispatchers.IO) {
         val msgs = mutableListOf<Inoltro.Messaggio>()
+        val dal = mesi?.let {
+            java.time.ZonedDateTime.now().minusMonths(it.toLong()).toInstant().toEpochMilli()
+        }
         ctx.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
             arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.DATE_SENT),
-            null, null, "${Telephony.Sms.DATE} ASC",
+            dal?.let { "${Telephony.Sms.DATE} >= ?" },
+            dal?.let { arrayOf(it.toString()) },
+            "${Telephony.Sms.DATE} ASC",
         )?.use { c ->
             val iA = c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
             val iB = c.getColumnIndexOrThrow(Telephony.Sms.BODY)
@@ -34,6 +41,6 @@ object ImportaSms {
                 msgs += Inoltro.Messaggio(Inoltro.FONTE_SMS, mittente, null, testo, quando)
             }
         } ?: error("archivio SMS non leggibile")
-        Inoltro.smista(ctx, msgs)
+        Inoltro.smista(ctx, msgs, mesi?.let { "ultimi $it mesi" } ?: "tutti")
     }
 }

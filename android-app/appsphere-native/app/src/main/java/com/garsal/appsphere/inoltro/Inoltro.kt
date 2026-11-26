@@ -301,7 +301,7 @@ object Inoltro {
      * l'attesa, la coda e l'impronta unica di `msg_messaggi`.
      */
     @Synchronized
-    fun smista(ctx: Context, msgs: List<Messaggio>): Smistati {
+    fun smista(ctx: Context, msgs: List<Messaggio>, periodo: String = "tutti"): Smistati {
         val invia = mutableListOf<Messaggio>()
         val decidere = mutableListOf<Messaggio>()
         var codici = 0
@@ -319,7 +319,7 @@ object Inoltro {
         val aggiunti = mettiInAttesa(ctx, decidere)
         val gia = (invia.size - daInviare.size) + (decidere.size - aggiunti)
         val r = Smistati(daInviare.size, aggiunti, codici, filtrati, gia)
-        annota(ctx, "📥 importati ${msgs.size} SMS: ${r.inviati} in coda, ${r.daDecidere} da decidere, " +
+        annota(ctx, "📥 importati ${msgs.size} SMS ($periodo): ${r.inviati} in coda, ${r.daDecidere} da decidere, " +
             "${r.codici} codici, ${r.filtrati} filtrati, ${r.gia} già presenti")
         notificaAttesa(ctx)
         return r
