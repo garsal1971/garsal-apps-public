@@ -139,6 +139,24 @@ fun InoltroScreen(onIndietro: () -> Unit) {
     var cerca by remember { mutableStateOf("") }
     var daFiltrare by remember { mutableStateOf<Archiviato?>(null) }
     var avviso by remember { mutableStateOf<String?>(null) }
+    var importando by remember { mutableStateOf(false) }
+
+    fun importa() {
+        importando = true
+        scope.launch {
+            runCatching { ImportaSms.importa(ctx) }
+                .onSuccess { r ->
+                    avviso = "📥 SMS importati: ${r.inviati} in invio, ${r.daDecidere} da decidere, " +
+                        "${r.codici} codici scartati, ${r.filtrati} filtrati, ${r.gia} già presenti."
+                }
+                .onFailure { avviso = "Importazione non riuscita: ${it.messaggioBreve()}" }
+            importando = false
+            rifai()
+        }
+    }
+    val chiediLettura = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) importa() else avviso = "Senza il permesso di leggere gli SMS non posso importarli."
+    }
 
     fun caricaArchivio() {
         caricando = true
@@ -230,6 +248,20 @@ fun InoltroScreen(onIndietro: () -> Unit) {
                     "I codici si scartano sempre. Un mittente o una chat mai visti finiscono in " +
                         "«⏳ Da decidere» e non partono finché non scegli.",
                 )
+            }
+
+            Riquadro("📥 SMS già sul telefono") {
+                Nota(
+                    "Legge tutti gli SMS ricevuti e li smista con le regole di sempre: codici e filtrati " +
+                        "scartati, mittenti inoltrati in invio, gli altri in «⏳ Da decidere». " +
+                        "Quelli già in archivio non si raddoppiano.",
+                )
+                Pillola(if (importando) "Importo…" else "📥 Importa SMS dal telefono", Palette.accent) {
+                    if (importando) return@Pillola
+                    if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==
+                        PackageManager.PERMISSION_GRANTED) importa()
+                    else chiediLettura.launch(Manifest.permission.READ_SMS)
+                }
             }
 
             DaDecidere(ctx, ::rifai)
