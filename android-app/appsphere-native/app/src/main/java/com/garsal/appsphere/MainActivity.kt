@@ -57,6 +57,7 @@ import com.garsal.appsphere.home.Route
 import com.garsal.appsphere.memo.MemoScreen
 import com.garsal.appsphere.notifiche.Notifiche
 import com.garsal.appsphere.notifiche.NotificheScreen
+import com.garsal.appsphere.inoltro.InoltroScreen
 import com.garsal.appsphere.notifiche.Push
 import com.garsal.appsphere.obiettivi.ObiettiviScreen
 import com.garsal.appsphere.obiettivi.PianoScreen
@@ -113,6 +114,10 @@ class MainActivity : FragmentActivity() {
         // 🪥 Il filtro Bluetooth dello spazzolino: si riconsegna a ogni apertura,
         // nel caso Android l'abbia perso (riavvio, aggiornamento, Xiaomi).
         com.garsal.appsphere.abituati.Spazzolino.registra(this)
+        // 📨 Se la coda dell'inoltro aspettava il login, riparte adesso.
+        if (com.garsal.appsphere.inoltro.Inoltro.coda(this).isNotEmpty()) {
+            com.garsal.appsphere.inoltro.Inoltro.avviaInvio(this)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -436,6 +441,9 @@ private fun Navigazione() {
         }
         composable(Route.NOTIFICHE) {
             NotificheScreen(onIndietro = { nav.popBackStack() })
+        }
+        composable(Route.INOLTRO) {
+            InoltroScreen(onIndietro = { nav.popBackStack() })
         }
     }
 }

@@ -5381,6 +5381,33 @@ sarebbe riscrivere OpenPGP a mano, che in un forziere è precisamente ciò che n
     porta il suo `error`, si scrive quello e basta (`motivo()`), e la sessione scaduta lo dice con
     parole sue senza nominare il Drive.
 
+### 📨 Inoltro messaggi: SMS e WhatsApp in `msg_messaggi` (APK 1.0.161)
+
+`inoltro/` nell'APK nativa, dal ⚙️ della home → «📨 Inoltro messaggi». Gli SMS (`SmsReceiver`,
+`RECEIVE_SMS`) e le notifiche di `com.whatsapp` / `com.whatsapp.w4b` (`WhatsAppListener`,
+accesso alle notifiche) passano dai filtri **sul telefono** (`Inoltro.motivoScarto`), poi in una
+coda su file (`filesDir/inoltro_coda.json`, non Room) che `InvioWorker` (WorkManager, con la rete)
+svuota verso la Edge Function `msg-ingest` col **JWT dell'utente** — niente token segreto: la
+funzione lo verifica contro Supabase e passa il solo `INOLTRO_EMAIL` (di partenza
+garsal1971@gmail.com), poi scrive col service role. Tabella `msg_messaggi`
+(`20261126100000_msg_messaggi.sql`): SELECT del proprietario, nessuna policy di scrittura,
+`impronta` unica (SHA-256 di fonte, mittente, chat, testo e minuto) con `ON CONFLICT DO NOTHING`,
+e il job pg_cron `msg-pulizia-90gg` che cancella i messaggi oltre 90 giorni. Claude li legge col
+connettore Supabase.
+- ⚠️ **Filtro OTP ristretto** (`motivoOtp`): parole (codice, OTP, password, PIN, verifica, code…)
+  o un numero di 4-8 cifre isolato — non attaccato a `:` `/` `-` `+`, né a decimali, né a un altro
+  gruppo di cifre a uno spazio (i telefoni passano); un anno 1900-2099 da solo non basta.
+- ⚠️ **WhatsApp parte spento** e inoltra solo le chat in elenco (nome del gruppo, o della persona
+  per le chat singole); l'elenco «viste di recente» tiene i soli nomi. Si leggono i singoli
+  messaggi da MessagingStyle (mittente nullo = mio, scartato); riepiloghi, notifiche in corso e
+  «N nuovi messaggi» si saltano. Chat silenziate, archiviate o aperte a schermo non arrivano.
+- SMS: tutti, meno «mittenti esclusi»; con «solo questi» pieno, solo quelli. Un numero si
+  confronta sulle ultime 9 cifre.
+- Del messaggio scartato resta nel registro locale motivo e mittente, mai il testo.
+- ⚠️ Sideload su Android 13+: SMS e accesso alle notifiche sono «impostazioni con restrizioni» —
+  App → AppSphere → ⋮ → «Consenti impostazioni con restrizioni».
+- 🧪 Test mette in coda un SMS finto «Prova AppSphere» saltando i filtri: finisce davvero in archivio.
+
 ### Cosa compare in home: il registro `PortedApps`
 
 Il web mostra tutte le righe attive di `cm_apps`; qui si mostrano **solo le app che esistono in

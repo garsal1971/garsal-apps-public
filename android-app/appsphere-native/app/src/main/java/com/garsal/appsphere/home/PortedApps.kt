@@ -21,6 +21,9 @@ object Route {
 
     /** 🔔 Le notifiche ricevute e non ancora gestite (dalla campanella in home). */
     const val NOTIFICHE = "notifiche"
+
+    /** 📨 Inoltro di SMS e WhatsApp a Supabase (dal ⚙️ della home). */
+    const val INOLTRO = "inoltro"
 }
 
 /**

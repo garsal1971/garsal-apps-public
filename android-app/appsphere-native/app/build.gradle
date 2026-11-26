@@ -34,8 +34,8 @@ android {
         applicationId "com.garsal.appsphere"
         minSdk 28
         targetSdk 36
-        versionCode 161
-        versionName "1.0.160"
+        versionCode 162
+        versionName "1.0.161"
     }
 
     // Le pagine HTML scelgono fra dev e produzione dall'hostname (_IS_DEV).
@@ -153,6 +153,10 @@ dependencies {
     // FileProvider per la foto scattata dalla fotocamera: la si scrive in
     // cache e se ne passa l'uri alla fotocamera di sistema.
     implementation 'androidx.core:core-ktx:1.16.0'
+
+    // 📨 Inoltro messaggi: la coda verso msg-ingest si svuota con WorkManager,
+    // che riprova da sé quando torna la rete (anche a schermo spento).
+    implementation 'androidx.work:work-runtime-ktx:2.10.1'
 
     // Health Connect — lettura del peso per la sincronizzazione con la
     // bilancia Renpho. Stessa versione dell'APK WebView (`HealthConnectBridge.kt`).

@@ -18,6 +18,12 @@
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- 📨 Inoltro messaggi: gli SMS in arrivo (inoltro/SmsReceiver.kt) e la
+         richiesta di non essere ottimizzata dalla batteria, perché la coda parta
+         anche a schermo spento. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- Health Connect — lettura peso, per la sincronizzazione con la bilancia. -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <!-- Il grasso corporeo, per la massa grassa di «Ti pisasti?» (mai fatale). -->
@@ -182,6 +188,29 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- 📨 Gli SMS in arrivo. Il permesso BROADCAST_SMS lo ha solo il sistema:
+             nessun'altra app può fingere un SMS. -->
+        <receiver
+            android:name=".inoltro.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 📨 Le notifiche di WhatsApp (inoltro/WhatsAppListener.kt). Si accende
+             da Impostazioni → Accesso alle notifiche. -->
+        <service
+            android:name=".inoltro.WhatsAppListener"
+            android:exported="true"
+            android:label="AppSphere · Inoltro messaggi"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <!-- Il dialogo con gli altri rinvii. Trasparente e fuori dai recenti:
              non è una schermata dell'app, è un pulsante che chiede «quanto?». -->
