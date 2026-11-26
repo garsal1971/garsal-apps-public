@@ -5418,6 +5418,7 @@ connettore Supabase.
 - ⚠️ Sideload su Android 13+: SMS e accesso alle notifiche sono «impostazioni con restrizioni» —
   App → AppSphere → ⋮ → «Consenti impostazioni con restrizioni».
 - 🧪 Test mette in coda un SMS finto «Prova AppSphere» saltando i filtri: finisce davvero in archivio.
+- 📥 **Importa SMS dal telefono** (APK 1.0.163, `ImportaSms.kt` + `Inoltro.smista`): chiede `READ_SMS` e legge tutti gli SMS **ricevuti** (`Telephony.Sms.Inbox`), smistati con le stesse regole dell'arrivo (codici e filtrati scartati, inoltrati in coda, gli altri in ⏳ Da decidere), con una sola riga nel registro. ⚠️ L'ora è `date_sent` (col ripiego su `date`), la stessa che `SmsReceiver` legge dal PDU: un SMS già inoltrato ha la stessa impronta e non si raddoppia. ⚠️ L'attesa di 30 giorni si conta da quando il messaggio è entrato in attesa (`dal` nel file), non da quando è arrivato. ⚠️ Gli SMS oltre 90 giorni li cancella comunque il job `msg-pulizia-90gg` la notte dopo.
 
 ### Cosa compare in home: il registro `PortedApps`
 

@@ -22,6 +22,8 @@
          richiesta di non essere ottimizzata dalla batteria, perché la coda parta
          anche a schermo spento. -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- 📥 Solo per «Importa SMS dal telefono» (inoltro/ImportaSms.kt), su richiesta. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Health Connect — lettura peso, per la sincronizzazione con la bilancia. -->

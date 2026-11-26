@@ -59,6 +59,8 @@ object Inoltro {
         val chat: String?,
         val testo: String,
         val ricevutoIl: Long,
+        /** Quando è entrato in «da decidere» (0 = mai): l'attesa si conta da qui, non dall'arrivo. */
+        val dal: Long = 0,
     ) {
         /** SHA-256 di fonte, mittente, chat, testo e minuto: la chiave dei doppioni. */
         val impronta: String by lazy {
@@ -88,6 +90,7 @@ object Inoltro {
                 ricevutoIl = o.optLong("ms").takeIf { it > 0 }
                     ?: runCatching { java.time.Instant.parse(o.getString("ricevuto_il")).toEpochMilli() }
                         .getOrDefault(System.currentTimeMillis()),
+                dal = o.optLong("dal"),
             )
         }
     }
@@ -258,25 +261,69 @@ object Inoltro {
 
     private fun fileAttesa(ctx: Context) = File(ctx.applicationContext.filesDir, "inoltro_attesa.json")
 
-    /** I messaggi da decidere, dal più recente. Quelli oltre [GIORNI_ATTESA] si buttano qui. */
+    /**
+     * I messaggi da decidere, dal più recente. Quelli in attesa da oltre [GIORNI_ATTESA] si
+     * buttano qui. ⚠️ Si conta da quando sono ENTRATI in attesa ([Messaggio.dal]), non da
+     * quando sono arrivati: un SMS di un anno fa importato oggi si butterebbe sul posto.
+     */
     @Synchronized
     fun attesa(ctx: Context): List<Messaggio> {
         val tutti = leggiFile(fileAttesa(ctx)).map { Messaggio.da(it) }
         val limite = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(GIORNI_ATTESA)
-        val vivi = tutti.filter { it.ricevutoIl >= limite }
+        val vivi = tutti.filter { (it.dal.takeIf { d -> d > 0 } ?: it.ricevutoIl) >= limite }
         if (vivi.size != tutti.size) scriviAttesa(ctx, vivi)
         return vivi.sortedByDescending { it.ricevutoIl }
     }
 
     @Synchronized
-    private fun mettiInAttesa(ctx: Context, m: Messaggio) {
+    private fun mettiInAttesa(ctx: Context, m: Messaggio) = mettiInAttesa(ctx, listOf(m))
+
+    /** Aggiunge quelli che non ci sono già; torna quanti ne ha aggiunti. */
+    @Synchronized
+    private fun mettiInAttesa(ctx: Context, msgs: List<Messaggio>): Int {
         val presenti = attesa(ctx)
-        if (presenti.any { it.impronta == m.impronta }) return
-        scriviAttesa(ctx, presenti + m)
+        val gia = presenti.map { it.impronta }.toHashSet()
+        val ora = System.currentTimeMillis()
+        val nuovi = msgs.filter { gia.add(it.impronta) }.map { it.copy(dal = ora) }
+        if (nuovi.isNotEmpty()) scriviAttesa(ctx, presenti + nuovi)
+        return nuovi.size
     }
 
     private fun scriviAttesa(ctx: Context, msgs: List<Messaggio>) =
-        scriviFile(fileAttesa(ctx), msgs.map { it.json().put("ms", it.ricevutoIl) })
+        scriviFile(fileAttesa(ctx), msgs.map { it.json().put("ms", it.ricevutoIl).put("dal", it.dal) })
+
+    data class Smistati(val inviati: Int, val daDecidere: Int, val codici: Int, val filtrati: Int, val gia: Int)
+
+    /**
+     * 📥 Lo smistamento in blocco dell'importazione: stesse regole di [ricevuto] ([esito]),
+     * ma una scrittura sola per file e una riga sola nel registro. ⚠️ Non passa da
+     * [primaVolta]: sono troppi per le sue 500 impronte, e i doppioni li fermano già
+     * l'attesa, la coda e l'impronta unica di `msg_messaggi`.
+     */
+    @Synchronized
+    fun smista(ctx: Context, msgs: List<Messaggio>): Smistati {
+        val invia = mutableListOf<Messaggio>()
+        val decidere = mutableListOf<Messaggio>()
+        var codici = 0
+        var filtrati = 0
+        msgs.forEach { m ->
+            when (val e = esito(ctx, m)) {
+                Esito.Invia -> invia += m
+                Esito.DaDecidere -> decidere += m
+                is Esito.Scarta -> if (e.motivo.startsWith("sembra")) codici++ else filtrati++
+            }
+        }
+        val inCoda = coda(ctx).map { it.optString("impronta") }.toSet()
+        val daInviare = invia.filter { it.impronta !in inCoda }
+        if (daInviare.isNotEmpty()) { accoda(ctx, daInviare); avviaInvio(ctx) }
+        val aggiunti = mettiInAttesa(ctx, decidere)
+        val gia = (invia.size - daInviare.size) + (decidere.size - aggiunti)
+        val r = Smistati(daInviare.size, aggiunti, codici, filtrati, gia)
+        annota(ctx, "📥 importati ${msgs.size} SMS: ${r.inviati} in coda, ${r.daDecidere} da decidere, " +
+            "${r.codici} codici, ${r.filtrati} filtrati, ${r.gia} già presenti")
+        notificaAttesa(ctx)
+        return r
+    }
 
     /**
      * La scelta su un mittente/chat: entra nell'elenco giusto e i suoi messaggi in attesa
