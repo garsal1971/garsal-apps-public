@@ -11,7 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 enum class Destinazione(val azione: String, val alias: String) {
     /** 🍽️ Segna un pasto: Calorie col ➕ «Aggiungi alimento» già aperto. */
-    PASTO("com.garsal.appsphere.SCORCIATOIA_PASTO", "com.garsal.appsphere.SegnaPasto");
+    PASTO("com.garsal.appsphere.SCORCIATOIA_PASTO", "com.garsal.appsphere.SegnaPasto"),
+
+    /** 📨 Dalla notifica «messaggi da decidere»: la schermata dell'inoltro. Nessun alias. */
+    INOLTRO("com.garsal.appsphere.APRI_INOLTRO", "");
 
     companion object {
         fun daAzione(azione: String?): Destinazione? = entries.firstOrNull { it.azione == azione }
