@@ -3055,6 +3055,11 @@ disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
   (`TIPI_SALDO`). Lo leggono `leggiSaldo()` in Spese Personali e `leggiSaldoSal()` in Finanza:
   cambiando la forma del JSON, cambiale insieme.
 - Non tocca database, snapshot né l'app nativa.
+- ⚠️ **`S.priceHistory` resta di ~1000 righe (un mese) per tutta Finanza** (v1.35.2,
+  `caricaPriceHistory`): basta per prezzo attuale e chiusura di ieri, e un titolo senza righe
+  lì dentro si fa leggere a parte le sue ultime due, o varrebbe zero. Lo storico lungo si legge
+  per titolo con `caricaStoricoTitolo`: lo usano anche il dettaglio della pagina Prezzi
+  (grafico e Performance) e il prezzo proposto nel form di una transazione a una data vecchia.
 
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
 
