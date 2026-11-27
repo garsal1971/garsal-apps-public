@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.36.0</title>
+  <title>GarsalFinanza v1.36.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -636,8 +636,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.36.0';
-const APP_BUILD   = '2026-11-27T23:00:00Z';
+const APP_VERSION = 'v1.36.1';
+const APP_BUILD   = '2026-11-27T23:30:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -1431,8 +1431,10 @@ async function saveSnapshot() {
   return entry;
 }
 
+// All'apertura lo snapshot di OGGI si riscrive sempre (v1.36.1), non solo se manca: fermo
+// alla prima apertura del giorno, la riga di oggi in 📈 Sviluppo restava indietro rispetto
+// alla Dashboard fino al job delle 23:00.
 async function autoSaveSnapshot() {
-  if (S.dashboardSnapshots.some(s => s.snapshot_date === oggiLocale())) return;
   try { await saveSnapshot(); }
   catch(e) { console.warn('[snapshot] auto-save fallito:', e.message); }
 }
@@ -9437,7 +9439,7 @@ async function startApp(session) {
   render();
   history.replaceState({ view: S.view, portfolioId: S.portfolioId }, '');
   autoSaveSnapshot().then(() => {
-    if (S.dashboardSnapshots.length > 0) renderDashboard();
+    if (S.dashboardSnapshots.length > 0 && ['dashboard', 'progressione'].includes(S.view)) render();
   });
 }
 // Ritorno dal consenso sulla banca: enable-banking-callback reindirizza qui con
