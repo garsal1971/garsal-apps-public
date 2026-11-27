@@ -3031,6 +3031,9 @@ disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
   senza fondo collegato le loro monete restano fuori dal P&L).
 - Per ogni titolo un **grafichino del prezzo a 3 mesi** (`sparklineHtml`), da `S.priceHistory`
   già caricato: nessuna lettura in più.
+- **Colonna Tipo con filtro** (v1.33.1): il badge di `fnz_products.asset_type` e una tendina
+  nell'intestazione (`S.cumulTipo`, in memoria). ⚠️ Filtra le **sole righe**: i KPI restano sul
+  totale, e con un tipo scelto la riga della liquidità non si mostra (non è un tipo di prodotto).
 - Non tocca database, snapshot né l'app nativa.
 
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
