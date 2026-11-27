@@ -3040,6 +3040,14 @@ disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
   tocco sulla riga. Tipo, ISIN, descrizione, quantità, prezzo, var. 1d, valore e peso, costo
   medio, P&L, la ripartizione per portafoglio e il grafico del prezzo da `S.priceHistory` coi
   periodi 1S · 1M · 3M · 6M · 1A · 2A · Da inizio (`S.titPeriodo`, in memoria, di partenza 3M).
+- **💳 Conto Spese Personali** (v1.35.0): riga sotto la liquidità, compresa nel valore intero e
+  nel «di cui liquidità», fuori dal P&L. È il saldo che `spese-personali.html` (v1.2.0) legge
+  dalla banca e salva in `cm_settings`, chiave **`sal_saldo`** (JSON `{importo, valuta, data,
+  tipo, conto, letto_il}`): si scrive a ogni «Leggi i movimenti» e col pulsante «🏦 Aggiorna
+  saldo» del riquadro *Saldo del conto*. ⚠️ È il saldo vero del conto, non il «saldo del
+  periodo» (entrate − uscite importate). Fra i saldi della banca vince il contabile
+  (`TIPI_SALDO`). Lo leggono `leggiSaldo()` in Spese Personali e `leggiSaldoSal()` in Finanza:
+  cambiando la forma del JSON, cambiale insieme.
 - Non tocca database, snapshot né l'app nativa.
 
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
