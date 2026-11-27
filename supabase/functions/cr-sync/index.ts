@@ -1,5 +1,6 @@
 // ============================================================
-// cr-sync v1.0.0 — sincronizzazione del Conto Risparmio (conto-risparmio-teresa.html)
+// cr-sync v1.1.0 — sincronizzazione del Conto Risparmio (conto-risparmio-teresa.html)
+// e, con { conto: 'rosa' }, della Cassa Casa Rosa (casarosa.html): stesso schema, tabelle senza _terr.
 //
 // Gemella di sal-sync, sullo schema del Conto Risparmio:
 //   • il job pg_cron 'cr-sync', il 28 di ogni mese (service role): i conti spuntati
@@ -20,11 +21,23 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { createEnableBankingJWT, psuHeaders } from '../_shared/enable-banking.ts';
 import { leggiMovimenti, type Movimento } from '../_shared/eb-movimenti.ts';
 
-const VERSION = '1.0.0';
-const USO = 'conto_risparmio';
+const VERSION = '1.1.0';
 const SOVRAPPOSIZIONE = 7;
 const PRIMA_VOLTA = 90;
-const ENTITA = '5a100000-0000-4000-8000-000000000002';
+// I due conti gemelli: cambiano tabelle, uso del conto, la categoria del giroconto e la notifica.
+const CONTI = {
+  risparmio: {
+    uso: 'conto_risparmio', tx: 'cntrs_transactions_terr', cat: 'cntrs_categories_terr', saldi: 'cntrs_saldi_terr',
+    contante: 'AFFITTO CONTANTE TERRASINI', nome: 'Conto risparmio', emoji: '🏡',
+    entita: '5a100000-0000-4000-8000-000000000002', kind: 'cr_sync',
+  },
+  rosa: {
+    uso: 'casa_rosa', tx: 'cntrs_transactions', cat: 'cntrs_categories', saldi: 'cntrs_saldi',
+    contante: 'AFFITTO CONTANTE ROSA', nome: 'Cassa Casa Rosa', emoji: '🏠',
+    entita: '5a100000-0000-4000-8000-000000000003', kind: 'rosa_sync',
+  },
+} as const;
+type Conto = typeof CONTI[keyof typeof CONTI];
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -40,15 +53,15 @@ function chiChiama(req: Request): { role: string | null; sub: string | null } {
   } catch { return { role: null, sub: null }; }
 }
 
-// Gemella di guessCategoryFromBank in conto-risparmio-teresa.html.
-function categoriaDa(tx: Movimento): string {
+// Gemella di guessCategoryFromBank in conto-risparmio-teresa.html e casarosa.html.
+function categoriaDa(tx: Movimento, C: Conto): string {
   const t = `${tx.description || ''} ${tx.counterpartyName || ''}`.toLowerCase();
   const code = (tx.bankTransactionCode || '').toUpperCase();
   if (/f23|f24|imu|tributi/.test(t)) return 'IMU';
   if (/mutuo|rata mutu/.test(t)) return 'RATA MUTUO';
   if (/bollo|commission|spese conto|canone/.test(t)) return 'SPESE BANCARIE';
   if (/interess|competenze/.test(t)) return 'INTERESSI BANCARIE';
-  if (/giroconto/.test(t)) return 'AFFITTO CONTANTE TERRASINI';
+  if (/giroconto/.test(t)) return C.contante;
   if (/affitto|locazione|canone di locazione/.test(t)) return 'AFFITTO BONIFICO CASA';
   if (tx.amount > 0 && /RCDT/.test(code)) return 'AFFITTO BONIFICO CASA';
   return 'da attribuire';
@@ -75,13 +88,14 @@ Deno.serve(async (req) => {
   const daJob = role === 'service_role';
   if (!daJob && !(role === 'authenticated' && sub)) return json({ error: { message: 'Non autorizzato.' } }, 401);
 
-  let body: { dateFrom?: string } = {};
+  let body: { dateFrom?: string; conto?: string } = {};
   try { body = await req.json(); } catch { /* vuoto */ }
+  const C: Conto = CONTI[(body.conto === 'rosa' ? 'rosa' : 'risparmio')];
   const dateFromChiesta = /^\d{4}-\d{2}-\d{2}$/.test(body.dateFrom || '') ? body.dateFrom! : null;
 
   const sb = createClient(url, service);
   try {
-    let qc = sb.from('cm_bank_connections').select('*').contains('uses', [USO]).not('account_id', 'is', null)
+    let qc = sb.from('cm_bank_connections').select('*').contains('uses', [C.uso]).not('account_id', 'is', null)
       .order('created_at', { ascending: false });
     if (!daJob) qc = qc.eq('user_id', sub);
     const { data: conns, error: ec } = await qc;
@@ -89,7 +103,7 @@ Deno.serve(async (req) => {
     const perUtente = new Map<string, any>();
     for (const c of conns || []) if (!perUtente.has(c.user_id)) perUtente.set(c.user_id, c);
     if (!perUtente.size) {
-      return json({ ok: false, error: { message: 'Nessun conto spuntato «Conto Risparmio» in Finanza → Banche e Conti.' } }, daJob ? 200 : 404);
+      return json({ ok: false, error: { message: `Nessun conto spuntato «${C.nome}» in Finanza → Banche e Conti.` } }, daJob ? 200 : 404);
     }
 
     const jwt = await createEnableBankingJWT(appId, pem);
@@ -99,17 +113,17 @@ Deno.serve(async (req) => {
     for (const [userId, conn] of perUtente) {
       const esito: any = { user_id: userId, conto: conn.id };
       try {
-        const { data: archivio, error: ea } = await sb.from('cntrs_transactions_terr')
+        const { data: archivio, error: ea } = await sb.from(C.tx)
           .select('id,data,importo_voce,descrizione').eq('user_id', userId).order('data', { ascending: true }).limit(10000);
         if (ea) throw ea;
-        const { data: cats, error: ecat } = await sb.from('cntrs_categories_terr').select('id,name').eq('user_id', userId);
+        const { data: cats, error: ecat } = await sb.from(C.cat).select('id,name').eq('user_id', userId);
         if (ecat) throw ecat;
         const categorie = [...(cats || [])];
         const idCategoria = async (nome: string) => {
           const c = categorie.find((x) => x.name.toLowerCase() === nome.toLowerCase())
             || categorie.find((x) => x.name.toLowerCase() === 'da attribuire');
           if (c) return c.id;
-          const { data: nuova, error } = await sb.from('cntrs_categories_terr').insert({ name: 'da attribuire', user_id: userId }).select('id,name').single();
+          const { data: nuova, error } = await sb.from(C.cat).insert({ name: 'da attribuire', user_id: userId }).select('id,name').single();
           if (error) throw error;
           categorie.push(nuova);
           return nuova.id;
@@ -135,7 +149,7 @@ Deno.serve(async (req) => {
           const k = chiave(data, t.amount);
           if (esatti.has(`${k}|${descrizione.trim().toLowerCase()}`)) { saltati++; continue; }
           const simile = perGiornoImporto.get(k) || null;
-          const cat = categoriaDa(t);
+          const cat = categoriaDa(t, C);
           righe.push({
             user_id: userId, data, descrizione, importo_voce: t.amount, category_id: await idCategoria(cat),
             note: '', anno: parseInt(data.slice(0, 4), 10),
@@ -147,7 +161,7 @@ Deno.serve(async (req) => {
 
         let inseriti: any[] = [];
         if (righe.length) {
-          const { data: ins, error: ei } = await sb.from('cntrs_transactions_terr')
+          const { data: ins, error: ei } = await sb.from(C.tx)
             .insert(righe.map(({ _cat, ...r }) => r)).select('id,provvisorio');
           if (ei) throw ei;
           inseriti = ins || [];
@@ -162,7 +176,7 @@ Deno.serve(async (req) => {
         // Il saldo, come confirmBankImport: una riga nuova in cntrs_saldi_terr.
         const bal = letti.balances.find((b) => /disp|avai|clbd|closing|itbd/i.test(b.name || '')) || letti.balances[0];
         if (bal && bal.amount) {
-          const { error: es } = await sb.from('cntrs_saldi_terr').insert({
+          const { error: es } = await sb.from(C.saldi).insert({
             user_id: userId, data: (bal.date || new Date().toISOString()).slice(0, 10),
             saldo_contabile: bal.amount, saldo_disponibile: bal.amount,
             note: `Letto dalla banca (cr-sync${daJob ? ', job' : ''})`,
@@ -174,18 +188,18 @@ Deno.serve(async (req) => {
         await sb.from('cm_sync_log').insert({
           user_id: userId, bank_connection_id: conn.id, finished_at: new Date().toISOString(),
           status: 'success', imported_count: esito.importati,
-          error_message: `cr-sync ${VERSION}${daJob ? ' (job)' : ''} · dal ${dateFrom} · ${letti.transactions.length} letti, ` +
+          error_message: `cr-sync ${VERSION} ${C.uso}${daJob ? ' (job)' : ''} · dal ${dateFrom} · ${letti.transactions.length} letti, ` +
             `${esito.importati} importati (${esito.provvisori} provvisori, ${esito.da_attribuire} da attribuire), ${saltati} già presenti`,
         });
       } catch (e) {
         esito.errore = (e as Error).message || String(e);
         await sb.from('cm_sync_log').insert({
           user_id: userId, bank_connection_id: conn.id, finished_at: new Date().toISOString(),
-          status: 'error', imported_count: 0, error_message: `cr-sync ${VERSION}: ${esito.errore}`,
+          status: 'error', imported_count: 0, error_message: `cr-sync ${VERSION} ${C.uso}: ${esito.errore}`,
         });
       }
       if (daJob) {
-        try { await notifica(sb, userId, esito); } catch (e) { console.warn('[cr-sync] notifica non accodata', (e as Error).message); }
+        try { await notifica(sb, userId, esito, C); } catch (e) { console.warn('[cr-sync] notifica non accodata', (e as Error).message); }
       }
       esiti.push(esito);
     }
@@ -206,10 +220,10 @@ Deno.serve(async (req) => {
 });
 
 /** La notifica al solo proprietario del conto, come in sal-sync (regole 'spese' spente). */
-async function notifica(sb: any, userId: string, e: any) {
-  const titolo = e.errore ? '⚠️ Conto risparmio: sincronizzazione fallita' : '🏡 Conto risparmio sincronizzato';
+async function notifica(sb: any, userId: string, e: any, C: Conto) {
+  const titolo = e.errore ? `⚠️ ${C.nome}: sincronizzazione fallita` : `${C.emoji} ${C.nome} sincronizzato`;
   const corpo = e.errore
-    ? `${e.errore}\nRiprova da Finanza → Conto Risparmio.`
+    ? `${e.errore}\nRiprova da Finanza → ${C.nome}.`
     : [
         `${e.importati} movimenti importati`,
         e.da_attribuire ? `${e.da_attribuire} da attribuire` : null,
@@ -229,12 +243,12 @@ async function notifica(sb: any, userId: string, e: any) {
   const righe = [];
   for (const channel of canali) {
     const { data: regola, error: er } = await sb.from('cm_notification_rules').upsert({
-      user_id: userId, app: 'spese', entity_id: ENTITA, entity_type: 'task', channel,
-      entity_title: 'Conto risparmio', enabled: false, reminder_presets: { kind: 'cr_sync' }, notification_spec: {},
+      user_id: userId, app: 'spese', entity_id: C.entita, entity_type: 'task', channel,
+      entity_title: C.nome, enabled: false, reminder_presets: { kind: C.kind }, notification_spec: {},
     }, { onConflict: 'user_id,app,entity_id,channel' }).select('id').single();
     if (er) throw er;
     righe.push({
-      rule_id: regola.id, user_id: userId, app: 'spese', entity_id: ENTITA,
+      rule_id: regola.id, user_id: userId, app: 'spese', entity_id: C.entita,
       title: titolo, body: corpo, channel, fire_at: new Date().toISOString(), status: 'pending',
       occurrence_id: `${regola.id}:${oggi}:${ora}`, metadata: { telegram_cancel_button: false },
     });

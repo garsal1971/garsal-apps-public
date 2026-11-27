@@ -7421,6 +7421,12 @@ conto, solo dal job. CSV ed Excel restano con la revisione dei conflitti.
   altrimenti le due pagine si troverebbero ciascuna il conto dell'altra nella tendina.
   La causale numerica non passa dall'API PSD2: `guessCategoryFromBank()` riconosce le stesse
   categorie dal testo, e ciò che non riconosce va in *da attribuire*.
+- 🔄 **Sincronizzazione automatica** (v1.3.0, `20261128160000_rosa_sync_provvisori.sql`): la stessa
+  Edge Function `cr-sync` col corpo `{ conto: 'rosa' }` (tabelle senza `_terr`, uso `'casa_rosa'`,
+  giroconto → `AFFITTO CONTANTE ROSA`), dal pulsante «🏦 Sincronizza dal conto» e dal job pg_cron
+  `rosa-sync` del **28 di ogni mese** (06:33 UTC). Stesse regole del Conto Risparmio: provvisori in
+  `cntrs_transactions.provvisorio` / `duplicato_di`, fuori dai totali e da `situazione-rosa.html`,
+  notifica (entità `5a100000-…-000000000003`) al solo proprietario, solo dal job.
 - ⚠️ **Il blocco di import dalla banca è lo stesso di `conto-risparmio-teresa.html`**, a meno dei
   nomi delle tabelle, dell'uso in `uses` e di una categoria (`AFFITTO CONTANTE ROSA` invece di
   `AFFITTO CONTANTE TERRASINI`). Se lo modifichi in uno, guarda anche l'altro.
