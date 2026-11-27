@@ -7452,6 +7452,14 @@ conto, solo dal job. CSV ed Excel restano con la revisione dei conflitti.
   `enable-banking-transactions`: solo le **uscite**, con un **filtro per carta** (la funzione
   restituisce `card.identification` quando la banca la espone) per isolare le spese di Ada su un
   conto con più carte. La carta scelta resta in `localStorage` (`ada_card_filter`).
+- 🔄 **Sincronizzazione automatica** (v1.3.0, `20261128180000_ada_sync_provvisori.sql`): la stessa
+  Edge Function `sal-sync` col corpo `{ conto: 'ada' }` (tabelle `ada_*`, uso `'spese_ada'`, **sole
+  uscite**, nessun saldo), dal pulsante «🏦 Sincronizza dal conto» e dal job pg_cron `ada-sync` del
+  **28 di ogni mese** (06:43 UTC). ⚠️ **La carta sta in `cm_settings`, chiave `ada_carta`**
+  (`{"carta": "…"}`, vuota = tutte): la scrivono il pulsante e il filtro dell'anteprima Excel
+  (`salvaCarta`), la legge il job; con una carta scelta i movimenti senza carta restano fuori.
+  Provvisori in `ada_transactions.provvisorio` / `duplicato_di`, con l'avviso e ✓ Tieni / 🗑 È un
+  doppione in Transazioni; notifica (entità `5a100000-…-000000000004`) al solo proprietario, solo dal job.
 - ⚠️ **Da agosto 2026 Spese Ada è allineata a `spese-personali.html`**: import da Excel/CSV,
   riconoscimento dei doppioni fra le due fonti, pagina 🧠 **Attribuzione**, jolly `%`, popup della
   regola quando si associa, «tutti gli anni», assegnazione in blocco e zona pericolosa **sono le

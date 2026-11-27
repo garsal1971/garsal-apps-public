@@ -1,5 +1,9 @@
 // ============================================================
-// sal-sync v1.0.0 — sincronizzazione del Conto Personale (Spese Personali)
+// sal-sync v1.1.0 — sincronizzazione del Conto Personale (Spese Personali) e del conto di Ada
+//
+// ⚠️ Due conti, una regola sola: il corpo { conto: 'ada' } sceglie Spese Ada (tabelle ada_*,
+// uso 'spese_ada', SOLO LE USCITE, e solo la carta salvata in cm_settings.ada_carta se c'è;
+// nessun saldo). Senza 'conto' è il Conto Personale di sempre (CONTI.sal).
 //
 // Chi la chiama:
 //   • il job pg_cron 'sal-sync', il 28 di ogni mese (service role): tutti gli utenti che hanno
@@ -26,13 +30,21 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { createEnableBankingJWT, psuHeaders } from '../_shared/enable-banking.ts';
 import { leggiMovimenti, type Saldo } from '../_shared/eb-movimenti.ts';
 
-const VERSION = '1.0.0';
-const USO = 'spese_sal';
+const VERSION = '1.1.0';
 const DUP_MARGINE = 3;          // giorni: lo stesso default della pagina
 const SOVRAPPOSIZIONE = 7;      // si rilegge da 7 giorni prima dell'ultimo movimento in archivio
 const PRIMA_VOLTA = 90;         // senza movimenti in archivio: gli ultimi 90 giorni
-// entity_id è uuid: un id fisso per «la sincronizzazione del conto personale».
-const ENTITA = '5a100000-0000-4000-8000-000000000001';
+// entity_id è uuid: un id fisso per conto («la sincronizzazione di quel conto»).
+type Conto = { uso: string; tx: string; mm: string; saldo: string | null; soloUscite: boolean;
+  carta: string | null; entita: string; kind: string; nome: string; pagina: string; etichetta: string };
+const CONTI: Record<string, Conto> = {
+  sal: { uso: 'spese_sal', tx: 'sal_transactions', mm: 'sal_merchant_map', saldo: 'sal_saldo', soloUscite: false,
+         carta: null, entita: '5a100000-0000-4000-8000-000000000001', kind: 'sal_sync',
+         nome: 'Conto personale', pagina: 'Spese Personali', etichetta: 'Spese Personali' },
+  ada: { uso: 'spese_ada', tx: 'ada_transactions', mm: 'ada_merchant_map', saldo: null, soloUscite: true,
+         carta: 'ada_carta', entita: '5a100000-0000-4000-8000-000000000004', kind: 'ada_sync',
+         nome: 'Spese Ada', pagina: 'Spese Ada', etichetta: 'Spese Ada' },
+};
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -97,8 +109,10 @@ Deno.serve(async (req) => {
   const daJob = role === 'service_role';
   if (!daJob && !(role === 'authenticated' && sub)) return json({ error: { message: 'Non autorizzato.' } }, 401);
 
-  let body: { dateFrom?: string } = {};
+  let body: { dateFrom?: string; conto?: string } = {};
   try { body = await req.json(); } catch { /* corpo vuoto: va bene */ }
+  const C = CONTI[body.conto || 'sal'];
+  if (!C) return json({ error: { message: `Conto sconosciuto: ${body.conto}` } }, 400);
   const dateFromChiesta = /^\d{4}-\d{2}-\d{2}$/.test(body.dateFrom || '') ? body.dateFrom! : null;
 
   const sb = createClient(url, service);
@@ -115,7 +129,7 @@ Deno.serve(async (req) => {
 
   try {
     // I conti da sincronizzare: per un utente il suo più recente, per il job uno per utente.
-    let qc = sb.from('cm_bank_connections').select('*').contains('uses', [USO]).not('account_id', 'is', null)
+    let qc = sb.from('cm_bank_connections').select('*').contains('uses', [C.uso]).not('account_id', 'is', null)
       .order('created_at', { ascending: false });
     if (!daJob) qc = qc.eq('user_id', sub);
     const { data: conns, error: ec } = await qc;
@@ -123,19 +137,26 @@ Deno.serve(async (req) => {
     const perUtente = new Map<string, any>();
     for (const c of conns || []) if (!perUtente.has(c.user_id)) perUtente.set(c.user_id, c);
     if (!perUtente.size) {
-      return json({ ok: false, error: { message: 'Nessun conto spuntato «Spese Personali» in Finanza → Banche e Conti.' } }, daJob ? 200 : 404);
+      return json({ ok: false, error: { message: `Nessun conto spuntato «${C.etichetta}» in Finanza → Banche e Conti.` } }, daJob ? 200 : 404);
     }
 
     const jwt = await createEnableBankingJWT(appId, pem);
     const psu = daJob ? {} : psuHeaders(req);
     const esiti: any[] = [];
 
+    // La carta (solo Spese Ada): quella scelta nella pagina, salvata in cm_settings. Vuota = tutte.
+    let carta = '';
+    if (C.carta) {
+      const { data: rc } = await sb.from('cm_settings').select('value').eq('key', C.carta).maybeSingle();
+      try { carta = String(JSON.parse(rc?.value || '{}').carta || '').trim(); } catch { carta = ''; }
+    }
+
     for (const [userId, conn] of perUtente) {
       const esito: any = { user_id: userId, conto: conn.id };
       try {
-        const archivio = await leggiTutto(() => sb.from('sal_transactions')
+        const archivio = await leggiTutto(() => sb.from(C.tx)
           .select('id,date,amount,description,external_id').eq('user_id', userId).order('date', { ascending: true }));
-        const regole = await leggiTutto(() => sb.from('sal_merchant_map')
+        const regole = await leggiTutto(() => sb.from(C.mm)
           .select('merchant_key,category_id,source').eq('user_id', userId));
         const regoleBank = regole.filter((r) => (r.source || 'bank') === 'bank' && r.merchant_key);
 
@@ -149,11 +170,11 @@ Deno.serve(async (req) => {
         const letti = await leggiMovimenti(conn.account_id, jwt, psu, dateFrom);
 
         // Il saldo vero del conto, come salvaSaldo() della pagina (stessa forma del JSON).
-        const b = sceltaSaldo(letti.balances);
-        if (b) {
+        const b = C.saldo ? sceltaSaldo(letti.balances) : null;
+        if (b && C.saldo) {
           const v = { importo: Number(b.amount), valuta: b.currency || 'EUR', data: b.date || null,
                       tipo: b.name || null, conto: conn.id, letto_il: new Date().toISOString() };
-          const { error: es } = await sb.from('cm_settings').upsert({ key: 'sal_saldo', value: JSON.stringify(v) }, { onConflict: 'key' });
+          const { error: es } = await sb.from('cm_settings').upsert({ key: C.saldo, value: JSON.stringify(v) }, { onConflict: 'key' });
           if (es) console.warn('[sal-sync] saldo non salvato', es.message);
           esito.saldo = v.importo;
         }
@@ -170,9 +191,14 @@ Deno.serve(async (req) => {
 
         const righe: any[] = [];
         let saltati = 0;
+        let fuoriCarta = 0;
         for (const t of letti.transactions) {
           const data = (t.bookingDate || t.valueDate || '').slice(0, 10);
           if (!t.amount || !data) continue;
+          if (C.soloUscite && t.amount > 0) continue;
+          const cartaTx = t.card?.identification || cardFromDescription(t.description) || null;
+          // Come il filtro per carta di spese-ada.html: con una carta scelta, i movimenti senza carta restano fuori.
+          if (carta && cartaTx !== carta) { fuoriCarta++; continue; }
           // La descrizione come la compone la pagina: causale + controparte, senza ripetizioni.
           const descrizione = [t.description, t.counterpartyName].map((s) => (s || '').trim()).filter(Boolean)
             .filter((p, i, arr) => !arr.slice(0, i).some((q) => q.toLowerCase().includes(p.toLowerCase())))
@@ -192,7 +218,7 @@ Deno.serve(async (req) => {
             user_id: userId, bank_connection_id: conn.id, external_id: t.externalId,
             date: data, amount: t.amount, currency: t.currency, description: descrizione,
             category_id: regola?.category_id || null,
-            card_identification: t.card?.identification || cardFromDescription(t.description) || null,
+            card_identification: cartaTx,
             type: t.bankTransactionCode || null, import_source: 'bank', raw: t,
             provvisorio: !!simile, duplicato_di: simile?.id || null,
           });
@@ -201,7 +227,7 @@ Deno.serve(async (req) => {
 
         let inseriti: any[] = [];
         if (righe.length) {
-          const { data: ins, error: ei } = await sb.from('sal_transactions')
+          const { data: ins, error: ei } = await sb.from(C.tx)
             .upsert(righe, { onConflict: 'bank_connection_id,external_id', ignoreDuplicates: true })
             .select('id,category_id,provvisorio');
           if (ei) throw ei;
@@ -212,25 +238,26 @@ Deno.serve(async (req) => {
         esito.senza_categoria = inseriti.filter((r) => !r.category_id).length;
         esito.saltati = saltati + (righe.length - inseriti.length);
         esito.dal = dateFrom;
+        if (carta) { esito.carta = carta; esito.fuori_carta = fuoriCarta; }
         esito.troncato = letti.truncated;
 
         await sb.from('cm_sync_log').insert({
           user_id: userId, bank_connection_id: conn.id, finished_at: new Date().toISOString(),
           status: 'success', imported_count: esito.importati,
-          error_message: `sal-sync ${VERSION}${daJob ? ' (job)' : ''} · dal ${dateFrom} · ${letti.transactions.length} letti, ` +
+          error_message: `sal-sync ${VERSION} ${C.kind}${daJob ? ' (job)' : ''} · dal ${dateFrom} · ${letti.transactions.length} letti, ` +
             `${esito.importati} importati (${esito.provvisori} provvisori, ${esito.senza_categoria} senza categoria), ${esito.saltati} già presenti`,
         });
       } catch (e) {
         esito.errore = (e as Error).message || String(e);
         await sb.from('cm_sync_log').insert({
           user_id: userId, bank_connection_id: conn.id, finished_at: new Date().toISOString(),
-          status: 'error', imported_count: 0, error_message: `sal-sync ${VERSION}: ${esito.errore}`,
+          status: 'error', imported_count: 0, error_message: `sal-sync ${VERSION} ${C.kind}: ${esito.errore}`,
         });
       }
 
       // La notifica: solo dal job — dal pulsante il riepilogo lo mostra la pagina.
       if (daJob) {
-        try { await notifica(sb, userId, esito); } catch (e) { console.warn('[sal-sync] notifica non accodata', (e as Error).message); }
+        try { await notifica(sb, userId, esito, C); } catch (e) { console.warn('[sal-sync] notifica non accodata', (e as Error).message); }
       }
       esiti.push(esito);
     }
@@ -252,10 +279,10 @@ Deno.serve(async (req) => {
 
 /** Una riga di coda per canale (Telegram, telefono, browser), come sc-promemoria: la regola
  *  'spese' nasce SPENTA e serve solo come rule_id. */
-async function notifica(sb: any, userId: string, e: any) {
-  const titolo = e.errore ? '⚠️ Conto personale: sincronizzazione fallita' : '🏦 Conto personale sincronizzato';
+async function notifica(sb: any, userId: string, e: any, C: Conto) {
+  const titolo = e.errore ? `⚠️ ${C.nome}: sincronizzazione fallita` : `🏦 ${C.nome} sincronizzato`;
   const corpo = e.errore
-    ? `${e.errore}\nRiprova da Spese Personali → Movimenti.`
+    ? `${e.errore}\nRiprova da ${C.pagina} → Movimenti.`
     : [
         `${e.importati} movimenti importati`,
         e.senza_categoria ? `${e.senza_categoria} senza categoria` : null,
@@ -275,12 +302,12 @@ async function notifica(sb: any, userId: string, e: any) {
   const righe = [];
   for (const channel of canali) {
     const { data: regola, error: er } = await sb.from('cm_notification_rules').upsert({
-      user_id: userId, app: 'spese', entity_id: ENTITA, entity_type: 'task', channel,
-      entity_title: 'Conto personale', enabled: false, reminder_presets: { kind: 'sal_sync' }, notification_spec: {},
+      user_id: userId, app: 'spese', entity_id: C.entita, entity_type: 'task', channel,
+      entity_title: C.nome, enabled: false, reminder_presets: { kind: C.kind }, notification_spec: {},
     }, { onConflict: 'user_id,app,entity_id,channel' }).select('id').single();
     if (er) throw er;
     righe.push({
-      rule_id: regola.id, user_id: userId, app: 'spese', entity_id: ENTITA,
+      rule_id: regola.id, user_id: userId, app: 'spese', entity_id: C.entita,
       title: titolo, body: corpo, channel, fire_at: new Date().toISOString(), status: 'pending',
       occurrence_id: `${regola.id}:${oggi}:${ora}`, metadata: { telegram_cancel_button: false },
     });
