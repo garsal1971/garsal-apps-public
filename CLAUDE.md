@@ -3159,6 +3159,10 @@ di `fnz_products` sono per riga, e la pagina ospite legge `select=*`.
 
 ### ⚠️ Lo snapshot lo scrive un posto solo, il calcolo dal vivo resta in due
 
+⚠️ **All'apertura di Finanza lo snapshot di oggi si RISCRIVE sempre** (v1.36.1), non solo se
+manca: prima restava quello della prima apertura del giorno e la riga di oggi in 📈 Sviluppo non
+seguiva la Dashboard fino alle 23:00.
+
 ✅ **Lo snapshot lo scrive SOLO la Edge Function `save-snapshot`** (v1.2.0, 25 settembre 2026):
 il job delle 23:00 per tutti gli utenti, e `finanza.html` — all'apertura (`autoSaveSnapshot`) e
 dal 💾 — chiamandola col JWT dell'utente, che le fa scrivere il **suo solo** snapshot e senza
