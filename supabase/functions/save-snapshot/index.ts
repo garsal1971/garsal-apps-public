@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -192,6 +192,7 @@ function buildSnapshotPayload(
   portfolios: Row[], positions: Row[], products: Map<string, Row>, prices: Record<string, number>,
   loans: Row[], loanRepayments: Row[], otherAssets: Row[], cashOf: Map<string, number>,
   versatoSaldi: Map<string, number> = new Map(),
+  contoSal = 0,
 ): SnapshotPayload {
   const stats = portfolioStats(portfolios, positions, products, prices, cashOf, versatoSaldi);
   const grandValue = stats.reduce((s, x) => s + x.totalValue, 0);
@@ -245,9 +246,11 @@ function buildSnapshotPayload(
 
   return {
     topLevel: {
-      patrimonio_netto: grandValue + totalOther - totalLoans,
+      // Il saldo del Conto Spese Personali (cm_settings `sal_saldo`) è liquidità: entra negli
+      // asset e nel patrimonio, non nei portafogli — come la voce Liquidità della Dashboard.
+      patrimonio_netto: grandValue + totalOther + contoSal - totalLoans,
       portafogli_totali: grandValue,
-      asset_totali: grandValue + totalOther,
+      asset_totali: grandValue + totalOther + contoSal,
       debiti_totali: totalLoans,
     },
     details: { portfolios: portfolioDetails, loans: loanDetails, other_assets: assetDetails },
@@ -362,6 +365,21 @@ serve(async (req) => {
     });
 
     const productMap = new Map<string, Row>(products.map((p: Row) => [p.id, p]));
+
+    // Saldo del Conto Spese Personali: lo scrive spese-personali.html in cm_settings, che non
+    // ha user_id. Va al solo proprietario del conto da cui è stato letto (`conto`), mai a tutti.
+    let contoSal = 0, contoSalUser: string | null = null;
+    try {
+      const { data: st } = await supabase.from("cm_settings").select("value").eq("key", "sal_saldo").maybeSingle();
+      let v: Row | null = null;
+      try { v = st?.value ? JSON.parse(st.value) : null; } catch { v = null; }
+      if (v && Number.isFinite(Number(v.importo)) && v.conto) {
+        const { data: bc } = await supabase.from("cm_bank_connections").select("user_id").eq("id", v.conto).maybeSingle();
+        if (bc?.user_id) { contoSal = Number(v.importo); contoSalUser = bc.user_id; }
+      }
+    } catch (e) {
+      log("WARN", "Saldo Spese Personali non letto", { message: (e as Error).message });
+    }
     const prices = pricesFromHistory(priceHistory);
 
     // ── 3. Uno snapshot per ogni utente che ha dati di Finanza ─────────────
@@ -410,7 +428,7 @@ serve(async (req) => {
 
       const { topLevel, details } = buildSnapshotPayload(
         userPortfolios, userPositions, productMap, prices, userLoans, userRepayments, userAssets,
-        cashOf, versatoSaldi,
+        cashOf, versatoSaldi, userId === contoSalUser ? contoSal : 0,
       );
 
       const { error } = await supabase.from("fnz_dashboard_snapshots").upsert({

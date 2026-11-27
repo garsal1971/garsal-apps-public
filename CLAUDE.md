@@ -3061,6 +3061,19 @@ disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
   per titolo con `caricaStoricoTitolo`: lo usano anche il dettaglio della pagina Prezzi
   (grafico e Performance) e il prezzo proposto nel form di una transazione a una data vecchia.
 
+### 💶 Liquidità in Dashboard (Finanza v1.36.0, save-snapshot v1.5.0)
+
+Una scheda **💶 Liquidità** accanto a Portafogli: la liquidità di ogni portafoglio (in quota) più
+il saldo del **Conto Spese Personali** (`cm_settings.sal_saldo`). La liquidità dei portafogli
+**si sposta**, non si aggiunge: la scheda Portafogli mostra ora i soli titoli (anche il netto
+tasse), e il confronto col giorno prima toglie `details.portfolios[].cash` dello snapshot.
+⚠️ **Il saldo entra in Asset Totali e Patrimonio Netto, a schermo e nello snapshot**:
+`save-snapshot` lo legge da `cm_settings` e lo dà al **solo proprietario del conto** (`conto` →
+`cm_bank_connections.user_id`), perché `cm_settings` non ha `user_id`. `portafogli_totali`
+dello snapshot resta con la liquidità dei fondi dentro, per non spezzare la serie, e nessuna
+chiave nuova in `details`. Dal 27 novembre 2026 la serie di patrimonio e asset fa un gradino pari
+al saldo.
+
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
 
 (12 ottobre 2026, `20261012100000_fnz_saldi_crypto.sql`, Finanza v1.29.0, save-snapshot v1.3.0,
