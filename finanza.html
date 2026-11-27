@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.35.0</title>
+  <title>GarsalFinanza v1.35.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -161,7 +161,7 @@
     .table-cumul tr.cumul-tot td { font-weight: 700; border-top: 2px solid var(--c-border, #e5e7eb); }
     .tit-periodi { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
     .tit-periodi .btn { flex-shrink: 0; }
-    .tit-svg { display: block; width: 100%; height: 240px; }
+    .tit-svg { display: block; width: 100%; height: auto; }
     .portfolio-row { display: flex; align-items: center; gap: 12px; padding: 9px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: background .12s; }
     .portfolio-row:hover { background: var(--c-bg); }
     .portfolio-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -636,8 +636,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.35.0';
-const APP_BUILD   = '2026-11-27T20:30:00Z';
+const APP_VERSION = 'v1.35.1';
+const APP_BUILD   = '2026-11-27T21:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -713,6 +713,16 @@ async function sbQ(table, params = '') {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: sbH() });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
   return r.json();
+}
+/* Come sbQ, ma a pagine: PostgREST restituisce al massimo 1000 righe per richiesta, e una
+   tabella più lunga tornerebbe tagliata in silenzio. */
+async function sbQTutto(table, params = '', pagina = 1000) {
+  const tutte = [];
+  for (let off = 0; ; off += pagina) {
+    const righe = await sbQ(table, `${params}${params ? '&' : ''}limit=${pagina}&offset=${off}`);
+    tutte.push(...righe);
+    if (righe.length < pagina) return tutte;
+  }
 }
 async function sbIns(table, body) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
@@ -2455,12 +2465,29 @@ function sparklineHtml(symbol, storico) {
       <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
     </svg><div class="mono text-sm ${pnlCls(pct)}" style="text-align:right">${pct != null ? fmtPct(pct) : ''}</div>`;
 }
+/* ⚠️ S.priceHistory NON basta per i grafici: si carica in una richiesta sola e PostgREST ne
+   restituisce al massimo 1000 righe, cioè circa un mese per tutti i titoli. I tre mesi dei
+   grafichini si leggono quindi a parte, a pagine, una volta sola (S.storico3m). */
+async function caricaStorico3m() {
+  if (S.storico3mCarico) return;
+  S.storico3mCarico = true;
+  try {
+    const da = new Date(Date.now() - SPARK_GIORNI * 864e5).toISOString().slice(0, 10);
+    S.storico3m = await sbQTutto('fnz_price_history',
+      `price_date=gte.${da}&select=symbol,price_date,price&order=price_date.asc`);
+    if (S.view === 'portafoglio-cumulativo') renderPortafoglioCumulativo();
+  } catch (e) { console.warn('Storico 3 mesi non letto:', e); S.storico3mCarico = false; }
+}
 function renderPortafoglioCumulativo() {
   const c = cumulativoStats();
+  caricaStorico3m();
   const da = new Date(Date.now() - SPARK_GIORNI * 864e5).toISOString().slice(0, 10);
   const simboli = new Set(c.titoli.map(r => r.product.symbol));
   const storico = new Map();
-  for (const h of S.priceHistory) {
+  const visto = new Set();
+  for (const h of (S.storico3m || S.priceHistory)) {
+    const kk = h.symbol + '|' + h.price_date;
+    if (visto.has(kk)) continue; visto.add(kk);
     if (!simboli.has(h.symbol) || h.price_date < da) continue;
     const v = parseFloat(h.price);
     if (!Number.isFinite(v)) continue;
@@ -2555,9 +2582,11 @@ function renderPortafoglioCumulativo() {
    prezzo da `S.priceHistory` già caricato. Il periodo vive in memoria (S.titPeriodo). */
 const TIT_PERIODI = [['1w', '1S', 7], ['1m', '1M', 31], ['3m', '3M', 92], ['6m', '6M', 183],
                      ['1y', '1A', 366], ['2y', '2A', 731], ['all', 'Da inizio', null]];
-function graficoPrezzoTitolo(punti) {
+function graficoPrezzoTitolo(punti, larghezza) {
   if (punti.length < 2) return '<div class="empty-sm">Pochi prezzi in archivio per questo periodo.</div>';
-  const W = Math.max(360, Math.min(900, window.innerWidth - 120)), H = 240, PL = 64, PR = 12, PT = 12, PB = 28;
+  // Il viewBox è largo quanto il riquadro vero, e l'SVG mantiene le proporzioni: così le
+  // scritte restano della loro misura invece di stirarsi.
+  const W = Math.max(280, Math.round(larghezza || 600)), H = 240, PL = 64, PR = 12, PT = 12, PB = 28;
   const vals = punti.map(x => x.v);
   const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
   const X = i => PL + i * (W - PL - PR) / (punti.length - 1);
@@ -2568,7 +2597,7 @@ function graficoPrezzoTitolo(punti) {
   const fmtN = v => new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(v);
   const mid = (min + max) / 2;
   const area = `${PL},${H - PB} ${pts} ${X(punti.length - 1).toFixed(1)},${H - PB}`;
-  return `<svg class="tit-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Andamento del prezzo">
+  return `<svg class="tit-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Andamento del prezzo">
     ${[max, mid, min].map(v => `<line x1="${PL}" x2="${W - PR}" y1="${Y(v)}" y2="${Y(v)}" stroke="#e5e7eb" vector-effect="non-scaling-stroke"/>
       <text x="${PL - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#6b7280">${fmtN(v)}</text>`).join('')}
     <polygon points="${area}" fill="${col}" opacity=".08"/>
@@ -2577,6 +2606,31 @@ function graficoPrezzoTitolo(punti) {
     <text x="${W - PR}" y="${H - 8}" text-anchor="end" font-size="11" fill="#6b7280">${fmtDate(punti[punti.length - 1].d)}</text>
   </svg>`;
 }
+async function caricaStoricoTitolo(sym) {
+  try {
+    const righe = await sbQTutto('fnz_price_history',
+      `symbol=eq.${encodeURIComponent(sym)}&select=price_date,price&order=price_date.asc`);
+    const visti = new Set();
+    S.storicoTit[sym] = righe.map(h => ({ d: h.price_date, v: parseFloat(h.price) }))
+      .filter(x => Number.isFinite(x.v) && !visti.has(x.d) && visti.add(x.d));
+  } catch (e) {
+    console.warn('Storico non letto:', e);
+    S.storicoTit[sym] = [];
+  }
+  S.titInCarico?.delete(sym);
+  if (S.view === 'titolo-cumulativo') renderTitoloCumulativo();
+}
+// Il grafico si disegna DOPO la pagina, sulla larghezza vera del suo riquadro.
+function disegnaGraficoTitolo() {
+  const el = $('tit-grafico');
+  if (!el || !S.titPunti) return;
+  el.innerHTML = graficoPrezzoTitolo(S.titPunti, el.clientWidth);
+}
+let _titResize;
+window.addEventListener('resize', () => {
+  clearTimeout(_titResize);
+  _titResize = setTimeout(() => { if (S.view === 'titolo-cumulativo') disegnaGraficoTitolo(); }, 150);
+});
 function renderTitoloCumulativo() {
   const c = cumulativoStats();
   const r = c.titoli.find(x => String(x.product.id) === String(S.cumulProdId));
@@ -2585,12 +2639,12 @@ function renderTitoloCumulativo() {
   const per = TIT_PERIODI.find(x => x[0] === S.titPeriodo) || TIT_PERIODI[2];
   const giorni = per[2];
   const da = giorni ? new Date(Date.now() - giorni * 864e5).toISOString().slice(0, 10) : '';
-  const visti = new Set();
-  const punti = S.priceHistory
-    .filter(h => h.symbol === p.symbol && (!da || h.price_date >= da))
-    .map(h => ({ d: h.price_date, v: parseFloat(h.price) }))
-    .filter(x => Number.isFinite(x.v) && !visti.has(x.d) && visti.add(x.d))
-    .sort((a, b) => a.d.localeCompare(b.d));
+  // Lo storico intero di QUESTO titolo, letto a parte e a pagine: S.priceHistory ne ha
+  // al più un mese (vedi caricaStorico3m).
+  S.storicoTit = S.storicoTit || {};
+  const tutto = S.storicoTit[p.symbol];
+  if (!tutto && !(S.titInCarico ||= new Set()).has(p.symbol)) { S.titInCarico.add(p.symbol); caricaStoricoTitolo(p.symbol); }
+  const punti = (tutto || []).filter(x => !da || x.d >= da);
   const varPer = punti.length >= 2 && punti[0].v ? (punti[punti.length - 1].v - punti[0].v) / punti[0].v * 100 : null;
   const avgCost = !r.senzaCosto && r.qty > 0 ? r.cost / r.qty : null;
   const peso = c.totale > 0 ? fmtPct(r.value / c.totale * 100).replace(/^\+/, '') : '—';
@@ -2616,7 +2670,7 @@ function renderTitoloCumulativo() {
     <div class="card mb-16">
       <div class="card-title">Andamento del prezzo${varPer != null ? ` · <span class="${pnlCls(varPer)}">${fmtPct(varPer)}</span> nel periodo` : ''}</div>
       <div class="tit-periodi mb-12">${TIT_PERIODI.map(([k, l]) => `<button class="btn btn-sm ${k === per[0] ? 'btn-primary' : 'btn-outline'}" data-action="tit-periodo" data-tf="${k}">${l}</button>`).join('')}</div>
-      ${graficoPrezzoTitolo(punti)}
+      <div id="tit-grafico">${tutto ? '' : '<div class="empty-sm">Carico lo storico dei prezzi…</div>'}</div>
     </div>
     <div class="card mb-16">
       <div class="card-title">Nei portafogli</div>
@@ -2631,6 +2685,8 @@ function renderTitoloCumulativo() {
         }).join('')}</tbody>
       </table></div>
     </div>`);
+  S.titPunti = tutto ? punti : null;
+  disegnaGraficoTitolo();
 }
 function renderPortafoglioDetail() {
   const portfolio = S.portfolios.find(p => p.id === S.portfolioId);
