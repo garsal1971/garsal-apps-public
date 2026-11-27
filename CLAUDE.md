@@ -7627,6 +7627,18 @@ l'ancora, con `#diario` come ripiego.
   perché le regole valgono sui movimenti che una categoria non ce l'hanno. Si fa scrivere
   `CANCELLA` invece di un `confirm()` con l'OK a portata di clic: di qui non si torna indietro, e
   la banca ripropone solo il periodo che espone ancora.
+- 🔄 **Sincronizzazione automatica** (v1.3.0, Edge Function `sal-sync`, `20261128120000_sal_sync_provvisori.sql`):
+  il pulsante «🏦 Sincronizza dal conto» e il job pg_cron `sal-sync` del **28 di ogni mese** (06:13 UTC)
+  chiamano la stessa funzione, che legge conto e saldo (`_shared/eb-movimenti.ts`, comune con
+  `enable-banking-transactions`), salva `cm_settings.sal_saldo` e importa senza anteprima: doppioni
+  certi saltati, **sospetti PROVVISORI** (`sal_transactions.provvisorio` + `duplicato_di`), categorie
+  dalle regole 🏦. ⚠️ Doppioni (margine fisso 3 giorni), `normalizeMerchant`/jolly e `sceltaSaldo` sono
+  **copiati** nella funzione: cambiandoli nella pagina, cambiali anche lì. I provvisori stanno in
+  `S.provvisori`, fuori da totali e grafici, con l'avviso in cima e ✓ Tieni / 🗑 È un doppione in
+  Movimenti; entrano invece nell'indice dei doppioni. Dal job parte una notifica (app `spese`,
+  regole spente come `sc-promemoria`) su Telegram, telefono e browser. L'anteprima con le spunte resta
+  per l'import da Excel. La pagina legge i movimenti **a pagine** (`sbQTutto`): oltre i 1000 i più
+  vecchi sparivano.
 - Il conto è quello spuntato come `'spese_sal'` in `cm_bank_connections.uses` — uso a sé e non
   `'spese_ada'` riusato, altrimenti le due pagine si troverebbero ciascuna il conto dell'altra
   nella tendina dell'import. Il conto UniCredit personale è già collegato: basta spuntare
