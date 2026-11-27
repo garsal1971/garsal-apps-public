@@ -3016,6 +3016,23 @@ serviva era l'andamento — e il codice sta nella storia di git (`allocBarHtml` 
 Resta invece la correzione che ne è uscita: `drawChart` **ripete** la tavolozza oltre la nona fetta
 invece di finirla con uno `slice`, che lasciava senza colore le posizioni dalla decima in poi.
 
+### Σ Il portafoglio CUMULATIVO (virtuale, solo lettura)
+
+(27 novembre 2026, Finanza v1.33.0.) In 💼 Portafogli, sopra tutti gli altri, una scheda
+**Σ CUMULATIVO** che non è una riga di `fnz_portfolios`: `cumulativoStats()` la calcola a ogni
+disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
+`portafoglio-cumulativo` (`renderPortafoglioCumulativo`), senza transazioni né modifiche.
+
+- ⚠️ **Per intero, non per quota**: il possesso % dei singoli portafogli NON si applica.
+- **Lo stesso titolo in più portafogli è una riga sola** (quantità, valore e costo sommati),
+  con l'elenco dei portafogli in cui sta e il peso % sul totale.
+- **La liquidità entra nel valore** come riga «💶 Liquidità».
+- Niente tasse; P&L come in `portfolioStats` (portafogli a saldi: investito = versato nel fondo;
+  senza fondo collegato le loro monete restano fuori dal P&L).
+- Per ogni titolo un **grafichino del prezzo a 3 mesi** (`sparklineHtml`), da `S.priceHistory`
+  già caricato: nessuna lettura in più.
+- Non tocca database, snapshot né l'app nativa.
+
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
 
 (12 ottobre 2026, `20261012100000_fnz_saldi_crypto.sql`, Finanza v1.29.0, save-snapshot v1.3.0,
