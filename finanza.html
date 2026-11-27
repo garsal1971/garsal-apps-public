@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.35.1</title>
+  <title>GarsalFinanza v1.35.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -636,8 +636,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.35.1';
-const APP_BUILD   = '2026-11-27T21:00:00Z';
+const APP_VERSION = 'v1.35.2';
+const APP_BUILD   = '2026-11-27T22:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -878,7 +878,7 @@ async function loadAll() {
     S.tagCats = await sbQ('fnz_tag_categories', 'select=*&order=name.asc');
   }
   await loadPricesFromCache();
-  S.priceHistory = await sbQ('fnz_price_history', 'select=*&order=price_date.desc');
+  await caricaPriceHistory();
   computePricesFromHistory();
   S.dashboardSnapshots = await sbQ(
     'fnz_dashboard_snapshots',
@@ -925,7 +925,7 @@ async function reload() {
   S.institutions      = institutions;
   await Promise.all([loadPosizioni(), loadQuoteFondi(), loadSaldi()]);
   await loadPricesFromCache();
-  S.priceHistory = await sbQ('fnz_price_history', 'select=*&order=price_date.desc');
+  await caricaPriceHistory();
   computePricesFromHistory();
   S.dashboardSnapshots = await sbQ(
     'fnz_dashboard_snapshots',
@@ -1362,6 +1362,20 @@ function computeLoanValue(loan, aData) {
   }
 }
 /* ── Price fetching ─────────────────────────────────────────── */
+/* ⚠️ S.priceHistory è una richiesta sola, quindi al più le 1000 righe più recenti (circa un
+   mese): basta per prezzo attuale e chiusura di ieri. Un titolo che non si aggiorna da più
+   di così ne resterebbe fuori e varrebbe zero: per lui si leggono a parte le ultime due righe.
+   Lo storico lungo (grafici, prezzo a una data vecchia) si legge per titolo con
+   caricaStoricoTitolo. */
+async function caricaPriceHistory() {
+  S.priceHistory = await sbQ('fnz_price_history', 'select=*&order=price_date.desc');
+  const visti = new Set(S.priceHistory.map(h => h.symbol));
+  const mancanti = [...new Set((S.products || []).map(p => p.symbol).filter(x => x && !visti.has(x)))];
+  if (!mancanti.length) return;
+  const extra = await Promise.all(mancanti.map(sym => sbQ('fnz_price_history',
+    `symbol=eq.${encodeURIComponent(sym)}&select=*&order=price_date.desc&limit=2`).catch(() => [])));
+  S.priceHistory.push(...extra.flat());
+}
 function computePricesFromHistory() {
   S.prices = {};
   const grouped = {};
@@ -6881,8 +6895,18 @@ function renderPrezzi() {
   `);
 }
 
-function openPriceDetailModal(symbol) {
-  const prices = S.priceHistory.filter(h => h.symbol === symbol).sort((a, b) => a.price_date.localeCompare(b.price_date));
+async function openPriceDetailModal(symbol) {
+  // Lo storico intero del titolo, letto a pagine: S.priceHistory ne ha un mese circa.
+  S.storicoTit = S.storicoTit || {};
+  if (!S.storicoTit[symbol]) {
+    openModal(`<span class="mono">${esc(symbol)}</span>`, '<p class="text-muted">Carico lo storico dei prezzi…</p>');
+    await caricaStoricoTitolo(symbol);
+    if ($('modal-overlay').classList.contains('hidden')) return; // chiuso nel frattempo
+  }
+  const tutto = S.storicoTit[symbol];
+  const prices = tutto?.length
+    ? tutto.map(x => ({ price_date: x.d, price: x.v }))
+    : S.priceHistory.filter(h => h.symbol === symbol).sort((a, b) => a.price_date.localeCompare(b.price_date));
   if (prices.length === 0) { alert('Nessuno storico prezzi per ' + symbol); return; }
   const prod = S.products.find(p => p.symbol === symbol);
   const name = prod?.name || symbol;
@@ -7345,7 +7369,10 @@ function openNewTransactionModal(prePortfolioId = null, preProductId = null, pre
 
   function getClosestHistoricalPrice(symbol, dateStr) {
     if (!symbol || !dateStr) return null;
-    const history = S.priceHistory.filter(h => h.symbol === symbol);
+    const tutto = S.storicoTit?.[symbol];
+    const history = tutto?.length
+      ? tutto.map(x => ({ price_date: x.d, price: x.v }))
+      : S.priceHistory.filter(h => h.symbol === symbol);
     if (history.length === 0) return null;
     return history.reduce((closest, h) => {
       if (!closest) return h;
@@ -7363,6 +7390,15 @@ function openNewTransactionModal(prePortfolioId = null, preProductId = null, pre
     if (!product) return;
     const entry = getClosestHistoricalPrice(product.symbol, dateStr);
     if (entry) priceInput.value = parseFloat(entry.price);
+    // Senza lo storico intero una data vecchia prenderebbe il prezzo di un mese fa: lo si
+    // legge e si ripropone, ma solo se nel frattempo niente è cambiato (prezzo compreso).
+    S.storicoTit = S.storicoTit || {};
+    if (!S.storicoTit[product.symbol]) {
+      const proposto = priceInput.value;
+      caricaStoricoTitolo(product.symbol).then(() => {
+        if (productSelect?.value === productId && dateInput?.value === dateStr && priceInput.value === proposto) updateDefaultPrice();
+      });
+    }
   }
 
   if (assetTypeSelect && productSelect) {
@@ -9193,7 +9229,7 @@ document.addEventListener('click', async e => {
     case 'refresh-prices':
       t.disabled = true; t.textContent = '⟳ Aggiornando…';
       await refreshPrices();
-      S.priceHistory = await sbQ('fnz_price_history', 'select=*&order=price_date.desc');
+      await caricaPriceHistory();
       computePricesFromHistory();
       render();
       break;
