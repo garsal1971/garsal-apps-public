@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spese Personali v1.2.0</title>
+  <title>Spese Personali v1.3.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -128,6 +128,8 @@
     .import-table tr.is-dup td { opacity: .5; }
     .import-table tr.is-maybe td { background: #fffbeb; }
     .dup-warn { color: var(--c-warning); }
+    .prov-alert { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .prov-row td { background: #fffbeb; }
     .import-note { font-size: .78rem; color: var(--c-muted); }
     .version-bar { border-top: 1px solid var(--c-border); padding: 7px 22px; font-size: .7rem; color: var(--c-muted); display: flex; align-items: center; gap: 7px; background: var(--c-surface); }
     #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(120%); background: var(--c-text); color: #fff; padding: 11px 18px; border-radius: 999px; font-size: .85rem; box-shadow: var(--shadow); z-index: 4000; transition: transform .22s ease; max-width: 90vw; text-align: center; }
@@ -177,6 +179,7 @@
       <a class="nav-item" href="finanza.html" style="text-decoration:none">← Torna a 💰 Finanza</a>
     </nav>
     <main class="app-main">
+      <div id="prov-alert"></div>
       <div id="view-dashboard" class="view active"></div>
       <div id="view-transazioni" class="view"></div>
       <div id="view-categorie" class="view"></div>
@@ -220,8 +223,8 @@
    cambia solo cosa si propone all'import e cosa si somma.
    ═══════════════════════════════════════════════════════════════ */
 
-var APP_VERSION = 'v1.2.0';
-var BUILD_TIME  = '2026-11-27T20:30:00Z';
+var APP_VERSION = 'v1.3.0';
+var BUILD_TIME  = '2026-11-28T01:30:00Z';
 console.log('%c SPESE PERSONALI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#4f46e5;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -365,17 +368,32 @@ const superOptions = (selected, placeholder = '— senza super-categoria —') =
   S.supers.map(s => `<option value="${s.id}" ${selected === s.id ? 'selected' : ''}>${s.icon || ''} ${esc(s.name)}</option>`).join('');
 
 /* ── Dati ───────────────────────────────────────────────────── */
+// PostgREST ne restituisce al più 1000 per volta: i movimenti si leggono a pagine, o i più
+// vecchi sparirebbero da totali e doppioni senza nessun errore.
+async function sbQTutto(table, params) {
+  const out = [];
+  for (let da = 0; ; da += 1000) {
+    const pagina = await sbQ(table, `${params}&limit=1000&offset=${da}`);
+    out.push(...(pagina || []));
+    if (!pagina || pagina.length < 1000) break;
+  }
+  return out;
+}
 async function loadData() {
   const [supers, cats, txs, mm] = await Promise.all([
     sbQ('sal_super_categories', 'select=*&order=name.asc'),
     sbQ('sal_categories', 'select=*&order=name.asc'),
-    sbQ('sal_transactions', 'select=*&order=date.desc,created_at.desc'),
+    sbQTutto('sal_transactions', 'select=*&order=date.desc,created_at.desc,id.asc'),
     sbQ('sal_merchant_map', 'select=*'),
   ]);
   await leggiSaldo();
   S.supers = supers || [];
   S.categories = cats || [];
-  S.transactions = txs || [];
+  // ⚠️ I PROVVISORI (possibili doppioni entrati dalla sincronizzazione, vedi sal-sync) stanno
+  // in un elenco a parte: fuori da totali, grafici e statistiche finché non si dice «Tieni».
+  // Entrano invece nell'indice dei doppioni (indiceDoppioni), perché sono comunque in archivio.
+  S.transactions = (txs || []).filter(t => !t.provvisorio);
+  S.provvisori = (txs || []).filter(t => t.provvisorio);
   S.merchants = mm || [];
 }
 
@@ -818,7 +836,7 @@ function renderDashboard() {
           ${anni.map(a => `<option value="${a}" ${a === anno ? 'selected' : ''}>${a}</option>`).join('')}
         </select>
         <button class="btn btn-outline btn-sm" data-action="import-excel">📊 Importa da Excel</button>
-        <button class="btn btn-primary btn-sm" data-action="import">🏦 Importa dal conto</button>
+        <button class="btn btn-primary btn-sm" data-action="import">🏦 Sincronizza dal conto</button>
       </div>
     </div>
     <div class="kpi-grid">
@@ -832,7 +850,7 @@ function renderDashboard() {
     </div>
     ${txs.length === 0
       ? `<div class="card"><div class="empty-state"><div class="empty-icon">💳</div>
-          <p>Nessun movimento ${tuttiGliAnni ? 'in archivio' : `per il ${anno}`}.<br/>Usa <strong>🏦 Importa dal conto</strong> per leggere i movimenti dalla banca,
+          <p>Nessun movimento ${tuttiGliAnni ? 'in archivio' : `per il ${anno}`}.<br/>Usa <strong>🏦 Sincronizza dal conto</strong> per leggere i movimenti dalla banca,
           oppure <strong>📊 Importa da Excel</strong> per l'estratto conto scaricato dal sito.</p></div></div>`
       : `${spese.length ? `<div class="grid-2">
           <div class="card">
@@ -974,9 +992,10 @@ function renderTransazioni() {
         ${S.transactions.some(t => !t.category_id) && S.merchants.length
           ? '<button class="btn btn-outline btn-sm" data-action="apply-rules">✨ Applica i negozi imparati</button>' : ''}
         <button class="btn btn-outline btn-sm" data-action="import-excel">📊 Importa da Excel</button>
-        <button class="btn btn-primary btn-sm" data-action="import">🏦 Importa dal conto</button>
+        <button class="btn btn-primary btn-sm" data-action="import">🏦 Sincronizza dal conto</button>
       </div>
     </div>
+    ${boxProvvisori()}
     <div class="card">
       <div class="filters">
         <div>
@@ -1033,6 +1052,32 @@ function renderTransazioni() {
           </table></div>`}
     </div>
   `);
+}
+
+/* I movimenti provvisori: per ognuno il movimento in archivio che somiglia, e le due decisioni.
+   «✓ Tieni» lo fa diventare un movimento normale; «🗑 È un doppione» lo cancella. */
+function boxProvvisori() {
+  const pv = S.provvisori || [];
+  if (!pv.length) return '';
+  const tutti = [...S.transactions, ...pv];
+  return `<div class="card mb-16" style="border-color:#f59e0b">
+    <div class="card-title">⚠️ Provvisori da verificare (${pv.length})</div>
+    <p class="text-sm text-muted">Stesso importo di un movimento già in archivio, a pochi giorni di distanza: guarda le due descrizioni e decidi.</p>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th></th><th>Data</th><th>Descrizione</th><th class="text-right">Importo</th><th>Somiglia a</th></tr></thead>
+      <tbody>${pv.map(t => {
+        const sim = tutti.find(x => x.id === t.duplicato_di);
+        return `<tr class="prov-row">
+          <td class="nowrap"><button class="btn btn-outline btn-sm" data-action="prov-tieni" data-id="${t.id}">✓ Tieni</button>
+            <button class="btn btn-outline btn-sm" data-action="prov-doppione" data-id="${t.id}">🗑 È un doppione</button></td>
+          <td class="mono text-sm nowrap">${fmtDate(t.date)}</td>
+          <td title="${esc(t.description)}">${esc(merchantText(t.description)) || '—'}</td>
+          <td class="text-right mono fw-600 nowrap ${isUscita(t) ? 'neg' : 'pos'}">${fmtEUR(t.amount)}</td>
+          <td class="text-sm">${sim ? `${fmtDate(sim.date)} · ${esc(merchantText(sim.description))}` : '<span class="text-muted">movimento non più in archivio</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </div>`;
 }
 
 /* ── Assegnazione in blocco ──────────────────────────────────────
@@ -1880,7 +1925,7 @@ function indiceDoppioni() {
   const perExternal = new Set();
   const esatti = new Set();
   const perImporto = new Map();
-  S.transactions.forEach(t => {
+  [...S.transactions, ...(S.provvisori || [])].forEach(t => {
     if (t.external_id) perExternal.add(t.external_id);
     const d = (t.date || '').slice(0, 10);
     esatti.add(chiaveEsatta(d, t.amount, t.description));
@@ -1905,7 +1950,7 @@ function indiceDoppioni() {
 }
 
 async function openImport() {
-  openModal('Importa dal conto', '<p class="import-note">Cerco i conti collegati…</p>', true);
+  openModal('Sincronizza dal conto', '<p class="import-note">Cerco i conti collegati…</p>', true);
   try {
     const conns = (await sbQ('cm_bank_connections', 'select=*&order=created_at.desc'))
       .filter(c => c.account_id && (c.uses || []).includes(BANK_USE));
@@ -1919,28 +1964,21 @@ async function openImport() {
         <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
       return;
     }
-    const ultima = S.transactions.map(t => t.date).filter(Boolean).sort().pop();
-    const defaultFrom = ultima
-      ? new Date(new Date(ultima + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10)
-      : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    // ⚠️ La sincronizzazione la fa la Edge Function sal-sync, la stessa del job del 28 del mese:
+    // una sola regola per doppioni, provvisori e categorie. Qui si sceglie solo, volendo, da quando.
     $('modal-body').innerHTML = `
-      <p class="import-note">Legge i movimenti del conto e propone uscite ed entrate. Niente viene salvato finché non confermi.</p>
-      <div class="form-row-2 mt-12">
-        <div class="form-group">
-          <label class="form-label">Conto</label>
-          <select id="imp-conn" class="form-input form-select">
-            ${conns.map(c => `<option value="${c.id}">${esc(c.display_name || c.iban || c.aspsp_name)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Dal giorno</label>
-          <input type="date" id="imp-from" class="form-input" value="${defaultFrom}" />
-        </div>
+      <p class="import-note">Legge i movimenti del conto <strong>${esc(conns[0].display_name || conns[0].iban || conns[0].aspsp_name)}</strong>
+      e li importa subito, entrate comprese: i già presenti si saltano, quelli che somigliano a un movimento
+      in archivio entrano <strong>provvisori</strong> (fuori dai totali finché non decidi), le categorie le
+      assegnano i negozi imparati. Aggiorna anche il saldo. Lo stesso giro parte da solo il 28 di ogni mese.</p>
+      <div class="form-group mt-12">
+        <label class="form-label">Dal giorno (facoltativo)</label>
+        <input type="date" id="imp-from" class="form-input" value="" />
+        <p class="import-note mt-8">Vuoto = da qualche giorno prima dell'ultimo movimento in archivio.</p>
       </div>
-      <label class="hstack gap-8 text-sm"><input type="checkbox" id="imp-solo-uscite" /> Solo le uscite (lascia fuori gli accrediti)</label>
       <div class="modal-footer">
         <button class="btn btn-outline" data-action="close-modal">Annulla</button>
-        <button class="btn btn-primary" data-action="imp-read">Leggi i movimenti</button>
+        <button class="btn btn-primary" data-action="imp-read">🏦 Sincronizza</button>
       </div>`;
   } catch (e) {
     $('modal-body').innerHTML = `<p class="text-sm neg">Errore: ${esc(e.message)}</p>
@@ -1948,51 +1986,27 @@ async function openImport() {
   }
 }
 
-async function readMovements() {
-  const bankConnectionId = $('imp-conn').value;
-  const dateFrom = $('imp-from').value || undefined;
-  const soloUscite = $('imp-solo-uscite').checked;
-  $('modal-body').innerHTML = '<p class="import-note">Leggo i movimenti dalla banca…</p>';
+async function syncConto() {
+  const dateFrom = $('imp-from')?.value || undefined;
+  $('modal-body').innerHTML = '<p class="import-note">Sincronizzo con la banca…</p>';
   try {
-    const res = await sbFn('enable-banking-transactions', { bankConnectionId, dateFrom });
-    // Il saldo arriva insieme ai movimenti: si salva subito, anche se poi l'import si annulla.
-    try { await salvaSaldo(res.balances, bankConnectionId); } catch (e) { console.warn('Saldo non salvato:', e); }
-    const tutti = (res.transactions || []).filter(t => t.amount !== 0 && (t.bookingDate || t.valueDate));
-    const movimenti = soloUscite ? tutti.filter(t => t.amount < 0) : tutti;
-    if (!movimenti.length) {
-      $('modal-body').innerHTML = `<p class="text-sm">Nessun movimento nel periodo scelto.</p>
-        <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
-      return;
-    }
-    // Rileggere un periodo già letto è la normalità, non l'eccezione — e il periodo può essere
-    // già entrato da un foglio Excel, non solo da un sync precedente: vedi indiceDoppioni().
-    const doppione = indiceDoppioni();
-    const carte = [...new Set(movimenti.map(t => t.card?.identification || cardFromDescription(t.description)).filter(Boolean))].sort();
-    const cardFilter = localStorage.getItem(CARD_FILTER_KEY) || '';
-
-    const items = movimenti.map(t => {
-      const data = (t.bookingDate || t.valueDate).slice(0, 10);
-      const descrizione = [t.description, t.counterpartyName].map(s => (s || '').trim()).filter(Boolean)
-        .filter((p, i, arr) => !arr.slice(0, i).some(q => q.toLowerCase().includes(p.toLowerCase())))
-        .join(' · ') || t.bankTransactionCode || 'Movimento';
-      const dup = doppione(data, t.amount, descrizione, t.externalId);
-      return {
-        data, descrizione,
-        importo: t.amount,
-        currency: t.currency || null,
-        externalId: t.externalId || null,
-        card: t.card?.identification || cardFromDescription(t.description) || null,
-        type: t.bankTransactionCode || null,
-        categoryId: merchantCategory(descrizione, 'bank'),
-        gia: !!dup.livello, dupLivello: dup.livello, dupSimile: dup.simile, dupGiorni: dup.giorni,
-        raw: t,
-      };
-    }).sort((a, b) => a.data.localeCompare(b.data));
-
-    _import = { source: 'bank', items, bankConnectionId, account: res.account, carte, truncated: !!res.truncated };
-    renderImportList(cardFilter && carte.includes(cardFilter) ? cardFilter : '');
-  } catch (e) {
-    $('modal-body').innerHTML = `<p class="text-sm neg">Errore: ${esc(e.message)}</p>
+    const res = await sbFn('sal-sync', dateFrom ? { dateFrom } : {});
+    const e = (res.esiti || [])[0] || {};
+    await loadData();
+    render();
+    $('modal-body').innerHTML = `
+      <p class="text-sm">✅ <strong>${plur(e.importati || 0, '1 movimento importato', '{n} movimenti importati')}</strong>
+      ${e.dal ? ` (dal ${fmtDate(e.dal)})` : ''}.</p>
+      <ul class="text-sm mt-8" style="padding-left:18px">
+        <li>${e.saltati || 0} già presenti, saltati</li>
+        ${e.senza_categoria ? `<li>${e.senza_categoria} senza categoria</li>` : ''}
+        ${e.provvisori ? `<li>⚠️ <strong>${e.provvisori} provvisori</strong> da verificare in Movimenti</li>` : ''}
+        ${e.saldo != null ? `<li>Saldo del conto: <strong>${fmtEUR(e.saldo)}</strong></li>` : ''}
+        ${e.troncato ? '<li>⚠️ Elenco troncato dalla banca: rilancia scegliendo una data più recente.</li>' : ''}
+      </ul>
+      <div class="modal-footer"><button class="btn btn-primary" data-action="close-modal">OK</button></div>`;
+  } catch (err) {
+    $('modal-body').innerHTML = `<p class="text-sm neg">Errore: ${esc(err.message)}</p>
       <div class="modal-footer"><button class="btn btn-outline" data-action="close-modal">Chiudi</button></div>`;
   }
 }
@@ -2536,7 +2550,15 @@ window.addEventListener('popstate', e => {
   render();
 });
 
+// L'avviso dei provvisori sta sopra ogni vista: finché ce n'è uno, i totali non sono definitivi.
+function renderAvvisoProvvisori() {
+  const n = (S.provvisori || []).length;
+  $('prov-alert').innerHTML = n ? `<div class="prov-alert">⚠️ <strong>${plur(n, '1 movimento provvisorio', '{n} movimenti provvisori')}</strong>
+    da verificare: somigliano a movimenti già in archivio e restano fuori dai totali finché non decidi.
+    ${S.view !== 'transazioni' ? '<button class="btn btn-outline btn-sm" data-action="nav" data-view="transazioni">Verifica →</button>' : ''}</div>` : '';
+}
 function render() {
+  renderAvvisoProvvisori();
   switch (S.view) {
     case 'dashboard': renderDashboard(); break;
     case 'transazioni': renderTransazioni(); break;
@@ -2566,7 +2588,7 @@ document.addEventListener('click', async e => {
   else if (action === 'assegna-massa') openAssegnaMassa();
   else if (action === 'stat-cat') openStatCategoria(btn.dataset.id, btn.dataset.tipo || 'voce');
   else if (action === 'import-excel') openExcelImport();
-  else if (action === 'imp-read') readMovements();
+  else if (action === 'imp-read') syncConto();
   else if (action === 'aggiorna-saldo') aggiornaSaldo();
   else if (action === 'imp-read-file') readExcelFile();
   else if (action === 'imp-confirm') confirmImport();
@@ -2634,6 +2656,13 @@ document.addEventListener('click', async e => {
     openWipeModal();
   } else if (action === 'wipe-rules') {
     openWipeRulesModal(btn.dataset.source);
+  } else if (action === 'prov-tieni') {
+    try { await sbUpd('sal_transactions', `id=eq.${btn.dataset.id}`, { provvisorio: false, duplicato_di: null }); await reload(); }
+    catch (err) { alert('Errore: ' + err.message); }
+  } else if (action === 'prov-doppione') {
+    if (!confirm('Cancellare questo movimento come doppione?')) return;
+    try { await sbDel('sal_transactions', `id=eq.${btn.dataset.id}`); await reload(); }
+    catch (err) { alert('Errore: ' + err.message); }
   } else if (action === 'del-tx') {
     if (!confirm('Eliminare questo movimento?')) return;
     try { await sbDel('sal_transactions', `id=eq.${btn.dataset.id}`); await reload(); }

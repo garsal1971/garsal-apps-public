@@ -39,6 +39,7 @@ const PAGINA_APP: Record<string, string> = {
   tasks: '/tasks.html', habits: '/habit-tracker.html', objectives: '/obiettivi.html',
   plants: '/piante.html', weight: '/weight-quest.html', ta_firi: '/ta-firi.html',
   events: '/events-log.html', quick: '/', scuola: '/studio-ada.html',
+  spese: '/spese-personali.html',
 }
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
