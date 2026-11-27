@@ -55,6 +55,7 @@ import com.garsal.appsphere.core.Pillola
 import com.garsal.appsphere.core.Palette
 import com.garsal.appsphere.core.RigaScorrevole
 import com.garsal.appsphere.core.Tendina
+import com.garsal.appsphere.core.TendinaFacoltativa
 import com.garsal.appsphere.core.coloreDaHex
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -139,12 +140,24 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
 
     // Dal dettaglio di un portafoglio l'indietro torna all'elenco, non alla home.
     BackHandler(enabled = s.portafoglioAperto != null) { vm.apriPortafoglio(null) }
+    // Dal titolo si torna al Σ cumulativo, da lì all'elenco.
+    BackHandler(enabled = s.portafoglioAperto == null && s.cumulAperto) {
+        if (s.titoloCumul != null) vm.apriTitoloCumul(null) else vm.apriCumulativo(false)
+    }
+    val inCumul = s.portafoglioAperto == null && s.cumulAperto
 
     Scaffold(
         topBar = {
             GarsalTopBar(
-                titolo = aperto?.nome ?: "💰 Finanza",
-                onIndietro = { if (s.portafoglioAperto != null) vm.apriPortafoglio(null) else onIndietro() },
+                titolo = aperto?.nome ?: if (inCumul) (s.titoloCumul ?: "Σ Cumulativo") else "💰 Finanza",
+                onIndietro = {
+                    when {
+                        s.portafoglioAperto != null -> vm.apriPortafoglio(null)
+                        inCumul && s.titoloCumul != null -> vm.apriTitoloCumul(null)
+                        inCumul -> vm.apriCumulativo(false)
+                        else -> onIndietro()
+                    }
+                },
                 azioni = {
                     if (s.aggiornamento) {
                         CircularProgressIndicator(color = Palette.light, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
@@ -188,12 +201,14 @@ fun FinanzaScreen(onIndietro: () -> Unit, vm: FinanzaViewModel = viewModel()) {
                     // In fondo c'è posto per il FAB $, che altrimenti coprirebbe l'ultima riga.
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
                 ) {
-                    if (aperto == null) item { SchedeViste(s.vista, vm::vista) }
+                    if (aperto == null && !inCumul) item { SchedeViste(s.vista, vm::vista) }
                     item { Intestazione(s) }
                     when {
                         aperto != null -> dettaglioPortafoglio(aperto, s, vm,
                             onAggiorna = { prod -> dialogo = aperto.id to prod },
                             onElimina = { daEliminare = it })
+                        inCumul && s.titoloCumul != null -> titoloCumulativo(s, vm)
+                        inCumul -> cumulativo(s, vm)
                         s.vista == VistaFinanza.DASHBOARD -> dashboard(s, vm)
                         s.vista == VistaFinanza.SVILUPPO -> sviluppo(s, vm)
                         else -> portafogli(s, vm)
@@ -344,11 +359,21 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dashboard(s: FinanzaS
     item {
         Scheda {
             Titolo("💼 Portafogli")
-            val vP = variazione(u.portafogli, p?.portafogli)
-            Riga("Valore totale (quota)", eur0(u.portafogli), Palette.success, grande = true, sotto = vP?.first, sottoColore = vP?.second ?: Palette.muted)
+            // ⚠️ I soli titoli: la liquidità si sposta nella scheda 💶 (come la dashboard web
+            // v1.36.0). Il confronto toglie la liquidità anche dallo snapshot precedente, e se
+            // quello non la porta non si confronta.
+            val cash = s.liquiditaDi(u) ?: 0.0
+            val prevCash = s.liquiditaDi(p)
+            val vP = if (p != null && prevCash != null) variazione(u.portafogli - cash, p.portafogli - prevCash) else null
+            Riga("Valore titoli (quota)", eur0(u.portafogli - cash), Palette.success, grande = true, sotto = vP?.first, sottoColore = vP?.second ?: Palette.muted)
+            Text("Titoli, liquidità a parte", color = Palette.muted, fontSize = 12.sp)
             if (u.dettaglioPortafogli.isEmpty()) Text("Nessun portafoglio.", color = Palette.muted)
             u.dettaglioPortafogli.forEach { pf ->
-                val v = variazione(pf.valore, s.valorePrecedente(pf.id))
+                val prima = s.precedente?.dettaglioPortafogli?.firstOrNull { it.id == pf.id }
+                val lOra = pf.liquidita
+                val lPrima = prima?.liquidita
+                val v = if (prima != null && lOra != null && lPrima != null)
+                    variazione(pf.valore - lOra, prima.valore - lPrima) else null
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                         .clickable { vm.vista(VistaFinanza.PORTAFOGLI); vm.apriPortafoglio(pf.id) }
@@ -358,11 +383,31 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dashboard(s: FinanzaS
                     Pallino(pf.colore)
                     Text(pf.nome, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(eur0(pf.valore), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold)
+                        Text(eur0(pf.valore - (pf.liquidita ?: 0.0)), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold)
                         v?.let { Text(it.first.removeSuffix(" dal giorno prima"), color = it.second, fontSize = 12.sp) }
                     }
                 }
             }
+        }
+    }
+    item {
+        Scheda {
+            Titolo("💶 Liquidità")
+            // Liquidità dei portafogli (in quota) + saldo del Conto Spese Personali, che lo
+            // snapshot conta già in asset e patrimonio (save-snapshot v1.5.0).
+            val cash = s.liquiditaDi(u) ?: 0.0
+            val sal = s.salSaldo?.importo ?: 0.0
+            Riga("Totale", eur0(cash + sal), Palette.success, grande = true)
+            u.dettaglioPortafogli.filter { (it.liquidita ?: 0.0) >= 0.5 }.forEach { pf ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Pallino(pf.colore)
+                    Text(pf.nome, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                    Text(eur(pf.liquidita), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            val ss = s.salSaldo
+            Riga("💳 Conto Spese Personali", if (ss != null) eur(ss.importo) else "—",
+                sotto = ss?.data?.let { "saldo del ${dataIt(it)}" } ?: "da leggere in Spese Personali sul web")
         }
     }
     item {
@@ -482,6 +527,19 @@ private fun Grafico(punti: List<Pair<String, Double?>>, colore: Color) {
 private fun androidx.compose.foundation.lazy.LazyListScope.portafogli(s: FinanzaState, vm: FinanzaViewModel) {
     val elenco = s.ultimo?.dettaglioPortafogli.orEmpty()
     if (elenco.isEmpty()) item { Text("Nessun portafoglio.", color = Palette.muted) }
+    else item {
+        val c = s.cumulativo
+        Scheda(Modifier.clickable { vm.apriCumulativo(true) }, bordoColore = Color(0xFF0F172A)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Σ CUMULATIVO", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text("→", color = Palette.muted)
+            }
+            Text("Virtuale · tutti i portafogli · valore intero (non per quota)", color = Palette.muted, fontSize = 13.sp)
+            Riga("Valore", eur(c.totale), grande = true)
+            Riga("P&L", "${eur(c.pnl)}  ${pct(c.pnlPct)}", coloreSegno(c.pnl))
+            Riga("di cui liquidità", eur(c.liquidita))
+        }
+    }
     items(elenco, key = { it.id }) { pf ->
         Scheda(Modifier.clickable { vm.apriPortafoglio(pf.id) }, bordoColore = coloreDaHex(pf.colore) ?: Palette.muted) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -570,6 +628,96 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dettaglioPortafoglio(
         }
     }
     if (saldi) registroSaldi(pf, s, onElimina)
+    item { Spacer(Modifier.width(1.dp).height(24.dp)) }
+}
+
+// ── Σ Cumulativo ────────────────────────────────────────────────────────────
+// Gemello di renderPortafoglioCumulativo / renderTitoloCumulativo in finanza.html, in sola
+// lettura e sui numeri dell'ultimo snapshot. ⚠️ Niente grafici dei prezzi: il nativo non legge
+// fnz_price_history.
+
+private val TIPI = mapOf("stock" to "Azione", "etf" to "ETF", "bond" to "Obbl.", "crypto" to "Crypto", "fund" to "Fondo", "other" to "Altro")
+private fun tipoTesto(t: String?) = t?.let { TIPI[it] ?: it } ?: "—"
+private fun pesoTesto(v: Double, tot: Double) = if (tot > 0) String.format(Locale.ITALY, "%.2f %%", v / tot * 100) else "—"
+
+private fun androidx.compose.foundation.lazy.LazyListScope.cumulativo(s: FinanzaState, vm: FinanzaViewModel) {
+    val c = s.cumulativo
+    item {
+        Scheda(bordoColore = Color(0xFF0F172A)) {
+            Text("Per intero, non per quota · tutti i portafogli", color = Palette.muted, fontSize = 13.sp)
+            Riga("Valore", eur(c.totale), grande = true)
+            Riga("Titoli", eur(c.totTitoli))
+            Riga("di cui liquidità", eur(c.liquidita))
+            Riga("Investito", eur(c.investito))
+            Riga("P&L", eur(c.pnl), coloreSegno(c.pnl), sotto = pct(c.pnlPct), sottoColore = coloreSegno(c.pnl))
+        }
+    }
+    // Filtro per tipo: cambia solo le righe, i numeri qui sopra restano sul totale.
+    val tipi = c.titoli.mapNotNull { it.tipo }.distinct().sorted()
+    val tipo = s.cumulTipo?.takeIf { it in tipi }
+    val righe = if (tipo != null) c.titoli.filter { it.tipo == tipo } else c.titoli
+    item {
+        TendinaFacoltativa(
+            etichetta = "Tipo", tutte = "Tutti i tipi", scelto = tipo,
+            voci = tipi.map { it to tipoTesto(it) },
+        ) { vm.cumulTipo(it) }
+    }
+    items(righe, key = { "cum-" + it.simbolo }) { r ->
+        Scheda(Modifier.clickable { vm.apriTitoloCumul(r.simbolo) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(r.simbolo, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    if (r.nome != r.simbolo) Text(r.nome, color = Palette.muted, fontSize = 13.sp)
+                }
+                Text(tipoTesto(r.tipo), color = Palette.muted, fontSize = 12.sp)
+            }
+            Riga("Valore", eur(r.valore), grande = true, sotto = "peso ${pesoTesto(r.valore, c.totale)}")
+            Riga("P&L", eur(r.pnl), coloreSegno(r.pnl), sotto = pct(r.pnlPct), sottoColore = coloreSegno(r.pnl))
+            Text(r.dettaglio.map { it.first }.distinct().joinToString(" · "), color = Palette.muted, fontSize = 12.sp)
+        }
+    }
+    // Liquidità: fuori dal filtro per tipo, che non è un tipo di prodotto.
+    if (tipo == null) item {
+        Scheda {
+            Riga("💶 Liquidità fondi", eur(c.liquiditaFondi), sotto = "peso ${pesoTesto(c.liquiditaFondi, c.totale)}")
+            if (c.contoSal != 0.0) Riga("💳 Conto Spese Personali", eur(c.contoSal), sotto = "peso ${pesoTesto(c.contoSal, c.totale)}")
+        }
+    }
+    item {
+        val v = righe.sumOf { it.valore }
+        val conPnl = righe.filter { it.pnl != null }
+        Scheda {
+            Text("Totale (${righe.size} titoli)", fontWeight = FontWeight.Bold, color = Palette.dark)
+            Riga("Valore", eur(v), grande = true, sotto = "peso ${pesoTesto(v, c.totale)}")
+            if (conPnl.isNotEmpty()) Riga("P&L", eur(conPnl.sumOf { it.pnl ?: 0.0 }), coloreSegno(conPnl.sumOf { it.pnl ?: 0.0 }))
+        }
+    }
+    item { Spacer(Modifier.width(1.dp).height(24.dp)) }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.titoloCumulativo(s: FinanzaState, vm: FinanzaViewModel) {
+    val c = s.cumulativo
+    val r = c.titoli.firstOrNull { it.simbolo == s.titoloCumul }
+    if (r == null) { item { Text("Titolo non più in portafoglio.", color = Palette.muted) }; return }
+    item {
+        Scheda {
+            Text(r.nome, fontWeight = FontWeight.Bold, color = Palette.dark)
+            Text("${tipoTesto(r.tipo)} · per intero, non per quota", color = Palette.muted, fontSize = 13.sp)
+            Riga("Azioni / quote", QTA.format(r.quantita))
+            Riga("Prezzo attuale", eur(r.prezzo))
+            Riga("Valore", eur(r.valore), grande = true, sotto = "peso ${pesoTesto(r.valore, c.totale)}")
+            Riga("Costo medio", eur(r.costoMedio))
+            Riga("P&L", eur(r.pnl), coloreSegno(r.pnl), sotto = pct(r.pnlPct), sottoColore = coloreSegno(r.pnl))
+        }
+    }
+    item { Titolo("Nei portafogli") }
+    items(r.dettaglio, key = { "det-" + it.first }) { (nome, q, v) ->
+        Scheda {
+            Text(nome, fontWeight = FontWeight.SemiBold)
+            Riga("Quantità", QTA.format(q))
+            Riga("Valore", eur(v))
+        }
+    }
     item { Spacer(Modifier.width(1.dp).height(24.dp)) }
 }
 

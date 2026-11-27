@@ -123,6 +123,10 @@ data class Posizione(
     val valoreQuota: Double?,
     val pnl: Double?,
     val pnlPct: Double?,
+    /** Valore per intero (`current_value`), per il Σ cumulativo. */
+    val valorePieno: Double? = null,
+    /** Costo per intero (`cost_basis`): 0 su una moneta a saldi, che un costo non ce l'ha. */
+    val costoBase: Double = 0.0,
 )
 
 data class PortafoglioSnap(
@@ -160,6 +164,8 @@ data class PortafoglioSnap(
                     valoreQuota = h["current_value_quota"].numero(),
                     pnl = h["pnl"].numero(),
                     pnlPct = h["pnl_pct"].numero(),
+                    valorePieno = h["current_value"].numero(),
+                    costoBase = h["cost_basis"].numero() ?: 0.0,
                 )
             },
         )
@@ -174,6 +180,85 @@ data class SaldoRiga(
     val id: String, val portafoglio: String, val prodotto: String,
     val quantita: Double, val quando: String, val nota: String?,
 )
+
+/**
+ * Il saldo del Conto Spese Personali: `cm_settings.sal_saldo`, scritto da
+ * spese-personali.html. Gemello di `leggiSaldoSal()` in finanza.html.
+ */
+data class SalSaldo(val importo: Double, val data: String?)
+
+/** Un titolo del Σ cumulativo: lo stesso prodotto sommato fra tutti i portafogli, per intero. */
+data class TitoloCumul(
+    val simbolo: String,
+    val nome: String,
+    val tipo: String?,
+    val quantita: Double,
+    val prezzo: Double?,
+    val valore: Double,
+    /** Costo per intero; senza senso se `senzaCosto`. */
+    val costo: Double,
+    /** Almeno una parte viene da un portafoglio a saldi: niente P&L per titolo. */
+    val senzaCosto: Boolean,
+    val dettaglio: List<Triple<String, Double, Double>>, // (portafoglio, quantità, valore)
+) {
+    val pnl: Double? get() = if (senzaCosto) null else valore - costo
+    val pnlPct: Double? get() = if (senzaCosto || costo <= 0) null else (valore - costo) / costo * 100
+    val costoMedio: Double? get() = if (senzaCosto || quantita <= 0) null else costo / quantita
+}
+
+/**
+ * Σ CUMULATIVO, gemello di `cumulativoStats()` in finanza.html: tutti i portafogli per
+ * intero (il possesso % non si applica), dai numeri dell'ultimo snapshot. ⚠️ Non si rifà
+ * nessun prezzo: si riaggregano le posizioni che lo snapshot ha già valorizzato.
+ */
+data class Cumulativo(
+    val titoli: List<TitoloCumul>,
+    val liquiditaFondi: Double,
+    val contoSal: Double,
+    val investito: Double,
+    val pnl: Double,
+) {
+    val totTitoli: Double get() = titoli.sumOf { it.valore }
+    val liquidita: Double get() = liquiditaFondi + contoSal
+    val totale: Double get() = totTitoli + liquidita
+    val pnlPct: Double? get() = if (investito > 0) pnl / investito * 100 else null
+
+    companion object {
+        fun da(portafogli: List<PortafoglioSnap>, salSaldo: SalSaldo?): Cumulativo {
+            data class Acc(val h: Posizione, var qta: Double = 0.0, var valore: Double = 0.0, var costo: Double = 0.0,
+                           var senzaCosto: Boolean = false, val det: MutableList<Triple<String, Double, Double>> = mutableListOf())
+            val righe = LinkedHashMap<String, Acc>()
+            var cash = 0.0; var versato = 0.0; var escluso = 0.0
+            for (pf in portafogli) {
+                val own = pf.possessoPct / 100.0
+                if (own <= 0) continue
+                cash += (pf.liquidita ?: 0.0) / own
+                // Un portafoglio a saldi ha l'investito = versato nel fondo: lo snapshot lo
+                // mette in total_cost (in quota) insieme al costo dei titoli, qui zero.
+                val costoTitoli = pf.posizioni.sumOf { it.costoBase }
+                val haVersato = pf.posizioni.any { it.costoMedio == null } &&
+                    (pf.costo ?: 0.0) / own - costoTitoli > 0.5
+                if (haVersato) versato += (pf.costo ?: 0.0) / own - costoTitoli
+                for (h in pf.posizioni) {
+                    val a = righe.getOrPut(h.simbolo) { Acc(h) }
+                    val senza = h.costoMedio == null
+                    val v = h.valorePieno ?: h.costoBase
+                    a.qta += h.quantita ?: 0.0
+                    a.valore += v
+                    if (senza) { a.senzaCosto = true; if (!haVersato) escluso += v } else a.costo += h.costoBase
+                    a.det += Triple(pf.nome, h.quantita ?: 0.0, v)
+                }
+            }
+            val titoli = righe.values.map {
+                TitoloCumul(it.h.simbolo, it.h.nome, it.h.tipo, it.qta, it.h.prezzo, it.valore, it.costo, it.senzaCosto, it.det)
+            }.sortedByDescending { it.valore }
+            val totCosto = titoli.sumOf { it.costo }
+            val investito = totCosto + versato
+            val pnl = titoli.sumOf { it.valore } - escluso - investito
+            return Cumulativo(titoli, cash, salSaldo?.importo ?: 0.0, investito, pnl)
+        }
+    }
+}
 
 data class VoceSemplice(val id: String, val nome: String, val valore: Double?)
 
@@ -332,6 +417,19 @@ object FinanzaRepository {
         Unit
     }
 
+    /** `cm_settings.sal_saldo`; null se non c'è o non si legge. */
+    suspend fun salSaldo(): SalSaldo? = withContext(Dispatchers.IO) {
+        runCatching {
+            val riga = db.from("cm_settings").select(Columns.raw("value")) { filter { eq("key", "sal_saldo") } }
+                .decodeList<JsonObject>().firstOrNull() ?: return@runCatching null
+            val v = riga["value"]
+            val o = (v as? JsonObject) ?: (v as? JsonPrimitive)?.content?.let { Json.parseToJsonElement(it) as? JsonObject }
+                ?: return@runCatching null
+            val imp = o["importo"].numero() ?: return@runCatching null
+            SalSaldo(imp, o["data"].testo())
+        }.getOrElse { Log.w("Finanza", "sal_saldo non letto", it); null }
+    }
+
     suspend fun eliminaSaldo(id: String) = withContext(Dispatchers.IO) {
         db.from("fnz_saldi_crypto").delete { filter { eq("id", id) } }
         Unit
@@ -409,7 +507,21 @@ data class FinanzaState(
     val registro: List<SaldoRiga> = emptyList(),
     val monete: List<Moneta> = emptyList(),
     val salvataggio: Boolean = false,
+    /** Il saldo del Conto Spese Personali (cm_settings.sal_saldo). */
+    val salSaldo: SalSaldo? = null,
+    /** Σ CUMULATIVO aperto, e il titolo aperto dentro di lui (per simbolo). */
+    val cumulAperto: Boolean = false,
+    val titoloCumul: String? = null,
+    /** Filtro Tipo del cumulativo: in memoria, come `S.cumulTipo`. */
+    val cumulTipo: String? = null,
 ) {
+    val cumulativo: Cumulativo get() = Cumulativo.da(ultimo?.dettaglioPortafogli.orEmpty(), salSaldo)
+
+    /** La liquidità dei portafogli (in quota) nello snapshot: si sposta nella scheda 💶. */
+    fun liquiditaDi(sn: Snapshot?): Double? = sn?.dettaglioPortafogli?.let { l ->
+        if (l.any { it.liquidita == null }) null else l.sumOf { it.liquidita ?: 0.0 }
+    }
+
     /** La quantità in vigore di una moneta in un portafoglio a saldi: l'ultima del registro. */
     fun quantitaInVigore(portafoglio: String, prodotto: String): Double? =
         registro.firstOrNull { it.portafoglio == portafoglio && it.prodotto == prodotto }?.quantita
@@ -494,6 +606,7 @@ class FinanzaViewModel : ViewModel() {
                 storico = storico,
                 caricamento = false,
             )
+            _state.value = _state.value.copy(salSaldo = FinanzaRepository.salSaldo())
             runCatching { FinanzaRepository.saldi() }
                 .onSuccess { (pf, reg, mon) -> _state.value = _state.value.copy(saldi = pf, registro = reg, monete = mon) }
                 .onFailure { Log.w(TAG, "registro saldi non letto", it) }
@@ -535,7 +648,13 @@ class FinanzaViewModel : ViewModel() {
         }
     }
 
-    fun vista(v: VistaFinanza) { _state.value = _state.value.copy(vista = v, portafoglioAperto = null) }
+    fun vista(v: VistaFinanza) { _state.value = _state.value.copy(vista = v, portafoglioAperto = null, cumulAperto = false, titoloCumul = null) }
+
+    fun apriCumulativo(aperto: Boolean) { _state.value = _state.value.copy(cumulAperto = aperto, titoloCumul = null) }
+
+    fun apriTitoloCumul(simbolo: String?) { _state.value = _state.value.copy(titoloCumul = simbolo) }
+
+    fun cumulTipo(t: String?) { _state.value = _state.value.copy(cumulTipo = t) }
 
     fun periodoSviluppo(p: Periodo) { _state.value = _state.value.copy(periodoSviluppo = p) }
 
