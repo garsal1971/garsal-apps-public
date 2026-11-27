@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spese Personali v1.1.2</title>
+  <title>Spese Personali v1.2.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -220,8 +220,8 @@
    cambia solo cosa si propone all'import e cosa si somma.
    ═══════════════════════════════════════════════════════════════ */
 
-var APP_VERSION = 'v1.1.2';
-var BUILD_TIME  = '2026-10-14T12:00:00Z';
+var APP_VERSION = 'v1.2.0';
+var BUILD_TIME  = '2026-11-27T20:30:00Z';
 console.log('%c SPESE PERSONALI ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
     'background:#4f46e5;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
     'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -244,6 +244,7 @@ const S = {
   // (al primo disegno prende l'anno più recente, come faceva prima), '' = tutti gli anni.
   filters: { anno: null, mese: '', categoria: '', tipo: '', testo: '' },
   ruleFilter: '', ruleSource: 'bank',
+  saldo: null,   // il saldo del conto letto dalla banca, da cm_settings `sal_saldo`
 };
 
 /* ── Supabase REST ──────────────────────────────────────────── */
@@ -371,11 +372,78 @@ async function loadData() {
     sbQ('sal_transactions', 'select=*&order=date.desc,created_at.desc'),
     sbQ('sal_merchant_map', 'select=*'),
   ]);
+  await leggiSaldo();
   S.supers = supers || [];
   S.categories = cats || [];
   S.transactions = txs || [];
   S.merchants = mm || [];
 }
+
+/* ── Il saldo del conto ──────────────────────────────────────
+   Il saldo VERO del conto, letto dalla banca: non è il «saldo del periodo» (entrate − uscite dei
+   movimenti importati), che non sa quanto c'era prima del primo movimento. Lo restituisce già
+   enable-banking-transactions accanto ai movimenti, e si salva in cm_settings, chiave
+   `sal_saldo` = {importo, valuta, data, tipo, conto, letto_il}. Lo legge anche finanza.html
+   (Σ Cumulativo, riga «💳 Conto Spese Personali»): cambiando la forma, cambiala anche lì. */
+const SALDO_CHIAVE = 'sal_saldo';
+async function leggiSaldo() {
+  try {
+    const rows = await sbQ('cm_settings', `key=eq.${SALDO_CHIAVE}&select=value`);
+    let v = rows?.[0]?.value ?? null;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } }
+    S.saldo = v && typeof v === 'object' && Number.isFinite(Number(v.importo)) ? v : null;
+  } catch { S.saldo = null; }
+}
+// Fra i saldi che la banca dà si preferisce il contabile (booked) a quello disponibile:
+// il disponibile toglie gli impegni della carta non ancora contabilizzati, che nei movimenti
+// non ci sono ancora — e il saldo deve tornare con quello che i movimenti dicono.
+const TIPI_SALDO = ['CLBD', 'ITBD', 'closingBooked', 'interimBooked', 'CLAV', 'ITAV', 'interimAvailable', 'closingAvailable', 'XPCD', 'expected'];
+function sceltaSaldo(balances) {
+  const lista = (balances || []).filter(b => Number.isFinite(Number(b.amount)));
+  if (!lista.length) return null;
+  const rango = b => { const i = TIPI_SALDO.findIndex(t => (b.name || '').toLowerCase().includes(t.toLowerCase())); return i < 0 ? 99 : i; };
+  return lista.slice().sort((a, b) => rango(a) - rango(b))[0];
+}
+async function salvaSaldo(balances, connId) {
+  const b = sceltaSaldo(balances);
+  if (!b) return null;
+  const v = { importo: Number(b.amount), valuta: b.currency || 'EUR', data: b.date || null,
+              tipo: b.name || null, conto: connId || null, letto_il: new Date().toISOString() };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/cm_settings?on_conflict=key`, {
+    method: 'POST', headers: sbH({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify({ key: SALDO_CHIAVE, value: JSON.stringify(v) }),
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+  S.saldo = v;
+  return v;
+}
+// 🏦 Aggiorna saldo: legge il conto dalla banca (i movimenti di oggi soltanto, quel che serve è il
+// saldo) e lo salva, senza importare niente.
+async function aggiornaSaldo() {
+  const btn = $('btn-saldo'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Leggo…'; }
+  try {
+    const conns = (await sbQ('cm_bank_connections', 'select=*&order=created_at.desc'))
+      .filter(c => c.account_id && (c.uses || []).includes(BANK_USE));
+    if (!conns.length) throw new Error(`nessun conto spuntato «${BANK_USE_LABEL}» in Finanza → Banche e Conti`);
+    const oggi = new Date().toISOString().slice(0, 10);
+    const res = await sbFn('enable-banking-transactions', { bankConnectionId: conns[0].id, dateFrom: oggi });
+    const v = await salvaSaldo(res.balances, conns[0].id);
+    if (!v) throw new Error('la banca non ha restituito nessun saldo (consenso scaduto o saldi non concessi)');
+    render();
+  } catch (e) {
+    alert('Saldo non aggiornato: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '🏦 Aggiorna saldo'; }
+  }
+}
+function kpiSaldoConto() {
+  const v = S.saldo;
+  const quando = v ? (v.data ? fmtDataIt(v.data) : '') || (v.letto_il ? new Date(v.letto_il).toLocaleDateString('it-IT') : '') : '';
+  return `<div class="kpi-card"><div class="kpi-label">Saldo del conto</div>
+    <div class="kpi-value mono ${v && v.importo < 0 ? 'neg' : ''}">${v ? fmtEUR(v.importo) : '—'}</div>
+    <div class="text-sm text-muted">${v ? `al ${quando}${v.tipo ? ' · ' + esc(v.tipo) : ''}` : 'mai letto dalla banca'}</div>
+    <button id="btn-saldo" class="btn btn-outline btn-sm mt-8" data-action="aggiorna-saldo">🏦 Aggiorna saldo</button></div>`;
+}
+const fmtDataIt = d => { const x = new Date(String(d).slice(0, 10) + 'T00:00:00'); return isNaN(x) ? '' : x.toLocaleDateString('it-IT'); };
 
 const annoDi = t => parseInt((t.date || '').slice(0, 4), 10);
 function getAnni() {
@@ -754,6 +822,7 @@ function renderDashboard() {
       </div>
     </div>
     <div class="kpi-grid">
+      ${kpiSaldoConto()}
       <div class="kpi-card"><div class="kpi-label">Uscite</div><div class="kpi-value mono neg">${fmtEUR(totUscite)}</div></div>
       <div class="kpi-card"><div class="kpi-label">Entrate</div><div class="kpi-value mono pos">${fmtEUR(totEntrate)}</div></div>
       <div class="kpi-card"><div class="kpi-label">Saldo del periodo</div><div class="kpi-value mono ${saldo < 0 ? 'neg' : 'pos'}">${fmtEUR(saldo)}</div></div>
@@ -1886,6 +1955,8 @@ async function readMovements() {
   $('modal-body').innerHTML = '<p class="import-note">Leggo i movimenti dalla banca…</p>';
   try {
     const res = await sbFn('enable-banking-transactions', { bankConnectionId, dateFrom });
+    // Il saldo arriva insieme ai movimenti: si salva subito, anche se poi l'import si annulla.
+    try { await salvaSaldo(res.balances, bankConnectionId); } catch (e) { console.warn('Saldo non salvato:', e); }
     const tutti = (res.transactions || []).filter(t => t.amount !== 0 && (t.bookingDate || t.valueDate));
     const movimenti = soloUscite ? tutti.filter(t => t.amount < 0) : tutti;
     if (!movimenti.length) {
@@ -2496,6 +2567,7 @@ document.addEventListener('click', async e => {
   else if (action === 'stat-cat') openStatCategoria(btn.dataset.id, btn.dataset.tipo || 'voce');
   else if (action === 'import-excel') openExcelImport();
   else if (action === 'imp-read') readMovements();
+  else if (action === 'aggiorna-saldo') aggiornaSaldo();
   else if (action === 'imp-read-file') readExcelFile();
   else if (action === 'imp-confirm') confirmImport();
   else if (action === 'imp-all' || action === 'imp-none') {

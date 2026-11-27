@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.34.0</title>
+  <title>GarsalFinanza v1.35.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -636,8 +636,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.34.0';
-const APP_BUILD   = '2026-11-27T20:10:00Z';
+const APP_VERSION = 'v1.35.0';
+const APP_BUILD   = '2026-11-27T20:30:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -847,6 +847,7 @@ async function loadAll() {
     sbQ('cm_institutions',        'select=*&order=name.asc'),
   ]);
   S.portfolios   = portfolios;
+  leggiSaldoSal();
   S.transactions = transactions;
   S.products     = products;
   S.tagCats      = tagCats;
@@ -897,6 +898,7 @@ async function reload() {
     sbQ('cm_institutions',        'select=*&order=name.asc'),
   ]);
   S.portfolios   = portfolios;
+  leggiSaldoSal();
   S.transactions = transactions;
   S.products     = products;
   S.tagCats      = tagCats;
@@ -2348,6 +2350,19 @@ function openSaldoModal(portfolioId, productId = null) {
    Lo stesso titolo in più portafogli diventa una riga sola (quantità e valori sommati).
    La liquidità entra nel valore come riga a sé. Niente tasse, niente snapshot, niente
    app nativa: è una vista della sola pagina. */
+/* Il saldo del conto di Spese Personali, scritto da spese-personali.html in cm_settings
+   `sal_saldo` ({importo, valuta, data, tipo, conto, letto_il}) quando lo legge dalla banca.
+   Si legge da sé, senza far aspettare il resto della pagina, e se arriva dopo il primo disegno
+   ridisegna le viste del cumulativo. undefined = non ancora letto, null = non c'è. */
+async function leggiSaldoSal() {
+  try {
+    const rows = await sbQ('cm_settings', 'key=eq.sal_saldo&select=value');
+    let v = rows?.[0]?.value ?? null;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } }
+    S.salSaldo = v && typeof v === 'object' && Number.isFinite(Number(v.importo)) ? v : null;
+  } catch { S.salSaldo = null; }
+  if (['portafogli', 'portafoglio-cumulativo', 'titolo-cumulativo'].includes(S.view)) render();
+}
 function cumulativoStats() {
   const righe = new Map();
   let cash = 0, versato = 0, valoreSenzaCostoEscluso = 0;
@@ -2390,8 +2405,11 @@ function cumulativoStats() {
   const investito = totCost + versato;
   const pnl       = totTitoli - valoreSenzaCostoEscluso - investito;
   const prevClose = titoli.reduce((s, r) => s + r.prevClose, 0);
+  // Il conto di Spese Personali è liquidità anche lui: entra nel valore intero, non nel P&L.
+  const contoSal = S.salSaldo ? Number(S.salSaldo.importo) : 0;
   return {
-    titoli, cash, totTitoli, totale: totTitoli + cash, investito, pnl,
+    titoli, cash: cash + contoSal, cashFondi: cash, contoSal, salSaldo: S.salSaldo || null,
+    totTitoli, totale: totTitoli + cash + contoSal, investito, pnl,
     pnlPct: investito > 0 ? pnl / investito * 100 : null,
     dailyPct: prevClose > 0 ? (totTitoli - prevClose) / prevClose * 100 : null,
   };
@@ -2475,7 +2493,7 @@ function renderPortafoglioCumulativo() {
     </div>
     <div class="card mb-16">
       <div class="card-title">Posizioni (titoli uguali uniti) · andamento del prezzo a 3 mesi</div>
-      ${c.titoli.length === 0 && c.cash <= 0 ? `<div class="empty-sm">Nessuna posizione nei portafogli.</div>` : `
+      ${c.titoli.length === 0 && c.cash === 0 ? `<div class="empty-sm">Nessuna posizione nei portafogli.</div>` : `
       <div class="table-wrap"><table class="table table-cumul">
         <thead><tr>
           <th>Simbolo</th><th>Andamento 3m</th><th>Nome</th>
@@ -2516,11 +2534,18 @@ function renderPortafoglioCumulativo() {
             <td>${pct != null ? `<span class="badge ${pct >= 0 ? 'badge-pos' : 'badge-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
             <td class="text-sm text-muted">${conP.length < righe.length ? 'P&amp;L senza le monete a saldi' : ''}</td>
           </tr>`; })() : ''}
-          ${c.cash > 0 && !tipo ? `<tr>
-            <td class="mono fw-600">💶 Liquidità<div class="text-muted text-sm" style="font-weight:400">${peso(c.cash)}</div></td>
+          ${c.cashFondi > 0 && !tipo ? `<tr>
+            <td class="mono fw-600">💶 Liquidità<div class="text-muted text-sm" style="font-weight:400">${peso(c.cashFondi)}</div></td>
             <td class="spark-cell"><span class="text-muted text-sm">—</span></td>
             <td>Liquidità dei fondi collegati</td><td></td><td></td><td></td><td></td>
-            <td class="mono fw-600">${fmtEUR(c.cash)}</td><td>—</td><td>—</td><td></td>
+            <td class="mono fw-600">${fmtEUR(c.cashFondi)}</td><td>—</td><td>—</td><td></td>
+          </tr>` : ''}
+          ${c.salSaldo && !tipo ? `<tr>
+            <td class="mono fw-600">💳 Conto Spese Personali<div class="text-muted text-sm" style="font-weight:400">${peso(c.contoSal)}</div></td>
+            <td class="spark-cell"><span class="text-muted text-sm">—</span></td>
+            <td>Saldo letto dalla banca${c.salSaldo.data ? ' al ' + fmtDate(String(c.salSaldo.data).slice(0, 10)) : ''}</td><td></td><td></td><td></td><td></td>
+            <td class="mono fw-600">${fmtEUR(c.contoSal)}</td><td>—</td><td>—</td>
+            <td class="text-sm"><a href="spese-personali.html">aggiorna</a></td>
           </tr>` : ''}
         </tbody></table></div>`}
     </div>`);
