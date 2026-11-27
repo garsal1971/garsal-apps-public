@@ -3074,6 +3074,22 @@ dello snapshot resta con la liquidità dei fondi dentro, per non spezzare la ser
 chiave nuova in `details`. Dal 27 novembre 2026 la serie di patrimonio e asset fa un gradino pari
 al saldo.
 
+### 🏠 Tre tipi di debito (Finanza v1.37.0, save-snapshot v1.6.0)
+
+`fnz_loans.type` ammette `MUTUO`, `PERSONALE` e `PRESTITO` (`20261128100000_fnz_loans_tipo_personale.sql`).
+⚠️ **PERSONALE si calcola come un MUTUO** (rata, numero di rate, prima rata): la domanda è
+`aRate()` in finanza.html, gemella del ramo di `computeLoanValue` in `save-snapshot` e in
+`situazione-rosa.html` — cambiandola, cambiale tutte. `PRESTITO` resta quello a rimborsi scritti a
+mano e a schermo si chiama **«Altro prestito»** (`LOAN_TIPI`). Nel menù *Debiti* sono tre voci
+(Mutuo · Prestiti personali · Altri prestiti) che aprono la stessa vista `loans` filtrata su
+`S.loanTipo` (in memoria; senza tipo, dalla Dashboard, si vedono tutti). ⚠️ L'«Estinzione mutuo»
+di 🛡️ Possibili soluzioni conta ancora i soli `MUTUO`.
+
+Menù di Finanza dalla v1.37.0: *Conti* porta anche 💳 Conto Personale → Movimenti
+(spese-personali), 👨‍👩‍👧 Conto Familiare → Movimenti (cost-analysis) e contribuzione, 🧾 Conto Ada →
+Movimenti (spese-ada); la sezione *Spese* non c'è più; *Reddito* è diventata **Pianificazione
+Pensione** (Reddito, Simulazione INPS, Possibili soluzioni); 🌹 Danaro di Rosa sta in **Altro**.
+
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
 
 (12 ottobre 2026, `20261012100000_fnz_saldi_crypto.sql`, Finanza v1.29.0, save-snapshot v1.3.0,

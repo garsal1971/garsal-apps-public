@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -138,7 +138,8 @@ function computeLoanValue(loan: Row, loanRepayments: Row[]): number {
   const today = new Date();
   const own = (num(loan.ownership_percentage) || 100) / 100;
 
-  if (loan.type === "MUTUO") {
+  // PERSONALE si calcola come un MUTUO (piano di ammortamento): gemella di aRate() in finanza.html.
+  if (loan.type === "MUTUO" || loan.type === "PERSONALE") {
     const capitale = num(loan.capitale);
     const rata = num(loan.rata);
     const totaleRate = parseInt(String(loan.totale_rate), 10);
@@ -226,7 +227,7 @@ function buildSnapshotPayload(
     const value = computeLoanValue(l, loanRepayments);
     const own = (num(l.ownership_percentage) || 100) / 100;
     return {
-      id: l.id, type: l.type, name: l.name || (l.type === "MUTUO" ? "Mutuo" : "Prestito"),
+      id: l.id, type: l.type, name: l.name || ({ MUTUO: "Mutuo", PERSONALE: "Prestito personale" } as Record<string, string>)[l.type] || "Altro prestito",
       ownership_pct: num(l.ownership_percentage) || 100,
       residual_value: value,
       residual_value_full: own > 0 ? value / own : value,

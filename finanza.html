@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.36.1</title>
+  <title>GarsalFinanza v1.37.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -505,54 +505,45 @@
         <button class="nav-item"        data-action="nav" data-view="prezzi">🏷️ Prezzi</button>
       </div>
 
-      <div class="nav-sublabel">Patrimonio</div>
+      <div class="nav-sublabel">Asset</div>
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="other-assets">💎 Asset</button>
       </div>
 
       <div class="nav-sublabel">Debiti</div>
       <div class="nav-group">
-        <button class="nav-item"        data-action="nav" data-view="loans">🏠 Prestiti</button>
+        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="MUTUO">🏠 Mutuo</button>
+        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="PERSONALE">💳 Prestiti personali</button>
+        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="PRESTITO">📄 Altri prestiti</button>
       </div>
 
       <div class="nav-sublabel">Conti</div>
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="conto-risparmio">🏡 conto risparmio</button>
-        <button class="nav-item"        data-action="nav" data-view="danaro-rosa">🌹 Danaro di Rosa</button>
         <a class="nav-item" href="casarosa.html" style="text-decoration:none">🏠 Conto Casa Rosa</a>
+        <div class="nav-sublabel" style="padding-left:11px">💳 Conto Personale</div>
+        <a class="nav-item" href="spese-personali.html" style="text-decoration:none;padding-left:26px">Movimenti</a>
+        <div class="nav-sublabel" style="padding-left:11px">👨‍👩‍👧 Conto Familiare</div>
+        <!-- cost-analysis.html non è più nella home: import, categorie, persone, regole e
+             conti collegati si raggiungono solo da qui (o dallo Smart Block). -->
+        <a class="nav-item" href="cost-analysis.html" style="text-decoration:none;padding-left:26px">Movimenti</a>
+        <a class="nav-item" href="conto-spese-teresa.html" style="text-decoration:none;padding-left:26px">💰 contribuzione</a>
+        <div class="nav-sublabel" style="padding-left:11px">🧾 Conto Ada</div>
+        <a class="nav-item" href="spese-ada.html" style="text-decoration:none;padding-left:26px">Movimenti</a>
       </div>
 
       <!-- Sezione a sé e non sotto Patrimonio: il reddito è quello che è passato, il
            patrimonio è quello che c'è, e il reddito non entra in nessun totale del patrimonio. -->
-      <div class="nav-label">Reddito</div>
+      <div class="nav-label">Pianificazione Pensione</div>
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="reddito">💶 Reddito</button>
-      </div>
-
-      <div class="nav-sublabel">Piano pensione</div>
-      <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="previdenza">🏛️ Simulazione INPS</button>
         <button class="nav-item"        data-action="nav" data-view="coperture">🛡️ Possibili soluzioni</button>
       </div>
 
-      <div class="nav-label">Spese</div>
-
-      <div class="nav-sublabel">Personali</div>
+      <div class="nav-label">Altro</div>
       <div class="nav-group">
-        <a class="nav-item" href="spese-personali.html" style="text-decoration:none">💳 Spese Personali</a>
-      </div>
-
-      <div class="nav-sublabel">Familiari</div>
-      <div class="nav-group">
-        <!-- L'app non è più nella home: import, categorie, persone, regole e
-             conti collegati si raggiungono solo da qui (o dallo Smart Block). -->
-        <a class="nav-item" href="cost-analysis.html" style="text-decoration:none">🛠️ Spese Familiari</a>
-        <a class="nav-item" href="conto-spese-teresa.html" style="text-decoration:none">💰 contribuzione</a>
-      </div>
-
-      <div class="nav-sublabel">Ada</div>
-      <div class="nav-group">
-        <a class="nav-item" href="spese-ada.html" style="text-decoration:none">🧾 Spese Ada</a>
+        <button class="nav-item"        data-action="nav" data-view="danaro-rosa">🌹 Danaro di Rosa</button>
       </div>
 
       <div class="nav-sep"></div>
@@ -636,8 +627,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.36.1';
-const APP_BUILD   = '2026-11-27T23:30:00Z';
+const APP_VERSION = 'v1.37.0';
+const APP_BUILD   = '2026-11-28T00:30:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -1298,11 +1289,19 @@ async function syncFundOwnership() {
    Dashboard, lo snapshot, l'elenco dei debiti — legge esattamente il numero di prima. È il
    motivo per cui la gemella nella Edge Function `save-snapshot` non va toccata: lei calcola
    sempre e solo oggi. */
+/* I tre tipi di prestito. ⚠️ PERSONALE si calcola come un MUTUO (rata, numero di rate,
+   prima rata): `aRate()` è l'unica domanda «ha un piano di ammortamento?», e la gemella in
+   `save-snapshot` deve dire lo stesso. PRESTITO resta quello a rimborsi scritti a mano, e a
+   schermo si chiama «Altro prestito». */
+const LOAN_TIPI = { MUTUO: 'Mutuo', PERSONALE: 'Prestito personale', PRESTITO: 'Altro prestito' };
+const LOAN_TIPI_PLURALE = { MUTUO: 'Mutuo', PERSONALE: 'Prestiti personali', PRESTITO: 'Altri prestiti' };
+const aRate = t => t === 'MUTUO' || t === 'PERSONALE';
+const loanTipoNome = t => LOAN_TIPI[t] || t;
 function computeLoanValue(loan, aData) {
   const today = aData ? new Date(aData + 'T00:00:00') : new Date();
   const own = (parseFloat(loan.ownership_percentage) || 100) / 100;
 
-  if (loan.type === 'MUTUO') {
+  if (aRate(loan.type)) {
     const capitale = parseFloat(loan.capitale);
     const rata = parseFloat(loan.rata);
     const totaleRate = parseInt(loan.totale_rate);
@@ -3853,33 +3852,37 @@ async function refreshBankAccounts(connectionId) {
   }
 }
 function renderPrestiti() {
+  // Le tre voci del menù aprono questa stessa pagina filtrata su un tipo (S.loanTipo);
+  // senza tipo (dalla Dashboard) si vedono tutti.
+  const tipo = LOAN_TIPI[S.loanTipo] ? S.loanTipo : null;
+  const elenco = tipo ? S.loans.filter(l => l.type === tipo) : S.loans;
   setHtml('view-loans', `
     <div class="view-header">
-      <div><h2 class="page-title">Prestiti</h2><p class="page-sub">Gestione mutui e prestiti personali</p></div>
-      <button class="btn btn-primary btn-sm" data-action="new-loan">+ Nuovo prestito</button>
+      <div><h2 class="page-title">${tipo ? LOAN_TIPI_PLURALE[tipo] : 'Prestiti'}</h2><p class="page-sub">${tipo ? 'Debiti di tipo ' + loanTipoNome(tipo).toLowerCase() : 'Mutui, prestiti personali e altri prestiti'}</p></div>
+      <button class="btn btn-primary btn-sm" data-action="new-loan">+ Nuovo</button>
     </div>
-    ${S.loans.length === 0
-      ? `<div class="empty-state"><div class="empty-icon">🏠</div><p>Nessun prestito ancora.</p></div>`
-      : `<div class="grid-auto">${S.loans.map(l => {
+    ${elenco.length === 0
+      ? `<div class="empty-state"><div class="empty-icon">🏠</div><p>Nessun ${tipo ? loanTipoNome(tipo).toLowerCase() : 'prestito'} ancora.</p></div>`
+      : `<div class="grid-auto">${elenco.map(l => {
           const stats = computeLoanValue(l);
           return `
         <div class="card">
           <div class="card-header-row">
-            <div class="card-title truncate" style="max-width:200px">${l.name || (l.type === 'MUTUO' ? 'Mutuo' : 'Prestito')}</div>
+            <div class="card-title truncate" style="max-width:200px">${l.name || loanTipoNome(l.type)}</div>
             <div class="hstack gap-4">
               <button class="btn-icon" data-action="edit-loan" data-id="${l.id}" title="Modifica">✎</button>
               <button class="btn-icon btn-icon-danger" data-action="del-loan" data-id="${l.id}" title="Elimina">✕</button>
             </div>
           </div>
-          <div class="settings-row text-sm">Tipo: <strong>${l.type}</strong> · Possesso: <strong>${l.ownership_percentage || '100'}%</strong></div>
+          <div class="settings-row text-sm">Tipo: <strong>${loanTipoNome(l.type)}</strong> · Possesso: <strong>${l.ownership_percentage || '100'}%</strong></div>
           <div class="portfolio-card-stats">
             <div>
-              <div class="kpi-label">${l.type === 'MUTUO' ? 'Capitale Residuo (quota)' : 'Debito Attuale (quota)'}</div>
+              <div class="kpi-label">${aRate(l.type) ? 'Capitale Residuo (quota)' : 'Debito Attuale (quota)'}</div>
               <div class="mono portfolio-card-value">${stats.value != null ? fmtEUR(stats.value) : '—'}</div>
             </div>
           </div>
           <div class="settings-row text-sm mt-12">
-            ${l.type === 'MUTUO' 
+            ${aRate(l.type)
               ? `Rata: ${fmtEURc(l.rata)} · Rate pagate: ${stats.paymentsMade}/${l.totale_rate}`
               : `Inizio: ${fmtDate(l.data_inizio_prestito)} · Interesse: ${l.interesse}%`}
           </div>
@@ -3901,24 +3904,24 @@ function renderLoanDetail() {
   setHtml('view-loan-detail', `
     <div class="view-header">
       <div class="hstack gap-8">
-        <button class="btn btn-sm btn-outline" data-action="nav" data-view="loans">← Prestiti</button>
+        <button class="btn btn-sm btn-outline" data-action="nav" data-view="loans" data-tipo="${loan.type}">← ${LOAN_TIPI_PLURALE[loan.type] || 'Prestiti'}</button>
         <div>
-          <h2 class="page-title">${loan.name || (loan.type === 'MUTUO' ? 'Mutuo' : 'Prestito')}</h2>
-          <p class="page-sub">${loan.type} · Possesso ${loan.ownership_percentage || 100}%</p>
+          <h2 class="page-title">${loan.name || loanTipoNome(loan.type)}</h2>
+          <p class="page-sub">${loanTipoNome(loan.type)} · Possesso ${loan.ownership_percentage || 100}%</p>
         </div>
       </div>
       ${loan.type === 'PRESTITO' ? `<button class="btn btn-primary btn-sm" data-action="new-loan-repayment" data-loan-id="${loan.id}">+ Inserisci rimborso</button>` : ''}
     </div>
     <div class="kpi-grid">
-      ${kpi(loan.type === 'MUTUO' ? 'Capitale Residuo (quota)' : 'Debito Attuale (quota)', fmtEUR(stats.value), 'neutral')}
+      ${kpi(aRate(loan.type) ? 'Capitale Residuo (quota)' : 'Debito Attuale (quota)', fmtEUR(stats.value), 'neutral')}
       ${kpi('Valore intero', fmtEUR(own > 0 ? stats.value / own : stats.value), 'neutral')}
-      ${loan.type === 'MUTUO'
+      ${aRate(loan.type)
         ? kpi('Rate pagate', `${stats.paymentsMade}/${loan.totale_rate}`, 'neutral')
         : kpi('Totale rimborsato', fmtEUR(stats.totalRepaid || 0), 'neutral')}
     </div>
     <div class="card mb-16">
       <div class="card-title">Dettagli</div>
-      ${loan.type === 'MUTUO'
+      ${aRate(loan.type)
         ? `<div class="settings-row text-sm">Capitale iniziale: <strong>${fmtEUR(loan.capitale)}</strong> · Rata: <strong>${fmtEURc(loan.rata)}</strong> · Prima rata: <strong>${fmtDate(loan.giorno_prima_rata)}</strong></div>`
         : `<div class="settings-row text-sm">Capitale iniziale: <strong>${fmtEUR(loan.capitale)}</strong> · Interesse annuo: <strong>${loan.interesse}%</strong> · Inizio: <strong>${fmtDate(loan.data_inizio_prestito)}</strong></div>`}
       ${loan.notes ? `<div class="settings-row text-muted text-sm mt-4">${loan.notes}</div>` : ''}
@@ -7098,7 +7101,7 @@ function renderHistoricalDashboard(snap) {
     ? `<tr><td colspan="2" class="text-muted text-sm" style="padding:10px">Nessun prestito.</td></tr>`
     : (d.loans || []).map(l => `
       <tr>
-        <td class="fw-600">${l.name} <span class="text-muted text-sm">(${l.type} · ${l.ownership_pct}%)</span></td>
+        <td class="fw-600">${l.name} <span class="text-muted text-sm">(${loanTipoNome(l.type)} · ${l.ownership_pct}%)</span></td>
         <td class="text-right mono fw-600 neg">${fmtEUR(l.residual_value)}</td>
       </tr>`).join('');
 
@@ -8380,14 +8383,13 @@ function openFoiIndexModal() {
 function openNewLoanModal(loanId = null) {
   const l = loanId ? S.loans.find(x => x.id === loanId) : null;
   const isEdit = !!l;
-  const type = l?.type || 'MUTUO';
-  openModal(isEdit ? 'Modifica prestito' : 'Nuovo prestito', `
+  const type = l?.type || (LOAN_TIPI[S.loanTipo] ? S.loanTipo : 'MUTUO');
+  openModal(isEdit ? 'Modifica ' + loanTipoNome(type).toLowerCase() : 'Nuovo ' + loanTipoNome(type).toLowerCase(), `
     <form id="modal-form">
       <div class="form-group">
         <label class="form-label">Tipo</label>
         <select name="type" class="form-input form-select" required ${isEdit ? 'disabled' : ''}>
-          <option value="MUTUO" ${type === 'MUTUO' ? 'selected' : ''}>MUTUO</option>
-          <option value="PRESTITO" ${type === 'PRESTITO' ? 'selected' : ''}>PRESTITO</option>
+          ${Object.entries(LOAN_TIPI).map(([k, v]) => `<option value="${k}" ${type === k ? 'selected' : ''}>${v}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -8404,20 +8406,20 @@ function openNewLoanModal(loanId = null) {
           <input name="ownership_percentage" type="number" step="any" min="0" max="100" class="form-input mono" required value="${l?.ownership_percentage || '100'}" />
         </div>
       </div>
-      <div id="loan-fields-mutuo" class="${type === 'MUTUO' ? '' : 'hidden'}">
+      <div id="loan-fields-mutuo" class="${aRate(type) ? '' : 'hidden'}">
         <div class="form-row-2">
           <div class="form-group">
             <label class="form-label">Rata *</label>
-            <input name="rata" type="number" step="any" min="0" class="form-input mono" ${type === 'MUTUO' ? 'required' : ''} value="${l?.rata || ''}" />
+            <input name="rata" type="number" step="any" min="0" class="form-input mono" ${aRate(type) ? 'required' : ''} value="${l?.rata || ''}" />
           </div>
           <div class="form-group">
             <label class="form-label">Totale rate *</label>
-            <input name="totale_rate" type="number" min="1" class="form-input mono" ${type === 'MUTUO' ? 'required' : ''} value="${l?.totale_rate || ''}" />
+            <input name="totale_rate" type="number" min="1" class="form-input mono" ${aRate(type) ? 'required' : ''} value="${l?.totale_rate || ''}" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Giorno prima rata *</label>
-          <input name="giorno_prima_rata" type="date" class="form-input" ${type === 'MUTUO' ? 'required' : ''} value="${l?.giorno_prima_rata || ''}" />
+          <input name="giorno_prima_rata" type="date" class="form-input" ${aRate(type) ? 'required' : ''} value="${l?.giorno_prima_rata || ''}" />
         </div>
       </div>
       <div id="loan-fields-prestito" class="${type === 'PRESTITO' ? '' : 'hidden'}">
@@ -8450,7 +8452,7 @@ function openNewLoanModal(loanId = null) {
       ownership_percentage: parseFloat(data.ownership_percentage),
       notes: data.notes || '',
     };
-    if (payload.type === 'MUTUO') {
+    if (aRate(payload.type)) {
       payload.rata = parseFloat(data.rata);
       payload.totale_rate = parseInt(data.totale_rate);
       payload.giorno_prima_rata = data.giorno_prima_rata;
@@ -8465,7 +8467,7 @@ function openNewLoanModal(loanId = null) {
   const typeSelect = document.querySelector('#modal-body select[name="type"]');
   if (typeSelect) {
     typeSelect.addEventListener('change', () => {
-      const isMutuo = typeSelect.value === 'MUTUO';
+      const isMutuo = aRate(typeSelect.value);
       $('loan-fields-mutuo').classList.toggle('hidden', !isMutuo);
       $('loan-fields-prestito').classList.toggle('hidden', isMutuo);
       document.querySelectorAll('#loan-fields-mutuo input').forEach(i => i.required = isMutuo);
@@ -8922,8 +8924,10 @@ function render() {
       ((S.view === 'portafoglio-detail' || S.view === 'portafoglio-cumulativo' || S.view === 'titolo-cumulativo') && b.dataset.view === 'portafogli') ||
       (S.view === 'dossier-detail' && b.dataset.view === 'dossiers') ||
       (S.view === 'fondo-detail' && b.dataset.view === 'fondi') ||
-      (S.view === 'loan-detail' && b.dataset.view === 'loans');
-    b.classList.toggle('active', match);
+      (S.view === 'loan-detail' && b.dataset.view === 'loans' && (!b.dataset.tipo || b.dataset.tipo === S.loans.find(l => l.id === S.loanId)?.type));
+    // Sulla pagina dei debiti è accesa solo la voce del tipo aperto.
+    const matchTipo = !(b.dataset.view === 'loans' && b.dataset.tipo && S.view === 'loans' && b.dataset.tipo !== S.loanTipo);
+    b.classList.toggle('active', match && matchTipo);
   });
   switch (S.view) {
     case 'dashboard':          renderDashboard();          break;
@@ -8963,7 +8967,10 @@ document.addEventListener('click', async e => {
   if (!t) return;
   console.log('🔴 ACTION:', t.dataset.action);
   switch (t.dataset.action) {
-    case 'nav':             navigate(t.dataset.view); closeMobileNav(); break;
+    case 'nav':
+      // Le tre voci dei debiti aprono la stessa pagina, filtrata sul tipo; senza tipo tutti.
+      if (t.dataset.view === 'loans') S.loanTipo = t.dataset.tipo || null;
+      navigate(t.dataset.view); closeMobileNav(); break;
     case 'report-sel':      S.reportId = t.dataset.id; renderReport(); break;
     case 'report-out':      reportOut(t.dataset.fmt); break;
     case 'view-portfolio':  navigate('portafoglio-detail', t.dataset.id); break;

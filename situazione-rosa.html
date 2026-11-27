@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Situazione Rosa v1.2.8</title>
+  <title>Situazione Rosa v1.2.9</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -213,8 +213,8 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v1.2.8';
-    const BUILD_TIME  = '2026-10-14T12:45:00Z';
+    const APP_VERSION = 'v1.2.9';
+    const BUILD_TIME  = '2026-11-28T00:30:00Z';
     console.log('%c SITUAZIONE ROSA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
         'background:#db2777;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
         'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -599,7 +599,8 @@
       const today = new Date();
       const own = (parseFloat(loan.ownership_percentage) || 100) / 100;
 
-      if (loan.type === 'MUTUO') {
+      // PERSONALE si calcola come un MUTUO: gemella di aRate() in finanza.html.
+      if (loan.type === 'MUTUO' || loan.type === 'PERSONALE') {
         const capitale = parseFloat(loan.capitale);
         const rata = parseFloat(loan.rata);
         const totaleRate = parseInt(loan.totale_rate);
