@@ -3040,6 +3040,12 @@ disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
   tocco sulla riga. Tipo, ISIN, descrizione, quantità, prezzo, var. 1d, valore e peso, costo
   medio, P&L, la ripartizione per portafoglio e il grafico del prezzo da `S.priceHistory` coi
   periodi 1S · 1M · 3M · 6M · 1A · 2A · Da inizio (`S.titPeriodo`, in memoria, di partenza 3M).
+- ⚠️ **I grafici del cumulativo NON leggono `S.priceHistory`** (v1.35.1): quella si carica in
+  una richiesta sola e PostgREST ne restituisce al massimo 1000 righe, cioè circa un mese per
+  tutti i titoli — con lei 3M, 6M, 1A e «Da inizio» mostravano lo stesso mese. Il dettaglio
+  legge lo storico del solo titolo aperto (`caricaStoricoTitolo`, cache `S.storicoTit`), i
+  grafichini i soli ultimi 3 mesi (`caricaStorico3m`), tutt'e due a pagine con `sbQTutto`. Il
+  grafico si disegna dopo la pagina sulla larghezza vera del riquadro, senza stirarsi.
 - **💳 Conto Spese Personali** (v1.35.0): riga sotto la liquidità, compresa nel valore intero e
   nel «di cui liquidità», fuori dal P&L. È il saldo che `spese-personali.html` (v1.2.0) legge
   dalla banca e salva in `cm_settings`, chiave **`sal_saldo`** (JSON `{importo, valuta, data,
