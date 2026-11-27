@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.32.2</title>
+  <title>GarsalFinanza v1.33.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -367,10 +367,10 @@
       .table-posizioni tr > :nth-child(5),.table-posizioni tr > :nth-child(6),
       .table-posizioni tr > :nth-child(7),.table-posizioni tr > :nth-child(9),
       .table-posizioni tr > :nth-child(n+11) { display: none; }
-      /* Cumulativo: mostra Simbolo(1) Andamento(2) Valore(7) P&L%(9) */
-      .table-cumul tr > :nth-child(3),.table-cumul tr > :nth-child(4),
-      .table-cumul tr > :nth-child(5),.table-cumul tr > :nth-child(6),
-      .table-cumul tr > :nth-child(8),.table-cumul tr > :nth-child(10) { display: none; }
+      /* Cumulativo: mostra Simbolo(1) Andamento(2) Tipo(4, porta il filtro) Valore(8) P&L%(10) */
+      .table-cumul tr > :nth-child(3),.table-cumul tr > :nth-child(5),
+      .table-cumul tr > :nth-child(6),.table-cumul tr > :nth-child(7),
+      .table-cumul tr > :nth-child(9),.table-cumul tr > :nth-child(11) { display: none; }
       /* Storico portafoglio: mostra Azioni(1) Data(2) Tipo(3) Simbolo(4) Controv.(7) */
       .table-storico tr > :nth-child(5),.table-storico tr > :nth-child(6),
       .table-storico tr > :nth-child(8),.table-storico tr > :nth-child(9) { display: none; }
@@ -623,8 +623,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.33.0';
-const APP_BUILD   = '2026-11-27T20:30:00Z';
+const APP_VERSION = 'v1.33.1';
+const APP_BUILD   = '2026-11-27T19:40:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -2435,6 +2435,11 @@ function renderPortafoglioCumulativo() {
   }
   for (const arr of storico.values()) arr.sort((a, b) => a.d.localeCompare(b.d));
   const peso = v => c.totale > 0 ? fmtPct(v / c.totale * 100).replace(/^\+/, '') : '—';
+  // Filtro per tipo prodotto: cambia solo le righe mostrate, i KPI restano sul totale.
+  // Vive in memoria (S.cumulTipo): è il taglio di una lettura, non un'impostazione.
+  const tipoOptions = [...new Set(c.titoli.map(r => r.product.asset_type).filter(Boolean))].sort();
+  const tipo = tipoOptions.includes(S.cumulTipo) ? S.cumulTipo : '';
+  const righe = tipo ? c.titoli.filter(r => r.product.asset_type === tipo) : c.titoli;
   setHtml('view-portafoglio-cumulativo', `
     <div class="view-header">
       <div class="hstack gap-8">
@@ -2457,14 +2462,22 @@ function renderPortafoglioCumulativo() {
       ${c.titoli.length === 0 && c.cash <= 0 ? `<div class="empty-sm">Nessuna posizione nei portafogli.</div>` : `
       <div class="table-wrap"><table class="table table-cumul">
         <thead><tr>
-          <th>Simbolo</th><th>Andamento 3m</th><th>Nome</th><th>Qtà</th><th>Prezzo att.</th><th>Var. % 1d</th>
+          <th>Simbolo</th><th>Andamento 3m</th><th>Nome</th>
+          <th class="${tipo ? 'th-has-filter' : ''}">Tipo
+            <select class="col-filter-sel${tipo ? ' has-filter' : ''}" data-action="cumul-filter">
+              <option value="">Tutti</option>
+              ${tipoOptions.map(v => `<option value="${esc(v)}"${tipo === v ? ' selected' : ''}>${(ASSET_MAP[v] || [v])[0]}</option>`).join('')}
+            </select>
+          </th>
+          <th>Qtà</th><th>Prezzo att.</th><th>Var. % 1d</th>
           <th>Valore</th><th>P&amp;L</th><th>P&amp;L %</th><th>Portafogli</th>
         </tr></thead>
-        <tbody>${c.titoli.map(r => `
+        <tbody>${tipo && righe.length === 0 ? `<tr><td colspan="11" class="text-muted text-sm">Nessun titolo di questo tipo.</td></tr>` : ''}${righe.map(r => `
           <tr>
             <td class="mono fw-600">${esc(r.product.symbol)}<div class="text-muted text-sm" style="font-weight:400">${peso(r.value)}</div></td>
             <td class="spark-cell">${sparklineHtml(r.product.symbol, storico)}</td>
             <td><div class="truncate" style="max-width:160px">${esc(r.product.name)}</div></td>
+            <td>${assetBadge(r.product.asset_type)}</td>
             <td class="mono">${fmtQty(r.qty)}</td>
             <td class="mono">${r.currentPrice != null ? fmtEURc(r.currentPrice) : '—'}</td>
             <td class="mono ${pnlCls(r.pd?.change_pct ?? null)}">${r.pd ? fmtPct(r.pd.change_pct) : '—'}</td>
@@ -2473,10 +2486,10 @@ function renderPortafoglioCumulativo() {
             <td>${r.pnlPct != null ? `<span class="badge ${r.pnlPct >= 0 ? 'badge-pos' : 'badge-neg'}">${fmtPct(r.pnlPct)}</span>` : '—'}</td>
             <td class="text-sm">${r.portafogli.map(esc).join(', ')}</td>
           </tr>`).join('')}
-          ${c.cash > 0 ? `<tr>
+          ${c.cash > 0 && !tipo ? `<tr>
             <td class="mono fw-600">💶 Liquidità<div class="text-muted text-sm" style="font-weight:400">${peso(c.cash)}</div></td>
             <td class="spark-cell"><span class="text-muted text-sm">—</span></td>
-            <td>Liquidità dei fondi collegati</td><td></td><td></td><td></td>
+            <td>Liquidità dei fondi collegati</td><td></td><td></td><td></td><td></td>
             <td class="mono fw-600">${fmtEUR(c.cash)}</td><td>—</td><td>—</td><td></td>
           </tr>` : ''}
         </tbody></table></div>`}
@@ -9083,6 +9096,12 @@ document.addEventListener('change', e => {
   if (ptfTf) {
     S.ptfSnapTf = ptfTf.value;
     renderPortafoglioDetail();
+    return;
+  }
+  const cumulSel = e.target.closest('select[data-action="cumul-filter"]');
+  if (cumulSel) {
+    S.cumulTipo = cumulSel.value;
+    renderPortafoglioCumulativo();
     return;
   }
   const sel = e.target.closest('select[data-action="ptf-filter"]');
