@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.37.0</title>
+  <title>GarsalFinanza v1.37.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -513,13 +513,13 @@
       <div class="nav-sublabel">Debiti</div>
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="MUTUO">🏠 Mutuo</button>
-        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="PERSONALE">💳 Prestiti personali</button>
-        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="PRESTITO">📄 Altri prestiti</button>
+        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="PERSONALE">💳 Prestiti Personali</button>
+        <button class="nav-item"        data-action="nav" data-view="loans" data-tipo="PRESTITO">📄 Altri Prestiti</button>
       </div>
 
       <div class="nav-sublabel">Conti</div>
       <div class="nav-group">
-        <button class="nav-item"        data-action="nav" data-view="conto-risparmio">🏡 conto risparmio</button>
+        <button class="nav-item"        data-action="nav" data-view="conto-risparmio">🏡 Conto Risparmio</button>
         <a class="nav-item" href="casarosa.html" style="text-decoration:none">🏠 Conto Casa Rosa</a>
         <div class="nav-sublabel" style="padding-left:11px">💳 Conto Personale</div>
         <a class="nav-item" href="spese-personali.html" style="text-decoration:none;padding-left:26px">Movimenti</a>
@@ -527,7 +527,7 @@
         <!-- cost-analysis.html non è più nella home: import, categorie, persone, regole e
              conti collegati si raggiungono solo da qui (o dallo Smart Block). -->
         <a class="nav-item" href="cost-analysis.html" style="text-decoration:none;padding-left:26px">Movimenti</a>
-        <a class="nav-item" href="conto-spese-teresa.html" style="text-decoration:none;padding-left:26px">💰 contribuzione</a>
+        <a class="nav-item" href="conto-spese-teresa.html" style="text-decoration:none;padding-left:26px">Contribuzione</a>
         <div class="nav-sublabel" style="padding-left:11px">🧾 Conto Ada</div>
         <a class="nav-item" href="spese-ada.html" style="text-decoration:none;padding-left:26px">Movimenti</a>
       </div>
@@ -538,12 +538,12 @@
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="reddito">💶 Reddito</button>
         <button class="nav-item"        data-action="nav" data-view="previdenza">🏛️ Simulazione INPS</button>
-        <button class="nav-item"        data-action="nav" data-view="coperture">🛡️ Possibili soluzioni</button>
+        <button class="nav-item"        data-action="nav" data-view="coperture">🛡️ Possibili Soluzioni</button>
       </div>
 
       <div class="nav-label">Altro</div>
       <div class="nav-group">
-        <button class="nav-item"        data-action="nav" data-view="danaro-rosa">🌹 Danaro di Rosa</button>
+        <button class="nav-item"        data-action="nav" data-view="danaro-rosa">🌹 Danaro Di Rosa</button>
       </div>
 
       <div class="nav-sep"></div>
@@ -556,12 +556,12 @@
       <div class="nav-label">Configurazione</div>
       <div class="nav-group">
         <button class="nav-item"        data-action="nav" data-view="tag-config">🏷️ Tag</button>
-        <button class="nav-item"        data-action="nav" data-view="conti-collegati">🏦 Banche e Conti</button>
+        <button class="nav-item"        data-action="nav" data-view="conti-collegati">🏦 Banche E Conti</button>
         <button class="nav-item"        data-action="nav" data-view="report">📑 Report</button>
         <button class="nav-item"        data-action="nav" data-view="impostazioni">⚙️ Impostazioni</button>
       </div>
       <div class="nav-sep"></div>
-      <button class="nav-item"        data-action="nav" data-view="dashboard">← Torna a 💰 Finanza</button>
+      <button class="nav-item"        data-action="nav" data-view="dashboard">← Torna A 💰 Finanza</button>
     </nav>
     <main class="app-main">
       <div id="view-dashboard"          class="view active"></div>
@@ -627,8 +627,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.37.0';
-const APP_BUILD   = '2026-11-28T00:30:00Z';
+const APP_VERSION = 'v1.37.1';
+const APP_BUILD   = '2026-11-28T00:45:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
