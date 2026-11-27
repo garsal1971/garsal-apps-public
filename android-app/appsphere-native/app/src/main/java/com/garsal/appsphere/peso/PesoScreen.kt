@@ -917,6 +917,15 @@ private fun NodoGiorno(n: NodoGrafo, oggi: Boolean, scelto: Boolean, onTocca: ()
                 }
             }
         }
+        if (n.interpolata && !n.nascosto) {
+            Text(
+                "〰 interpolata",
+                color = ViolaNodo,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -1281,6 +1290,7 @@ private fun RigaTabella(riga: PesoRegole.RigaGiorno, onApri: (String) -> Unit) {
     }
     val icona = when {
         stato == PesoRegole.StatoRiga.DA_FARE -> "📅 "
+        riga.primaInterpolata -> "〰 "
         stato == PesoRegole.StatoRiga.NON_PESATO && !haMediaStimata -> "✗ "
         riga.primaPeso == null && (riga.senzaPesata || riga.interpolata) -> "○ "
         else -> ""
@@ -1506,7 +1516,7 @@ private fun DialogoGiorno(
                             Column(Modifier.weight(1f)) {
                                 Text("${kg(pesata.peso)} kg", fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    text = pesata.ora ?: "orario ignoto",
+                                    text = if (pesata.interpolata) "〰 interpolata" else pesata.ora ?: "orario ignoto",
                                     color = Palette.muted,
                                     style = MaterialTheme.typography.bodySmall,
                                 )

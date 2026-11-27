@@ -95,6 +95,8 @@ data class NodoGrafo(
     /** Oggi conta e l'esito non è ancora scoperto: al posto del valore, il ❓. */
     val nascosto: Boolean,
     val stato: StatoNodo,
+    /** L'ultima riga del giorno è un peso interpolato dal database. */
+    val interpolata: Boolean = false,
 )
 
 data class PesoState(
@@ -239,7 +241,7 @@ data class PesoState(
                 valore != null -> StatoNodo.BLU
                 else -> StatoNodo.VUOTO
             }
-            out += NodoGrafo(g, riga?.peso, media, conta, target, valore, nascosto, stato)
+            out += NodoGrafo(g, riga?.peso, media, conta, target, valore, nascosto, stato, riga?.interpolata == true)
             d = d.plusDays(1)
         }
         return out
