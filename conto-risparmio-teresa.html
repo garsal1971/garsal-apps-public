@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Conto Risparmio Teresa v1.2.2</title>
+  <title>Conto Risparmio Teresa v1.3.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -114,13 +114,15 @@
       </div>
       <div class="hstack gap-8">
         <button class="btn btn-primary btn-sm" onclick="openModal()">+ Nuovo Movimento</button>
-        <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="openBankImport()">🏦 Importa dalla banca</button>
+        <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="openBankImport()">🏦 Sincronizza dal conto</button>
         <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="document.getElementById('xlsx-input').click()">📊 Importa Excel</button>
         <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="document.getElementById('csv-input').click()">📥 Importa CSV</button>
         <input type="file" id="xlsx-input" accept=".xls,.xlsx" style="display:none" />
         <input type="file" id="csv-input" accept=".csv" style="display:none" />
       </div>
     </div>
+
+    <div id="prov-alert"></div>
 
     <div class="kpi-grid" id="kpi-container">
       <div class="kpi-card"><div class="kpi-label">Totale</div><div class="kpi-value mono" id="tot-voce">€0,00</div></div>
@@ -222,8 +224,8 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v1.2.2';
-    const APP_BUILD   = '2026-10-14T12:00:00Z';
+    const APP_VERSION = 'v1.3.0';
+    const APP_BUILD   = '2026-11-27T18:00:00Z';
     // Aperta dentro finanza.html (voce «🏡 conto risparmio») invece che da sola.
     const EMBED = document.documentElement.classList.contains('embed');
     console.log('%c CONTO RISPARMIO ' + APP_VERSION + ' %c build: ' + APP_BUILD,
@@ -284,7 +286,10 @@
           sb('cntrs_categories_terr?order=name'),
           sb('cntrs_saldi_terr?order=created_at.desc&limit=1'),
         ]);
-        S.transactions = tx;
+        // ⚠️ I provvisori (cr-sync: stessa data e importo di un movimento già presente) stanno
+        // FUORI dai totali finché non si decide; restano però nel controllo dei doppioni.
+        S.transactions = (tx || []).filter(t => !t.provvisorio);
+        S.provvisori = (tx || []).filter(t => t.provvisorio);
         S.categories = cats;
         S.latestSaldo = saldi && saldi.length ? saldi[0] : null;
         S.catMap = Object.fromEntries(cats.map(c => [c.id, c.name]));
@@ -303,7 +308,42 @@
       return S.catMap[t.category_id] || '(nessuna)';
     }
 
+    function renderAvvisoProvvisori() {
+      const el = document.getElementById('prov-alert');
+      const pv = S.provvisori || [];
+      if (!pv.length) { el.innerHTML = ''; return; }
+      const byId = Object.fromEntries([...S.transactions, ...pv].map(t => [t.id, t]));
+      const esc = s => (s || '').replace(/</g, '&lt;');
+      el.innerHTML = `
+        <div class="card" style="margin-bottom:14px;border:2px solid var(--c-warning,#F39C12);background:#FFF8EC">
+          <div style="font-weight:700;margin-bottom:6px">⚠️ ${pv.length} movimenti provvisori da verificare</div>
+          <div style="font-size:.8rem;color:var(--c-muted);margin-bottom:10px">La sincronizzazione li ha trovati con la stessa data e lo stesso importo di un movimento già presente: potrebbero essere doppioni. Finché non decidi non entrano nei totali.</div>
+          ${pv.map(t => {
+            const d = byId[t.duplicato_di];
+            return `<div style="border-top:1px solid var(--c-border);padding:8px 0;font-size:.82rem">
+              <div class="hstack gap-8" style="flex-wrap:wrap;margin-bottom:4px">
+                <button class="btn btn-sm btn-primary" onclick="provTieni('${t.id}')">✓ Tieni</button>
+                <button class="btn btn-sm" style="border:1px solid var(--c-border)" onclick="provDoppione('${t.id}')">🗑 È un doppione</button>
+              </div>
+              <div><strong>${fmtDate(t.data)}</strong> · ${fmtEUR(t.importo_voce)} · ${esc(t.descrizione)}</div>
+              ${d ? `<div style="color:var(--c-muted)">già presente: ${fmtDate(d.data)} · ${fmtEUR(d.importo_voce)} · ${esc(d.descrizione)}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    async function provTieni(id) {
+      try { await sb(`cntrs_transactions_terr?id=eq.${id}`, 'PATCH', { provvisorio: false, duplicato_di: null }); await loadData(); }
+      catch (e) { alert('Errore: ' + e.message); }
+    }
+    async function provDoppione(id) {
+      if (!confirm('Cancello questo movimento provvisorio? Quello già presente resta.')) return;
+      try { await sb(`cntrs_transactions_terr?id=eq.${id}`, 'DELETE'); await loadData(); }
+      catch (e) { alert('Errore: ' + e.message); }
+    }
+
     function render() {
+      renderAvvisoProvvisori();
       const anni = getAnni();
       if (!S.selectedYear || (S.selectedYear !== 'all' && !anni.includes(S.selectedYear))) {
         S.selectedYear = anni[0] || new Date().getFullYear();
@@ -667,7 +707,7 @@
 
     function findImportConflicts(items) {
       const byKey = new Map();
-      for (const t of S.transactions) {
+      for (const t of [...S.transactions, ...(S.provvisori || [])]) {
         const key = `${t.data}|${t.importo_voce}`;
         if (!byKey.has(key)) byKey.set(key, []);
         byKey.get(key).push(t);
@@ -725,6 +765,7 @@
     // dall'API PSD2: da lì arrivano il codice ISO 20022 e il testo del movimento. Si riusano
     // gli stessi NOMI di categoria, riconosciuti dal testo; quello che non si riconosce
     // finisce in "da attribuire", che è esattamente il posto giusto per una cosa incerta.
+    // ⚠️ Copiata in supabase/functions/cr-sync (categoriaDa), che ora fa l'import: cambiale insieme.
     function guessCategoryFromBank(tx) {
       const t = `${tx.description || ''} ${tx.counterpartyName || ''}`.toLowerCase();
       const code = (tx.bankTransactionCode || '').toUpperCase();
@@ -767,27 +808,17 @@
             </div>`;
           return;
         }
-        // Si riparte dal giorno dopo l'ultimo movimento già presente: rileggere all'infinito
-        // tutto lo storico serve solo a far ricontrollare all'utente cose che ha già visto.
-        const lastDate = S.transactions.map(t => t.data).sort().pop();
-        const defaultFrom = lastDate
-          ? new Date(new Date(lastDate).getTime() + 86400000).toISOString().slice(0, 10)
-          : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+        // La sincronizzazione la fa la Edge Function cr-sync, la stessa del job del 28:
+        // doppioni certi saltati, sospetti caricati PROVVISORI, categorie dal testo, saldo.
         box.innerHTML = `
-          <p style="font-size:.82rem;color:var(--c-muted);margin-bottom:14px">Legge i movimenti dal conto collegato. Niente viene salvato finché non li confermi.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-            <label style="font-size:.8rem;font-weight:600">Conto
-              <select id="bank-import-conn" class="form-input" style="width:100%;margin-top:4px">
-                ${usable.map(c => `<option value="${c.id}">${c.display_name || c.iban || c.aspsp_name}</option>`).join('')}
-              </select>
-            </label>
-            <label style="font-size:.8rem;font-weight:600">Dal giorno
-              <input type="date" id="bank-import-from" class="form-input" style="width:100%;margin-top:4px" value="${defaultFrom}" />
-            </label>
-          </div>
+          <p style="font-size:.82rem;color:var(--c-muted);margin-bottom:14px">Legge i movimenti dal conto e li salva subito. Quelli con la stessa data e lo stesso importo di uno già presente entrano <strong>provvisori</strong>, da verificare. Lo stesso giro parte da solo il 28 di ogni mese.</p>
+          <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:16px">Dal giorno (facoltativo)
+            <input type="date" id="bank-import-from" class="form-input" style="width:100%;margin-top:4px" />
+            <span style="font-weight:400;color:var(--c-muted)">Vuoto = da una settimana prima dell'ultimo movimento.</span>
+          </label>
           <div class="hstack gap-8" style="justify-content:flex-end">
             <button class="btn" onclick="closeBankImport()">Annulla</button>
-            <button class="btn btn-primary" onclick="loadBankMovements()">Leggi i movimenti</button>
+            <button class="btn btn-primary" onclick="syncConto()">🏦 Sincronizza</button>
           </div>`;
       } catch (e) {
         box.innerHTML = `<p style="color:var(--c-danger);font-size:.85rem">Errore: ${e.message}</p>
@@ -801,116 +832,25 @@
       _bankImport = null;
     }
 
-    async function loadBankMovements() {
+    async function syncConto() {
       const box = document.getElementById('bank-import-body');
-      const bankConnectionId = document.getElementById('bank-import-conn').value;
       const dateFrom = document.getElementById('bank-import-from').value || undefined;
-      box.innerHTML = '<p style="color:var(--c-muted);font-size:.85rem">Leggo i movimenti dalla banca…</p>';
+      box.innerHTML = '<p style="color:var(--c-muted);font-size:.85rem">Sincronizzo dal conto…</p>';
       try {
-        const res = await sbFn('enable-banking-transactions', { bankConnectionId, dateFrom });
-        const txs = (res.transactions || []).filter(t => t.amount !== 0 && (t.bookingDate || t.valueDate));
-        if (!txs.length) {
-          box.innerHTML = `<p style="font-size:.85rem;margin-bottom:14px">Nessun movimento nel periodo scelto.</p>
-            <div class="hstack gap-8" style="justify-content:flex-end"><button class="btn" onclick="closeBankImport()">Chiudi</button></div>`;
-          return;
-        }
-        // Doppioni: identici (data + importo + descrizione) si escludono da soli, perché
-        // rileggere un periodo già importato è la normalità, non l'eccezione. Stessa data e
-        // stesso importo ma descrizione diversa resta selezionato e segnalato: è un'ambiguità
-        // che deve vederla una persona.
-        const exact = new Set(S.transactions.map(t => `${t.data}|${(+t.importo_voce).toFixed(2)}|${(t.descrizione || '').trim().toLowerCase()}`));
-        const sameDayAmount = new Set(S.transactions.map(t => `${t.data}|${(+t.importo_voce).toFixed(2)}`));
-        const items = txs.map(t => {
-          const data = (t.bookingDate || t.valueDate).slice(0, 10);
-          const descrizione = bankTxDescription(t);
-          const key = `${data}|${t.amount.toFixed(2)}`;
-          return {
-            data, descrizione, importo: t.amount,
-            categoria: guessCategoryFromBank(t),
-            duplicato: exact.has(`${key}|${descrizione.trim().toLowerCase()}`),
-            simile: !exact.has(`${key}|${descrizione.trim().toLowerCase()}`) && sameDayAmount.has(key),
-          };
-        }).sort((a, b) => a.data.localeCompare(b.data));
-        _bankImport = { items, balances: res.balances || [], account: res.account };
-
-        const nuovi = items.filter(i => !i.duplicato).length;
+        const res = await sbFn('cr-sync', dateFrom ? { dateFrom } : {});
+        const e = (res.esiti || [])[0] || {};
         box.innerHTML = `
-          <p style="font-size:.82rem;color:var(--c-muted);margin-bottom:12px">
-            ${items.length} movimenti letti da <strong>${res.account?.aspspName || 'banca'}</strong> —
-            ${nuovi} nuovi, ${items.length - nuovi} già presenti (deselezionati).
-            ${res.truncated ? '<br/>⚠️ Elenco troncato: restringi il periodo per vederli tutti.' : ''}
-          </p>
-          <div style="max-height:46vh;overflow-y:auto;margin-bottom:14px">
-            <table style="width:100%;border-collapse:collapse;font-size:.8rem">
-              <thead><tr style="text-align:left;color:var(--c-muted)">
-                <th style="padding:4px"></th><th style="padding:4px">Data</th><th style="padding:4px">Descrizione</th>
-                <th style="padding:4px;text-align:right">Importo</th><th style="padding:4px">Categoria</th>
-              </tr></thead>
-              <tbody>${items.map((it, i) => `
-                <tr style="border-top:1px solid var(--c-border)${it.duplicato ? ';opacity:.55' : ''}">
-                  <td style="padding:4px"><input type="checkbox" data-bank-idx="${i}" ${it.duplicato ? '' : 'checked'} /></td>
-                  <td style="padding:4px;white-space:nowrap">${fmtDate(it.data)}</td>
-                  <td style="padding:4px">${it.descrizione.replace(/</g, '&lt;')}
-                    ${it.duplicato ? '<span style="color:var(--c-muted)"> · già presente</span>' : ''}
-                    ${it.simile ? '<span style="color:var(--c-warning,#F39C12)"> · ⚠️ stessa data e importo di un movimento presente</span>' : ''}</td>
-                  <td style="padding:4px;text-align:right;white-space:nowrap;${it.importo < 0 ? 'color:var(--c-danger)' : ''}">${fmtEUR(it.importo)}</td>
-                  <td style="padding:4px;color:var(--c-muted)">${it.categoria}</td>
-                </tr>`).join('')}</tbody>
-            </table>
-          </div>
-          <div class="hstack gap-8" style="justify-content:flex-end">
-            <button class="btn" onclick="closeBankImport()">Annulla</button>
-            <button class="btn btn-primary" onclick="confirmBankImport()">Importa selezionati</button>
-          </div>`;
+          <p style="font-size:.88rem;margin-bottom:14px">✅ Sincronizzazione completata (dal ${fmtDate(e.dal)})<br/>
+            ${e.importati || 0} movimenti importati${e.da_attribuire ? `, ${e.da_attribuire} da attribuire` : ''}<br/>
+            ${e.provvisori ? `⚠️ ${e.provvisori} provvisori da verificare<br/>` : ''}
+            ${e.saltati || 0} già presenti${e.saldo != null ? `<br/>Saldo: ${fmtEUR(e.saldo)}` : ''}
+            ${e.troncato ? '<br/>⚠️ Elenco troncato dalla banca: riprova da una data più recente.' : ''}</p>
+          <div class="hstack gap-8" style="justify-content:flex-end"><button class="btn btn-primary" onclick="closeBankImport()">Chiudi</button></div>`;
+        loadData();
       } catch (e) {
         box.innerHTML = `<p style="color:var(--c-danger);font-size:.85rem">Errore: ${e.message}</p>
           <div class="hstack gap-8" style="justify-content:flex-end;margin-top:14px"><button class="btn" onclick="closeBankImport()">Chiudi</button></div>`;
       }
-    }
-
-    async function confirmBankImport() {
-      if (!_bankImport) return;
-      const scelti = [];
-      document.querySelectorAll('#bank-import-body input[data-bank-idx]').forEach(cb => {
-        if (cb.checked) scelti.push(_bankImport.items[parseInt(cb.dataset.bankIdx, 10)]);
-      });
-      if (!scelti.length) { alert('Nessun movimento selezionato.'); return; }
-      const box = document.getElementById('bank-import-body');
-      box.innerHTML = '<p style="color:var(--c-muted);font-size:.85rem">Importo…</p>';
-      const items = [];
-      for (const it of scelti) {
-        items.push({
-          data: it.data,
-          descrizione: it.descrizione,
-          importo_voce: it.importo,
-          category_id: (await ensureCategory(it.categoria)) || undefined,
-          note: '',
-          anno: parseInt(it.data.slice(0, 4)),
-        });
-      }
-      const imported = await insertTransactions(items);
-
-      // Il saldo vero della banca vale più di qualunque somma calcolata sui movimenti: si
-      // preferisce quello disponibile/contabile e si tiene traccia della data di riferimento.
-      let saldoMsg = '';
-      const bal = (_bankImport.balances || []).find(b => /disp|avai|clbd|closing|itbd/i.test(b.name || '')) || (_bankImport.balances || [])[0];
-      if (bal && bal.amount) {
-        try {
-          await sb('cntrs_saldi_terr', 'POST', {
-            user_id: S.session.user.id,
-            data: (bal.date || new Date().toISOString()).slice(0, 10),
-            saldo_contabile: bal.amount,
-            saldo_disponibile: bal.amount,
-            note: `Letto dalla banca (${_bankImport.account?.aspspName || 'PSD2'})`,
-          });
-          saldoMsg = `\nSaldo aggiornato: ${fmtEUR(bal.amount)}`;
-        } catch (e) {
-          console.error('Errore salvataggio saldo:', e);
-        }
-      }
-      closeBankImport();
-      alert(`✅ Importazione completata!\n\nCaricati: ${imported} movimenti${saldoMsg}`);
-      loadData();
     }
 
     let _reviewState = null;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.37.1</title>
+  <title>GarsalFinanza v1.37.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -627,8 +627,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.37.1';
-const APP_BUILD   = '2026-11-28T00:45:00Z';
+const APP_VERSION = 'v1.37.2';
+const APP_BUILD   = '2026-11-28T01:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -8045,7 +8045,7 @@ async function importFromContoRisparmio(fundId) {
   openModal('Import dal Conto Risparmio', '<div class="empty-sm">📥 Leggo i movimenti…</div>');
   try {
     const [rows, categories] = await Promise.all([
-      sbQ('cntrs_transactions_terr', 'select=id,data,descrizione,importo_voce,note,category_id&order=data.asc'),
+      sbQ('cntrs_transactions_terr', 'select=id,data,descrizione,importo_voce,note,category_id&provvisorio=eq.false&order=data.asc'),
       sbQ('cntrs_categories_terr', 'select=id,name&order=name.asc'),
     ]);
     const catName = Object.fromEntries((categories || []).map(c => [c.id, c.name]));

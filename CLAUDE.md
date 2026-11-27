@@ -7399,6 +7399,17 @@ l'ancora, con `#diario` come ripiego.
 - ⚠️ **Il prompt si svuota solo quando la risposta c'è**: un errore non deve costare il testo
   appena scritto. I tag scelti restano per l'invio dopo.
 
+### `conto-risparmio-teresa.html` — 🔄 sincronizzazione automatica (v1.3.0)
+Edge Function `cr-sync` (`20261128140000_cr_sync_provvisori.sql`), gemella di `sal-sync`: la chiamano
+il pulsante «🏦 Sincronizza dal conto» e il job pg_cron `cr-sync` del **28 di ogni mese** (06:23 UTC).
+Legge il conto spuntato `'conto_risparmio'`, salva il saldo in `cntrs_saldi_terr` e importa senza
+anteprima. ⚠️ Doppioni con la regola di prima: data + importo + descrizione = saltato; data + importo
+= **PROVVISORIO** (`cntrs_transactions_terr.provvisorio` + `duplicato_di`), fuori da totali, dal fondo
+(import di Finanza) e da `situazione-teresa.html`, con l'avviso in cima e ✓ Tieni / 🗑 È un doppione.
+⚠️ `guessCategoryFromBank` / `bankTxDescription` sono copiate nella funzione: cambiale insieme.
+Notifica (app `spese`, regola spenta, entità `5a100000-…-000000000002`) al solo proprietario del
+conto, solo dal job. CSV ed Excel restano con la revisione dei conflitti.
+
 ### `casarosa.html` — Cassa Casa Rosa
 - Movimenti e saldo della cassa di Casa Rosa (`cntrs_transactions`, `cntrs_categories`,
   `cntrs_saldi`). Si apre dal collegamento *🏠 Casa* nella sidebar di `finanza.html`.
