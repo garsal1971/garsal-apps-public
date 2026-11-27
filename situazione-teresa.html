@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Situazione Teresa v1.9.5</title>
+  <title>Situazione Teresa v1.9.6</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -326,8 +326,8 @@
   </div>
 
   <script>
-    const APP_VERSION = 'v1.9.5';
-    const BUILD_TIME  = '2026-10-14T12:30:00Z';
+    const APP_VERSION = 'v1.9.6';
+    const BUILD_TIME  = '2026-11-27T18:00:00Z';
     console.log('%c SITUAZIONE TERESA ' + APP_VERSION + ' %c build: ' + BUILD_TIME,
         'background:#7c3aed;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px 0 0 3px',
         'background:#222;color:#aaa;padding:2px 6px;border-radius:0 3px 3px 0');
@@ -1059,7 +1059,7 @@
     async function loadData() {
       try {
         const [riservaTx, riservaCats, riservaSaldi, speseTx] = await Promise.all([
-          sb('cntrs_transactions_terr?order=data.desc'),
+          sb('cntrs_transactions_terr?provvisorio=eq.false&order=data.desc'),
           sb('cntrs_categories_terr?order=name'),
           sb('cntrs_saldi_terr?order=created_at.desc&limit=1'),
           sb('acct_transactions?order=data.desc,created_at.desc'),
