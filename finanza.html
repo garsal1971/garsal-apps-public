@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.33.1</title>
+  <title>GarsalFinanza v1.34.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -156,6 +156,12 @@
     .portfolio-card-cumul { grid-column: 1 / -1; border-style: dashed; }
     .spark-cell { width: 110px; min-width: 90px; }
     .spark-svg { display: block; width: 100%; height: 32px; }
+    .table-cumul tbody tr.cumul-riga { cursor: pointer; }
+    .table-cumul tbody tr.cumul-riga:hover { background: var(--c-bg); }
+    .table-cumul tr.cumul-tot td { font-weight: 700; border-top: 2px solid var(--c-border, #e5e7eb); }
+    .tit-periodi { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+    .tit-periodi .btn { flex-shrink: 0; }
+    .tit-svg { display: block; width: 100%; height: 240px; }
     .portfolio-row { display: flex; align-items: center; gap: 12px; padding: 9px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: background .12s; }
     .portfolio-row:hover { background: var(--c-bg); }
     .portfolio-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -371,6 +377,12 @@
       .table-cumul tr > :nth-child(3),.table-cumul tr > :nth-child(5),
       .table-cumul tr > :nth-child(6),.table-cumul tr > :nth-child(7),
       .table-cumul tr > :nth-child(9),.table-cumul tr > :nth-child(11) { display: none; }
+      /* La riga del totale ha le prime tre celle fuse (Simbolo+Andamento+Nome = n.1):
+         si vedono etichetta(1), Valore(6) e P&L%(8) */
+      .table-cumul tr.cumul-tot > * { display: table-cell; }
+      .table-cumul tr.cumul-tot > :nth-child(2),.table-cumul tr.cumul-tot > :nth-child(3),
+      .table-cumul tr.cumul-tot > :nth-child(4),.table-cumul tr.cumul-tot > :nth-child(5),
+      .table-cumul tr.cumul-tot > :nth-child(7),.table-cumul tr.cumul-tot > :nth-child(9) { display: none; }
       /* Storico portafoglio: mostra Azioni(1) Data(2) Tipo(3) Simbolo(4) Controv.(7) */
       .table-storico tr > :nth-child(5),.table-storico tr > :nth-child(6),
       .table-storico tr > :nth-child(8),.table-storico tr > :nth-child(9) { display: none; }
@@ -565,6 +577,7 @@
       <div id="view-portafogli"         class="view"></div>
       <div id="view-portafoglio-detail" class="view"></div>
       <div id="view-portafoglio-cumulativo" class="view"></div>
+      <div id="view-titolo-cumulativo" class="view"></div>
       <div id="view-transazioni"        class="view"></div>
       <div id="view-dossiers"           class="view"></div>
       <div id="view-dossier-detail"     class="view"></div>
@@ -623,8 +636,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.33.1';
-const APP_BUILD   = '2026-11-27T19:40:00Z';
+const APP_VERSION = 'v1.34.0';
+const APP_BUILD   = '2026-11-27T20:10:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -2361,6 +2374,9 @@ function cumulativoStats() {
         if (v == null) valoreSenzaCostoEscluso += val;
       } else { r.cost += x.costBasis; r.valueConCosto += val; }
       if (!r.portafogli.includes(p.name)) r.portafogli.push(p.name);
+      r.dettaglio = r.dettaglio || [];
+      r.dettaglio.push({ nome: p.name, qty: x.qty, value: val,
+                         cost: x.senzaCosto ? null : x.costBasis, avgCost: x.avgCost });
     }
   }
   const titoli = [...righe.values()].map(r => ({
@@ -2473,7 +2489,7 @@ function renderPortafoglioCumulativo() {
           <th>Valore</th><th>P&amp;L</th><th>P&amp;L %</th><th>Portafogli</th>
         </tr></thead>
         <tbody>${tipo && righe.length === 0 ? `<tr><td colspan="11" class="text-muted text-sm">Nessun titolo di questo tipo.</td></tr>` : ''}${righe.map(r => `
-          <tr>
+          <tr class="cumul-riga" data-action="titolo-cumul" data-id="${esc(String(r.product.id))}" title="Dettaglio di ${esc(r.product.symbol)}">
             <td class="mono fw-600">${esc(r.product.symbol)}<div class="text-muted text-sm" style="font-weight:400">${peso(r.value)}</div></td>
             <td class="spark-cell">${sparklineHtml(r.product.symbol, storico)}</td>
             <td><div class="truncate" style="max-width:160px">${esc(r.product.name)}</div></td>
@@ -2486,6 +2502,20 @@ function renderPortafoglioCumulativo() {
             <td>${r.pnlPct != null ? `<span class="badge ${r.pnlPct >= 0 ? 'badge-pos' : 'badge-neg'}">${fmtPct(r.pnlPct)}</span>` : '—'}</td>
             <td class="text-sm">${r.portafogli.map(esc).join(', ')}</td>
           </tr>`).join('')}
+          ${righe.length ? (() => {
+            const tv = righe.reduce((a, r) => a + r.value, 0);
+            const conP = righe.filter(r => r.pnl != null);
+            const pnl = conP.reduce((a, r) => a + r.pnl, 0);
+            const cost = conP.reduce((a, r) => a + r.cost, 0);
+            const pct = cost > 0 ? pnl / cost * 100 : null;
+            return `<tr class="cumul-tot">
+            <td colspan="3">Totale (${righe.length} ${righe.length === 1 ? 'titolo' : 'titoli'}${tipo ? ' · ' + esc((ASSET_MAP[tipo] || [tipo])[0]) : ''})<div class="text-muted text-sm" style="font-weight:400">${peso(tv)} del valore intero</div></td>
+            <td></td><td></td><td></td><td></td>
+            <td class="mono">${fmtEUR(tv)}</td>
+            <td class="mono ${conP.length ? pnlCls(pnl) : ''}">${conP.length ? fmtEUR(pnl) : '—'}</td>
+            <td>${pct != null ? `<span class="badge ${pct >= 0 ? 'badge-pos' : 'badge-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
+            <td class="text-sm text-muted">${conP.length < righe.length ? 'P&amp;L senza le monete a saldi' : ''}</td>
+          </tr>`; })() : ''}
           ${c.cash > 0 && !tipo ? `<tr>
             <td class="mono fw-600">💶 Liquidità<div class="text-muted text-sm" style="font-weight:400">${peso(c.cash)}</div></td>
             <td class="spark-cell"><span class="text-muted text-sm">—</span></td>
@@ -2493,6 +2523,88 @@ function renderPortafoglioCumulativo() {
             <td class="mono fw-600">${fmtEUR(c.cash)}</td><td>—</td><td>—</td><td></td>
           </tr>` : ''}
         </tbody></table></div>`}
+    </div>`);
+}
+/* ── Σ Il dettaglio di un titolo del cumulativo ───────────────────────────────
+   Dati dalla stessa cumulativoStats() della tabella (per intero, non per quota),
+   prezzo da `S.priceHistory` già caricato. Il periodo vive in memoria (S.titPeriodo). */
+const TIT_PERIODI = [['1w', '1S', 7], ['1m', '1M', 31], ['3m', '3M', 92], ['6m', '6M', 183],
+                     ['1y', '1A', 366], ['2y', '2A', 731], ['all', 'Da inizio', null]];
+function graficoPrezzoTitolo(punti) {
+  if (punti.length < 2) return '<div class="empty-sm">Pochi prezzi in archivio per questo periodo.</div>';
+  const W = Math.max(360, Math.min(900, window.innerWidth - 120)), H = 240, PL = 64, PR = 12, PT = 12, PB = 28;
+  const vals = punti.map(x => x.v);
+  const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
+  const X = i => PL + i * (W - PL - PR) / (punti.length - 1);
+  const Y = v => PT + (1 - (v - min) / rng) * (H - PT - PB);
+  const pts = punti.map((p, i) => `${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+  const su = vals[vals.length - 1] >= vals[0];
+  const col = su ? 'var(--c-success, #16a34a)' : 'var(--c-danger, #dc2626)';
+  const fmtN = v => new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(v);
+  const mid = (min + max) / 2;
+  const area = `${PL},${H - PB} ${pts} ${X(punti.length - 1).toFixed(1)},${H - PB}`;
+  return `<svg class="tit-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Andamento del prezzo">
+    ${[max, mid, min].map(v => `<line x1="${PL}" x2="${W - PR}" y1="${Y(v)}" y2="${Y(v)}" stroke="#e5e7eb" vector-effect="non-scaling-stroke"/>
+      <text x="${PL - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#6b7280">${fmtN(v)}</text>`).join('')}
+    <polygon points="${area}" fill="${col}" opacity=".08"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    <text x="${PL}" y="${H - 8}" font-size="11" fill="#6b7280">${fmtDate(punti[0].d)}</text>
+    <text x="${W - PR}" y="${H - 8}" text-anchor="end" font-size="11" fill="#6b7280">${fmtDate(punti[punti.length - 1].d)}</text>
+  </svg>`;
+}
+function renderTitoloCumulativo() {
+  const c = cumulativoStats();
+  const r = c.titoli.find(x => String(x.product.id) === String(S.cumulProdId));
+  if (!r) { navigate('portafoglio-cumulativo'); return; }
+  const p = r.product;
+  const per = TIT_PERIODI.find(x => x[0] === S.titPeriodo) || TIT_PERIODI[2];
+  const giorni = per[2];
+  const da = giorni ? new Date(Date.now() - giorni * 864e5).toISOString().slice(0, 10) : '';
+  const visti = new Set();
+  const punti = S.priceHistory
+    .filter(h => h.symbol === p.symbol && (!da || h.price_date >= da))
+    .map(h => ({ d: h.price_date, v: parseFloat(h.price) }))
+    .filter(x => Number.isFinite(x.v) && !visti.has(x.d) && visti.add(x.d))
+    .sort((a, b) => a.d.localeCompare(b.d));
+  const varPer = punti.length >= 2 && punti[0].v ? (punti[punti.length - 1].v - punti[0].v) / punti[0].v * 100 : null;
+  const avgCost = !r.senzaCosto && r.qty > 0 ? r.cost / r.qty : null;
+  const peso = c.totale > 0 ? fmtPct(r.value / c.totale * 100).replace(/^\+/, '') : '—';
+  setHtml('view-titolo-cumulativo', `
+    <div class="view-header">
+      <div class="hstack gap-8">
+        <button class="btn btn-sm btn-outline" data-action="nav" data-view="portafoglio-cumulativo">← Σ Cumulativo</button>
+        <div>
+          <h2 class="page-title">${esc(p.symbol)} · ${esc(p.name || '')}</h2>
+          <p class="page-sub">${assetBadge(p.asset_type)}${p.isin ? ` · ISIN <span class="mono">${esc(p.isin)}</span>` : ''} · per intero, non per quota</p>
+        </div>
+      </div>
+    </div>
+    ${p.description ? `<div class="card mb-16"><div class="text-sm">${esc(p.description)}</div></div>` : ''}
+    <div class="kpi-grid">
+      ${kpi('Azioni / quote', fmtQty(r.qty), 'neutral')}
+      ${kpi('Prezzo attuale', r.currentPrice != null ? fmtEURc(r.currentPrice) : '—', 'neutral')}
+      ${kpi('Var. % 1d', r.pd ? fmtPct(r.pd.change_pct) : '—', pnlCls(r.pd?.change_pct ?? null))}
+      ${kpi('Valore', `${fmtEUR(r.value)} · ${peso}`, 'neutral')}
+      ${kpi('Costo medio', avgCost != null ? fmtEURc(avgCost) : '—', 'neutral')}
+      ${kpi('P&amp;L', r.pnl != null ? `${fmtEUR(r.pnl)}${r.pnlPct != null ? ' · ' + fmtPct(r.pnlPct) : ''}` : '—', r.pnl != null ? pnlCls(r.pnl) : 'neutral')}
+    </div>
+    <div class="card mb-16">
+      <div class="card-title">Andamento del prezzo${varPer != null ? ` · <span class="${pnlCls(varPer)}">${fmtPct(varPer)}</span> nel periodo` : ''}</div>
+      <div class="tit-periodi mb-12">${TIT_PERIODI.map(([k, l]) => `<button class="btn btn-sm ${k === per[0] ? 'btn-primary' : 'btn-outline'}" data-action="tit-periodo" data-tf="${k}">${l}</button>`).join('')}</div>
+      ${graficoPrezzoTitolo(punti)}
+    </div>
+    <div class="card mb-16">
+      <div class="card-title">Nei portafogli</div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Portafoglio</th><th>Qtà</th><th>Costo medio</th><th>Valore</th><th>P&amp;L</th></tr></thead>
+        <tbody>${(r.dettaglio || []).map(d => {
+          const pnl = d.cost != null ? d.value - d.cost : null;
+          return `<tr><td>${esc(d.nome)}</td><td class="mono">${fmtQty(d.qty)}</td>
+            <td class="mono">${d.avgCost != null ? fmtEURc(d.avgCost) : '—'}</td>
+            <td class="mono">${fmtEUR(d.value)}</td>
+            <td class="mono ${pnl != null ? pnlCls(pnl) : ''}">${pnl != null ? fmtEUR(pnl) : '—'}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div>
     </div>`);
 }
 function renderPortafoglioDetail() {
@@ -8633,7 +8745,8 @@ function navigate(view, param = null) {
   if (view === 'dossier-detail') S.dossierId = param;
   if (view === 'fondo-detail') S.fundId = param;
   if (view === 'loan-detail') S.loanId = param;
-  history.pushState({ view, portfolioId: S.portfolioId, dossierId: S.dossierId, fundId: S.fundId, loanId: S.loanId }, '');
+  if (view === 'titolo-cumulativo') S.cumulProdId = param;
+  history.pushState({ view, portfolioId: S.portfolioId, dossierId: S.dossierId, fundId: S.fundId, loanId: S.loanId, cumulProdId: S.cumulProdId }, '');
   render(); window.scrollTo(0, 0);
 }
 /* Le pagine che stanno dentro il menù Configurazione: quando si è in una di
@@ -8649,7 +8762,7 @@ function render() {
   $('sidebar-config').hidden = !inConfig;
   document.querySelectorAll('.nav-item').forEach(b => {
     const match = b.dataset.view === S.view ||
-      ((S.view === 'portafoglio-detail' || S.view === 'portafoglio-cumulativo') && b.dataset.view === 'portafogli') ||
+      ((S.view === 'portafoglio-detail' || S.view === 'portafoglio-cumulativo' || S.view === 'titolo-cumulativo') && b.dataset.view === 'portafogli') ||
       (S.view === 'dossier-detail' && b.dataset.view === 'dossiers') ||
       (S.view === 'fondo-detail' && b.dataset.view === 'fondi') ||
       (S.view === 'loan-detail' && b.dataset.view === 'loans');
@@ -8661,6 +8774,7 @@ function render() {
     case 'portafogli':         renderPortafogli();         break;
     case 'portafoglio-detail': renderPortafoglioDetail();  break;
     case 'portafoglio-cumulativo': renderPortafoglioCumulativo(); break;
+    case 'titolo-cumulativo': renderTitoloCumulativo(); break;
     case 'transazioni':        renderTransazioni();        break;
     case 'dossiers':          renderDossiers();           break;
     case 'dossier-detail':    renderDossierDetail();      break;
@@ -8696,6 +8810,8 @@ document.addEventListener('click', async e => {
     case 'report-sel':      S.reportId = t.dataset.id; renderReport(); break;
     case 'report-out':      reportOut(t.dataset.fmt); break;
     case 'view-portfolio':  navigate('portafoglio-detail', t.dataset.id); break;
+    case 'titolo-cumul':    navigate('titolo-cumulativo', t.dataset.id); break;
+    case 'tit-periodo':     S.titPeriodo = t.dataset.tf; renderTitoloCumulativo(); break;
     case 'new-portfolio':   openNewPortfolioModal(); break;
     case 'edit-portfolio':  openNewPortfolioModal(t.dataset.id); break;
     case 'new-transaction': console.log('🔴 CHIAMO openNewTransactionModal'); openNewTransactionModal(t.dataset.portfolioId || null, t.dataset.productId || null, t.dataset.dossierId || null); break;
@@ -9264,7 +9380,8 @@ async function boot() {
 const urlErr = new URLSearchParams(location.search).get('error_description');
 window.addEventListener('popstate', e => {
   if (!e.state || !S.session) return;
-  const { view, portfolioId, dossierId, fundId, loanId } = e.state;
+  const { view, portfolioId, dossierId, fundId, loanId, cumulProdId } = e.state;
+  if (cumulProdId != null) S.cumulProdId = cumulProdId;
   if (view === 'portafoglio-detail' && portfolioId !== S.portfolioId) S.ptfFilters = {};
   S.view = view; S.portfolioId = portfolioId || null; S.dossierId = dossierId || null;
   S.fundId = fundId || null; S.loanId = loanId || null;

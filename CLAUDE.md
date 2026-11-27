@@ -3034,6 +3034,12 @@ disegno dalle posizioni di **tutti** i portafogli. Apri → porta alla vista
 - **Colonna Tipo con filtro** (v1.33.1): il badge di `fnz_products.asset_type` e una tendina
   nell'intestazione (`S.cumulTipo`, in memoria). ⚠️ Filtra le **sole righe**: i KPI restano sul
   totale, e con un tipo scelto la riga della liquidità non si mostra (non è un tipo di prodotto).
+- **Riga «Totale (N titoli)»** in fondo (v1.34.0): somma valore, P&L e peso delle sole righe
+  mostrate dal filtro Tipo; la liquidità resta fuori, nella sua riga.
+- **Dettaglio del titolo** (v1.34.0, vista `titolo-cumulativo`, `renderTitoloCumulativo`): un
+  tocco sulla riga. Tipo, ISIN, descrizione, quantità, prezzo, var. 1d, valore e peso, costo
+  medio, P&L, la ripartizione per portafoglio e il grafico del prezzo da `S.priceHistory` coi
+  periodi 1S · 1M · 3M · 6M · 1A · 2A · Da inizio (`S.titPeriodo`, in memoria, di partenza 3M).
 - Non tocca database, snapshot né l'app nativa.
 
 ### ✏️ Il portafoglio CRYPTO: quantità scritte a mano (`fnz_saldi_crypto`)
