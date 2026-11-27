@@ -5284,6 +5284,15 @@ debiti dove è il più basso) sta in un **box verde**, come `td.snap-top` nel we
 l'ultimo del mese. Le due regole stanno in `FinanzaState.migliori` / `storicoMostrato` e vanno
 cambiate insieme a `renderProgressione` in `finanza.html`.
 
+💶 **Liquidità e Σ Cumulativo** (APK 1.0.168): la Dashboard ha la scheda 💶 Liquidità (liquidità
+dei portafogli in quota + `cm_settings.sal_saldo`) e la scheda Portafogli mostra i soli titoli,
+come il web v1.36.0. In 💼 Portafogli c'è la scheda Σ CUMULATIVO (per intero, filtro Tipo, riga
+Totale, dettaglio del titolo coi portafogli in cui sta): `Cumulativo.da` **riaggrega le posizioni
+dello snapshot** (`current_value`, `cost_basis`, `cash / possesso`), non ricalcola prezzi. ⚠️ Il
+versato di un portafoglio a saldi si ricava da `total_cost / possesso − Σ cost_basis`. Niente
+grafici dei prezzi né variazione giornaliera: il nativo non legge `fnz_price_history`. Gemelle di
+`cumulativoStats()` / `renderDashboard` in finanza.html.
+
 ⚠️ **Valori lordi, di proposito**: il netto delle tasse non c'è (lo snapshot non lo conosce, ed è
 stato chiesto così). La variazione «dal giorno prima» è contro lo snapshot precedente. Il dettaglio
 dei portafogli (`details`) per l'andamento si legge **solo aprendo un portafoglio e solo sul
