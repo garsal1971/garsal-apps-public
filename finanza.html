@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GarsalFinanza v1.35.2</title>
+  <title>GarsalFinanza v1.36.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -636,8 +636,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.35.2';
-const APP_BUILD   = '2026-11-27T22:00:00Z';
+const APP_VERSION = 'v1.36.0';
+const APP_BUILD   = '2026-11-27T23:00:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -1992,13 +1992,26 @@ function renderDashboard() {
   const grandTax   = stats.reduce((s, x) => s + x.taxDue, 0);
 
   const totalLoans = S.loans.reduce((s, l) => s + (computeLoanValue(l).value || 0), 0);
+  // 💶 Liquidità: quella dei portafogli (in quota) si mostra QUI e non nei portafogli, più il
+  // saldo del Conto Spese Personali (cm_settings `sal_saldo`). La liquidità dei portafogli era
+  // già negli asset; il saldo entra adesso, e lo snapshot (save-snapshot) fa lo stesso.
+  const grandCash  = stats.reduce((s, x) => s + x.cash, 0);
+  const salImp     = S.salSaldo ? Number(S.salSaldo.importo) || 0 : 0;
+  const grandTitoli = grandValue - grandCash;
   const totalOther = S.otherAssets.filter(a => a.asset_type !== 'danaro_rosa').reduce((s, a) => s + (parseFloat(a.value) * (parseFloat(a.ownership_percentage) || 100) / 100), 0);
   const rosaAssets = S.otherAssets.filter(a => a.asset_type === 'danaro_rosa');
 
   const prev = S.prevSnapshot;
+  // Il confronto col giorno prima va fatto sui soli titoli: la liquidità di allora si toglie
+  // con `details.portfolios[].cash`. Uno snapshot senza quel dato non si confronta.
   const prevPtfMap = {};
+  let prevCash = 0, prevHaCash = !!prev?.details?.portfolios;
   if (prev?.details?.portfolios) {
-    for (const p of prev.details.portfolios) prevPtfMap[p.id] = p.total_value;
+    for (const p of prev.details.portfolios) {
+      if (p.cash == null) { prevHaCash = false; continue; }
+      prevPtfMap[p.id] = parseFloat(p.total_value) - parseFloat(p.cash);
+      prevCash += parseFloat(p.cash) || 0;
+    }
   }
 
   const ts         = Object.values(S.prices)[0]?.updated_at;
@@ -2013,8 +2026,8 @@ function renderDashboard() {
       </div>
     </div>
     <div class="kpi-grid">
-      <div class="kpi-card"><div class="kpi-label">Patrimonio Netto</div><div class="kpi-value mono neutral">${deltaHtml(grandValue + totalOther - totalLoans, prev ? parseFloat(prev.patrimonio_netto) : null)} ${fmtEUR(grandValue + totalOther - totalLoans)}</div></div>
-      ${kpi('Asset Totali',     fmtEUR(grandValue + totalOther), 'neutral')}
+      <div class="kpi-card"><div class="kpi-label">Patrimonio Netto</div><div class="kpi-value mono neutral">${deltaHtml(grandValue + totalOther + salImp - totalLoans, prev ? parseFloat(prev.patrimonio_netto) : null)} ${fmtEUR(grandValue + totalOther + salImp - totalLoans)}</div></div>
+      ${kpi('Asset Totali',     fmtEUR(grandValue + totalOther + salImp), 'neutral')}
       ${kpi('Debiti Totali',    fmtEUR(totalLoans), 'neg')}
     </div>
 
@@ -2025,10 +2038,10 @@ function renderDashboard() {
           <button class="btn btn-outline btn-sm" data-action="nav" data-view="portafogli">Dettaglio →</button>
         </div>
         <div class="mb-16">
-          <div class="kpi-label">Valore totale quota</div>
-          <div class="mono text-lg fw-700 pos text-right">${deltaHtml(grandValue, prev ? parseFloat(prev.portafogli_totali) : null)} ${fmtEUR0(grandValue)}</div>
+          <div class="kpi-label">Valore totale quota (titoli, liquidità a parte)</div>
+          <div class="mono text-lg fw-700 pos text-right">${deltaHtml(grandTitoli, prev && prevHaCash ? parseFloat(prev.portafogli_totali) - prevCash : null)} ${fmtEUR0(grandTitoli)}</div>
           <div class="kpi-label mt-4">Al netto delle tasse${grandTax > 0 ? ` (−${fmtEUR0(grandTax)})` : ''}</div>
-          <div class="mono fw-700 text-right">${fmtEUR0(grandNet)}</div>
+          <div class="mono fw-700 text-right">${fmtEUR0(grandNet - grandCash)}</div>
         </div>
         <div class="table-wrap">
           <table class="table table-2col" style="table-layout:fixed;width:100%">
@@ -2042,8 +2055,9 @@ function renderDashboard() {
             <tbody>
               ${stats.length === 0
                 ? `<tr><td colspan="3" class="empty-sm">Nessun portafoglio ancora.</td></tr>`
-                : stats.map(({ portfolio: p, totalValue: tv, netValue: nv, pnl, pnlPct, holdings: h }) => {
-                    const prevTv = prevPtfMap[p.id] != null ? parseFloat(prevPtfMap[p.id]) : null;
+                : stats.map(({ portfolio: p, totalValue: tvTot, netValue: nvTot, cash: pc, pnl, pnlPct, holdings: h }) => {
+                    const tv = tvTot - pc, nv = nvTot - pc;
+                    const prevTv = prevPtfMap[p.id] != null ? prevPtfMap[p.id] : null;
                     const d = deltaHtml(tv, prevTv);
                     return `
                     <tr data-action="view-portfolio" data-id="${p.id}" style="cursor:pointer">
@@ -2065,6 +2079,30 @@ function renderDashboard() {
         </div>
       </div>
       
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title">💶 Liquidità</div>
+        </div>
+        <div class="kpi-label">Totale (quota)</div>
+        <div class="mono text-lg fw-700 pos mb-16 text-right">${fmtEUR(grandCash + salImp)}</div>
+        <div class="table-wrap">
+          <table class="table table-2col">
+            <thead><tr><th>Dove</th><th class="text-right">Importo</th></tr></thead>
+            <tbody>
+              ${stats.filter(x => Math.abs(x.cash) >= 0.5).map(({ portfolio: p, cash: pc }) => `
+                <tr data-action="view-portfolio" data-id="${p.id}" style="cursor:pointer">
+                  <td class="fw-600"><span class="portfolio-dot" style="background:${p.color}"></span> ${esc(p.name)}</td>
+                  <td class="text-right mono fw-600 pos">${fmtEUR(pc)}</td>
+                </tr>`).join('')}
+              <tr>
+                <td class="fw-600">💳 Conto Spese Personali${S.salSaldo?.data ? `<br><span class="text-muted" style="font-size:.72rem;font-weight:400">saldo al ${fmtDate(S.salSaldo.data)} · <a href="spese-personali.html">aggiorna</a></span>` : `<br><span class="text-muted" style="font-size:.72rem;font-weight:400">saldo non ancora letto · <a href="spese-personali.html">leggilo</a></span>`}</td>
+                <td class="text-right mono fw-600 pos">${S.salSaldo ? fmtEUR(salImp) : '—'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header-row">
           <div class="card-title">Prestiti e Mutui</div>
@@ -2385,7 +2423,7 @@ async function leggiSaldoSal() {
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } }
     S.salSaldo = v && typeof v === 'object' && Number.isFinite(Number(v.importo)) ? v : null;
   } catch { S.salSaldo = null; }
-  if (['portafogli', 'portafoglio-cumulativo', 'titolo-cumulativo'].includes(S.view)) render();
+  if (['dashboard', 'portafogli', 'portafoglio-cumulativo', 'titolo-cumulativo'].includes(S.view)) render();
 }
 function cumulativoStats() {
   const righe = new Map();
