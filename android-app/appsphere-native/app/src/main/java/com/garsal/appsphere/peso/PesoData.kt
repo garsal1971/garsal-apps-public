@@ -51,6 +51,12 @@ data class Pesata(
     /** Vera per le pesate scritte a mano, che sono le uniche modificabili. */
     val manuale: Boolean get() = ora == "Manuale"
 
+    /**
+     * Peso interpolato fra la pesata prima e quella dopo, scritto dal database
+     * (`ps_interpola_pesate`, `time = 'Interp.'`). Conta come una pesata: media e punti.
+     */
+    val interpolata: Boolean get() = ora == "Interp."
+
     companion object {
         fun da(o: JsonObject): Pesata? {
             val giorno = testo(o, "date") ?: return null

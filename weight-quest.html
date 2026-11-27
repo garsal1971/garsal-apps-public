@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peso e Calorie v4.20.0</title>
+  <title>Peso e Calorie v4.21.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Darker+Grotesque:wght@700&display=swap" rel="stylesheet" />
@@ -442,6 +442,9 @@
         .grafo-nodo .gn-pos::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 3px solid #D1D5DB; z-index: -1; }
         .grafo-nodo:first-child .gn-pos::before { left: 50%; } .grafo-nodo:last-child .gn-pos::before { right: 50%; }
         .grafo-nodo .gn-data { font-size: 11px; color: #6B7280; white-space: nowrap; }
+        /* v4.21.0: giorno senza pesata, peso interpolato dal database (time = 'Interp.'). */
+        .grafo-nodo .gn-interp { font-size: 10px; color: #6C5CE7; font-style: italic; white-space: nowrap; }
+        .grafo-nodo.interp .gn-cerchio { border-style: dashed; }
         .grafo-nodo.oggi .gn-data { color: #FF3366; font-weight: bold; }
         .grafo-nodo .gn-cerchio { min-width: 3.6rem; min-height: 3.6rem; padding: 4px; border-radius: 50%; box-sizing: border-box;
             display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
@@ -1895,8 +1898,8 @@
            numero è uno solo, e riparte da v4.0.0 — il maggiore sale perché la pagina non
            è più quella di prima (sette voci invece di tre, e `calorie.html` che rimanda
            qui), non perché si contino le funzioni aggiunte. */
-        var APP_VERSION = 'v4.20.0';
-        var BUILD_TIME  = '2026-10-27T09:30:00Z';
+        var APP_VERSION = 'v4.21.0';
+        var BUILD_TIME  = '2026-11-27T10:00:00Z';
 
         // Estrae "YYYY-MM-DD" nell'ora locale (evita il bug UTC a mezzanotte)
         function localDateStr(d) {
@@ -2577,7 +2580,7 @@
                     var row = document.createElement('div');
                     row.style.cssText = 'display:flex; align-items:center; gap:12px; padding:7px 4px; border-bottom:1px solid #f3f4f6;';
                     var tBadge = document.createElement('span');
-                    tBadge.textContent = r.time || '--';
+                    tBadge.textContent = isInterpolata(r) ? '〰 interpolata' : (r.time || '--');
                     tBadge.style.cssText = 'font-size:0.85em; color:#666; min-width:42px;';
                     var wBadge = document.createElement('span');
                     wBadge.textContent = (r.weight != null ? r.weight.toFixed(1) + ' kg' : '--') + notaGrasso(r);
@@ -5903,6 +5906,9 @@
             }
             return out;
         }
+        /* v4.21.0: le righe col peso interpolato fra due pesate vere le scrive il database
+           (ps_interpola_pesate) con time = 'Interp.'; contano come pesate (media e punti). */
+        function isInterpolata(r) { return !!r && r.time === 'Interp.'; }
         // Tutto quel che serve per disegnare un giorno.
         function grafoNodo(data, obj, day, oggi, modo) {
             var riga = minimoDelGiorno(data, day);
@@ -5924,6 +5930,7 @@
                 else stato = Math.round(valore * 10) / 10 <= Math.round(target * 10) / 10 ? 'verde' : 'rosso';
             } else stato = valore != null ? 'blu' : 'vuoto';
             return { day: day, reale: reale, media: media, mediaStimata: emaStimata(day, 'ema_weight'),
+                     interp: isInterpolata(riga),
                      conta: conta, target: target, valore: valore, nasc: nasc, stato: stato };
         }
         /* Le calorie di quel giorno, lette dalla metà «calorie» e non ricalcolate qui: il conto
@@ -5998,7 +6005,7 @@
                 + '<div class="grafo-scorri"><div class="grafo-riga">';
             nodi.forEach(function(n) {
                 var d = new Date(n.day + 'T12:00:00');
-                var cls = 'grafo-nodo st-' + n.stato + (n.day === oggi ? ' oggi' : '') + (n.day === sel ? ' sel' : '');
+                var cls = 'grafo-nodo st-' + n.stato + (n.day === oggi ? ' oggi' : '') + (n.day === sel ? ' sel' : '') + (n.interp ? ' interp' : '');
                 var dentro;
                 var tocco = 'grafoScegli(\'' + n.day + '\')';
                 if (n.day === oggi && n.nasc) {
@@ -6013,7 +6020,8 @@
                 }
                 html += '<button type="button" class="' + cls + '" data-day="' + n.day + '" onclick="' + tocco + '">'
                       + '<span class="gn-data">' + (n.day === oggi ? 'Oggi' : GS[d.getDay()] + ' ' + n.day.slice(8, 10) + '/' + n.day.slice(5, 7)) + '</span>'
-                      + '<span class="gn-pos"><span class="gn-cerchio">' + dentro + '</span></span></button>';
+                      + '<span class="gn-pos"><span class="gn-cerchio">' + dentro + '</span></span>'
+                      + (n.interp ? '<span class="gn-interp">〰 interpolata</span>' : '') + '</button>';
             });
             html += '</div></div>';
             box.innerHTML = html;
@@ -7272,6 +7280,10 @@
                     iconBadge.textContent = '✗ ';
                     iconBadge.title = 'Giorno di pesata passato senza pesarsi';
                     iconBadge.style.color = '#E74C3C';
+                } else if (dayData && dayData.length && dayData.every(isInterpolata)) {
+                    iconBadge.textContent = '〰 ';
+                    iconBadge.title = 'Peso interpolato fra la pesata prima e quella dopo';
+                    iconBadge.style.color = '#6C5CE7';
                 } else if (tableNoWeighDays[date]) {
                     iconBadge.textContent = '○ ';
                     iconBadge.title = 'Nessuna pesata: medie stimate col trend';
@@ -7288,6 +7300,12 @@
                 iconInline.appendChild(iconBadge);
                 tdDate.appendChild(iconInline);
                 tdDate.appendChild(document.createTextNode(date));
+                if (dayData && dayData.length && dayData.every(isInterpolata)) {
+                    var tagInterp = document.createElement('div');
+                    tagInterp.textContent = 'interpolata';
+                    tagInterp.style.cssText = 'font-size:0.75em;font-weight:normal;font-style:italic;color:#6C5CE7;';
+                    tdDate.appendChild(tagInterp);
+                }
                 if (isOffPlan) {
                     var tagFuori = document.createElement('div');
                     tagFuori.textContent = 'fuori calendario';

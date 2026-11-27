@@ -287,6 +287,8 @@ object PesoRegole {
         // ── La riga come la tabella del web v4.13 ───────────────────────
         /** L'ULTIMA pesata del giorno (peso totale), quella che entra nella media. */
         val primaPeso: Double? = null,
+        /** L'ultima pesata del giorno è un peso interpolato dal database. */
+        val primaInterpolata: Boolean = false,
         /** Grasso (kg e %) dell'ultima pesata che il grasso ce l'ha. */
         val primaGrassoKg: Double? = null,
         val primaGrassoPct: Double? = null,
@@ -409,6 +411,7 @@ object PesoRegole {
                 notaMassimo = if (interpolato) null else notaTotale(massima),
                 notaTarget = notaTargetTotale(target, obiettivo),
                 primaPeso = prima?.peso,
+                primaInterpolata = prima?.interpolata == true,
                 primaGrassoKg = primaG?.let { massaGrassa(it) },
                 primaGrassoPct = primaG?.grasso,
                 media = medie[giorno],

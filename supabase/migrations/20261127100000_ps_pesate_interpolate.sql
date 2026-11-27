@@ -106,10 +106,12 @@ END $$;
 
 -- Prima passata per ogni utente con pesate, poi la media, poi il punteggio degli obiettivi
 -- CHIUSI rifatto con le regole di oggi (richiesta esplicita). La data di chiusura non è
--- archiviata: si conta fino a min(fine, updated_at in ora di Roma).
+-- archiviata (updated_at è quella di creazione): si conta fino alla fine prevista, ma non
+-- oltre il giorno prima dell'inizio dell'obiettivo successivo — si chiudeva per aprirne un
+-- altro — e non oltre oggi.
 DO $$
 DECLARE
-  u uuid; o record; p jsonb; v_oggi date; v_tot int;
+  u uuid; o record; p jsonb; v_fino date; v_dopo date; v_tot int;
 BEGIN
   FOR u IN SELECT DISTINCT user_id FROM ps_weight_tracking WHERE user_id IS NOT NULL LOOP
     PERFORM set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true);
@@ -117,17 +119,18 @@ BEGIN
     PERFORM ps_ema_ricalcola(u);
 
     FOR o IN SELECT * FROM ps_objectives
-              WHERE user_id = u AND status IN ('success', 'failed') LOOP
-      v_oggi := LEAST(COALESCE(o.end_date, (o.updated_at AT TIME ZONE 'Europe/Rome')::date),
-                      COALESCE((o.updated_at AT TIME ZONE 'Europe/Rome')::date, o.end_date));
-      p := ps_punti(o.id::text, v_oggi);
+              WHERE user_id = u AND status IN ('success', 'failed') ORDER BY start_date LOOP
+      SELECT min(x.start_date) INTO v_dopo FROM ps_objectives x
+       WHERE x.user_id = u AND x.start_date > o.start_date;
+      v_fino := LEAST(COALESCE(o.end_date, current_date), COALESCE(v_dopo - 1, current_date), current_date);
+      p := ps_punti(o.id::text, v_fino);
       IF NOT COALESCE((p->>'ok')::boolean, false) THEN CONTINUE; END IF;
       v_tot := (p->>'total')::int
              + CASE WHEN o.status = 'success'
                     THEN (p->'traguardi'->>'reached_points')::int
                          + COALESCE(NULLIF(round(o.final_bonus::numeric)::int, 0), 100)
                     ELSE -COALESCE(NULLIF(round(o.final_malus::numeric)::int, 0), 50) END;
-      RAISE NOTICE 'Obiettivo %: % → %', o.id, o.total_score, v_tot;
+      RAISE NOTICE 'Obiettivo % (fino al %): % → %', o.id, v_fino, o.total_score, v_tot;
       UPDATE ps_objectives SET total_score = v_tot WHERE id = o.id;
     END LOOP;
   END LOOP;

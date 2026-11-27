@@ -1371,6 +1371,26 @@ rimetteva in archivio anche dopo averle cancellate.
   finestra), le pesate vere dopo di lei possono risultare «anomale»: va cancellata e la media
   ricalcolata (`ps_ema_ricalcola`).
 
+### 〰 Le pesate interpolate (`time = 'Interp.'`)
+
+(27 novembre 2026, `20261127100000_ps_pesate_interpolate.sql`, web v4.21.0, APK 1.0.167.) Ogni
+giorno senza pesata che sta **fra due pesate vere** riceve una riga vera in `ps_weight_tracking`
+col peso sulla retta fra le due (x 80, x+1 niente, x+2 79 → x+1 79,5), `time = 'Interp.'`
+(la colonna è varchar(10)), `target_weight` NULL, timestamp = mezzogiorno di Roma. Buchi di
+qualunque lunghezza, tutto lo storico.
+- ⚠️ **Le scrive solo `ps_interpola_pesate`**, chiamata dal trigger per istruzione
+  (`ps_ema_trigger`) prima di `ps_ema_ricalcola`: si riallineano da sole a ogni pesata nuova,
+  cancellata o corretta (una pesata vera su un giorno interpolato la toglie). La GUC
+  `ps.interpola_in_corso` impedisce che le sue scritture rifacciano partire il giro.
+- ⚠️ **Contano come pesate**: entrano nella media mobile, quindi in `ps_punti` (target del piano,
+  perché `target_weight` è NULL). Oggi senza pesata non si interpola: manca la pesata dopo.
+- Il filtro delle pesate anomale le lascia passare come le manuali.
+- A schermo: «〰 interpolata» sotto il nodo del grafo, nella tabella e nel dettaglio del giorno
+  (`isInterpolata()` nel web, `Pesata.interpolata` nel nativo, gemelli).
+- La migration ha rifatto `total_score` degli obiettivi chiusi con le regole di oggi, contando
+  fino a min(fine, giorno prima dell'inizio dell'obiettivo successivo, oggi): la data di
+  chiusura non è archiviata e `updated_at` è quella di creazione.
+
 ### 📈 La media mobile (`ps_daily_ema`) — SEMPLICE dal 19 ottobre 2026
 
 ⚠️ **Dal 23 ottobre 2026 il peso di una giornata è la sua ULTIMA pesata per orario** (`timestamp`),
