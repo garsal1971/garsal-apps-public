@@ -153,6 +153,9 @@
     .portfolio-card-stats { display: grid; grid-template-columns: 1fr; gap: 8px; }
     .portfolio-card-value { font-size: 1.35rem; font-weight: 700; letter-spacing: -.03em; }
     .portfolio-card-change { font-size: .92rem; font-weight: 600; }
+    .portfolio-card-cumul { grid-column: 1 / -1; border-style: dashed; }
+    .spark-cell { width: 110px; min-width: 90px; }
+    .spark-svg { display: block; width: 100%; height: 32px; }
     .portfolio-row { display: flex; align-items: center; gap: 12px; padding: 9px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: background .12s; }
     .portfolio-row:hover { background: var(--c-bg); }
     .portfolio-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -364,6 +367,10 @@
       .table-posizioni tr > :nth-child(5),.table-posizioni tr > :nth-child(6),
       .table-posizioni tr > :nth-child(7),.table-posizioni tr > :nth-child(9),
       .table-posizioni tr > :nth-child(n+11) { display: none; }
+      /* Cumulativo: mostra Simbolo(1) Andamento(2) Valore(7) P&L%(9) */
+      .table-cumul tr > :nth-child(3),.table-cumul tr > :nth-child(4),
+      .table-cumul tr > :nth-child(5),.table-cumul tr > :nth-child(6),
+      .table-cumul tr > :nth-child(8),.table-cumul tr > :nth-child(10) { display: none; }
       /* Storico portafoglio: mostra Azioni(1) Data(2) Tipo(3) Simbolo(4) Controv.(7) */
       .table-storico tr > :nth-child(5),.table-storico tr > :nth-child(6),
       .table-storico tr > :nth-child(8),.table-storico tr > :nth-child(9) { display: none; }
@@ -557,6 +564,7 @@
       <div id="view-dashboard"          class="view active"></div>
       <div id="view-portafogli"         class="view"></div>
       <div id="view-portafoglio-detail" class="view"></div>
+      <div id="view-portafoglio-cumulativo" class="view"></div>
       <div id="view-transazioni"        class="view"></div>
       <div id="view-dossiers"           class="view"></div>
       <div id="view-dossier-detail"     class="view"></div>
@@ -615,8 +623,8 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ── Config ─────────────────────────────────────────────────── */
-const APP_VERSION = 'v1.32.2';
-const APP_BUILD   = '2026-10-14T12:00:00Z';
+const APP_VERSION = 'v1.33.0';
+const APP_BUILD   = '2026-11-27T20:30:00Z';
 const _IS_DEV     = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SUPABASE_URL      = 'https://jajlmmdsjlvzgcxiiypk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphamxtbWRzamx2emdjeGlpeXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NTU0NjYsImV4cCI6MjA4NTUzMTQ2Nn0.ikaipwxOvIn43epayQ4mSZQkXtin3aaGEPouafwJFxU';
@@ -2092,7 +2100,7 @@ function renderPortafogli() {
     </div>
     ${S.portfolios.length === 0
       ? `<div class="empty-state"><div class="empty-icon">💼</div><p>Nessun portafoglio ancora.<br/>Creane uno per iniziare.</p></div>`
-      : `<div class="portfolio-grid">${stats.map(({ portfolio: p, totalValue: tv, netValue: nv, taxDue, dailyChangePct }) => `
+      : `<div class="portfolio-grid">${cumulativoCardHtml()}${stats.map(({ portfolio: p, totalValue: tv, netValue: nv, taxDue, dailyChangePct }) => `
         <div class="portfolio-card" style="border-top: 4px solid ${p.color}">
           <div class="portfolio-card-header">
             <div>
@@ -2319,6 +2327,160 @@ function openSaldoModal(portfolioId, productId = null) {
     });
     await reload(); closeModal();
   });
+}
+/* ── Σ Il portafoglio CUMULATIVO (virtuale, solo lettura) ─────────────────────
+   Non è una riga di `fnz_portfolios`: si calcola qui, a ogni disegno, dalle posizioni
+   di TUTTI i portafogli. ⚠️ Vale per INTERO e non per quota: il possesso % dei singoli
+   portafogli non si applica, perché la domanda a cui risponde è «quanto c'è in tutto».
+   Lo stesso titolo in più portafogli diventa una riga sola (quantità e valori sommati).
+   La liquidità entra nel valore come riga a sé. Niente tasse, niente snapshot, niente
+   app nativa: è una vista della sola pagina. */
+function cumulativoStats() {
+  const righe = new Map();
+  let cash = 0, versato = 0, valoreSenzaCostoEscluso = 0;
+  for (const p of S.portfolios) {
+    const h = computeHoldings(p.id);
+    cash += computePortfolioCash(p.id);
+    const v = versatoSaldi(p);
+    if (v != null) versato += v;
+    for (const x of h) {
+      let r = righe.get(x.product.id);
+      if (!r) {
+        r = { product: x.product, pd: x.pd, currentPrice: x.currentPrice, qty: 0, value: 0,
+              cost: 0, valueConCosto: 0, prevClose: 0, senzaCosto: false, portafogli: [] };
+        righe.set(x.product.id, r);
+      }
+      const val = x.currentValue ?? x.costBasis;
+      r.qty += x.qty;
+      r.value += val;
+      r.prevClose += x.pd?.prev_close != null ? x.qty * x.pd.prev_close : val;
+      if (x.senzaCosto) {
+        r.senzaCosto = true;
+        // Un portafoglio a saldi SENZA fondo collegato non ha investito: le sue monete
+        // stanno fuori dal P&L, come in portfolioStats.
+        if (v == null) valoreSenzaCostoEscluso += val;
+      } else { r.cost += x.costBasis; r.valueConCosto += val; }
+      if (!r.portafogli.includes(p.name)) r.portafogli.push(p.name);
+    }
+  }
+  const titoli = [...righe.values()].map(r => ({
+    ...r,
+    // P&L per titolo solo dove c'è un costo per tutta la quantità.
+    pnl:    r.senzaCosto ? null : r.value - r.cost,
+    pnlPct: r.senzaCosto || r.cost <= 0 ? null : (r.value - r.cost) / r.cost * 100,
+  })).sort((a, b) => b.value - a.value);
+  const totTitoli = titoli.reduce((s, r) => s + r.value, 0);
+  const totCost   = titoli.reduce((s, r) => s + r.cost, 0);
+  const investito = totCost + versato;
+  const pnl       = totTitoli - valoreSenzaCostoEscluso - investito;
+  const prevClose = titoli.reduce((s, r) => s + r.prevClose, 0);
+  return {
+    titoli, cash, totTitoli, totale: totTitoli + cash, investito, pnl,
+    pnlPct: investito > 0 ? pnl / investito * 100 : null,
+    dailyPct: prevClose > 0 ? (totTitoli - prevClose) / prevClose * 100 : null,
+  };
+}
+function cumulativoCardHtml() {
+  const c = cumulativoStats();
+  return `
+    <div class="portfolio-card portfolio-card-cumul" style="border-top: 4px solid #0f172a">
+      <div class="portfolio-card-header">
+        <div>
+          <div class="fw-700 text-lg">Σ CUMULATIVO</div>
+          <div class="text-muted text-sm mt-2">Virtuale · tutti i portafogli · valore intero (non per quota)</div>
+        </div>
+      </div>
+      <div class="portfolio-card-stats">
+        <div>
+          <div class="kpi-label">Valore intero</div>
+          <div class="mono portfolio-card-value">${fmtEUR(c.totale)}</div>
+        </div>
+        <div>
+          <div class="kpi-label">Var. da chiusura prec.</div>
+          <div class="mono portfolio-card-change ${pnlCls(c.dailyPct)}">${fmtPct(c.dailyPct)}</div>
+        </div>
+      </div>
+      <div class="text-sm text-muted mt-12">${c.titoli.length} titoli${c.cash > 0 ? ` · di cui liquidità <strong>${fmtEUR(c.cash)}</strong>` : ''}</div>
+      <button class="btn btn-outline btn-sm mt-12" data-action="nav" data-view="portafoglio-cumulativo">Apri →</button>
+    </div>`;
+}
+/* Il grafichino del prezzo di un titolo negli ultimi 3 mesi, da `fnz_price_history`
+   (già caricato con la pagina: nessuna lettura in più). Verde se sale, rosso se scende. */
+const SPARK_GIORNI = 91;
+function sparklineHtml(symbol, storico) {
+  const punti = (storico.get(symbol) || []);
+  if (punti.length < 2) return '<span class="text-muted text-sm">—</span>';
+  const W = 100, H = 32, P = 2;
+  const vals = punti.map(x => x.v);
+  const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
+  const pts = vals.map((v, i) =>
+    `${(P + i * (W - 2 * P) / (vals.length - 1)).toFixed(1)},${(H - P - (v - min) / rng * (H - 2 * P)).toFixed(1)}`).join(' ');
+  const col = vals[vals.length - 1] >= vals[0] ? 'var(--c-success, #16a34a)' : 'var(--c-danger, #dc2626)';
+  const pct = vals[0] ? (vals[vals.length - 1] - vals[0]) / vals[0] * 100 : null;
+  return `<svg class="spark-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    </svg><div class="mono text-sm ${pnlCls(pct)}" style="text-align:right">${pct != null ? fmtPct(pct) : ''}</div>`;
+}
+function renderPortafoglioCumulativo() {
+  const c = cumulativoStats();
+  const da = new Date(Date.now() - SPARK_GIORNI * 864e5).toISOString().slice(0, 10);
+  const simboli = new Set(c.titoli.map(r => r.product.symbol));
+  const storico = new Map();
+  for (const h of S.priceHistory) {
+    if (!simboli.has(h.symbol) || h.price_date < da) continue;
+    const v = parseFloat(h.price);
+    if (!Number.isFinite(v)) continue;
+    if (!storico.has(h.symbol)) storico.set(h.symbol, []);
+    storico.get(h.symbol).push({ d: h.price_date, v });
+  }
+  for (const arr of storico.values()) arr.sort((a, b) => a.d.localeCompare(b.d));
+  const peso = v => c.totale > 0 ? fmtPct(v / c.totale * 100).replace(/^\+/, '') : '—';
+  setHtml('view-portafoglio-cumulativo', `
+    <div class="view-header">
+      <div class="hstack gap-8">
+        <button class="btn btn-sm btn-outline" data-action="nav" data-view="portafogli">← Portafogli</button>
+        <div>
+          <h2 class="page-title">Σ Cumulativo</h2>
+          <p class="page-sub">Virtuale, solo lettura · tutti i portafogli sommati per intero (non per quota)</p>
+        </div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      ${kpi('Valore intero', fmtEUR(c.totale), 'neutral')}
+      ${c.cash > 0 ? kpi('di cui liquidità', fmtEUR(c.cash), 'neutral') : ''}
+      ${kpi('Investito', fmtEUR(c.investito), 'neutral')}
+      ${kpi('P&amp;L', `${fmtEUR(c.pnl)}${c.pnlPct != null ? ` · ${fmtPct(c.pnlPct)}` : ''}`, pnlCls(c.pnl))}
+      ${kpi('Var. % 1d', fmtPct(c.dailyPct), pnlCls(c.dailyPct))}
+    </div>
+    <div class="card mb-16">
+      <div class="card-title">Posizioni (titoli uguali uniti) · andamento del prezzo a 3 mesi</div>
+      ${c.titoli.length === 0 && c.cash <= 0 ? `<div class="empty-sm">Nessuna posizione nei portafogli.</div>` : `
+      <div class="table-wrap"><table class="table table-cumul">
+        <thead><tr>
+          <th>Simbolo</th><th>Andamento 3m</th><th>Nome</th><th>Qtà</th><th>Prezzo att.</th><th>Var. % 1d</th>
+          <th>Valore</th><th>P&amp;L</th><th>P&amp;L %</th><th>Portafogli</th>
+        </tr></thead>
+        <tbody>${c.titoli.map(r => `
+          <tr>
+            <td class="mono fw-600">${esc(r.product.symbol)}<div class="text-muted text-sm" style="font-weight:400">${peso(r.value)}</div></td>
+            <td class="spark-cell">${sparklineHtml(r.product.symbol, storico)}</td>
+            <td><div class="truncate" style="max-width:160px">${esc(r.product.name)}</div></td>
+            <td class="mono">${fmtQty(r.qty)}</td>
+            <td class="mono">${r.currentPrice != null ? fmtEURc(r.currentPrice) : '—'}</td>
+            <td class="mono ${pnlCls(r.pd?.change_pct ?? null)}">${r.pd ? fmtPct(r.pd.change_pct) : '—'}</td>
+            <td class="mono fw-600">${fmtEUR(r.value)}</td>
+            <td class="mono ${r.pnl != null ? pnlCls(r.pnl) : ''}">${r.pnl != null ? fmtEUR(r.pnl) : '—'}</td>
+            <td>${r.pnlPct != null ? `<span class="badge ${r.pnlPct >= 0 ? 'badge-pos' : 'badge-neg'}">${fmtPct(r.pnlPct)}</span>` : '—'}</td>
+            <td class="text-sm">${r.portafogli.map(esc).join(', ')}</td>
+          </tr>`).join('')}
+          ${c.cash > 0 ? `<tr>
+            <td class="mono fw-600">💶 Liquidità<div class="text-muted text-sm" style="font-weight:400">${peso(c.cash)}</div></td>
+            <td class="spark-cell"><span class="text-muted text-sm">—</span></td>
+            <td>Liquidità dei fondi collegati</td><td></td><td></td><td></td>
+            <td class="mono fw-600">${fmtEUR(c.cash)}</td><td>—</td><td>—</td><td></td>
+          </tr>` : ''}
+        </tbody></table></div>`}
+    </div>`);
 }
 function renderPortafoglioDetail() {
   const portfolio = S.portfolios.find(p => p.id === S.portfolioId);
@@ -8474,7 +8636,7 @@ function render() {
   $('sidebar-config').hidden = !inConfig;
   document.querySelectorAll('.nav-item').forEach(b => {
     const match = b.dataset.view === S.view ||
-      (S.view === 'portafoglio-detail' && b.dataset.view === 'portafogli') ||
+      ((S.view === 'portafoglio-detail' || S.view === 'portafoglio-cumulativo') && b.dataset.view === 'portafogli') ||
       (S.view === 'dossier-detail' && b.dataset.view === 'dossiers') ||
       (S.view === 'fondo-detail' && b.dataset.view === 'fondi') ||
       (S.view === 'loan-detail' && b.dataset.view === 'loans');
@@ -8485,6 +8647,7 @@ function render() {
     case 'progressione':       renderProgressione();       break;
     case 'portafogli':         renderPortafogli();         break;
     case 'portafoglio-detail': renderPortafoglioDetail();  break;
+    case 'portafoglio-cumulativo': renderPortafoglioCumulativo(); break;
     case 'transazioni':        renderTransazioni();        break;
     case 'dossiers':          renderDossiers();           break;
     case 'dossier-detail':    renderDossierDetail();      break;
