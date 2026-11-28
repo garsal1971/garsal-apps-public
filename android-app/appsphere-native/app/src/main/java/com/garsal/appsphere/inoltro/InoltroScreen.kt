@@ -132,7 +132,14 @@ fun InoltroScreen(onIndietro: () -> Unit) {
         permBatteria = (ctx.getSystemService(Context.POWER_SERVICE) as PowerManager)
             .isIgnoringBatteryOptimizations(ctx.packageName)
     }
-    LifecycleResumeEffect(Unit) { leggiPermessi(); rifai(); onPauseOrDispose { } }
+    LifecycleResumeEffect(Unit) {
+        leggiPermessi()
+        // ⚠️ Col permesso concesso il servizio può essere comunque scollegato
+        // (aggiornamento dell'APK): si chiede ad Android di ricollegarlo.
+        if (permNotifiche) WhatsAppListener.ricollega(ctx)
+        rifai()
+        onPauseOrDispose { }
+    }
     val chiediSms = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         leggiPermessi()
     }
