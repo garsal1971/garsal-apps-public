@@ -121,5 +121,5 @@ for f in "$@"; do
             else
                 echo "· $base-$vecchia.apk: niente da togliere"
             fi
-        done
+        done || echo "· rotazione di $base saltata"
 done
