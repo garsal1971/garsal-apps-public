@@ -47,7 +47,12 @@ object Rilascio {
 
     /** Il `?v=` non serve al server: impedisce al browser di riproporre il
      *  pacchetto già scaricato quando l'indirizzo è identico. */
-    fun apk(versione: String): String = "$APK/$BASE.apk?v=$versione"
+    // ⚠️ Col numero nel nome (`<Nome>-<versione>.apk`): il file scaricato dice quale
+    // versione è, e un indirizzo nuovo non può servire la build di prima dalla cache.
+    // Senza scheda (`versione` null) resta `-latest.apk`, che è transitorio: serve
+    // finché tutti i telefoni non hanno questa versione. Li carica `scripts/apk-su-r2.sh`.
+    fun apk(versione: String?): String =
+        if (versione == null) "$APK/$BASE.apk" else "$APK/SpeseInGiro-$versione.apk"
 
     data class Scheda(val version: String, val versionCode: Int, val bytes: Long, val sha256: String)
 
@@ -146,7 +151,7 @@ fun DialogoAggiornamento(onChiudi: () -> Unit) {
             // esiste, e senza che niente dicesse perché.
             val s = scheda
             TextButton(onClick = {
-                if (Rilascio.apriNelBrowser(ctx, Rilascio.apk(s?.version ?: nome))) onChiudi()
+                if (Rilascio.apriNelBrowser(ctx, Rilascio.apk(s?.version))) onChiudi()
                 else stato = "Non ho trovato un browser da aprire su questo telefono."
             }) {
                 Text(

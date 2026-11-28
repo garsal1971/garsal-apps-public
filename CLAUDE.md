@@ -8276,6 +8276,18 @@ a **rivalidare**, quindi appena l'ETag cambia scende il pacchetto nuovo e per il
 risparmia. Il `?v=<versione>` che i client mettono in coda resta la seconda rete — ma vale solo
 per chi passa dal pulsante, non per un indirizzo dettato a voce.
 
+⚠️ **Ogni APK sale DUE volte, e il pulsante scarica quella col numero** (28 novembre 2026,
+`scripts/apk-su-r2.sh`): `<Nome>-latest.apk` e `<Nome>-<versione>.apk` (es. `Sos-1.1.4.apk`). I
+sette `Aggiornamento.kt` (`Rilascio.apk(versione)`, web WebView 1.2.14, nativa 1.0.170, Pronuncia
+1.39.1, Solstizio 1.0.3, Spese in giro 1.0.8, SOS 1.1.4, Smart Blocker 1.6.6) puntano alla copia
+col numero della scheda, e a `-latest.apk` solo se la scheda non si legge. ⚠️ **`-latest.apk` è
+TRANSITORIO**: resta finché tutti i telefoni non hanno queste versioni; lo usano ancora i link di
+`situazione-rosa.html` / `situazione-teresa.html` (che una scheda non ce l'hanno). ⚠️ La versione
+si legge **dentro l'APK** con `aapt2` dell'SDK del runner; se non si legge il caricamento fallisce,
+o il pulsante darebbe 404. ⚠️ Si tengono le ultime **3** versioni per app: le più vecchie si
+cancellano, e quali siano lo dice la storia git di `releases/<Nome>-latest.apk` (wrangler non
+elenca il bucket). Un errore nella rotazione non ferma la build.
+
 ⚠️ **`.github/workflows/apk-su-r2.yml` è a mano e fa due mestieri**: la **semina** — il giorno
 del trasloco il bucket è vuoto e le APK già in archivio nessuno le ricompila, quindi senza un
 giro esplicito `apk.garsal.men` risponderebbe 404 su tutto — e il **rimedio**, quando il

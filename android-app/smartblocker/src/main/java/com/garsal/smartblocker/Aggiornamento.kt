@@ -46,8 +46,13 @@ object Rilascio {
 
     /** Il `?v=` non serve al server: impedisce al browser di riproporre il
      *  pacchetto già scaricato quando l'indirizzo è identico. */
-    fun apk(versione: String): String =
-        "$APK/${BuildConfig.RELEASE_BASE}.apk?v=$versione"
+    // ⚠️ Col numero nel nome (`<Nome>-<versione>.apk`): il file scaricato dice quale
+    // versione è, e un indirizzo nuovo non può servire la build di prima dalla cache.
+    // Senza scheda (`versione` null) resta `-latest.apk`, che è transitorio: serve
+    // finché tutti i telefoni non hanno questa versione. Li carica `scripts/apk-su-r2.sh`.
+    fun apk(versione: String?): String =
+        if (versione == null) "$APK/${BuildConfig.RELEASE_BASE}.apk"
+        else "$APK/${BuildConfig.RELEASE_BASE.removeSuffix("-latest")}-$versione.apk"
 
     data class Scheda(val version: String, val versionCode: Int, val bytes: Long, val sha256: String)
 
@@ -88,7 +93,7 @@ fun mostraDialogoAggiornamento(activity: AppCompatActivity) {
 
     // La versione da mettere nel link si aggiorna quando la scheda arriva: se non
     // arriva resta quella installata, così il pulsante scarica comunque.
-    var versioneLink = nome
+    var versioneLink: String? = null
 
     val dialogo = AlertDialog.Builder(activity)
         .setTitle("Versione")

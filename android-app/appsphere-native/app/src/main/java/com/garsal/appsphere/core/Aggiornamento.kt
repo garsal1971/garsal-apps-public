@@ -66,7 +66,12 @@ object Rilascio {
     private const val APK = "https://apk.garsal.men"
     private const val SCHEDA = "$SITO/releases/AppSphereNative-latest.json"
 
-    fun apk(versione: String): String = "$APK/AppSphereNative-latest.apk?v=$versione"
+    // ⚠️ Col numero nel nome (`<Nome>-<versione>.apk`): il file scaricato dice quale
+    // versione è, e un indirizzo nuovo non può servire la build di prima dalla cache.
+    // Senza scheda (`versione` null) resta `-latest.apk`, che è transitorio: serve
+    // finché tutti i telefoni non hanno questa versione. Li carica `scripts/apk-su-r2.sh`.
+    fun apk(versione: String?): String =
+        if (versione == null) "$APK/AppSphereNative-latest.apk" else "$APK/AppSphereNative-$versione.apk"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -155,7 +160,7 @@ fun DialogoAggiornamento(onChiudi: () -> Unit, onInoltro: (() -> Unit)? = null) 
         },
         confirmButton = {
             TextButton(onClick = {
-                apriNelBrowser(context, Rilascio.apk(pubblicata?.version ?: BuildConfig.VERSION_NAME))
+                apriNelBrowser(context, Rilascio.apk(pubblicata?.version))
                 onChiudi()
             }) { Text("⬇ Scarica APK") }
         },

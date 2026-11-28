@@ -61,7 +61,12 @@ object Rilascio {
 
     /** Il `?v=` non serve al server: impedisce al browser di riproporre il
      *  pacchetto già scaricato quando l'indirizzo è identico. */
-    fun apk(versione: String): String = "$APK/$BASE.apk?v=$versione"
+    // ⚠️ Col numero nel nome (`<Nome>-<versione>.apk`): il file scaricato dice quale
+    // versione è, e un indirizzo nuovo non può servire la build di prima dalla cache.
+    // Senza scheda (`versione` null) resta `-latest.apk`, che è transitorio: serve
+    // finché tutti i telefoni non hanno questa versione. Li carica `scripts/apk-su-r2.sh`.
+    fun apk(versione: String?): String =
+        if (versione == null) "$APK/$BASE.apk" else "$APK/Solstizio-$versione.apk"
 
     data class Scheda(val version: String, val versionCode: Int, val bytes: Long, val sha256: String)
 
@@ -122,7 +127,7 @@ object Rilascio {
      */
     suspend fun scaricaEInstalla(
         ctx: Context,
-        versione: String,
+        versione: String?,
         sha256: String?,
         onProgresso: (Float?) -> Unit,
     ): Result<Unit> = withContext(Dispatchers.IO) {
@@ -227,7 +232,7 @@ fun DialogoAggiornamento(onChiudi: () -> Unit) {
         progresso = null
         stato = "Scarico…"
         scope.launch {
-            val r = Rilascio.scaricaEInstalla(ctx, s?.version ?: nome, s?.sha256) { p ->
+            val r = Rilascio.scaricaEInstalla(ctx, s?.version, s?.sha256) { p ->
                 scope.launch { progresso = p }
             }
             scarico = false
@@ -269,7 +274,7 @@ fun DialogoAggiornamento(onChiudi: () -> Unit) {
         dismissButton = {
             TextButton(onClick = {
                 // Ripiego: il browser, come le altre app, se l'installazione da qui non va.
-                if (!Rilascio.apriNelBrowser(ctx, Rilascio.apk(scheda?.version ?: nome))) {
+                if (!Rilascio.apriNelBrowser(ctx, Rilascio.apk(scheda?.version))) {
                     stato = "Non ho trovato un browser da aprire su questo telefono."
                 }
             }, enabled = !scarico) { Text("Dal browser") }
