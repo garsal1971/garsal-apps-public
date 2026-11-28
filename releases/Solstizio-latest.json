@@ -1,9 +1,9 @@
 {
   "app": "Solstizio",
-  "version": "1.0.2",
-  "versionCode": 3,
-  "builtAt": "2026-11-24T18:18:08Z",
-  "commit": "e108781807ecdf8c27d9dc68a8c2cea1bc17825b",
+  "version": "1.0.3",
+  "versionCode": 4,
+  "builtAt": "2026-11-28T13:00:35Z",
+  "commit": "646ae34a0567f33d5b0950cee67b44e6e54ad115",
   "bytes": 6875685,
-  "sha256": "842b35d51f0419d22fbdbab76dfb2771c2e2d5bac9b67cdeb0f935e54af73e36"
+  "sha256": "c7617ce5967c1b52e2ba4fa92a9d741fed97d5ed0ae9d2af74a1ecf7a5322d1d"
 }
